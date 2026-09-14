@@ -108,19 +108,14 @@ async def _observation_assembler(
     call_id: str,
     action_name: str,
     outcome: Any,
-    gated: bool = False,
 ) -> tuple[AgentMessage, ...]:
     """Terminal: turn the tool knot's ``Result`` into the step's messages.
 
     Wired with ``RECEIVE_ERRORS`` so ``outcome`` is the call's raw
     ``Ok | Err | Skipped``; the :class:`ToolResult` view renders it.
-    ``gated`` (PIR-865) is whether the tool required approval: such a call's
-    own knot has no possible parent besides its own arguments and the
-    approval gate ``ToolFactory.for_call`` wires in, so its only possible
-    ``Skipped`` cause is that gate closing.
     """
     view = (
-        ToolResult.from_result(call_id, outcome, gated=gated)
+        ToolResult.from_result(call_id, outcome)
         if isinstance(outcome, (Ok, Err, Skipped))
         else ToolResult(call_id=call_id, outcome=Ok(value=outcome))
     )
@@ -266,7 +261,6 @@ class ReActStepExecutor(AgentPipeline):
             call_id=call_id,
             action_name=action_name,
             outcome=call_knot,
-            gated=factory.requires_approval(),
             _config=KnotConfig(id="assemble", error_policy=ErrorPolicy.RECEIVE_ERRORS),
         )
 

@@ -155,7 +155,9 @@ nothing when unused. **A denial is a core `Skipped`, not an error:** the
 tool's own `process()` is never invoked, and the `ToolResult` view a caller
 or the model reads back has a `Skipped` `outcome`, `status == "skipped"`, and
 `error = "call skipped: approval denied"` — the model is told the call was
-skipped, not that it failed. Passing no `approval_hook` uses the base
+skipped, not that it failed. The raw lineage says the same: core's `Gate`
+records the check's `skip_reason`, `"approval_denied"`, on its own row and the
+engine propagates it to the tool knot's row (PIR-872). Passing no `approval_hook` uses the base
 `ApprovalHook`, which auto-approves — the zero-cost default until a human-
 in-the-loop surface is wired in.
 

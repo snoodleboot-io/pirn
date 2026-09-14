@@ -1,47 +1,67 @@
 """``run_eval`` — run a pattern/pipeline over an eval dataset and report quality.
 
-Executes each :class:`~pirn_agents.evaluation.eval_dataset.EvalDataset` item
-concurrently, bounded by a plain ``asyncio.Semaphore`` sized from
-``concurrency``, scores it with the supplied metrics, applies threshold
-pass/fail, and collects an :class:`~pirn_agents.evaluation.eval_report.EvalReport`.
+Runs the evaluation on the engine: one
+:class:`~pirn_agents.evaluation._eval_case._EvalCase` knot per
+:class:`~pirn_agents.evaluation.eval_dataset.EvalDataset` item (target call,
+metric scoring, threshold check) fanned into an
+:class:`~pirn.nodes.aggregator.Aggregator` that assembles the
+:class:`~pirn_agents.evaluation.eval_report.EvalReport` in dataset order.
+In-flight items are bounded by ``KnotConfig(concurrency_group=...)`` on every
+item knot and a ``ConcurrencyLimits`` group cap sized from ``concurrency`` —
+the admission gate's own budget, so an eval started inside another run shares
+that run's caps too (PIR-872; previously a bare ``asyncio.Semaphore`` and
+``asyncio.gather``).
 
-This runner does not build a ``Tapestry``: it is a bare ``asyncio.gather``
-loop over target invocations, not an engine run, so
-``KnotConfig(concurrency_group=...)`` / ``ConcurrencyLimits`` (the pattern
-every engine-wired caller uses) has nothing to attach to here. It used the
-deprecated :class:`~pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`
-for this bound before that shim's deletion (PIR-864); the plain semaphore
-below is the same behaviour with one difference -- the deprecated shim's
-``max_queue_depth``/``acquire_timeout`` backpressure knobs (meaningful only
-outside a running ``Tapestry``, see ``ConcurrencyConfig``'s former docstring)
-have no replacement here, since keeping them would mean keeping the shim
-they were defined on. Wiring this runner onto the engine itself (one knot per
-item under an ``Aggregator``) would restore an equivalent, core-native
-backpressure story; that is a larger change than this ticket's shim-deletion
-scope and is not made here.
+Determinism is core record/replay, not a separate cassette seam. Every eval run
+records one lineage row and one content-addressed output per item into the
+``history`` and ``data_store`` it runs against; passing ``replay=`` a
+:class:`~pirn.recording.replay_session.ReplaySession` over a recorded eval run
+serves each item's recorded result instead of calling the target, so a suite
+records once and replays offline. Name the run with ``run_id=`` to find it again
+(``ReplaySession.from_history(history=..., run_id=...)``); use a durable
+``history``/``data_store`` to replay in another process. A replay whose dataset
+items, target, metrics or thresholds differ from the recording raises
+``ReplayMismatchError`` rather than serving a stale result (see
+:class:`~pirn_agents.evaluation._eval_subject._EvalSubject` for how callables
+are identified).
 
-Determinism is a documented seam: every target invocation is routed through a
-:class:`~pirn_agents.evaluation.run_recorder.RunRecorder` (defaulting to the
-live-I/O :class:`~pirn_agents.evaluation.null_run_recorder.NullRunRecorder`), so
-F29's cassette recorder can make a full suite deterministic without touching this
-runner.
+Algorithm:
+    1. Validate the dataset, metrics and concurrency.
+    2. An empty dataset returns an empty report.
+    3. Build a tapestry over ``history``/``data_store``: one ``_EvalCase`` per
+       item (``KnotConfig(id="eval_item_<index>",
+       concurrency_group="eval_items")``) sharing one ``_EvalSubject``, joined
+       by an ``Aggregator`` that orders the results by index.
+    4. Run it with ``ConcurrencyLimits(groups={"eval_items": concurrency})``,
+       live or under ``replay``.
+    5. Raise ``EvalRunError`` when any item failed; otherwise return the
+       aggregated report.
 """
 
 from __future__ import annotations
 
-import asyncio
-import inspect
 from collections.abc import Awaitable, Callable, Mapping
-from typing import Any
+from typing import Any, ClassVar
 
+from pirn.backends.base.data_store import DataStore
+from pirn.backends.base.run_history import RunHistory
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.nodes.aggregator import Aggregator
+from pirn.recording.replay_session import ReplaySession
+from pirn.tapestry import Tapestry
+
+from pirn_agents.evaluation._eval_case import _EvalCase
+from pirn_agents.evaluation._eval_subject import _EvalSubject
 from pirn_agents.evaluation.eval_case_result import EvalCaseResult
 from pirn_agents.evaluation.eval_dataset import EvalDataset
 from pirn_agents.evaluation.eval_item import EvalItem
 from pirn_agents.evaluation.eval_report import EvalReport
 from pirn_agents.evaluation.metric_result import MetricResult
-from pirn_agents.evaluation.null_run_recorder import NullRunRecorder
-from pirn_agents.evaluation.run_recorder import RunRecorder
 from pirn_agents.evaluation.threshold_config import ThresholdConfig
+from pirn_agents.exceptions.eval_run_error import EvalRunError
 
 Target = Callable[[Mapping[str, Any]], Awaitable[Mapping[str, Any]]]
 EvalMetric = Callable[[EvalItem, Mapping[str, Any]], "MetricResult | Awaitable[MetricResult]"]
@@ -49,6 +69,9 @@ EvalMetric = Callable[[EvalItem, Mapping[str, Any]], "MetricResult | Awaitable[M
 
 class RunEval:
     """Namespace for running a target over an eval dataset and scoring it."""
+
+    #: The concurrency group every item knot joins; ``concurrency`` caps it.
+    _item_group: ClassVar[str] = "eval_items"
 
     @staticmethod
     async def run(
@@ -58,7 +81,10 @@ class RunEval:
         metrics: Mapping[str, EvalMetric],
         thresholds: ThresholdConfig | None = None,
         concurrency: int = 8,
-        recorder: RunRecorder | None = None,
+        history: RunHistory | None = None,
+        data_store: DataStore | None = None,
+        replay: ReplaySession | None = None,
+        run_id: str | None = None,
     ) -> EvalReport:
         """Evaluate ``target`` over ``dataset`` and return an :class:`EvalReport`.
 
@@ -73,8 +99,29 @@ class RunEval:
                 is set and any breach is recorded in its detail.
             concurrency: Maximum number of simultaneously in-flight items; must
                 be >= 1. Defaults to 8.
-            recorder: Record/replay seam for the target call; defaults to the live
-                :class:`NullRunRecorder` (F29 supplies a cassette-backed recorder).
+            history: The ``RunHistory`` the eval run records to (and a replay
+                is loaded from); a fresh in-memory history when omitted.
+            data_store: The ``DataStore`` item results are content-addressed
+                into (and served from on replay); a fresh in-memory store when
+                omitted.
+            replay: A session over a recorded eval run to serve every item from
+                instead of calling the target.
+            run_id: The run id to record this eval under; generated when omitted.
+
+        Replay identity:
+            A replay is served only when the recording describes this exact
+            evaluation: the same items, thresholds and metric names, and the
+            same *code* for ``target`` and every metric. A Python function,
+            lambda, bound method, ``functools.partial`` or object with a Python
+            ``__call__`` is identified by its bytecode, constants (nested code
+            objects included), names, defaults, closure cell values and bound
+            arguments/object, so editing its body raises
+            ``ReplayMismatchError``. **Fallback:** a callable with no
+            inspectable code — a C builtin or extension callable — is
+            identified by its ``module.qualname`` alone, so a change inside it
+            is not detected and a replay can serve results recorded before
+            that change. Likewise, a closure value or bound argument with no
+            canonical content form is compared only by its type.
 
         Returns:
             An :class:`EvalReport` with one :class:`EvalCaseResult` per item, in
@@ -84,6 +131,9 @@ class RunEval:
             TypeError: If ``dataset`` is not an :class:`EvalDataset` or ``metrics``
                 is not a mapping.
             ValueError: If ``concurrency`` is less than 1.
+            EvalRunError: If any item's target call, metric or threshold check
+                raised.
+            ReplayMismatchError: If ``replay`` does not describe this evaluation.
         """
         if not isinstance(dataset, EvalDataset):
             raise TypeError(
@@ -93,55 +143,35 @@ class RunEval:
             raise TypeError(f"run_eval: metrics must be a mapping, got {type(metrics).__name__}")
         if concurrency < 1:
             raise ValueError(f"run_eval: concurrency must be >= 1, got {concurrency}")
-        limiter = asyncio.Semaphore(concurrency)
-        active_recorder = recorder if recorder is not None else NullRunRecorder()
-
-        # design-decision-override: closure over limiter/active_recorder/
-        # metrics/thresholds/target so each item can be scheduled
-        # independently under asyncio.gather without a five-parameter helper.
-        async def _run_item(item: EvalItem) -> EvalCaseResult:
-            async with limiter:
-                output = await active_recorder.invoke(
-                    key=item.item_id, thunk=lambda: target(item.input)
+        if not dataset.items:
+            return EvalReport()
+        subject = _EvalSubject(target=target, metrics=dict(metrics), thresholds=thresholds)
+        with Tapestry(history=history, data_store=data_store) as tapestry:
+            cases: dict[str, Knot] = {
+                f"case_{index}": _EvalCase(
+                    item=item,
+                    subject=subject,
+                    _config=KnotConfig(
+                        id=f"eval_item_{index}", concurrency_group=RunEval._item_group
+                    ),
                 )
-                scores: dict[str, float] = {}
-                for name, scorer in metrics.items():
-                    produced = scorer(item, output)
-                    metric_result = await produced if inspect.isawaitable(produced) else produced
-                    scores[name] = metric_result.score
-                passed, breaches = RunEval._apply_thresholds(scores, thresholds)
-                detail: dict[str, Any] = {"output": dict(output)}
-                if breaches:
-                    detail["breaches"] = breaches
-                return EvalCaseResult(
-                    item_id=item.item_id, metrics=scores, passed=passed, detail=detail
-                )
-
-        results = await asyncio.gather(*(_run_item(item) for item in dataset.items))
-        return EvalReport(results=tuple(results))
+                for index, item in enumerate(dataset.items)
+            }
+            report = Aggregator(
+                combine=RunEval._report, _config=KnotConfig(id="eval_report"), **cases
+            )
+        limits = ConcurrencyLimits(groups={RunEval._item_group: concurrency})
+        request = (
+            RunRequest(concurrency=limits)
+            if run_id is None
+            else RunRequest(run_id=run_id, concurrency=limits)
+        )
+        run = await tapestry.run(request, terminals=report, replay=replay)
+        if run.exceptions:
+            raise EvalRunError(run)
+        return run.outputs["eval_report"]
 
     @staticmethod
-    def _apply_thresholds(
-        scores: Mapping[str, float], thresholds: ThresholdConfig | None
-    ) -> tuple[bool | None, list[dict[str, Any]]]:
-        """Return ``(passed, breaches)`` for one item's ``scores``.
-
-        ``passed`` is ``None`` when no threshold applies to any of the item's
-        metrics; otherwise it is ``False`` iff any applicable metric fell below
-        its floor. Each breach records the metric, its score, and the required
-        minimum.
-        """
-        if thresholds is None:
-            return None, []
-        breaches: list[dict[str, Any]] = []
-        applied = False
-        for name, score in scores.items():
-            minimum = thresholds.min_for(name)
-            if minimum is None:
-                continue
-            applied = True
-            if score < minimum:
-                breaches.append({"metric": name, "score": score, "min_score": minimum})
-        if not applied:
-            return None, []
-        return (len(breaches) == 0), breaches
+    def _report(**cases: EvalCaseResult) -> EvalReport:
+        """Assemble the per-item results into a report, in dataset order."""
+        return EvalReport(results=tuple(cases[f"case_{index}"] for index in range(len(cases))))

@@ -1,7 +1,6 @@
 """``content_digest`` — a stable content hash for record/replay keying.
 
-The cassette keys every LLM/tool/retrieval I/O by a digest of the *request*
-payload, mirroring the content-addressed DAG: identical requests collapse to
+A digest of a *request* payload, mirroring the content-addressed DAG: identical requests collapse to
 the same key, and any change to the payload yields a different one.
 Time-travel diffing reuses the same digest to detect changed inputs/outputs
 between two runs.

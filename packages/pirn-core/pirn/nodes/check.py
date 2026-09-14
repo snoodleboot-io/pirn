@@ -26,6 +26,13 @@ Algorithm:
        ``Err(TypeError)``: a ``Check`` never leaks a truthy stand-in for
        a verdict into a ``Gate``.
     4. ``Err`` and ``Skipped`` pass through unchanged.
+
+Skip reason.  A ``Check`` may name why a ``False`` verdict stops the graph by
+setting the class attribute ``skip_reason`` (``None`` by default).  A ``Gate``
+closed by such a check records that reason in its own lineage row instead of
+the generic ``"gate_closed"``, and every knot skipped because of the gate
+records it too, instead of the engine's generic
+``"parent_failed_or_skipped"`` — so a raw lineage row says *why* (PIR-872).
 """
 
 from __future__ import annotations
@@ -45,7 +52,13 @@ class Check(Knot):
 
     Subclass and implement ``async def process(self, ..., **_: Any) -> bool``.
     Wire one into a ``Gate`` with ``Gate(input=value, check=verdict, ...)``.
+    Set ``skip_reason`` to name the skip a ``False`` verdict causes.
     """
+
+    #: The reason a ``Gate`` closed by this check records and propagates to
+    #: every knot it skips, or ``None`` for the gate's generic, unpropagated
+    #: ``"gate_closed"``.
+    skip_reason: ClassVar[str | None] = None
 
     # ``process`` below is declared in the gradual parameter form; see
     # ``Knot._dynamic_process_signature`` for why (PIR-833).

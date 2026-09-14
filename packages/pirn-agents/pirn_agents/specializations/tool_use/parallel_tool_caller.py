@@ -39,7 +39,7 @@ References:
 from __future__ import annotations
 
 import functools
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.error_policy import ErrorPolicy
@@ -150,7 +150,7 @@ class ParallelToolCaller(AgentPipeline):
             )
 
         return Aggregator(
-            combine=functools.partial(self._collect_in_order, call_list, registry),
+            combine=functools.partial(self._collect_in_order, call_list),
             _config=KnotConfig(id="agg", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **per_call,
         )
@@ -175,21 +175,9 @@ class ParallelToolCaller(AgentPipeline):
             return ToolCallRejection(call=call, error=exc, _config=KnotConfig(id=knot_id))
 
     @staticmethod
-    def _collect_in_order(
-        calls: Sequence[ToolCall],
-        registry: Mapping[str, ToolFactory],
-        **by_key: Result[Any],
-    ) -> list[ToolResult]:
-        """Build the ``call_{index}``-keyed fan-out outcomes into views, in input order.
-
-        ``gated`` (PIR-865) is whether the call's tool requires approval: such
-        a call's own knot has no possible parent besides its own arguments
-        and the approval gate ``ToolFactory.for_call`` wires in, so its only
-        possible ``Skipped`` cause is that gate closing.
-        """
-        views: list[ToolResult] = []
-        for index, call in enumerate(calls):
-            factory = registry.get(call.tool_name)
-            gated = factory.requires_approval() if factory is not None else False
-            views.append(ToolResult.from_result(call.call_id, by_key[f"call_{index}"], gated=gated))
-        return views
+    def _collect_in_order(calls: Sequence[ToolCall], **by_key: Result[Any]) -> list[ToolResult]:
+        """Build the ``call_{index}``-keyed fan-out outcomes into views, in input order."""
+        return [
+            ToolResult.from_result(call.call_id, by_key[f"call_{index}"])
+            for index, call in enumerate(calls)
+        ]

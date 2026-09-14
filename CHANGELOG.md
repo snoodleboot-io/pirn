@@ -11,6 +11,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### `NestedRunKnot` — nested runs from a plain knot (PIR-872)
+
+- `pirn/nodes/nested_run_knot.py` — `NestedRunKnot(Knot)`: a knot whose `process()` awaits `self._run_inner(inner)` for as many inner runs as its work needs and returns its own value. It is the machinery `SubTapestry` used to own — the construction-time capture of the enclosing history/emitters/value plane, `_run_inner`, the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` / `_make_inner_tapestry` hooks, `_nesting_key`, `_inner_failures_reach_sink`, slot-free admission and the `concurrency_group` refusal — moved out from under the sink-returning contract. `SubTapestry` is now `SubTapestry(NestedRunKnot)` and adds only that contract; its behaviour is unchanged.
+- Every inner run is recorded on the knot's lineage row by `_run_inner` itself (success or failure): `extra["inner_run_id"]` / `inner_knot_count` / `inner_failures` for the latest run, and `extra["inner_run_ids"]` in start order once there is more than one. `Tapestry.run(_inner_run_ordinal=)` (internal, passed by `_run_inner`) lets an inherited replay posture serve the n-th inner run from the n-th recording instead of always the last one.
+- `pirn-agents`: `_RaptorAssembler` is `Assembler, NestedRunKnot`; each tree level's cluster summaries run as one `_RaptorSummary` knot per cluster under an `Aggregator` (own lineage row, `Result` and admission per LLM call, clusters summarized concurrently), with the dedup short-circuit and the single final upsert unchanged. `_RaptorAssembler._summarize` moved to `_RaptorSummary._summarize`.
+
+#### `RunEval` on the engine; eval determinism is core replay (PIR-872)
+
+- `RunEval.run` runs one `_EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
+- `ToolTestHarness.run_tool` (and the instance `run`) drives a call through `Tapestry.run` — approval gate included — instead of `ToolFactory.run_call`'s bare-call path.
+
+#### A `Check` names the skip reason its `Gate` propagates (PIR-872)
+
+- `Check.skip_reason: ClassVar[str | None]` (default `None`). A `Gate` closed by a check that names one records that reason as its own `skip_reason` instead of `"gate_closed"`, and returns `Skipped(reason=..., propagates=True)`.
+- `Skipped.propagates: bool = False`. Under `SKIP_IF_PARENT_FAILED` a knot with no `Err` parent whose skipped parents all propagate one shared reason records that reason (and propagates it on) instead of `"parent_failed_or_skipped"`; anything else keeps the generic reason. The lineage row carries `extra["skip_propagates"]`, so a replayed skip propagates the same way.
+- `pirn-agents`: `ToolApprovalCheck.skip_reason = "approval_denied"`, so a denied tool call's gate row and tool-knot row both say `approval_denied`. `ToolResult.from_result` lost its `gated=` argument (the reason now arrives on the `Skipped` itself) and renders a skip's reason with underscores read as spaces (`"call skipped: approval denied"`, `"call skipped: gate closed"`); the `gated` plumbing in `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain` and `ReActStepExecutor` is deleted.
+
 #### `KnotRetryPolicy.run` — the core retry schedule below the knot boundary (PIR-872)
 
 `pirn.core.knot_retry_policy.KnotRetryPolicy.run(attempt, *, call_id=, retry_on=, retry_after_hint=, sleep=, rng=)` awaits a zero-argument attempt under the same `should_retry` / `delay_before_retry` decision `GovernedDispatch` applies to a knot (over an `ExceptionRecord` built from the live exception), for calls that are not knot dispatches — an HTTP POST, an embedding batch, a session reconnect. `retry_on` / `retry_after_hint` narrow the policy with live-exception checks (an `isinstance`, a `Retry-After` attribute); a cancellation is never retried.
@@ -143,8 +160,8 @@ through to `for_call`.
   call now sees the new `ToolStatus.SKIPPED` member instead of `ERROR`; the
   rendered message text also changed from `"skipped: <reason>"` to `"call
   skipped: <reason>"` (`"call skipped: approval denied"` specifically for a
-  gated call, regardless of the engine's own generic propagation reason —
-  see `ToolResult.from_result(..., gated=True)`). `ToolResult.to_result()`
+  denied call; since PIR-872 that is the propagated `"approval_denied"`
+  skip reason rendered readably, with no `gated=` argument). `ToolResult.to_result()`
   now round-trips a `SKIPPED` status back to a core `Skipped` instead of
   fabricating an `Err`.
 - `ToolCallRejection` is unchanged and keeps its existing, narrower job: a
@@ -155,16 +172,10 @@ through to `for_call`.
   `pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
   already holds that name for an unrelated seam (pausing a whole
   `AgentResponse` for human review).
-- **Known limitation, deferred:** core's `Gate` always records
-  `"gate_closed"` in its own lineage row, and the engine's parent-skip
-  propagation always records `"parent_failed_or_skipped"` on the downstream
-  tool knot's own row — neither is the literal string `"approval_denied"`
-  in lineage. Rendering the accurate "approval denied" message to callers
-  and the model does not depend on that (every call site can only reach a
-  `Skipped` outcome via its own approval gate, so the label is always
-  correct), but a reader of raw lineage rows still sees the engine's generic
-  reason there. Giving `Gate`/`Check` a custom propagated skip reason is a
-  core change, out of this ticket's scope.
+- Lineage names the denial too (PIR-872): the gate's row and the tool knot's
+  row record `"approval_denied"`, not `"gate_closed"` /
+  `"parent_failed_or_skipped"` — see "A `Check` names the skip reason its
+  `Gate` propagates" below.
 
 #### `pirn-agents` hashing seams moved onto `pirn.core.hashing.content_hash` (ADR agents-speaks-core WS2 part 2)
 
@@ -236,6 +247,14 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 ---
 
 ### Removed
+
+#### Agents record/replay adapters and harness wrappers (PIR-872)
+
+- `pirn_agents.evaluation.run_recorder.RunRecorder`, `null_run_recorder.NullRunRecorder`, `cassette_run_recorder.CassetteRunRecorder` and `RunEval.run(recorder=)` — an eval item is a knot: record with `RunEval.run(history=, data_store=, run_id=)`, replay with `RunEval.run(replay=ReplaySession.from_history(...))`.
+- `pirn_agents.determinism.cassette_recorder.CassetteRecorder`, `cassette.Cassette`, `cassette_entry.CassetteEntry`, `interaction_kind.InteractionKind`, `recording_mode.RecordingMode`, `pirn_agents.exceptions.missing_cassette_entry_error.MissingCassetteEntryError` — `Tapestry.run(replay=ReplaySession(...))` (a missing recording raises core `ReplayMismatchError`).
+- `ToolTestHarness.invoke` — `ToolTestHarness.run`. The module-level `make_stub_tool` / `assert_tool_schema` / `assert_schema_shape` / `invoke_tool` / `collect_tool_stream` wrappers — `ToolTestHarness.make_stub_tool` / `.assert_tool_schema` / `.assert_tool_schema_shape` / `.run_tool` / `.collect_tool_stream`.
+- `ToolResult.from_result(gated=)` — the approval skip reason arrives on the `Skipped` itself.
+- `_RaptorAssembler._summarize` — `_RaptorSummary._summarize`.
 
 #### `pirn-agents` shadows of the core retry, timeout, nesting and check seams (PIR-872)
 
@@ -377,7 +396,7 @@ Every public name below was replaced by an ADR "agents speaks core" workstream a
 - `_FanoutRunner`, `AsyncFanoutEngine` — one knot per item under a core `Aggregator`; per-item timeout/retry via `KnotConfig.timeout`/`KnotConfig.retry`.
 - `AgentTool.invoke()` — `AgentTool.for_call(call)` run as a knot, or `run_view()`.
 
-`ToolResult` was **not** removed: PIR-865 (#348) gave `ToolResult.from_result(gated=)` a live role rendering gated/approval outcomes to the model (PIR-872 later deleted `ToolStatus`; see above).
+`ToolResult` was **not** removed: PIR-865 (#348) gave `ToolResult.from_result` a live role rendering gated/approval outcomes to the model (PIR-872 later deleted `ToolStatus` and the `gated=` flag; see above).
 
 **Observability (WS4a):**
 - `Tracer`, `OtelSink`, `LoggingSink`, `SpanEmittingToolInvocationHook`, `Span`, `SpanKind`, `SpanStatus`, `OpenSpanEntry`, `ObservabilitySink` — `AgentCallRecorder.record(...)` emits a core `StatusEvent` through the run's own emitters (`OpenTelemetryEmitter`, `LogEmitter`, or any custom `Emitter`); no separate sink or hook to build.

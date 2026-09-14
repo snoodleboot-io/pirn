@@ -31,32 +31,21 @@ ETL knots that perform an atomic read-transform-write cycle against a pool
 or broker"). Splitting the I/O out would break that atomicity (the dedup
 short-circuit and the final upsert must see a consistent store).
 
-PIR-867 evaluated giving each level's per-cluster summarization its own
-lineage row by running it as an inner ``Tapestry`` via
-``SubTapestry._run_inner`` *inside* this method, keeping the dedup
-short-circuit and the single final ``store.upsert`` untouched — the shape
-this ticket's brief asked for. It does not fit cleanly: ``_run_inner`` reads
-``self._inner_dispatcher()`` / ``_inner_concurrency()`` /
-``_inner_admission_observers()`` / ``_nesting_key()`` /
-``_inner_failures_reach_sink``, all defined on ``SubTapestry``, and
-``SubTapestry.__init__`` is what captures the outer history/data-store/
-transport those hooks need (see its docstring, PIR-764/PIR-834/PIR-837).
-Getting real (not orphaned) nested lineage therefore means multiply
-inheriting ``SubTapestry`` alongside ``Assembler`` — but ``SubTapestry.__call__``
-hard-requires ``process()`` to return a ``Knot`` and surfaces *that knot's*
-output as this knot's own, which is the opposite of what an atomic
-assembler needs (return the ``RaptorTree`` value directly, once, after the
-final upsert). The only way to get ``_run_inner``'s machinery without its
-``__call__`` contract is to override ``__call__`` back to
-``Knot.__call__`` explicitly, silently defeating half of a base class this
-knot would otherwise inherit purely for its private hooks. That is a
-fragile coupling to take on for an internal knot's observability, not an
-architecture change to make unilaterally in this lane — deferred pending
-either a core primitive for "run a nested tapestry from a plain ``Knot``"
-(``_run_inner`` without the sink-returning contract) or a product decision
-that the added complexity is worth the per-summary lineage. Left as
-:class:`Knot`-level lineage only: one row for the whole assembly, covering
-every level's clustering and every LLM summary call.
+Per-summary lineage (PIR-872). It is also a
+:class:`~pirn.nodes.nested_run_knot.NestedRunKnot`: each level's cluster
+summaries run as a nested run — one
+:class:`~pirn_agents.specializations.rag.indexing._raptor_summary._RaptorSummary`
+per cluster, joined in cluster order by an
+:class:`~pirn.nodes.aggregator.Aggregator` — so every LLM summary call has its
+own lineage row (knot id ``<prefix>:<level>:<index>``, the id of the node it
+produces), ``Result``, and admission through the enclosing run's gate, and the
+level's clusters are summarized concurrently. The inner runs inherit the
+enclosing run's history, emitters, value plane and execution plane; this
+knot's own row names every inner run (``extra["inner_run_ids"]``). The dedup
+short-circuit still returns before any inner run starts, and the single final
+upsert still happens once, after the last level. As a container this knot
+holds no admission slot of its own (its summary leaves take them), so it may
+not declare a ``concurrency_group``.
 
 References:
     - Sarthi et al., "RAPTOR" (ICLR 2024): https://arxiv.org/abs/2401.18059
@@ -65,31 +54,27 @@ References:
 from __future__ import annotations
 
 import hashlib
-from typing import Any, ClassVar
+from typing import Any
 
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
+from pirn.nodes.nested_run_knot import NestedRunKnot
+from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
+from pirn_agents.specializations.rag.indexing._raptor_summary import _RaptorSummary
 from pirn_agents.specializations.rag.indexing.raptor_node import RaptorNode
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 
 
-class _RaptorAssembler(Assembler):
+class _RaptorAssembler(Assembler, NestedRunKnot):
     """Recursively cluster + summarize leaves into a stored RAPTOR tree."""
-
-    _summary_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.indexing.raptor_assembler.summary_prompt",
-        default=(
-            "Summarize the following passages into one concise summary that preserves the "
-            "key facts.\n\n{{ joined }}\n\nSummary:"
-        ),
-    )
 
     def __init__(
         self,
@@ -175,12 +160,12 @@ class _RaptorAssembler(Assembler):
         level = 0
         while len(current) > 1 and level < max_levels:
             level += 1
-            summaries: list[str] = []
-            ids: list[str] = []
-            for group_index in range(0, len(current), cluster_size):
-                cluster = current[group_index : group_index + cluster_size]
-                summaries.append(await self._summarize(llm, [n.text for n in cluster]))
-                ids.append(f"{prefix}:{level}:{group_index // cluster_size}")
+            clusters = [
+                tuple(node.text for node in current[start : start + cluster_size])
+                for start in range(0, len(current), cluster_size)
+            ]
+            ids = [f"{prefix}:{level}:{index}" for index in range(len(clusters))]
+            summaries = await self._summarize_level(llm, clusters, ids)
             summary_vectors = await embedder.embed(summaries)
             next_level: list[RaptorNode] = []
             for position, node_id in enumerate(ids):
@@ -226,16 +211,40 @@ class _RaptorAssembler(Assembler):
             document=node.text,
         )
 
+    async def _summarize_level(
+        self, llm: LLMProvider, clusters: list[tuple[str, ...]], ids: list[str]
+    ) -> list[str]:
+        """Summarize one level's clusters as a nested run, one knot per cluster.
+
+        Args:
+            llm: The provider summarizing each cluster.
+            clusters: Each cluster's node texts, in tree order.
+            ids: The id of the summary node each cluster produces; also the
+                id of the knot that summarizes it.
+
+        Returns:
+            The summaries, in cluster order.
+
+        Raises:
+            SubTapestryError: If any cluster's summary call failed.
+        """
+        with Tapestry() as inner:
+            provider = Parameter("llm", LLMProvider, default=llm, _config=KnotConfig(id="llm"))
+            per_cluster: dict[str, Knot] = {
+                f"summary_{index}": _RaptorSummary(
+                    texts=texts, llm=provider, _config=KnotConfig(id=ids[index])
+                )
+                for index, texts in enumerate(clusters)
+            }
+            Aggregator(
+                combine=_RaptorAssembler._in_cluster_order,
+                _config=KnotConfig(id="summaries"),
+                **per_cluster,
+            )
+        run = await self._run_inner(inner)
+        return run.outputs["summaries"]
+
     @staticmethod
-    async def _summarize(llm: LLMProvider, texts: list[str]) -> str:
-        """Summarize a cluster of node texts into one concise summary."""
-        joined = "\n\n".join(texts)
-        prompt = _RaptorAssembler._summary_prompt.render({"joined": joined})
-        raw = await llm.chat([{"role": "user", "content": prompt}])
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)
+    def _in_cluster_order(**summaries: str) -> list[str]:
+        """Order the per-cluster summaries by their ``summary_<index>`` key."""
+        return [summaries[f"summary_{index}"] for index in range(len(summaries))]

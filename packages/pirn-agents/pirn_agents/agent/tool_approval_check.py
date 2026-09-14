@@ -6,9 +6,12 @@ knot>, check=ToolApprovalCheck(...))`` (ADR agents-speaks-core; see
 instead of an execution ever being attempted: the engine's default
 ``SKIP_IF_PARENT_FAILED`` error policy skips a knot whose parent is
 ``Skipped`` without ever calling its ``process()``, so the tool never runs.
-The call's own outcome is then a core ``Skipped`` — the model is told the
-call was skipped, not that it failed — see :attr:`skip_reason` and
-:meth:`pirn_agents.tools.tool_result.ToolResult.from_result` (``gated=True``).
+The call's own outcome is then a core ``Skipped`` whose reason is this
+check's :attr:`skip_reason`, ``"approval_denied"``: core's ``Gate`` records
+the reason a ``Check`` names and the engine propagates it to every knot the
+closed gate skips (PIR-872), so the tool knot's own lineage row says why. The
+model is told the call was skipped, not that it failed — see
+:meth:`pirn_agents.tools.tool_result.ToolResult.from_result`.
 :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call` is what actually
 wires this Check behind a ``Gate`` for every capability whose
 :class:`~pirn_agents.tools.tool_permissions.ToolPermissions` require
@@ -58,16 +61,11 @@ class ToolApprovalCheck(Check):
     the capability requires it.
     """
 
-    #: The semantic reason a denied approval names.  Core's ``Gate`` always
-    #: records ``"gate_closed"`` in its own lineage row (it has no per-check
-    #: custom skip-reason seam) and the downstream tool knot's own row is the
-    #: engine's generic ``"parent_failed_or_skipped"`` propagation reason —
-    #: neither names *why* in a way worth showing a model.  This package's
-    #: own rendering uses this constant instead wherever it knows a call was
-    #: gated (:meth:`pirn_agents.tools.tool_result.ToolResult.from_result`,
-    #: ``gated=True``), so the model reads "approval denied" rather than
-    #: either engine-internal string.
-    skip_reason: ClassVar[str] = "approval_denied"
+    #: The reason a denied approval records: core's ``Gate`` writes it on its
+    #: own lineage row and the engine propagates it to the tool knot the gate
+    #: skips (``Check.skip_reason``, PIR-872), so the call's ``Skipped`` and
+    #: every lineage row it stopped name ``"approval_denied"``.
+    skip_reason: ClassVar[str | None] = "approval_denied"
 
     def __init__(
         self,

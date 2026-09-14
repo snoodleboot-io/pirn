@@ -97,10 +97,11 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Aggregator` | fan-in of multiple parents |
 | `Reduce` | fold over a collection |
 | `Continuation` | deferred/streaming continuation |
-| `SubTapestry` / `LoopSubTapestry` | nest a tapestry as a node / iterate it; the loop's `astep` / `afold` are awaited (override them, or declare `step`/`fold` as `async def`) so an iteration can sleep, check a budget or call a model between turns |
+| `NestedRunKnot` (`nested_run_knot.py`) | a plain knot whose `process()` runs nested tapestries through `self._run_inner(inner)` and returns its own value — any number of inner runs, no sink contract. Each inner run inherits the enclosing run's observability/value plane (history, emitters, data store, transport, traceback filter) and execution plane (dispatcher, gate + limits, observers, replay, identity), nests under its `RunNesting` frame, and is recorded on the knot's row (`extra["inner_run_id"]`, plus `extra["inner_run_ids"]` in start order when there are several — what an inherited replay posture picks the matching recording by). A container: holds no admission slot, may not carry a `concurrency_group`. Mix it in beside a marker base (`class X(Assembler, NestedRunKnot)`) — `_raptor_assembler` is the reference use (PIR-872). **Use this, not a `SubTapestry` whose `__call__` is overridden back, when a knot needs inner runs but returns a value.** |
+| `SubTapestry` / `LoopSubTapestry` | a `NestedRunKnot` with the sink contract: `process()` returns the terminal knot of one inner pipeline and its output becomes the knot's; the loop iterates it, its `astep` / `afold` are awaited (override them, or declare `step`/`fold` as `async def`) so an iteration can sleep, check a budget or call a model between turns |
 | `Branch` (`branch/`) | conditional path selection; `BranchOutput` |
-| `Gate` (`gate/`) | pass/close gate; decision is `predicate=` (callable) or `check=` (a `Check` knot) |
-| `Check` (`check.py`) | the predicate half of a `Gate`: any parents → `bool`, enforced. **The core name for a boolean verdict knot; agents' `*Check` knots subclass it, not `Knot`.** |
+| `Gate` (`gate/`) | pass/close gate; decision is `predicate=` (callable) or `check=` (a `Check` knot). Closed, it records `"gate_closed"` — or the check's `skip_reason`, propagated to every knot it skips (`Skipped.propagates`, PIR-872) |
+| `Check` (`check.py`) | the predicate half of a `Gate`: any parents → `bool`, enforced; `skip_reason` names why a `False` verdict stopped the graph, in lineage. **The core name for a boolean verdict knot; agents' `*Check` knots subclass it, not `Knot`.** |
 | `Map` / `ZipMap` / `DictMap` (`map_markers.py`) | fan-out markers on a `process()` input → per-element execution |
 
 **Idiom:** distribution is declarative — annotate an input with a `Map`/`ZipMap`/`DictMap` marker and the framework runs `process()` once per element (`Knot._fan_out`).
@@ -134,7 +135,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Shed` / `Edge` (`shed/`) | engine | the resolved execution graph the engine walks |
 | `Admission` (`admission/`) | interface-base | `has_capacity` / `try_admit` / `release` / `wait_for_release` plus `current_limit(group)` / `set_limit(group, n)` for live caps; `UnboundedAdmission` / `LimitedAdmission` impls, `ConcurrencyLimits` is the public knob |
 | `AdmissionObserver` / `AdmissionEvent` (`admission/`) | interface-base / value-object | hears every admission and release (queue depth, wait, hold, outcome, the gate); attach via `Tapestry(admission_observers=)`. `AdmissionFeedback` (`engine/`) builds the events. **An adaptive concurrency controller is an observer calling `event.gate.set_limit`, not a semaphore of its own.** |
-| `ExecutionPlane` (`core/execution_plane.py`) | value-object | the scheduling half of a run — `dispatcher`, `gate` + `limits`, `admission_observers`, `replay`, `identity_resolver` — published by `Tapestry.run` for the run's duration (`ExecutionPlane.current()`) and **inherited by every inner run** for whatever the inner tapestry did not name: the gate by identity, so `ConcurrencyLimits` are one budget across the run tree. Container knots (`Knot._holds_admission_slot = False`: `SubTapestry`, loop iterations) take no slot and may not carry a `concurrency_group`. Per-container overrides: `SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)` or the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` hooks (ADR WS0b) |
+| `ExecutionPlane` (`core/execution_plane.py`) | value-object | the scheduling half of a run — `dispatcher`, `gate` + `limits`, `admission_observers`, `replay`, `identity_resolver` — published by `Tapestry.run` for the run's duration (`ExecutionPlane.current()`) and **inherited by every inner run** for whatever the inner tapestry did not name: the gate by identity, so `ConcurrencyLimits` are one budget across the run tree. Container knots (`Knot._holds_admission_slot = False`: `SubTapestry`, loop iterations) take no slot and may not carry a `concurrency_group`. Per-container overrides: `NestedRunKnot._run_inner(dispatcher=, concurrency=, admission_observers=)` (inherited by `SubTapestry`) or the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` hooks (ADR WS0b) |
 
 **Idiom:** choose parallelism by swapping a `Dispatcher`, not by changing knots. Agent batch/fleet execution should compose or subclass a dispatcher, not re-implement a bounded-concurrency loop. An inner run inherits the outer dispatcher and admission gate; a container that needs its own overrides them through `_run_inner` / the `_inner_*` hooks — **never by assigning an inner tapestry's private fields** (ratcheted in agents' `tests/core_seams/test_execution_plane_reach_through.py`).
 
@@ -290,7 +291,7 @@ scheduling once the chain locks, rather than a static unrolled chain that
 still built a knot per candidate past the lock point. 8 of the 18 agents
 exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.PirnError`
 (`ToolInvocationError`, `AgentRecursionError`, `SandboxDisabledError`,
-`UnsupportedModalityError`, `MissingCassetteEntryError`, `InjectionDetectedError`,
+`UnsupportedModalityError`, `MissingCassetteEntryError` (since deleted with its recorder, PIR-872), `InjectionDetectedError`,
 `McpTrustError`, `UntrustedDirectiveError`); PIR-872 rooted the other nine
 (`BudgetBreachError`, `StructuredDecodeError`, `SpecialistInvocationError`,
 `ConstitutionalViolationError`, `McpError`, `PromptRenderError`,
@@ -333,8 +334,9 @@ with no recorded row run live instead of raising `ReplayMismatchError`. A
 determinism fork (`CheckpointForker`) is a branch of the session chain — a
 `(run_id, output_hash)` fork point verified against the recording, then a new
 run chained via `_parent_run_id` that replays the prefix and executes whatever
-diverges. `CassetteRecorder` is now a thin adapter over `Tapestry.run()`/
-`Tapestry.run(replay=...)`; `TrajectoryEmitter` captures every knot's lineage
+diverges. `CassetteRecorder` became a thin adapter over `Tapestry.run()`/
+`Tapestry.run(replay=...)` here, and PIR-872 deleted it outright — callers use
+`Tapestry.run(replay=...)` directly (an eval: `RunEval.run(replay=...)`); `TrajectoryEmitter` captures every knot's lineage
 into a `RunTrace` via `on_lineage`, no manual `.record()` calls. `DataStore`
 and `RunHistory` both now mix in `PirnOpaqueValue` (§1.3), closing the gap
 that kept `Knot.process()` from declaring either as a typed parameter — WS3's
@@ -445,11 +447,29 @@ including its `TestClassLevelDefaultAccess` pin, `test_backpressure_semaphore.py
 `specializations/` pipelines (`document_processing/ingestion_pipeline.py`,
 `multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`) that used
 to read the class-level default now default to a plain literal `8`.
-`evaluation/run_eval.py::RunEval.run` — the one caller with no `Tapestry` to
-attach a concurrency group to — bounds its per-item concurrency with a plain
-`asyncio.Semaphore(concurrency)` instead (`concurrency: int = 8`); wiring
-`RunEval` onto the engine itself (a knot per eval item under an `Aggregator`)
-is an architecture change to the evaluation harness and remains open.
+`evaluation/run_eval.py::RunEval.run` — then the one caller with no `Tapestry` to
+attach a concurrency group to — bounded its per-item concurrency with a plain
+`asyncio.Semaphore(concurrency)` for one cycle. **Resolved (PIR-872):** it
+now runs on the engine — one `_EvalCase` knot per item (target call, metric
+scoring, threshold check) with `KnotConfig(concurrency_group="eval_items")`,
+capped by `ConcurrencyLimits(groups={"eval_items": concurrency})`, fanned into
+an `Aggregator` that assembles the `EvalReport` in dataset order. Eval
+determinism is core replay: `RunEval.run(history=, data_store=, run_id=)`
+records each item's result, and `RunEval.run(replay=ReplaySession(...))` serves
+it without calling the target (a replay whose items, thresholds, metric names
+or target/metric *code* differ raises `ReplayMismatchError` — callables are
+identified by bytecode, constants, names, defaults, closure values and bound
+arguments via `_CallableIdentity`; only a callable with no inspectable code,
+such as a C builtin, falls back to `module.qualname`). The agents recorder seam it
+used to route through — `RunRecorder`, `NullRunRecorder`, `CassetteRunRecorder`,
+`CassetteRecorder`, `Cassette`/`CassetteEntry`/`InteractionKind`/`RecordingMode`,
+`MissingCassetteEntryError` — is deleted; `tests/tools/test_tool_is_a_knot_ratchet.py`'s
+`INVOKE_CLASSES` is empty (`ToolTestHarness` drives a call through
+`Tapestry.run` instead of an `invoke` method).
+`caching/prompt_cache.py::PromptCache` stays outside this migration
+entirely: its `get`/`set`/`__len__` are deliberately synchronous, and
+`DataStore` is async-only, so routing values through it would force a
+breaking signature change this ADR did not authorize unilaterally.
 
 **Resolved (PIR-870), three admission/dispatch refinements noted as future
 work above WS0b landed:**
@@ -567,24 +587,19 @@ call under an `Aggregator` with `KnotConfig(retry=, timeout=,
 concurrency_group="tools")`, so `GovernedDispatch` owns the inter-attempt
 backoff (PIR-872).
 
-**Still open** (frozen in the same ratchet, not this ADR's blast radius to
-fix unilaterally):
-- `rag/indexing/_raptor_assembler.py`'s clustering loop — a deliberate ETL
-  exception (atomic read-check-transform-write cycle against the vector
-  store; a content-hash dedup short-circuit and a final upsert that must see
-  a consistent store). PIR-867 re-evaluated giving each level's per-cluster
-  summarization its own lineage row via `SubTapestry._run_inner` called
-  *inside* the atomic method (keeping the dedup short-circuit and the single
-  final upsert): `_run_inner` depends on hooks and constructor state that
-  only exist on `SubTapestry`, whose `__call__` in turn hard-requires
-  `process()` to return a `Knot` — the opposite of what this atomic
-  assembler needs (return the built `RaptorTree` value once). Getting the
-  method without the contract means multiply inheriting `SubTapestry`
-  alongside `Assembler` and overriding `__call__` back to `Knot.__call__`,
-  a fragile coupling for one knot's observability. Still deferred: a core
-  primitive for "run a nested tapestry from a plain `Knot`" would resolve
-  it; absent that, whether per-summary observability is worth the coupling
-  is a product call, not made here.
+**Resolved (PIR-872): `rag/indexing/_raptor_assembler.py`'s clustering loop.**
+It stays a deliberate ETL exception (atomic read-check-transform-write cycle
+against the vector store: a content-hash dedup short-circuit and a single
+final upsert that must see a consistent store), but each level's cluster
+summaries now run as a nested run of one `_RaptorSummary` knot per cluster
+joined by an `Aggregator`, so every LLM summary call has its own lineage row,
+`Result` and admission. What made this a coupling problem before —
+`_run_inner` and its hooks lived only on `SubTapestry`, whose `__call__`
+requires `process()` to return a sink `Knot` — is gone: core's new
+`NestedRunKnot` (§3.2) is that machinery without the sink contract, and
+`SubTapestry` is now a `NestedRunKnot` that adds it.
+`_RaptorAssembler(Assembler, NestedRunKnot)` keeps returning its `RaptorTree`
+value directly.
 
 **Resolved since (PIR-865):** approval denial is a core `Skipped`, not a
 `ToolCallRejection` `Err` — see §7's Tool section.
@@ -723,7 +738,7 @@ constructor is unchanged.
   owning class's static method, with no alias (`OptionalImport.require`,
   `ApprovalHook.authorize`, `ConnectorLifespan.manage`, `AsTool.wrap`,
   `ToolDecorator.decorate`, `ReciprocalRankFusion.fuse`, `DecayFunction.score`,
-  `ToolTestHarness.assert_tool_schema`/`assert_tool_schema_shape`/`invoke_tool`/
+  `ToolTestHarness.assert_tool_schema`/`assert_tool_schema_shape`/`run_tool`/
   `collect_tool_stream`, `Bundles.*_toolset`). The agents conventions baseline is
   0 in every category: `EvalGate` (not a `Gate`) is `EvalRegressionCheck`; every
   `process()` catch-all is `**_`; the six unmarked closures are static methods.
@@ -764,10 +779,10 @@ constructor is unchanged.
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
 - `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@ToolDecorator.decorate` is `@KnotFactory.knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting` (no agents nesting state; the shared budget meter and pooled provider ride `AgentToolPolicy`, PIR-872).
-- Outcomes are `Ok\|Err\|Skipped`; `ToolResult` is the model-facing view whose `outcome` *is* the call's `Result` (PIR-872 deleted the parallel `ToolStatus` enum; `status` is a string derived from the variant and error type), and PIR-865 gave it its gated/approval rendering (`ToolResult.from_result(call_id, result, lineage, gated=)`), so the codec builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
+- Outcomes are `Ok\|Err\|Skipped`; `ToolResult` is the model-facing view whose `outcome` *is* the call's `Result` (PIR-872 deleted the parallel `ToolStatus` enum; `status` is a string derived from the variant and error type), and PIR-865 gave it its gated/approval rendering (`ToolResult.from_result(call_id, result, lineage)`; the denial's reason arrives on the `Skipped` itself since PIR-872), so the codec builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
 - **Deleted (PIR-864):** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
 - Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`. A denied approval reports no `"tool"` event for the tool's own identity at all — `process()`, and the `Tool.__call__` recorder inside it, never run; a *container* (`ToolInvocation`) that reports its own view regardless of outcome still fires, unchanged, attributed to its own knot id.
-- **Approval — RESOLVED (PIR-865).** `pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`; named `ToolApprovalCheck` rather than `ApprovalCheck` because `specializations/human_in_the_loop/approval_check.py::ApprovalCheck` already holds that name for an unrelated seam) evaluates the same policy `ApprovalHook.authorize` always implemented. `ToolFactory.for_call` wires it behind a core `Gate` — the gate's `input` is a `Parameter` carrying the call's resolved arguments, and the gate itself is passed as an extra, undeclared `Knot`-valued kwarg (an *implicit parent*, `Knot._validate_kwargs_against_signature`'s existing seam for exactly this) to the constructed tool knot — whenever `ToolPermissions.approval_required` is set; an unrestricted capability is never gated. A denial closes the gate, so the engine's default `SKIP_IF_PARENT_FAILED` policy skips the tool knot without ever calling `process()`, and the call's own outcome is `Skipped(reason="parent_failed_or_skipped")` — core's `Gate`/engine propagation have no per-check custom skip-reason seam, so that generic reason (not the literal string `"approval_denied"`) is what a raw lineage row shows; `ToolResult.from_result(..., gated=True)` (every call site passes `gated=factory.requires_approval()`) is where the accurate `"call skipped: approval denied"` message comes from instead, since a gated call's own knot has no possible `Skipped` cause besides that gate. `ToolResult` keeps a `Skipped` outcome as `Skipped` (status `"skipped"`), instead of the old behaviour of fabricating an `Err`/`ERROR` view for every `Skipped`. All six call sites that construct a tool knot for a call (`ToolFactory.for_call`/`run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`) gained an `approval_hook` input threaded to `for_call`. `ToolFactory.run_call` also stopped being a bare `await knot({})` for a gated call specifically: that pattern never resolves a genuine `Knot` parent (only `Aggregator`/engine dispatch does), which would have silently run the tool regardless of the gate's decision — a gated call now runs through a real `Tapestry.run(terminals=knot)` pass instead, reusing `ToolCallCodec.outcomes_of` to read the outcome back out; an ungated call keeps the original fast bare-call path unchanged. `ToolCallRejection` is unchanged and keeps its narrower job (unregistered tool, refused arguments) — that is a rejection, not an approval decision.
+- **Approval — RESOLVED (PIR-865, lineage PIR-872).** `pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`; named `ToolApprovalCheck` rather than `ApprovalCheck` because `specializations/human_in_the_loop/approval_check.py::ApprovalCheck` already holds that name for an unrelated seam) evaluates the same policy `ApprovalHook.authorize` always implemented. `ToolFactory.for_call` wires it behind a core `Gate` — the gate's `input` is a `Parameter` carrying the call's resolved arguments, and the gate itself is passed as an extra, undeclared `Knot`-valued kwarg (an *implicit parent*, `Knot._validate_kwargs_against_signature`'s existing seam for exactly this) to the constructed tool knot — whenever `ToolPermissions.approval_required` is set; an unrestricted capability is never gated. A denial closes the gate, so the engine's default `SKIP_IF_PARENT_FAILED` policy skips the tool knot without ever calling `process()`. The skip names itself: `ToolApprovalCheck.skip_reason = "approval_denied"` is core's `Check.skip_reason` seam — the closed gate records that reason on its own lineage row and returns `Skipped(reason="approval_denied", propagates=True)`, and the engine gives every knot skipped only by propagating skips of one shared reason that same reason (`Skipped.propagates`, recorded as `extra["skip_propagates"]` so replay propagates it too). The tool knot's own row and its `Skipped` therefore say `"approval_denied"`, and `ToolResult.from_result` renders it as `"call skipped: approval denied"` with no out-of-band `gated=` flag. `ToolResult` keeps a `Skipped` outcome as `Skipped` (status `"skipped"`), instead of the old behaviour of fabricating an `Err`/`ERROR` view for every `Skipped`. All six call sites that construct a tool knot for a call (`ToolFactory.for_call`/`run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`) gained an `approval_hook` input threaded to `for_call`. `ToolFactory.run_call` also stopped being a bare `await knot({})` for a gated call specifically: that pattern never resolves a genuine `Knot` parent (only `Aggregator`/engine dispatch does), which would have silently run the tool regardless of the gate's decision — a gated call now runs through a real `Tapestry.run(terminals=knot)` pass instead, reusing `ToolCallCodec.outcomes_of` to read the outcome back out; an ungated call keeps the original fast bare-call path unchanged. `ToolCallRejection` is unchanged and keeps its narrower job (unregistered tool, refused arguments) — that is a rejection, not an approval decision.
 - Core seams this needed (all in `SubTapestry`): `_make_inner_tapestry()` (a container chooses its inner `Tapestry(...)` — traceback filter, `max_nesting_depth`, `ConcurrencyLimits`), `_inner_failures_reach_sink` (a container whose sink *consumes* inner `Err`s does not raise `SubTapestryError`), a `Skipped` sink passes through as `Skipped`, and `_nesting_key` is qualified by the knot id (two instances of one agent class may nest; the same instance may not). `SubTapestryError`'s message now names the inner failures.
 
 **Second case — the response/conversation shape. RESOLVED (ADR WS6b, 2026-09-13).**

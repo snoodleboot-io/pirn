@@ -48,7 +48,11 @@ class Gate(Knot):
            unchanged and the engine wraps it in ``Ok``.
         4. Gate closure — otherwise ``process()`` returns
            ``Skipped(reason="gate_closed")``, which ``Knot.__call__`` passes
-           through bare, so the engine records the gate as skipped.
+           through bare, so the engine records the gate as skipped.  When the
+           ``check`` names a ``skip_reason`` (``Check.skip_reason``), the skip
+           carries that reason instead and is marked ``propagates``, so every
+           knot the closed gate skips records the same reason rather than the
+           engine's generic ``"parent_failed_or_skipped"``.
         5. Lineage — ``Gate.__call__`` notes whether the gate opened as
            ``extra["predicate_passed"]``.
         6. A ``Check`` that failed or was skipped never reaches ``process()``:
@@ -81,10 +85,15 @@ class Gate(Knot):
         parents: dict[str, Knot] = {"input": input}
         if check is not None:
             parents["check"] = check
+        config_values: dict[str, Any] = {}
+        if predicate is not None:
+            config_values["predicate"] = predicate
+        if check is not None and type(check).skip_reason is not None:
+            config_values["closed_reason"] = type(check).skip_reason
         self._bootstrap(
             config=_config,
             parents=parents,
-            config_values={"predicate": predicate} if predicate is not None else {},
+            config_values=config_values,
             tapestry=tapestry,
         )
 
@@ -95,6 +104,7 @@ class Gate(Knot):
         input: Any,
         predicate: Callable[[Any], bool] | None = None,
         check: bool | None = None,
+        closed_reason: str | None = None,
         **_: Any,
     ) -> Any:
         """Pass the input through if the decision is open, else declare the skip.
@@ -104,14 +114,18 @@ class Gate(Knot):
             predicate: Callable that decides whether the gate stays open, when
                 the gate was built with one.
             check: The wired ``Check``'s verdict, when the gate was built with one.
+            closed_reason: The wired ``Check``'s ``skip_reason``, when it names one.
 
         Returns:
             The input value unchanged when the decision is open, otherwise
-            ``Skipped(reason="gate_closed")``.
+            ``Skipped(reason="gate_closed")`` — or, when the check names a
+            reason, ``Skipped(reason=closed_reason, propagates=True)``.
         """
         opened = check if check is not None else bool(predicate(input) if predicate else False)
         if opened:
             return input
+        if closed_reason is not None:
+            return Skipped(reason=closed_reason, propagates=True)
         return Skipped(reason="gate_closed")
 
     def lineage_extra(self) -> dict[str, Any]:

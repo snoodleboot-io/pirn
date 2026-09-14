@@ -153,6 +153,7 @@ _MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
 _KNOT_BASE_NAMES = frozenset(
     {
         "Knot",
+        "NestedRunKnot",
         "SubTapestry",
         "Source",
         "Sink",

@@ -28,7 +28,7 @@ from pirn_agents.specializations.rag.contextual_compressor import ContextualComp
 from pirn_agents.specializations.rag.draft_verifier import DraftVerifier
 from pirn_agents.specializations.rag.graph_rag_pipeline import GraphRAGPipeline
 from pirn_agents.specializations.rag.hyde_rag_pipeline import HyDERAGPipeline
-from pirn_agents.specializations.rag.indexing._raptor_assembler import _RaptorAssembler
+from pirn_agents.specializations.rag.indexing._raptor_summary import _RaptorSummary
 from pirn_agents.specializations.rag.iterative_retriever import IterativeRetriever
 from pirn_agents.specializations.rag.multi_hop_rag_pipeline import MultiHopRAGPipeline
 from pirn_agents.specializations.rag.multi_query_expander import MultiQueryExpander
@@ -363,7 +363,7 @@ class RagHelperPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_raptor_summarize_prompt(self) -> None:
         llm = StubLLMProvider(["summary"])
-        await _RaptorAssembler._summarize(llm, ["a", "b"])
+        await _RaptorSummary._summarize(llm, ("a", "b"))
         assert llm.calls[0][0]["content"] == (
             "Summarize the following passages into one concise summary that preserves the "
             "key facts.\n\na\n\nb\n\nSummary:"
