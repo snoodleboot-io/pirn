@@ -3,7 +3,7 @@
 Backed by :class:`pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore`
 rather than a private dict, so the bounding, eviction, and content-addressing
 this class used to hand-roll are core's — this is the same store the engine
-uses for knot outputs, wearing a ``ResultCache`` face.
+uses for knot outputs, with hit/miss counters on top.
 """
 
 from __future__ import annotations
@@ -39,16 +39,20 @@ class InMemoryResultCache(ResultCache):
         self.misses = 0
         # DataStore exposes no count/enumeration (put/get/has/scrub only), so
         # this mirrors just the key set, not the values, purely to answer
-        # __len__ without reaching into the store's private state. Kept in
-        # sync by every method below, including the base class's put/invalidate.
+        # __len__ without reaching into the store's private state.
         self._keys: set[str] = set()
 
     def __len__(self) -> int:
         return len(self._keys)
 
-    async def get(self, key: str) -> CacheEntry | None:
-        """Return the entry for ``key`` and bump the hit/miss counters."""
-        entry = await super().get(key)
+    async def invalidate(self, key: str) -> None:
+        """Drop the entry under ``key`` if present."""
+        await super().invalidate(key)
+        self._keys.discard(key)
+
+    async def _lookup(self, key: str) -> CacheEntry | None:
+        """Look ``key`` up and bump the hit/miss counters."""
+        entry = await super()._lookup(key)
         if entry is None:
             self.misses += 1
             # A tracked key with no entry was evicted by the store's own
@@ -58,12 +62,7 @@ class InMemoryResultCache(ResultCache):
         self.hits += 1
         return entry
 
-    async def put(self, entry: CacheEntry) -> None:
+    async def _record(self, entry: CacheEntry) -> None:
         """Store ``entry``, evicting per :class:`InMemoryDataStore`'s bound."""
-        await super().put(entry)
+        await super()._record(entry)
         self._keys.add(entry.key)
-
-    async def invalidate(self, key: str) -> None:
-        """Drop the entry under ``key`` if present."""
-        await super().invalidate(key)
-        self._keys.discard(key)
