@@ -98,13 +98,13 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Source` / `Sink` | graph entry / exit |
 | `Aggregator` | fan-in of multiple parents |
 | `Reduce` | fold over a collection |
-| `Continuation` | deferred/streaming continuation |
-| `NestedRunKnot` (`nested_run_knot.py`) | a plain knot whose `process()` runs nested tapestries through `self._run_inner(inner)` and returns its own value — any number of inner runs, no sink contract. Each inner run inherits the enclosing run's observability/value plane (history, emitters, data store, transport, traceback filter) and execution plane (dispatcher, gate + limits, observers, replay, identity), nests under its `RunNesting` frame, and is recorded on the knot's row (`extra["inner_run_id"]`, plus `extra["inner_run_ids"]` in start order when there are several — what an inherited replay posture picks the matching recording by). A container: holds no admission slot, may not carry a `concurrency_group`. Mix it in beside a marker base (`class X(Assembler, NestedRunKnot)`) — `_raptor_assembler` is the reference use (PIR-872). **Use this, not a `SubTapestry` whose `__call__` is overridden back, when a knot needs inner runs but returns a value.** |
+| `WithContinuation` (`with_continuation.py`) / `Next` (`next.py`) | `WithContinuation.attach(knot, fn=, pool=)` wires a continuation after a knot: `fn` maps its output to `list[Next]`, each spawning a successor from `pool` into a running extensible tapestry |
+| `NestedRunKnot` (`nested_run_knot.py`) | a plain knot whose `process()` runs nested tapestries through `self._run_inner(inner)` and returns its own value — any number of inner runs, no sink contract. Each inner run inherits the enclosing run's observability/value plane (history, emitters, data store, transport, traceback filter) and execution plane (dispatcher, gate + limits, observers, replay, identity), nests under its `RunNesting` frame, and is recorded on the knot's row (`extra["inner_run_id"]`, plus `extra["inner_run_ids"]` in start order when there are several — what an inherited replay posture picks the matching recording by). A container: holds no admission slot, may not carry a `concurrency_group`. Mix it in beside a marker base (`class X(Assembler, NestedRunKnot)`) — `RaptorAssembler` (`rag/indexing/raptor_assembler.py`) is the reference use (PIR-872). **Use this, not a `SubTapestry` whose `__call__` is overridden back, when a knot needs inner runs but returns a value.** |
 | `SubTapestry` / `LoopSubTapestry` | a `NestedRunKnot` with the sink contract: `process()` returns the terminal knot of one inner pipeline and its output becomes the knot's; the loop iterates it, its `astep` / `afold` are awaited (override them, or declare `step`/`fold` as `async def`) so an iteration can sleep, check a budget or call a model between turns |
 | `Branch` (`branch/`) | conditional path selection; `BranchOutput` |
 | `Gate` (`gate/`) | pass/close gate; decision is `predicate=` (callable) or `check=` (a `Check` knot). Closed, it records `"gate_closed"` — or the check's `skip_reason`, propagated to every knot it skips (`Skipped.propagates`, PIR-872) |
 | `Check` (`check.py`) | the predicate half of a `Gate`: any parents → `bool`, enforced; `skip_reason` names why a `False` verdict stopped the graph, in lineage. **The core name for a boolean verdict knot; agents' `*Check` knots subclass it, not `Knot`.** |
-| `Map` / `ZipMap` / `DictMap` (`map_markers.py`) | fan-out markers on a `process()` input → per-element execution |
+| `Map` / `ZipMap` / `DictMap` (`core/map.py`, `core/zip_map.py`, `core/dict_map.py`) | fan-out markers on a `process()` input → per-element execution |
 
 **Idiom:** distribution is declarative — annotate an input with a `Map`/`ZipMap`/`DictMap` marker and the framework runs `process()` once per element (`Knot._fan_out`).
 
@@ -112,9 +112,9 @@ All subclass `Knot`. These are the graph-shape primitives.
 | Type | Kind | Contract |
 |---|---|---|
 | `Trigger` | interface-base | `name` (prop), `stream() -> AsyncIterator[RunRequest]`, `async close()` — all raise `NotImplementedError` |
-| `Cron` / `Http` / `Kafka` / `Valkey` triggers | concrete | async generators yielding one `RunRequest` per event |
+| `CronTrigger` / `WebhookTrigger` / `KafkaTrigger` / `ValKeyTrigger` | concrete | async generators yielding one `RunRequest` per event |
 | `Trigger.run_forever(self, tapestry, *, on_result, on_error)` | driver method | pulls requests, calls `tapestry.run` per event, `close()`s on exit |
-| `StreamingSource` (`streaming/streaming_source.py`) | interface-base | streaming input adapters; `trigger_adapter.py` bridges a stream to the trigger loop |
+| `StreamingSource` (`streaming/streaming_source.py`) | interface-base | streaming input adapters; `StreamingSourceTrigger` (`streaming/streaming_source_trigger.py`) bridges a stream to the trigger loop |
 
 **Idiom (the trigger loop):** a `Trigger` is an async generator of `RunRequest`s; `Trigger.run_forever` is the runtime that consumes them and runs the tapestry. Downstream event-driven agents should implement `Trigger`, not hand-roll a consume loop.
 
@@ -329,7 +329,7 @@ mechanism.
 A session is one engine run per turn linked by `_parent_run_id` (`SessionChain`);
 `RunState` is a read-model projected from that chain (`RunState.from_chain`),
 not a persisted checkpoint blob. HITL suspend is `Skipped(reason="awaiting_human")`
-(the same conversion core's `Gate` uses for `_GateClosedError`); resume
+(the same shape a closed core `Gate` returns, `Skipped(reason="gate_closed")`); resume
 (`ApprovalResumer`) replays the suspended run's recorded prefix via
 `ReplaySession(allow_new_knots=True)` (§3.8) — a new core seam letting a knot
 with no recorded row run live instead of raising `ReplayMismatchError`. A
@@ -512,7 +512,7 @@ retrieval), `JsonExtractorPipeline`/`YamlExtractorPipeline`/
 implicit-dependency gate per arm, so an unselected arm's LLM/retrieval call
 never fires — stricter than `Router.as_branch()`'s documented "every arm still
 executes" default. `MajorityVoteStrategy` folds through core `Reduce`.
-`_LLMCallKnot`/`LLMChatCall`/`MemorySearchRetriever` report through
+`LLMCallKnot`/`LLMChatCall`/`MemorySearchRetriever` report through
 `AgentCallRecorder` like `ToolInvocation` already did.
 
 `retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever`'s
