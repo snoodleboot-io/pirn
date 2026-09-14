@@ -3,6 +3,14 @@
 A fixture where the single relevant document is buried at the bottom of the
 retriever's ranking. Naive top-1 (retrieval order) misses it; the rerank stack
 promotes it under the same budget, so answer-relevant recall goes from 0 to 1.
+
+``Reranker`` is a ``SubTapestry`` (ADR agents-speaks-core): its ``process()``
+builds a ``Map``-fan-out-then-``Reduce`` graph and returns the ``Reduce`` sink
+knot, not the resolved top-K list. Calling ``.process()`` on a bare
+``Reranker.__new__`` instance (as this benchmark used to) hands back that sink
+knot instead of a list, so the recall check silently passed on a truthy `Knot`
+rather than the actual reranked documents. Wiring and running it through a
+real ``Tapestry`` resolves the graph and gives back the real value.
 """
 
 from __future__ import annotations
@@ -12,6 +20,7 @@ from typing import Any
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -32,13 +41,6 @@ async def _drain(store: MemoryStore, query: str, top_k: int) -> list[Mapping[str
     return list(await store.search(query, top_k=top_k))
 
 
-def _reranker_knot() -> Reranker:
-    with Tapestry():
-        knot = Reranker.__new__(Reranker)
-        object.__setattr__(knot, "_config", KnotConfig(id="rerank-bench"))
-    return knot
-
-
 @pytest.mark.benchmark
 async def test_rerank_recovers_buried_relevant_doc() -> None:
     # Relevant doc "gold" is ranked last by the retriever.
@@ -51,9 +53,16 @@ async def test_rerank_recovers_buried_relevant_doc() -> None:
     naive_top = candidates[:budget]
     naive_recall = 1.0 if any(d["id"] == "gold" for d in naive_top) else 0.0
 
-    reranked = await _reranker_knot().process(
-        query="q", documents=candidates, reranker=_RelevanceReranker("gold"), top_k=budget
-    )
+    with Tapestry() as t:
+        Reranker(
+            query="q",
+            documents=candidates,
+            reranker=_RelevanceReranker("gold"),
+            top_k=budget,
+            _config=KnotConfig(id="rerank"),
+        )
+    result = await t.run(RunRequest())
+    reranked = result.outputs["rerank"]
     rerank_recall = 1.0 if any(d["id"] == "gold" for d in reranked) else 0.0
 
     assert naive_recall == 0.0

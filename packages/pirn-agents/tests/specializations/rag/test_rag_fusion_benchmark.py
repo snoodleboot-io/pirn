@@ -5,16 +5,25 @@ A fixture corpus where each query variant surfaces a different relevant document
 one relevant doc; RAG-Fusion fans out the variants concurrently and recovers the
 full relevant set, so its recall strictly beats naive while latency stays
 bounded by the concurrency budget.
+
+``FusionRetriever`` is a ``SubTapestry`` (ADR agents-speaks-core): its
+``process()`` builds a per-variant search graph and returns its RRF-fusing
+``Reduce`` sink knot, not the resolved fused list. Calling ``.process()`` on a
+bare ``FusionRetriever.__new__`` instance (as this benchmark used to) hands
+back that sink knot instead of a list of documents, so the recall check
+iterated a `Knot`, not the actual fused results. Wiring and running it
+through a real ``Tapestry`` resolves the graph and gives back the real value.
 """
 
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -40,14 +49,11 @@ class _FixtureStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
-        hits = self._corpus.get(query, [])
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for hit in hits[:top_k]:
-                yield hit
-
-        return _aiter()
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
+        # MemoryStore.search()'s contract (PIR-856) is a single await away
+        # from a concrete, len()-able sequence -- never an async iterator or
+        # generator (see the interface docstring).
+        return self._corpus.get(query, [])[:top_k]
 
     async def forget(self, key: str) -> None:
         return None
@@ -56,11 +62,11 @@ class _FixtureStore(MemoryStore):
         return None
 
 
-def _retriever() -> FusionRetriever:
-    with Tapestry():
-        knot = FusionRetriever.__new__(FusionRetriever)
-        object.__setattr__(knot, "_config", KnotConfig(id="fuse-bench"))
-    return knot
+async def _run_fusion_retriever(**kwargs: Any) -> list[Mapping[str, Any]]:
+    with Tapestry() as t:
+        FusionRetriever(_config=KnotConfig(id="fuse-bench"), **kwargs)
+    result = await t.run(RunRequest())
+    return result.outputs["fuse-bench"]
 
 
 @pytest.mark.benchmark
@@ -74,12 +80,12 @@ async def test_fusion_beats_naive_recall() -> None:
     ]
 
     # Naive: single query.
-    naive = await _retriever().process(queries=[variants[0]], store=store, top_k=10)
+    naive = await _run_fusion_retriever(queries=[variants[0]], store=store, top_k=10)
     naive_recall = len({r["id"] for r in naive} & relevant) / len(relevant)
 
     # Fusion: all variants concurrently.
     start = time.perf_counter()
-    fused = await _retriever().process(queries=variants, store=store, top_k=10, max_concurrency=4)
+    fused = await _run_fusion_retriever(queries=variants, store=store, top_k=10, max_concurrency=4)
     elapsed = time.perf_counter() - start
     fusion_recall = len({r["id"] for r in fused} & relevant) / len(relevant)
 
