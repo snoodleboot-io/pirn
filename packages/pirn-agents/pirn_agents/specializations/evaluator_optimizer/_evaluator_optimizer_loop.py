@@ -8,8 +8,8 @@ Both termination decisions live inside the iteration tapestry, per
 :class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
 — that base explains why. Concretely: ``AcceptCheck`` is a knot rather than an
 awaited call in a Python ``if``, and the optional ``ReflectionCheck`` sits behind
-a ``Gate`` that opens only on "not accepted", so an accepted run does not pay for
-it.
+a core ``Gate(input=candidate, check=_CandidateRejectedCheck(accepted))`` that
+opens only on "not accepted", so an accepted run does not pay for it.
 
 Internal API. See PIR-713.
 """
@@ -25,7 +25,9 @@ from pirn.tapestry import Tapestry
 from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.base.gated_agent_response import GatedAgentResponse
+from pirn_agents.specializations.evaluator_optimizer._candidate_rejected_check import (
+    _CandidateRejectedCheck,
+)
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
     _EvaluatorOptimizerState,
 )
@@ -35,6 +37,7 @@ from pirn_agents.specializations.evaluator_optimizer.candidate_generator import 
 )
 from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
 from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
+from pirn_agents.specializations.rag.rag_response_builder import RAGResponseBuilder
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
@@ -47,13 +50,9 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
     _gen_id: ClassVar[str] = "eo_gen"
     _judge_id: ClassVar[str] = "eo_judge"
     _gate_id: ClassVar[str] = "eo_gate"
+    _rejected_id: ClassVar[str] = "eo_rejected"
     _continue_id: ClassVar[str] = "eo_continue"
     _reflect_id: ClassVar[str] = "eo_reflect"
-
-    @staticmethod
-    def _reject(accepted: bool) -> bool:
-        """Open the continue-gate only when the candidate was *not* accepted."""
-        return not accepted
 
     def __init__(
         self,
@@ -107,14 +106,16 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
                 _config=KnotConfig(id=self._gate_id),
             )
             if self._reflection_gate:
-                keep_going = Gate(
-                    input=accepted,
-                    predicate=_EvaluatorOptimizerLoop._reject,
+                rejected = _CandidateRejectedCheck(
+                    accepted=accepted, _config=KnotConfig(id=self._rejected_id)
+                )
+                gated_candidate = Gate(
+                    input=candidate,
+                    check=rejected,
                     _config=KnotConfig(id=self._continue_id),
                 )
-                response = GatedAgentResponse(
-                    content=candidate,
-                    gate=keep_going,
+                response = RAGResponseBuilder(
+                    answer=gated_candidate,
                     _config=KnotConfig(id="eo_candidate_response"),
                 )
                 ReflectionCheck(

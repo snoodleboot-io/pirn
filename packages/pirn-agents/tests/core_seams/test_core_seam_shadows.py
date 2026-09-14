@@ -51,11 +51,8 @@ INPUT_SCHEMA: frozenset[str] = frozenset()
 # name this list ever named.
 ADMISSION_FEEDBACK: frozenset[str] = frozenset()
 
-CHECK_ROLE = frozenset(
-    {
-        "specializations/base/gated_agent_response.py::GatedAgentResponse",
-    }
-)
+# GatedAgentResponse deleted (PIR-872): a core Check + Gate(check=).
+CHECK_ROLE: frozenset[str] = frozenset()
 
 ASYNC_LOOP_STEP = frozenset(
     {
