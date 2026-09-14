@@ -17,12 +17,15 @@ pattern PIR-733 established for the single-call case).
 from __future__ import annotations
 
 import unittest
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
@@ -30,11 +33,18 @@ from pirn_agents.specializations.react.messages_passthrough import (
 from pirn_agents.specializations.react.react_step_executor import (
     ReActStepExecutor,
 )
+from pirn_agents.testing.stub_tool import StubTool as KitStubTool
+from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubTool,
 )
+
+
+class _DenyHook(ApprovalHook):
+    async def request_approval(self, *, tool_name: str, arguments: Mapping[str, Any]) -> bool:
+        return False
 
 
 def _make(llm: StubLLMProvider, tools: tuple = ()) -> ReActStepExecutor:
@@ -58,6 +68,7 @@ async def _run_step(
     tools: tuple,
     context: list[AgentMessage],
     already_terminated: bool,
+    approval_hook: Any = None,
 ) -> tuple[AgentMessage, ...]:
     """Wire a ReActStepExecutor over a real context/seed and run it end to end."""
     with Tapestry() as t:
@@ -68,6 +79,7 @@ async def _run_step(
             llm=llm,
             tools=tools,
             already_terminated=already_terminated,
+            approval_hook=approval_hook,
             _config=KnotConfig(id="step"),
         )
     result = await t.run(RunRequest())
@@ -207,3 +219,30 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
         children = await t.history.children_of(result.run_id)
         inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
         assert "step-call" in inner_knot_ids, inner_knot_ids
+
+
+class TestReActStepExecutorApproval(unittest.IsolatedAsyncioTestCase):
+    """PIR-865: a denied tool call is a skipped observation, not a failed one."""
+
+    async def test_approved_call_still_observes_the_result(self) -> None:
+        llm = StubLLMProvider(["Action: danger\nAction Input: go"])
+        tool = KitStubTool(
+            name="danger", permissions=ToolPermissions(approval_required=True), result="did it"
+        )
+        context = [AgentMessage(role="user", content="go")]
+        emitted = await _run_step(llm, (tool,), context, already_terminated=False)
+        observation = emitted[2]
+        assert observation.content == "did it"
+        assert tool.invocations == [{"input": "go"}]
+
+    async def test_denied_call_reports_a_skipped_observation(self) -> None:
+        llm = StubLLMProvider(["Action: danger\nAction Input: go"])
+        tool = KitStubTool(name="danger", permissions=ToolPermissions(approval_required=True))
+        context = [AgentMessage(role="user", content="go")]
+        emitted = await _run_step(
+            llm, (tool,), context, already_terminated=False, approval_hook=_DenyHook()
+        )
+        observation = emitted[2]
+        assert observation.role == "tool"
+        assert observation.content == "call skipped: approval denied"
+        assert tool.invocations == []
