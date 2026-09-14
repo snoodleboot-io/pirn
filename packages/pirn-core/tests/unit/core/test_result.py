@@ -32,13 +32,18 @@ class TestResult(unittest.TestCase):
         s: Result = Skipped()
         self.assertIsInstance(s, Skipped)
 
-    def test_all_exported(self):
-        from pirn.core.result import __all__
+    def test_result_module_re_exports_nothing(self):
+        # Ok, Err and Skipped are imported from their own modules; the alias
+        # module declares no export list that forwards them.
+        import pirn.core.result as result_module
 
-        self.assertIn("Ok", __all__)
-        self.assertIn("Err", __all__)
-        self.assertIn("Skipped", __all__)
-        self.assertIn("Result", __all__)
+        self.assertFalse(hasattr(result_module, "__all__"))
+
+    def test_emitter_module_does_not_forward_the_error_policy(self):
+        import pirn.emitters.emitter as emitter_module
+
+        self.assertFalse(hasattr(emitter_module, "__all__"))
+        self.assertFalse(hasattr(emitter_module, "EmitterErrorPolicy"))
 
     def test_discriminate_by_is_ok(self):
         results: list[Result] = [Ok(value=1), Err(record=_make_record()), Skipped()]

@@ -38,7 +38,8 @@ from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
-from pirn.core.result import Ok, Result
+from pirn.core.ok import Ok
+from pirn.core.result import Result
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 

@@ -212,7 +212,8 @@ To test that dispatchers are called correctly, or to inject controlled results:
 
 ```python
 from pirn.engine.dispatchers.dispatcher import Dispatcher
-from pirn.core.result import Ok, Err
+from pirn.core.err import Err
+from pirn.core.ok import Ok
 from pirn.core.knot import Knot
 from pirn.managers.exception_record import ExceptionRecord
 from collections.abc import Mapping

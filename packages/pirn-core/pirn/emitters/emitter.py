@@ -4,15 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.emitters.emitter_error_policy import EmitterErrorPolicy  # canonical location
-
 if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.result import Result
     from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
-
-__all__ = ["Emitter", "EmitterErrorPolicy"]
 
 
 class Emitter:

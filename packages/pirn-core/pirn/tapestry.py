@@ -128,7 +128,7 @@ class Tapestry:
         from pirn.core.identity.env_identity_resolver import EnvIdentityResolver
         from pirn.core.identity.os_identity_resolver import OsIdentityResolver
         from pirn.core.transport.inline_transport import InlineTransport
-        from pirn.emitters.emitter import EmitterErrorPolicy as _EmitterErrorPolicy
+        from pirn.emitters.emitter_error_policy import EmitterErrorPolicy as _EmitterErrorPolicy
         from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
         self._store = store or InMemoryStore()
