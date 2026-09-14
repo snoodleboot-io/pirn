@@ -3,8 +3,12 @@
 Algorithm:
     1. Receive the input signal frame, reference_rate_hz, and measured_rate_hz.
     2. Validate both rates (positive floats).
-    3. Compute the drift ratio: reference_rate_hz / measured_rate_hz.
-    4. Apply polyphase resampling to stretch/compress the signal by the drift ratio.
+    3. Compute the exact drift ratio reference_rate_hz / measured_rate_hz from the
+       rates' decimal values (``1000 / 1000.4 = 2500 / 2501``) — never from their
+       integer parts, which would erase a sub-hertz drift entirely.
+    4. Resample by that ratio (``PolyResampling.resample_rate``): polyphase when the
+       reduced factors are small, bandlimited interpolation at the exact ratio when a
+       parts-per-million drift would need factors in the millions.
     5. Return a SignalPayload at the reference rate with corrected sample count.
 
 Math:
@@ -14,7 +18,7 @@ Math:
 
     Corrected sample count:
 
-    $$N_{\\text{out}} = \\left\\lfloor N_{\\text{in}} \\cdot \\alpha \\right\\rfloor$$
+    $$N_{\\text{out}} = \\left\\lceil N_{\\text{in}} \\cdot \\alpha \\right\\rceil$$
 
 References:
     - Zhu, W. et al. (2005). "Clock drift estimation and compensation for WSN time synchronization."
@@ -25,7 +29,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from math import gcd
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -83,11 +86,12 @@ class ClockDriftCorrector(Knot):
         if not isinstance(measured_rate_hz, (int, float)) or measured_rate_hz <= 0:
             raise ValueError("ClockDriftCorrector: measured_rate_hz must be positive")
 
-        common = gcd(int(reference_rate_hz), int(measured_rate_hz))
-        up = int(reference_rate_hz) // common
-        down = int(measured_rate_hz) // common
-
-        result = await asyncio.to_thread(PolyResampling.resample_poly, signal.data, up, down)
+        result = await asyncio.to_thread(
+            PolyResampling.resample_rate,
+            signal.data,
+            float(measured_rate_hz),
+            float(reference_rate_hz),
+        )
 
         return signal.derive(
             "drift_corrected",

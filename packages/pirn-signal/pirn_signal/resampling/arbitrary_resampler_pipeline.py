@@ -3,22 +3,22 @@
 Algorithm:
     1. Receive the input signal frame, input_rate_hz, and output_rate_hz.
     2. Validate both rates (positive floats).
-    3. Compute the integer upsample (L) and downsample (M) factors from the
-       ratio output_rate_hz / input_rate_hz using a precision multiplier.
-    4. Reduce L/M by their GCD to find the minimal polyphase decomposition.
-    5. Apply ``scipy.signal.resample_poly`` with the reduced L/M factors.
-    6. Return a SignalPayload at the target rate with proportionally scaled sample count.
+    3. Compute the exact upsample (L) and downsample (M) factors in lowest terms from
+       the rates' decimal values (``22050 / 1000 = 441 / 20``), never from their
+       integer parts.
+    4. Apply ``scipy.signal.resample_poly`` with L/M when both are at most 10000;
+       otherwise resample at the exact ratio by bandlimited interpolation
+       (``PolyResampling.resample_rate``).
+    5. Return a SignalPayload at the target rate with proportionally scaled sample count.
 
 Math:
     Sample count conversion:
 
-    $$N_{\\text{out}} = \\left\\lfloor N_{\\text{in}} \\cdot \\frac{f_{\\text{out}}}{f_{\\text{in}}} \\right\\rfloor$$
+    $$N_{\\text{out}} = \\left\\lceil N_{\\text{in}} \\cdot \\frac{f_{\\text{out}}}{f_{\\text{in}}} \\right\\rceil$$
 
     Polyphase ratio:
 
-    $$\\frac{L}{M} = \\frac{f_{\\text{out}}}{f_{\\text{in}}} \\cdot \\frac{P}{\\gcd(P \\cdot f_{\\text{out}}, P \\cdot f_{\\text{in}})}$$
-
-    where $P$ is the precision multiplier.
+    $$\\frac{L}{M} = \\frac{f_{\\text{out}}}{f_{\\text{in}}}, \\qquad \\gcd(L, M) = 1$$
 
 References:
     - Crochiere, R.E. & Rabiner, L.R. (1983). "Multirate Digital Signal Processing." Prentice-Hall.
@@ -28,7 +28,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from math import gcd
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -86,11 +85,9 @@ class ArbitraryResamplerPipeline(Knot):
         if not isinstance(output_rate_hz, (int, float)) or output_rate_hz <= 0:
             raise ValueError("ArbitraryResamplerPipeline: output_rate_hz must be positive")
 
-        common = gcd(int(input_rate_hz), int(output_rate_hz))
-        up = int(output_rate_hz) // common
-        down = int(input_rate_hz) // common
-
-        result = await asyncio.to_thread(PolyResampling.resample_poly, signal.data, up, down)
+        result = await asyncio.to_thread(
+            PolyResampling.resample_rate, signal.data, float(input_rate_hz), float(output_rate_hz)
+        )
 
         return signal.derive(
             "resampled",

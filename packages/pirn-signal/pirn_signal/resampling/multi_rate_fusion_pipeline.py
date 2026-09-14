@@ -4,7 +4,9 @@ Algorithm:
     1. Receive two signal frames (signal_a, signal_b) and the output_rate_hz.
     2. Validate output_rate_hz (positive float).
     3. Compute the resampling ratio for each signal relative to output_rate_hz.
-    4. Apply polyphase resampling (``scipy.signal.resample_poly``) to each signal.
+    4. Resample each signal at its exact rational ratio (``PolyResampling.resample_rate``:
+       polyphase for small reduced factors, bandlimited interpolation otherwise) —
+       never a ratio of the rates' integer parts.
     5. Return a tuple of two SignalFrames both at output_rate_hz with aligned sample counts.
 
 Math:
@@ -14,7 +16,7 @@ Math:
 
     Aligned sample count:
 
-    $$N_{\\text{out},i} = \\left\\lfloor N_{\\text{in},i} \\cdot \\alpha_i \\right\\rfloor$$
+    $$N_{\\text{out},i} = \\left\\lceil N_{\\text{in},i} \\cdot \\alpha_i \\right\\rceil$$
 
 References:
     - Crochiere, R.E. & Rabiner, L.R. (1983). "Multirate Digital Signal Processing." Prentice-Hall.
@@ -24,7 +26,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from math import gcd
 from typing import Any
 
 import numpy as np
@@ -32,7 +33,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
+from pirn_signal.resampling._poly_resampling import PolyResampling
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -112,8 +113,4 @@ class MultiRateFusionPipeline(Knot):
         src_rate: float,
         tgt_rate: float,
     ) -> NDArray[np.floating[Any]]:
-        ss = ScipySignalBinding.load()
-        common = gcd(int(tgt_rate), int(src_rate))
-        up = int(tgt_rate) // common
-        down = int(src_rate) // common
-        return ss.resample_poly(data, up, down, axis=-1)
+        return PolyResampling.resample_rate(data, src_rate, tgt_rate)
