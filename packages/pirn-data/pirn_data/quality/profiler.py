@@ -58,7 +58,7 @@ References:
         Rahm & Do, "Data Cleaning: Problems and Current Approaches",
         IEEE Data Engineering Bulletin 23(4), 2000.
     [2] :class:`pirn_data.data_profile.DataProfile` and
-        :class:`pirn_data.data_profile.ColumnProfile` — output
+        :class:`pirn_data.column_profile.ColumnProfile` — output
         value objects.
 """
 
@@ -74,7 +74,8 @@ from pirn_data._value_shape import (
     _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
 )
 from pirn_data.data_batch import DataBatch
-from pirn_data.data_profile import ColumnProfile, DataProfile
+from pirn_data.column_profile import ColumnProfile
+from pirn_data.data_profile import DataProfile
 
 
 class Profiler(Knot):
