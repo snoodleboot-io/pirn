@@ -2,38 +2,52 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
+from pirn_agents.specializations.reflexion.reflexion_frame import ReflexionFrame
 
 
-@dataclass(frozen=True)
-class ReflexionResult(AgentResult):
+class ReflexionResult(AgentResult[ReflexionFrame, str]):
     """Outcome of a bounded Reflexion loop.
 
-    Attributes
-    ----------
-    answer:
-        The best/last answer produced.
-    succeeded:
-        Whether the evaluator accepted an attempt before the iteration cap.
-    iterations:
-        Number of actor attempts made (1-based count).
-    attempts:
-        The per-attempt records, in order.
+    ``ReflexionResult`` is ``Payload[ReflexionFrame, str]`` (PIR-868,
+    following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
+    best/last answer produced, and ``metadata`` is the :class:`ReflexionFrame`
+    carrying the succeeded/iterations/attempts facts. The pre-ADR field
+    names (``answer``, ``succeeded``, ``iterations``, ``attempts``) stay
+    available as read-only properties, so every existing construction and
+    attribute-access call site keeps compiling unchanged.
     """
 
-    answer: str
-    succeeded: bool
-    iterations: int
-    attempts: tuple[ReflexionAttempt, ...]
+    def __init__(
+        self,
+        answer: str,
+        succeeded: bool,
+        iterations: int,
+        attempts: tuple[ReflexionAttempt, ...],
+    ) -> None:
+        frame = ReflexionFrame(succeeded=succeeded, iterations=iterations, attempts=attempts)
+        super().__init__(metadata=frame, data=answer)
+
+    @property
+    def answer(self) -> str:
+        return self._data
+
+    @property
+    def succeeded(self) -> bool:
+        return self._metadata.succeeded
+
+    @property
+    def iterations(self) -> int:
+        return self._metadata.iterations
+
+    @property
+    def attempts(self) -> tuple[ReflexionAttempt, ...]:
+        return self._metadata.attempts
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            "answer": self.answer,
-            "succeeded": self.succeeded,
-            "iterations": self.iterations,
-            "attempts": [attempt._pirn_audit_dict() for attempt in self.attempts],
-        }
+        audit = dict(self._metadata._pirn_audit_dict())
+        audit["answer"] = self.answer
+        return audit

@@ -2,38 +2,48 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from pirn_agents.specializations.base.agent_result import AgentResult
+from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_frame import (
+    EvaluatorOptimizerFrame,
+)
 
 
-@dataclass(frozen=True)
-class EvaluatorOptimizerResult(AgentResult):
+class EvaluatorOptimizerResult(AgentResult[EvaluatorOptimizerFrame, str]):
     """Outcome of a generator/judge accept loop.
 
-    Attributes
-    ----------
-    answer:
-        The best candidate produced.
-    score:
-        The judge score of ``answer`` on the 0-10 scale.
-    accepted:
-        Whether the accept gate fired (``score`` met the threshold) before the
-        iteration cap.
-    iterations:
-        Number of generate/judge rounds performed.
+    ``EvaluatorOptimizerResult`` is ``Payload[EvaluatorOptimizerFrame, str]``
+    (PIR-868, following the ADR agents-speaks-core WS6b pattern) — ``data``
+    is the best candidate answer produced, and ``metadata`` is the
+    :class:`EvaluatorOptimizerFrame` carrying the score/accepted/iterations
+    facts. The pre-ADR field names (``answer``, ``score``, ``accepted``,
+    ``iterations``) stay available as read-only properties, so every
+    existing construction and attribute-access call site keeps compiling
+    unchanged.
     """
 
-    answer: str
-    score: float
-    accepted: bool
-    iterations: int
+    def __init__(self, answer: str, score: float, accepted: bool, iterations: int) -> None:
+        frame = EvaluatorOptimizerFrame(score=score, accepted=accepted, iterations=iterations)
+        super().__init__(metadata=frame, data=answer)
+
+    @property
+    def answer(self) -> str:
+        return self._data
+
+    @property
+    def score(self) -> float:
+        return self._metadata.score
+
+    @property
+    def accepted(self) -> bool:
+        return self._metadata.accepted
+
+    @property
+    def iterations(self) -> int:
+        return self._metadata.iterations
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            "answer": self.answer,
-            "score": self.score,
-            "accepted": self.accepted,
-            "iterations": self.iterations,
-        }
+        audit = dict(self._metadata._pirn_audit_dict())
+        audit["answer"] = self.answer
+        return audit

@@ -1,56 +1,71 @@
-"""``AgentResult`` — shared base for the specialization result value objects.
+"""``AgentResult`` — shared ``Payload`` base for the specialization result types.
 
-The DIP seam behind the ``*Result`` family. Every specialization pattern that
-returns a typed outcome (``EvaluatorOptimizerResult``, ``LatsResult``,
-``OrchestratorWorkersResult``, ``WorkerTaskResult``, ``PlanReActResult``,
-``PromptChainResult``, ``SimulationResult``, ``ReflexionResult``,
-``ReWooResult``, ``FallbackResult``, ``SelfAskResult``) is a
-``@dataclass(frozen=True)`` wrapper over :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`
-whose only shared surface is the :meth:`_pirn_audit_dict` override that emits the
-flat, lineage-relevant dict pydantic serialises at knot boundaries. Consolidating
-them onto one base lets callers depend on the abstraction ``AgentResult`` rather
-than each concrete, and gives every concrete a single substitutable contract.
+ADR agents-speaks-core WS6b established the ``Payload[Frame, Data]`` split
+for agents' cross-boundary value types (``AgentResponse =
+Payload[GenerationFrame, str]``, ``ConversationPayload =
+Payload[ConversationFrame, tuple[AgentMessage, ...]]``). PIR-868 completes the
+same rebase for the specialization pattern outcomes
+(``EvaluatorOptimizerResult``, ``LatsResult``, ``OrchestratorWorkersResult``,
+``WorkerTaskResult``, ``PlanReActResult``, ``PromptChainResult``,
+``SimulationResult``, ``ReflexionResult``, ``ReWooResult``, ``FallbackResult``,
+``SelfAskResult``): each is now ``Payload[<Frame>, D]``, where the frame
+carries the run-level facts (iteration counts, scores, candidate ids,
+attempted/skipped names, budgets) and ``D`` is the answer/content the
+pipeline actually produced.
 
-Following the house interface style (never :class:`typing.Protocol`), the base
-is a plain :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue` subclass whose
-:meth:`_pirn_audit_dict` raises :class:`NotImplementedError`; each concrete
-result overrides it — exactly as it previously overrode
-``PirnOpaqueValue._pirn_audit_dict`` — so the rebase changes no observable
-behavior. The base is intentionally *not* itself a dataclass: it declares no
-fields, so a ``@dataclass(frozen=True)`` concrete inherits it exactly as it
-inherited the non-dataclass ``PirnOpaqueValue`` (no field-order or default
-drift, and frozen consistency is preserved because the base contributes no
-dataclass fields).
+``AgentResult`` itself is a thin, non-abstract generic ``Payload`` subclass —
+not a dataclass, declaring no fields of its own — kept importable so the
+family still shares one substitutable abstraction (DIP/LSP): callers may
+depend on ``AgentResult`` rather than each concrete, and
+``isinstance(x, AgentResult)`` keeps working for every result in the family.
+Each concrete overrides ``_pirn_audit_dict`` exactly as it did before the
+rebase (previously overriding the raising base's hook; now overriding
+``Payload``'s metadata-delegating one) to fold in its own ``data`` field(s).
+
+``Payload`` does not define value equality (``AgentResponse`` and
+``ConversationPayload`` do not either), so ``AgentResult`` adds a structural
+``__eq__`` — same concrete type, equal ``metadata`` and equal ``data`` — so
+existing equality-based tests and call sites on the result family keep
+working unchanged. Frozen-dataclass equality is not restored generally
+because ``AgentResponse``/``ConversationPayload`` were never restored either;
+this narrows the divergence to exactly this family, where it was observed to
+matter (``SimulationResult`` equality).
 
 References:
+    - :class:`pirn.core.payload.Payload`
     - :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypeVar
 
+from pirn.core.payload import Payload
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+M = TypeVar("M", bound=PirnOpaqueValue)
+D = TypeVar("D")
 
-class AgentResult(PirnOpaqueValue):
-    """Abstract base for the frozen result value objects of the specializations.
 
-    Concrete results are ``@dataclass(frozen=True)`` subclasses that declare
-    their own fields and override :meth:`_pirn_audit_dict` to emit a flat dict of
-    those fields. The base itself is never serialised directly; it exists so the
-    result family shares one abstraction (DIP) and one substitutable contract
-    (LSP): every concrete produces the primitive audit form pydantic emits at the
-    knot boundary.
+class AgentResult(Payload[M, D]):
+    """Thin generic ``Payload`` base for the specialization result family.
+
+    Declares no fields and no behaviour beyond structural equality; each
+    concrete ``Payload[<Frame>, D]`` subclass supplies its own frame type,
+    ``__init__`` (accepting the same flat, pre-ADR field names it always
+    did), read-only properties for those field names, and
+    :meth:`_pirn_audit_dict`.
     """
 
-    def _pirn_audit_dict(self) -> dict[str, Any]:
-        """Return the primitive dict pydantic emits for this result.
+    def __eq__(self, other: object) -> bool:
+        """Structural equality: same concrete type, equal metadata and data.
 
-        Concrete subclasses override this with a flat dict of their own fields.
-        The base raises to signal it is abstract.
-
-        Raises:
-            NotImplementedError: Always, on the base class.
+        ``Payload`` defines no ``__eq__`` (identity equality), which would
+        break existing value-equality expectations on this family (e.g.
+        ``SimulationResult``). Comparing ``_metadata``/``_data`` instead of
+        dataclass fields keeps this correct across every concrete without
+        each one needing to declare its own.
         """
-        raise NotImplementedError(f"{type(self).__name__} must implement _pirn_audit_dict()")
+        if not isinstance(other, AgentResult) or type(other) is not type(self):
+            return NotImplemented
+        return self._metadata == other._metadata and self._data == other._data

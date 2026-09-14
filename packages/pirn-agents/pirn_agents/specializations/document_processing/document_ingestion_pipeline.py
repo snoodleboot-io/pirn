@@ -10,8 +10,10 @@ Returns the number of chunks stored. The deterministic key shape lets
 downstream pipelines fetch chunks by index without scanning the store.
 
 Algorithm:
-    1. ``_DocumentLoader`` resolves the source (file path or HTTP/HTTPS URL) and
-       returns the raw text string.
+    1. ``_DocumentSource`` resolves the source (file path or HTTP/HTTPS URL)
+       under the shared SSRF / path-traversal guards and returns its raw
+       bytes; ``_DocumentAssembler`` decodes those bytes to text with no I/O
+       of its own (PIR-868 split of the former ``_DocumentLoader`` ingestor).
     2. ``_DocumentChunker`` partitions the text into overlapping windows of
        ``chunk_size`` characters with ``overlap`` stride.
     3. ``_ChunkEmbedderStore`` calls the ``EmbeddingProvider`` once per chunk, then
@@ -42,11 +44,14 @@ from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._chunk_embedder_store import (
     _ChunkEmbedderStore,
 )
+from pirn_agents.specializations.document_processing._document_assembler import (
+    _DocumentAssembler,
+)
 from pirn_agents.specializations.document_processing._document_chunker import (
     _DocumentChunker,
 )
-from pirn_agents.specializations.document_processing._document_loader import (
-    _DocumentLoader,
+from pirn_agents.specializations.document_processing._document_source import (
+    _DocumentSource,
 )
 from pirn_agents.specializations.document_processing._document_source_reader import (
     _DocumentSourceReader,
@@ -131,13 +136,14 @@ class DocumentIngestionPipeline(AgentPipeline):
                 "negative int strictly less than chunk_size, "
                 f"got {chunk_overlap!r}"
             )
-        loaded = _DocumentLoader(
+        source_node = _DocumentSource(
             source=source,
             allowed_root=allowed_root,
             allowed_hosts=allowed_hosts,
             max_bytes=max_bytes,
-            _config=KnotConfig(id="load"),
+            _config=KnotConfig(id="source"),
         )
+        loaded = _DocumentAssembler(body=source_node, _config=KnotConfig(id="load"))
         chunks = _DocumentChunker(
             text=loaded,
             chunk_size=chunk_size,

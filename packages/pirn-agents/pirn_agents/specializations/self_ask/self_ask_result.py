@@ -2,33 +2,43 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from pirn_agents.specializations.base.agent_result import AgentResult
+from pirn_agents.specializations.self_ask.self_ask_frame import SelfAskFrame
 
 
-@dataclass(frozen=True)
-class SelfAskResult(AgentResult):
+class SelfAskResult(AgentResult[SelfAskFrame, str]):
     """Outcome of a Self-Ask decomposition.
 
-    Attributes
-    ----------
-    final_answer:
-        The composed final answer.
-    subquestions:
-        The sub-questions the task was decomposed into, in order.
-    subanswers:
-        The answer to each sub-question, aligned with ``subquestions``.
+    ``SelfAskResult`` is ``Payload[SelfAskFrame, str]`` (PIR-868, following
+    the ADR agents-speaks-core WS6b pattern) — ``data`` is the composed
+    final answer, and ``metadata`` is the :class:`SelfAskFrame` carrying the
+    sub-questions and sub-answers. The pre-ADR field names (``final_answer``,
+    ``subquestions``, ``subanswers``) stay available as read-only
+    properties, so every existing construction and attribute-access call
+    site keeps compiling unchanged.
     """
 
-    final_answer: str
-    subquestions: tuple[str, ...]
-    subanswers: tuple[str, ...]
+    def __init__(
+        self, final_answer: str, subquestions: tuple[str, ...], subanswers: tuple[str, ...]
+    ) -> None:
+        frame = SelfAskFrame(subquestions=subquestions, subanswers=subanswers)
+        super().__init__(metadata=frame, data=final_answer)
+
+    @property
+    def final_answer(self) -> str:
+        return self._data
+
+    @property
+    def subquestions(self) -> tuple[str, ...]:
+        return self._metadata.subquestions
+
+    @property
+    def subanswers(self) -> tuple[str, ...]:
+        return self._metadata.subanswers
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            "final_answer": self.final_answer,
-            "subquestions": list(self.subquestions),
-            "subanswers": list(self.subanswers),
-        }
+        audit = dict(self._metadata._pirn_audit_dict())
+        audit["final_answer"] = self.final_answer
+        return audit

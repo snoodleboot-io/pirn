@@ -384,10 +384,16 @@ and three `specializations/` pipelines — `document_processing/ingestion_pipeli
 `multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`. Migrating
 their *enforcement* to `LimitedAdmissionGate` needs those call sites moved
 onto a knot-scoped concurrency group first, or there are two enforcement
-paths rather than one. `caching/prompt_cache.py::PromptCache` also stays
-outside this migration: its `get`/`set`/`__len__` are deliberately
-synchronous, and `DataStore` is async-only, so routing values through it would
-force a breaking signature change this ADR did not authorize unilaterally.
+paths rather than one.
+
+`caching/prompt_cache.py::PromptCache` — RESOLVED (PIR-868). Entries now
+live in a core `InMemoryDataStore` keyed by content hash, exactly like
+`SemanticResultCache`; the prefix/embedding index stays a plain
+`SimilarityIndex` resource. `DataStore` is async-only with no enumeration,
+so the previously-synchronous `invalidate`/`purge_expired`/`__len__` are now
+`ainvalidate`/`apurge_expired`/`asize`; the old names remain for one
+deprecation cycle as wrappers that bridge to the event loop (raising if
+called from inside one already running) and emit `DeprecationWarning`.
 
 ### Control-flow vocabulary (WS5a, WS5b)
 
@@ -531,6 +537,19 @@ vocabulary, every constructor sample verified against the real signature
 `PirnOpaqueValue` value objects, `DsnScrubber` composition, HITL suspend/resume
 (rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal
 to `ExceptionRecord`.
+
+**PIR-868 (WS6b follow-on).** The 11 specialization-pattern `*Result` value
+objects (`EvaluatorOptimizerResult`, `LatsResult`, `OrchestratorWorkersResult`,
+`WorkerTaskResult`, `PlanReActResult`, `PromptChainResult`, `SimulationResult`,
+`ReflexionResult`, `ReWooResult`, `FallbackResult`, `SelfAskResult`) are now
+`Payload[<Frame>, D]` too, with `AgentResult` reduced to a thin generic
+`Payload` base; pre-ADR field names stay readable as properties.
+`document_processing/_document_loader.py`'s ingestor (reading files/HTTP
+inside `process()`) is deleted per the assembler/disassembler pattern and
+replaced by `_DocumentSource` (a `Source` knot modeled on
+`ObjectStoreReadSource`, bytes out) feeding `_DocumentAssembler` (an
+`Assembler`, bytes in, no I/O); `DocumentIngestionPipeline`'s public
+constructor is unchanged.
 
 ---
 

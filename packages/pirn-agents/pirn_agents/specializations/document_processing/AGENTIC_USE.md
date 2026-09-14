@@ -28,7 +28,8 @@ pirn_agents/specializations/document_processing/
 ├── document_translation_pipeline.py   DocumentTranslationPipeline  — chunk + translate per-chunk + reassemble
 │
 │  ── Internal helpers ──
-├── _document_loader.py                (load bytes from path/store)
+├── _document_source.py                 (Source: read path/URL bytes, SSRF/path guards)
+├── _document_assembler.py              (Assembler: decode bytes to text, no I/O)
 ├── _document_chunker.py               (split document into chunks)
 ├── _chunk_embedder_store.py           (embed + persist chunks)
 ├── _chunk_translator.py               (translate a single chunk)

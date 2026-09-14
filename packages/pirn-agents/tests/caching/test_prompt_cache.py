@@ -6,6 +6,7 @@ hit path, TTL expiry, and eviction is fully reproducible with no backend.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 
 import pytest
@@ -141,7 +142,7 @@ class TestTtlAndInvalidation:
         calls, compute = _counter()
 
         await cache.get_or_compute("p", compute)
-        cache.invalidate("p")
+        await cache.ainvalidate("p")
         await cache.get_or_compute("p", compute)
 
         assert calls[0] == 2
@@ -153,18 +154,78 @@ class TestTtlAndInvalidation:
 
         await cache.get_or_compute("x", compute)
         await cache.get_or_compute("y", compute)
-        assert len(cache) == 2
+        assert await cache.asize() == 2
         clock.now = 5.0
-        assert cache.purge_expired() == 2
-        assert len(cache) == 0
+        assert await cache.apurge_expired() == 2
+        assert await cache.asize() == 0
 
 
 class TestEviction:
-    async def test_fifo_bound_enforced(self) -> None:
+    async def test_bound_enforced(self) -> None:
         cache = PromptCache(max_entries=1)
-        _, compute = _counter()
+        calls, compute = _counter()
 
         await cache.get_or_compute("one", compute)
-        await cache.get_or_compute("two", compute)
+        await cache.get_or_compute("two", compute)  # evicts "one" (bound=1)
+        await cache.get_or_compute("one", compute)  # recomputed: evicted, not cached
 
-        assert len(cache) == 1  # oldest evicted at the bound
+        # The bound is enforced by the underlying InMemoryDataStore: "one" is
+        # not still cached from the first call, so it recomputes a 3rd time.
+        # (`asize()`'s own `_keys` bookkeeping only discovers a store-side
+        # eviction on the next *read* of the evicted key, exactly like
+        # InMemoryResultCache/SemanticResultCache's identical `_keys` mirror
+        # — so it is not asserted here without such a read.)
+        assert calls[0] == 3
+
+
+class TestDeprecatedSyncWrappers:
+    def test_len_warns_and_delegates_to_asize(self) -> None:
+        cache = PromptCache()
+
+        async def _seed() -> None:
+            await cache.get_or_compute("p", lambda: _resolved(1))
+
+        asyncio.run(_seed())
+
+        with pytest.deprecated_call():
+            assert len(cache) == 1
+
+    def test_invalidate_warns_and_delegates_to_ainvalidate(self) -> None:
+        cache = PromptCache()
+
+        async def _seed() -> None:
+            await cache.get_or_compute("p", lambda: _resolved(1))
+
+        asyncio.run(_seed())
+
+        with pytest.deprecated_call():
+            cache.invalidate("p")
+
+        assert asyncio.run(cache.asize()) == 0
+
+    def test_purge_expired_warns_and_delegates_to_apurge_expired(self) -> None:
+        clock = _FakeClock()
+        cache = PromptCache(ttl_seconds=1.0, clock=clock)
+
+        async def _seed() -> None:
+            await cache.get_or_compute("p", lambda: _resolved(1))
+
+        asyncio.run(_seed())
+        clock.now = 5.0
+
+        with pytest.deprecated_call():
+            removed = cache.purge_expired()
+
+        assert removed == 1
+
+    async def test_sync_wrapper_raises_inside_a_running_loop(self) -> None:
+        cache = PromptCache()
+        await cache.get_or_compute("p", lambda: _resolved(1))
+
+        with pytest.raises(RuntimeError, match="running event loop"):
+            with pytest.deprecated_call():
+                cache.invalidate("p")
+
+
+async def _resolved(value: int) -> int:
+    return value
