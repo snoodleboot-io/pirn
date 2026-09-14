@@ -128,6 +128,7 @@ class AgentPatternRegistry:
             "response",
         ),
         # --- planning
+        PatternDescriptor("plan_execute", "PlanExecutor", "plan"),
         PatternDescriptor("plan_react", "PlanReActPipeline", "task"),
         PatternDescriptor(
             "prompt_chain",
@@ -272,22 +273,19 @@ class AgentPatternRegistry:
         PatternDescriptor("fallback_chain", "FallbackChain", "ordered"),
     )
 
-    #: Convenience spellings that resolve to a canonical pattern name.
-    _aliases: ClassVar[Mapping[str, str]] = {"rag": "naive_rag"}
-
     @classmethod
     def _descriptors(cls) -> Mapping[str, PatternDescriptor]:
-        """Return the canonical name-to-descriptor table."""
+        """Return the name-to-descriptor table."""
         return {descriptor.name: descriptor for descriptor in cls._patterns}
 
-    #: sweet_tea ``Entry.label`` every pattern alias is registered under, so
+    #: sweet_tea ``Entry.label`` every pattern name is registered under, so
     #: :meth:`pattern_names` can pick its own registrations out of the shared,
     #: process-wide registry without touching anything another domain added.
     _registry_label: ClassVar[str] = "pattern"
 
     @classmethod
     def register_with_core_registry(cls) -> None:
-        """Register every pattern name as a sweet_tea alias of its class.
+        """Register every pattern name as a sweet_tea registry entry for its class.
 
         This is what makes a name in :meth:`pattern_names` resolvable through
         ``sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot].create``
@@ -306,7 +304,7 @@ class AgentPatternRegistry:
         ``AbstractInverterFactory[Knot].create(name)`` — called with no label
         filter, exactly as core's loader calls it — raise on ambiguity. Such
         names are left alone: the class is already uniquely resolvable under
-        that key, so no alias is needed or safe to add.
+        that key, so no second entry is needed or safe to add.
 
         Called once, from ``pirn_agents/__init__.py``, after
         ``Registry.fill_registry()`` has already imported every pattern
@@ -314,7 +312,7 @@ class AgentPatternRegistry:
         identical ``(key, class_def, library, label)`` tuples, and the
         already-unique-key check above is idempotent.
         """
-        for name in {*cls._descriptors(), *cls._aliases}:
+        for name in cls._descriptors():
             target_cls = cls.descriptor(name).knot_class()
             if cls._resolves_uniquely_to(name, target_cls):
                 continue
@@ -334,47 +332,47 @@ class AgentPatternRegistry:
     def pattern_names(cls) -> tuple[str, ...]:
         """Return the sorted pattern names, confirmed against sweet_tea's Registry.
 
-        A name is reported only once it is confirmed to resolve, through the
-        registry, to the exact class this table declares for it — the same
-        check :meth:`register_with_core_registry` uses to decide whether an
-        alias is needed. This does not re-derive the *set* of pattern names
-        from thin air (sweet_tea's ``Entry`` has no "this is a pattern"
-        concept beyond the label this class chooses to apply, and a label
-        cannot be added to an already-unique key without creating the
-        ambiguity described above) — it confirms every declared name actually
-        resolves through the one registry core's loader also uses, so this and
-        ``AbstractInverterFactory[Knot].create(name)`` can never disagree.
-        """
-        declared = {*cls._descriptors(), *cls._aliases}
-        return tuple(
-            sorted(
-                name
-                for name in declared
-                if cls._resolves_uniquely_to(name, cls.descriptor(name).knot_class())
-            )
-        )
+        Every name is confirmed to resolve, through the registry, to the exact
+        class this table declares for it — the same check
+        :meth:`register_with_core_registry` uses to decide whether a registry
+        entry is needed — so this and ``AbstractInverterFactory[Knot].create(name)``
+        (core's YAML loader lookup) can never disagree. A pattern has exactly one
+        name: there is no second spelling for any class.
 
-    @classmethod
-    def canonical_names(cls) -> tuple[str, ...]:
-        """Return the sorted pattern names excluding aliases (one per class)."""
-        return tuple(sorted(cls._descriptors()))
+        Raises:
+            LookupError: If a declared name does not resolve uniquely to its
+                class through the registry (a row that core's loader could not
+                build must not be advertised, and must not be dropped silently).
+        """
+        names = sorted(cls._descriptors())
+        unresolved = [
+            name
+            for name in names
+            if not cls._resolves_uniquely_to(name, cls.descriptor(name).knot_class())
+        ]
+        if unresolved:
+            raise LookupError(
+                "AgentPatternRegistry: pattern names not resolvable through the core "
+                f"registry: {unresolved!r}"
+            )
+        return tuple(names)
 
     @classmethod
     def descriptor(cls, pattern: str) -> PatternDescriptor:
         """Return the :class:`PatternDescriptor` for ``pattern``.
 
-        Resolves aliases. Performs no import — use :meth:`pattern_class` (or the
+        Performs no import — use :meth:`pattern_class` (or the
         descriptor's own accessors) when the class itself is needed.
 
         Raises:
             ValueError: If ``pattern`` is unknown.
         """
         table = cls._descriptors()
-        resolved = table.get(cls._aliases.get(pattern, pattern))
+        resolved = table.get(pattern)
         if resolved is None:
             raise ValueError(
                 f"AgentPatternRegistry: unknown pattern {pattern!r}; "
-                f"known patterns are {list(cls.pattern_names())!r}"
+                f"known patterns are {sorted(table)!r}"
             )
         return resolved
 
@@ -427,7 +425,7 @@ class AgentPatternRegistry:
         """Construct the pattern's :class:`SubTapestry` from resolved parts.
 
         Args:
-            pattern: The agentic pattern name (or alias).
+            pattern: The agentic pattern name.
             knot_id: Stable id for the generated top-level knot.
             input_value: The runtime seed, bound to the pattern's seed parameter.
             components: Live objects keyed by constructor parameter name — the
