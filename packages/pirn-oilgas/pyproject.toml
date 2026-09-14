@@ -99,6 +99,20 @@ runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 venvPath = "../.."
 venv = ".venv"
 include = ["pirn_oilgas"]
+# Per-subpackage strict ratchet (PIR-869): every path here passes strict with 0 errors,
+# new subpackages start strict, a subpackage joins when its count hits 0 and may never
+# regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
+# docs/architecture/ci-pipelines.md.
+strict = [
+    "pirn_oilgas/disassemblers",
+    "pirn_oilgas/geospatial",
+    "pirn_oilgas/integrity",
+    "pirn_oilgas/protocols",
+    "pirn_oilgas/types",
+    "pirn_oilgas/well",
+    "pirn_oilgas/workflows",
+    "pirn_oilgas/*.py",
+]
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"

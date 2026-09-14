@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LogSpikeRemover`` — remove spikes from well log curves using median absolute deviation.
 
 Algorithm:

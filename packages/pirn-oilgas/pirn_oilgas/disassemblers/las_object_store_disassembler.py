@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LasObjectStoreDisassembler`` — serialize a :class:`LASPayload` to raw LAS bytes.
 
 Sits between upstream domain knots that produce
@@ -43,14 +45,15 @@ class LasObjectStoreDisassembler(Disassembler):
     @staticmethod
     def _encode(payload: LASPayload) -> bytes:
         try:
-            import lasio
+            import lasio  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
                 "LasObjectStoreDisassembler: encoding LAS bytes requires lasio — "
                 "install pirn-oilgas[oilgas]"
             ) from exc
 
-        las = lasio.LASFile()
+        # Lazily imported optional SDK ships no stubs: the client is typed Any at the import.
+        las: Any = lasio.LASFile()
 
         las.well["WELL"].value = payload.las.well_id
         las.well["DEPT"].unit = payload.las.depth_unit
