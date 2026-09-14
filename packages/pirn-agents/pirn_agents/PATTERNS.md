@@ -1333,7 +1333,7 @@ and citations live in
 
 Every name `Agent.builder().pattern(...)` accepts (and `callable:` resolves to
 in a core YAML pipeline document), generated from
-`AgentPatternRegistry.canonical_names()` — see `builder/BUILDER.md`. `seed` is
+`AgentPatternRegistry.pattern_names()` — see `builder/BUILDER.md`. `seed` is
 the constructor parameter bound from `.input(...)`; every other required
 parameter is a component supplied via `.component(name, value)`
 (`AgentPatternRegistry.required_components(name)`). Kept in sync with the
@@ -1383,6 +1383,7 @@ class-name mismatch here fails that suite.
 | `parallel_tool_call` | `ParallelToolCaller` | `tool_calls` |
 | `parent_document_ingestor` | `ParentDocumentIngestor` | `text` |
 | `pii_redactor` | `PiiRedactorCheck` | `response` |
+| `plan_execute` | `PlanExecutor` | `plan` |
 | `plan_react` | `PlanReActPipeline` | `task` |
 | `prompt_chain` | `PromptChainPipeline` | `task` |
 | `pydantic_validator` | `PydanticValidatorPipeline` | `prompt` |
@@ -1410,5 +1411,5 @@ class-name mismatch here fails that suite.
 | `tree_of_thought` | `TreeOfThought` | `prompt` |
 | `yaml_extractor` | `YamlExtractorPipeline` | `prompt` |
 
-Plus the `rag` alias for `naive_rag` (67 names total via
-`AgentPatternRegistry.pattern_names()`).
+68 names in total (`AgentPatternRegistry.pattern_names()`), one per pattern
+class — no pattern has a second spelling.
