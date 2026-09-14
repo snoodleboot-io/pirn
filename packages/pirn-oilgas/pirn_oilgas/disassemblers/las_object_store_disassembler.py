@@ -31,6 +31,7 @@ from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.las_payload import LASPayload
 
 
@@ -44,16 +45,11 @@ class LasObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _encode(payload: LASPayload) -> bytes:
-        try:
-            import lasio  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "LasObjectStoreDisassembler: encoding LAS bytes requires lasio — "
-                "install pirn-oilgas[oilgas]"
-            ) from exc
+        lasio = OilgasOptionalImport.require(
+            "lasio", "LasObjectStoreDisassembler: encoding LAS bytes"
+        )
 
-        # Lazily imported optional SDK ships no stubs: the client is typed Any at the import.
-        las: Any = lasio.LASFile()
+        las = lasio.LASFile()
 
         las.well["WELL"].value = payload.las.well_id
         las.well["DEPT"].unit = payload.las.depth_unit

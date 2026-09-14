@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FIRFilter`` — finite impulse response filter.
 
 Algorithm:
@@ -29,6 +31,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -39,7 +42,7 @@ class FIRFilter(Knot):
         self,
         *,
         signal: Knot,
-        coefficients: Knot | tuple,
+        coefficients: Knot | tuple[float, ...],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -69,12 +72,7 @@ class FIRFilter(Knot):
             ValueError: If coefficients is empty.
             TypeError: If any coefficient is not a real number.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "FIRFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         coeffs = tuple(coefficients)
         if not coeffs:
             raise ValueError("FIRFilter: coefficients must be non-empty")
@@ -88,5 +86,5 @@ class FIRFilter(Knot):
         )
         return signal.derive(
             "fir",
-            np.asarray(filtered),
+            filtered,
         )

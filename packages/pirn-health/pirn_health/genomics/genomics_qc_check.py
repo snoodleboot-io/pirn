@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GenomicsQCCheck`` — gate the pipeline by QC metrics.
 
 Production version computes mean coverage, mapping rate, contamination

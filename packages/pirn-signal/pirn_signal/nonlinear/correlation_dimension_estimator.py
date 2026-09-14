@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CorrelationDimensionEstimator`` — Grassberger-Procaccia dimension.
 
 Algorithm:
@@ -33,6 +35,7 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -116,27 +119,29 @@ class CorrelationDimensionEstimator(Knot):
         )
 
     @staticmethod
-    def _corr_dim(signal_array: np.ndarray, embedding_dim: int, r_max: float) -> float:
+    def _corr_dim(signal_array: NDArray[np.float64], embedding_dim: int, r_max: float) -> float:
         """Correlation dimension via Grassberger-Procaccia algorithm."""
         embedded = DelayEmbedding.embed(signal_array, embedding_dim)
         n_pts = len(embedded)
         if n_pts < 4:
             return 0.0
         # Compute pairwise distances (upper triangle only)
-        dists = []
+        dists: list[float] = []
         for i in range(n_pts):
             for j in range(i + 1, n_pts):
-                dists.append(float(np.linalg.norm(embedded[i] - embedded[j])))
-        dists_arr = np.array(dists)
+                separation: NDArray[np.float64] = embedded[i] - embedded[j]
+                dists.append(float(np.linalg.norm(separation)))
+        dists_arr: NDArray[np.float64] = np.array(dists)
         n_pairs = len(dists_arr)
         if n_pairs == 0:
             return 0.0
         r_min = float(np.min(dists_arr[dists_arr > 0])) if np.any(dists_arr > 0) else 1e-6
-        radii = np.logspace(np.log10(r_min), np.log10(r_max), 20)
-        log_r = []
-        log_c = []
-        for radius in radii:
-            correlation_integral = float(np.sum(dists_arr < radius)) / n_pairs
+        radii: NDArray[np.float64] = np.logspace(float(np.log10(r_min)), float(np.log10(r_max)), 20)
+        log_r: list[float] = []
+        log_c: list[float] = []
+        for radius in radii.tolist():
+            within_radius: NDArray[np.bool_] = dists_arr < radius
+            correlation_integral = float(np.sum(within_radius)) / n_pairs
             if correlation_integral > 0:
                 log_r.append(float(np.log(radius)))
                 log_c.append(float(np.log(correlation_integral)))

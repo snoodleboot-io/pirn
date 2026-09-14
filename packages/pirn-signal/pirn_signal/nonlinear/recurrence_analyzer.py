@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RecurrenceAnalyzer`` — recurrence-quantification analysis (RQA).
 
 Algorithm:
@@ -32,6 +34,7 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -115,8 +118,8 @@ class RecurrenceAnalyzer(Knot):
 
     @staticmethod
     def _recurrence_matrix(
-        signal_array: np.ndarray, embedding_dim: int, tau: int, distance_threshold: float
-    ) -> np.ndarray:
+        signal_array: NDArray[np.float64], embedding_dim: int, tau: int, distance_threshold: float
+    ) -> NDArray[np.bool_]:
         """Build binary recurrence matrix using Euclidean distance threshold."""
         embedded = DelayEmbedding.embed(signal_array, embedding_dim, tau)
         n_pts = len(embedded)
@@ -124,15 +127,16 @@ class RecurrenceAnalyzer(Knot):
             return np.zeros((0, 0), dtype=bool)
         recurrence_matrix = np.zeros((n_pts, n_pts), dtype=bool)
         for point_idx in range(n_pts):
-            dists = np.linalg.norm(embedded - embedded[point_idx], axis=1)
+            reference_point: NDArray[np.float64] = embedded[point_idx]
+            dists: NDArray[np.float64] = np.linalg.norm(embedded - reference_point, axis=1)
             recurrence_matrix[point_idx] = dists < distance_threshold
         return recurrence_matrix
 
     @staticmethod
-    def _diagonal_line_lengths(recurrence_mat: np.ndarray) -> np.ndarray:
+    def _diagonal_line_lengths(recurrence_mat: NDArray[np.bool_]) -> NDArray[np.int_]:
         """Extract diagonal line lengths from recurrence matrix (excluding main diagonal)."""
         matrix_size = len(recurrence_mat)
-        lengths = []
+        lengths: list[int] = []
         for offset in range(-(matrix_size - 1), matrix_size):
             if offset == 0:
                 continue
@@ -151,10 +155,10 @@ class RecurrenceAnalyzer(Knot):
         return np.array(lengths)
 
     @staticmethod
-    def _vertical_line_lengths(recurrence_mat: np.ndarray) -> np.ndarray:
+    def _vertical_line_lengths(recurrence_mat: NDArray[np.bool_]) -> NDArray[np.int_]:
         """Extract vertical line lengths from recurrence matrix."""
         matrix_size = len(recurrence_mat)
-        lengths = []
+        lengths: list[int] = []
         for col in range(matrix_size):
             count = 0
             for row in range(matrix_size):
@@ -171,7 +175,7 @@ class RecurrenceAnalyzer(Knot):
 
     @staticmethod
     def _compute_rqa(
-        signal_array: np.ndarray, embedding_dim: int, tau: int, distance_threshold: float
+        signal_array: NDArray[np.float64], embedding_dim: int, tau: int, distance_threshold: float
     ) -> tuple[float, float, float]:
         """Compute RQA measures: (RR, DET, LAM)."""
         recurrence_mat = RecurrenceAnalyzer._recurrence_matrix(

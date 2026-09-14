@@ -7,7 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.assemblers.fhir_patient_assembler import FhirPatientAssembler
-from pirn_health.clinical.phi_hasher import _PhiHasher
+from pirn_health.clinical.phi_hasher import PhiHasher
 from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="f")
@@ -47,8 +47,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert isinstance(record, ClinicalRecord)
         assert record.patient_id != "P1"
         assert record.encounter_id != "E1"
-        assert record.patient_id == _PhiHasher.hash_identifier("seed", "P1")
-        assert record.encounter_id == _PhiHasher.hash_identifier("seed", "E1")
+        assert record.patient_id == PhiHasher.hash_identifier("seed", "P1")
+        assert record.encounter_id == PhiHasher.hash_identifier("seed", "E1")
         assert record.observation_codes == ("A",)
 
     async def test_different_salts_produce_different_hashes(self) -> None:

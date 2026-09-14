@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SpectrumObjectStoreDisassembler`` — serialize a :class:`SpectrumPayload` to raw npz bytes.
 
 Sits between upstream domain knots that produce
@@ -63,7 +65,7 @@ class SpectrumObjectStoreDisassembler(Disassembler):
             TypeError: If ``payload`` is not a :class:`SpectrumPayload`.
             ValueError: If ``payload.data`` is empty.
         """
-        if not isinstance(payload, SpectrumPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, SpectrumPayload):
             raise TypeError(
                 f"SpectrumObjectStoreDisassembler: payload must be SpectrumPayload, got {type(payload).__name__}"
             )
@@ -80,5 +82,5 @@ class SpectrumObjectStoreDisassembler(Disassembler):
             "frequency_bins": np.array(payload.metadata.frequency_bins),
             "frequency_resolution_hz": np.array(payload.metadata.frequency_resolution_hz),
         }
-        np.savez(buf, **arrays)  # type: ignore[arg-type]
+        np.savez(buf, allow_pickle=True, **arrays)
         return buf.getvalue()

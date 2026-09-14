@@ -1,4 +1,4 @@
-"""Tests for :class:`_PassThrough`."""
+"""Tests for :class:`ClinicalRecordPassThrough`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 
-from pirn_health.clinical._pass_through import _PassThrough
+from pirn_health.clinical.clinical_record_pass_through import ClinicalRecordPassThrough
 from pirn_health.types.clinical_record import ClinicalRecord
 
 
@@ -22,18 +22,18 @@ def _record(patient_id: str = "P1") -> ClinicalRecord:
 class TestPassThroughConstruction(unittest.TestCase):
     def test_construction(self) -> None:
         records = (_record(),)
-        knot = _PassThrough(
+        knot = ClinicalRecordPassThrough(
             records=records,
             _config=KnotConfig(id="pt"),
         )
-        self.assertIsInstance(knot, _PassThrough)
+        self.assertIsInstance(knot, ClinicalRecordPassThrough)
 
 
 class TestPassThroughProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_records_unchanged(self) -> None:
         r1 = _record("P1")
         r2 = _record("P2")
-        knot = _PassThrough(
+        knot = ClinicalRecordPassThrough(
             records=(r1, r2),
             _config=KnotConfig(id="pt"),
         )
@@ -41,7 +41,7 @@ class TestPassThroughProcess(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, (r1, r2))
 
     async def test_empty_records(self) -> None:
-        knot = _PassThrough(
+        knot = ClinicalRecordPassThrough(
             records=(),
             _config=KnotConfig(id="pt"),
         )

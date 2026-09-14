@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PitchEstimator`` — fundamental-frequency tracking.
 
 Algorithm:
@@ -117,7 +119,7 @@ class PitchEstimator(Knot):
     @staticmethod
     def _estimate_pitch_yin(mono: np.ndarray, sr: int, fmin: float, fmax: float) -> np.ndarray:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "PitchEstimator requires 'librosa'. Install via pip install pirn-signal[signal]"
@@ -127,7 +129,7 @@ class PitchEstimator(Knot):
     @staticmethod
     def _estimate_pitch_pyin(mono: np.ndarray, sr: int, fmin: float, fmax: float) -> np.ndarray:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "PitchEstimator requires 'librosa'. Install via pip install pirn-signal[signal]"
@@ -140,7 +142,7 @@ class PitchEstimator(Knot):
         mono: np.ndarray, sr: int, fmin: float, fmax: float
     ) -> np.ndarray:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "PitchEstimator requires 'librosa'. Install via pip install pirn-signal[signal]"
@@ -148,7 +150,7 @@ class PitchEstimator(Knot):
         frame_size = 2048
         hop = 512
         frames = librosa.util.frame(mono, frame_length=frame_size, hop_length=hop)
-        f0_frames = []
+        f0_frames: list[float] = []
         for frame in frames.T:
             ac = np.correlate(frame, frame, mode="full")[frame_size - 1 :]
             ac = ac / (ac[0] + 1e-10)

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
+from unittest.mock import patch
 
 try:
     import scipy  # noqa: F401
@@ -43,3 +45,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         out = await _KNOT.process(signal=_SIGNAL, method="welch")
         assert isinstance(out, Mapping)
         assert "alpha" in out
+
+    async def test_raises_install_hint_without_sdk(self) -> None:
+        with patch.dict(sys.modules, {"scipy.signal": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                await _KNOT.process(signal=_SIGNAL, method="welch")

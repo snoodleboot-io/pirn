@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MultitaperEstimator`` — Slepian-taper PSD with low spectral leakage.
 
 Algorithm:
@@ -26,6 +28,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
@@ -107,19 +110,12 @@ class MultitaperEstimator(Knot):
         n: int,
         time_bandwidth: float,
         taper_count: int,
-    ) -> np.ndarray:
-        try:
-            from scipy.signal import windows  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "MultitaperEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
-        tapers = windows.dpss(n, time_bandwidth, Kmax=taper_count)
-        # dpss's return type is a scipy-internal array-API union, not NDArray[floating];
-        # tapers are always real-valued, so this coercion is exact (unlike coercing
-        # ``data``, which would upcast float32 input and change its precision).
-        tapers_arr = np.asarray(tapers, dtype=np.float64)
-        tapered = MultitaperEstimator._multiply_real(data[..., np.newaxis, :], tapers_arr)
+    ) -> np.typing.NDArray[np.floating[Any]]:
+        ss = ScipySignalBinding.load()
+        # The binding returns the real-valued tapers as float64; ``data`` is left
+        # uncoerced so float32 input keeps its precision.
+        tapers = ss.dpss(n, time_bandwidth, taper_count)
+        tapered = MultitaperEstimator._multiply_real(data[..., np.newaxis, :], tapers)
         spectra = np.fft.rfft(tapered, axis=-1)
         pxx = np.mean(np.abs(spectra) ** 2, axis=-2)
         return pxx

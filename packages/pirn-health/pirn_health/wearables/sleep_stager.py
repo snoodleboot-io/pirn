@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SleepStager`` — stage sleep epochs as wake / N1 / N2 / N3 / REM.
 
 Algorithm:
@@ -28,15 +30,8 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    import scipy.signal
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    scipy = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
 
 
 class SleepStager(Knot):
@@ -87,12 +82,11 @@ class SleepStager(Knot):
     @staticmethod
     def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
         """Compute average power in a frequency band using Welch's method."""
-        if not _HAS_SCIPY or scipy is None:
-            raise ImportError(
-                "scipy is required for SleepStager — install with: pip install 'pirn-health[health]'"
-            )
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
         nperseg = min(epoch.size, max(4, int(fs * 2)))
-        freqs, psd = scipy.signal.welch(epoch, fs=fs, nperseg=nperseg)
+        freqs: np.ndarray
+        psd: np.ndarray
+        freqs, psd = signal.welch(epoch, fs=fs, nperseg=nperseg)
         idx = (freqs >= low) & (freqs <= high)
         return float(np.trapezoid(psd[idx], freqs[idx])) if idx.any() else 0.0
 

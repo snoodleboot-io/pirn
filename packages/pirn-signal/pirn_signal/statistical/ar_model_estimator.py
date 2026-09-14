@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ARModelEstimator`` — fit an autoregressive model to a signal.
 
 Algorithm:
@@ -83,7 +85,7 @@ class ARModelEstimator(Knot):
         Raises:
             ValueError: If order or method are invalid.
         """
-        if not isinstance(order, int) or order <= 0:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(order, int) or order <= 0:
             raise ValueError("ARModelEstimator: order must be a positive integer")
         if method not in self._valid_methods:
             raise ValueError("ARModelEstimator: method must be one of 'burg', 'yule_walker', 'ols'")

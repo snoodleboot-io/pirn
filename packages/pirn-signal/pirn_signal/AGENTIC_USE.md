@@ -51,6 +51,8 @@ Use `pirn[signal,audio]` to get both.
 ```
 pirn_signal/
 ├── __init__.py                  — lazy package; no module-level scipy/pywavelets imports
+├── signal_optional_dependency.py — SignalOptionalDependency.require(module, extra=...) lazy extra import
+├── bindings/                    — typed facades over untyped scipy / pywt / PyEMD / vmdpy / sklearn / soundfile
 ├── types/
 │   ├── signal_frame.py          — SignalFrame (primary unit of data)
 │   ├── spectrum_frame.py        — SpectrumFrame (FFT / PSD output)

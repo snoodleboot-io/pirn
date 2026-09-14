@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``STARAligner`` — STAR splice-aware aligner for RNA-seq.
 
 Production version invokes the STAR executable; this stub validates

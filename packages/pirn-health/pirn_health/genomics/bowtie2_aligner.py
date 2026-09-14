@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Bowtie2Aligner`` — Bowtie2 read aligner.
 
 Production version invokes ``bowtie2`` via subprocess with sanitised

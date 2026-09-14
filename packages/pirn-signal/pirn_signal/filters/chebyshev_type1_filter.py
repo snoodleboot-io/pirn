@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ChebyshevType1Filter`` — IIR with passband ripple, no stopband ripple.
 
 Algorithm:
@@ -25,10 +27,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -76,12 +78,7 @@ class ChebyshevType1Filter(Knot):
         Raises:
             ValueError: If order, passband_ripple_db, or cutoff_hz are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ChebyshevType1Filter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(order, int) or order <= 0:
             raise ValueError("ChebyshevType1Filter: order must be a positive integer")
         if not isinstance(passband_ripple_db, (int, float)) or passband_ripple_db <= 0:
@@ -91,10 +88,10 @@ class ChebyshevType1Filter(Knot):
 
         fs = signal.frame.sample_rate_hz
         sos = await asyncio.to_thread(
-            ss.cheby1, order, passband_ripple_db, cutoff_hz, btype="low", fs=fs, output="sos"
+            ss.cheby1_sos, order, passband_ripple_db, cutoff_hz, "low", fs
         )
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return signal.derive(
             "cheby1",
-            np.asarray(filtered),
+            filtered,
         )

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RxNormNormalizer`` — translate drug names to RxCUI codes via static map.
 
 Same shape as :class:`SnomedCTNormalizer`: caller injects the mapping

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TumorMicrobiotaClassifier`` — classify tumor microbiota from sequencing data.
 
 Algorithm:
@@ -19,6 +21,7 @@ References:
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -92,23 +95,21 @@ class TumorMicrobiotaClassifier(Knot):
                 "TumorMicrobiotaClassifier: taxonomic_level must be one of "
                 "'phylum', 'class', 'order', 'family', 'genus', 'species'"
             )
-        taxa_abundances: dict = sequence_data.get(
+        taxa_abundances: Mapping[str, object] = sequence_data.get(
             "taxa_abundances", sequence_data.get("abundances", {})
         )
-        total_reads = sum(
-            v for v in taxa_abundances.values() if isinstance(v, (int, float)) and v > 0
-        )
+        read_counts: dict[str, int | float] = {}
+        for taxon, count in taxa_abundances.items():
+            if isinstance(count, (int, float)) and count > 0:
+                read_counts[taxon] = count
+        total_reads = sum(read_counts.values())
         if not total_reads:
             return {
                 "sample_id": sequence_data.get("sample_id", ""),
                 "classifications": [],
                 "diversity_index": 0.0,
             }
-        rel_abunds = {
-            k: v / total_reads
-            for k, v in taxa_abundances.items()
-            if isinstance(v, (int, float)) and v > 0
-        }
+        rel_abunds = {taxon: count / total_reads for taxon, count in read_counts.items()}
         filtered = {k: v for k, v in rel_abunds.items() if v >= confidence_threshold}
         H = -sum(p * math.log(p) for p in filtered.values() if p > 0)
         classifications = [

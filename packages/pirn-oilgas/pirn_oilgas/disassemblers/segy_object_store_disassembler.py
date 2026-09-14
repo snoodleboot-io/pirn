@@ -42,6 +42,7 @@ from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.segy_payload import SegyPayload
 
 
@@ -55,10 +56,9 @@ class SegyObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _encode(payload: SegyPayload) -> bytes:
-        import segyio as _segyio  # type: ignore[import-not-found]  # optional dependency
-
-        # Lazily imported optional SDK ships no stubs: the client is typed Any at the import.
-        segyio: Any = _segyio
+        segyio = OilgasOptionalImport.require(
+            "segyio", "SegyObjectStoreDisassembler: encoding SEG-Y bytes"
+        )
 
         traces: np.ndarray = payload.traces
         if traces.ndim == 1:

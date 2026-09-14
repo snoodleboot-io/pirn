@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ISTFTReconstructor`` — reconstruct a time-domain signal from STFT via inverse STFT.
 
 Algorithm:
@@ -27,6 +29,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_payload import SpectrumPayload
@@ -74,12 +77,7 @@ class ISTFTReconstructor(Knot):
         Raises:
             ValueError: If hop_length or window are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ISTFTReconstructor requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(hop_length, int) or hop_length <= 0:
             raise ValueError("ISTFTReconstructor: hop_length must be a positive integer")
         if window not in self._valid_windows:
@@ -92,7 +90,7 @@ class ISTFTReconstructor(Knot):
         freq_res = spectrum.frame.frequency_resolution_hz
         sample_rate = freq_res * n_fft if freq_res > 0 else 1.0
 
-        _, samples = await asyncio.to_thread(
+        _times, samples = await asyncio.to_thread(
             ss.istft,
             spectrum.data,
             fs=sample_rate,
