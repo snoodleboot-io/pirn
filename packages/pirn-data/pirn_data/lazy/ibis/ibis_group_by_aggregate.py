@@ -54,7 +54,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-import ibis  # pyright: ignore[reportMissingTypeStubs]  # ibis ships no stubs or py.typed; its inline annotations are used
+import ibis
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -115,5 +115,5 @@ class IbisGroupByAggregate(Knot):
             )
         result = aggregations(batch.expression)
         metrics: list[Any] = list(result) if ValueShape.is_list_or_tuple(result) else [result]
-        aggregated = batch.expression.group_by(list(by)).aggregate(*metrics)  # pyright: ignore[reportUnknownMemberType]  # ibis's inline annotations leave this signature partially untyped
+        aggregated = batch.expression.group_by(list(by)).aggregate(*metrics)
         return batch.with_expression(aggregated)

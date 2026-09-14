@@ -121,4 +121,4 @@ class DaskJoin(Knot):
                     "right_on": resolved_right_on,
                     "how": how,
                 }
-        return left.with_frame(left.frame.merge(right.frame, **merge_kwargs))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]  # dask's inline annotations leave this signature partially untyped
+        return left.with_frame(left.frame.merge(right.frame, **merge_kwargs))

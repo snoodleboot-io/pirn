@@ -48,7 +48,6 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-import ray.data
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sink import Sink
@@ -135,7 +134,7 @@ class RayCompute(Sink):
         if return_pandas:
             return batch.dataset.to_pandas()
 
-        materialised: ray.data.Dataset = batch.dataset.materialize()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # ray's inline annotations leave this signature partially untyped
+        materialised = batch.dataset.materialize()
         return RayExecutionReceipt(
             backend_name=batch.backend_name,
             target_path=None,

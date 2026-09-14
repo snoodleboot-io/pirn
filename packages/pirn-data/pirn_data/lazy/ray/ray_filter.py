@@ -69,4 +69,4 @@ class RayFilter(Knot):
         """
         if not ValueShape.is_callable(predicate):
             raise TypeError("RayFilter: predicate must be a callable (row) -> bool")
-        return batch.with_dataset(batch.dataset.filter(predicate))  # pyright: ignore[reportUnknownMemberType]  # ray's inline annotations leave this signature partially untyped
+        return batch.with_dataset(batch.dataset.filter(predicate))

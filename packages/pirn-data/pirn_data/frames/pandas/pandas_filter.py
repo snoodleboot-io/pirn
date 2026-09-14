@@ -35,7 +35,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-import pandas as pd  # pyright: ignore[reportMissingTypeStubs]  # pandas ships no stubs or py.typed; its inline annotations are used
+import pandas as pd
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -55,11 +55,6 @@ class PandasFilter(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(batch=batch, predicate=predicate, _config=_config, **kwargs)
-
-    @staticmethod
-    def _select_rows(frame: pd.DataFrame, mask: Any) -> pd.DataFrame | pd.Series:
-        """``frame[mask]``, typed at the pandas boundary."""
-        return frame[mask]  # pyright: ignore[reportUnknownVariableType]  # pandas' inline annotations leave this signature partially untyped
 
     async def process(
         self,
@@ -83,10 +78,10 @@ class PandasFilter(Knot):
                 "use the Tier-1 pirn_data.transforms.filter.Filter knot instead"
             )
         mask = predicate(batch.frame)
-        filtered = self._select_rows(batch.frame, mask)
+        filtered = batch.frame[mask]
         if not isinstance(filtered, pd.DataFrame):
             raise TypeError(
                 "PandasFilter: predicate must return a boolean row mask; "
                 f"indexing with its result selected a {type(filtered).__name__}"
             )
-        return batch.with_frame(filtered.reset_index(drop=True))  # pyright: ignore[reportUnknownMemberType]  # pandas' inline annotations leave this signature partially untyped
+        return batch.with_frame(filtered.reset_index(drop=True))

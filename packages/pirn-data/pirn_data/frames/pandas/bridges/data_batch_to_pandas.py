@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import pandas as pd  # pyright: ignore[reportMissingTypeStubs]  # pandas ships no stubs or py.typed; its inline annotations are used
+import pandas as pd
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 

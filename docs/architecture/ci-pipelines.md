@@ -243,7 +243,8 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
 Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 0 (fully strict;
-pyarrow is typed through the local stubs in `packages/pirn-data/typings/`),
+pyarrow, pandas, ibis, dask.dataframe and ray.data are typed through the local stubs in
+`packages/pirn-data/typings/`),
 pirn-health 486, pirn-ml 286, pirn-oilgas 0, pirn-signal 0. The dominant
 remaining categories are `reportUnknownMemberType` / `reportUnknownVariableType`
 on untyped third-party returns (cloud SDKs, `cloudpickle`, DB drivers,

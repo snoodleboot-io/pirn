@@ -80,7 +80,7 @@ class PandasCast(Knot):
         }
         if not applicable:
             return batch
-        return batch.with_frame(batch.frame.astype(applicable))  # pyright: ignore[reportUnknownMemberType]  # pandas' inline annotations leave this signature partially untyped
+        return batch.with_frame(batch.frame.astype(applicable))
 
     def _normalise_dtype(self, column: str, dtype: Any) -> Any:
         # Python primitive → pandas/numpy dtype string.

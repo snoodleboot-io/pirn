@@ -49,7 +49,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
 
-import ibis  # pyright: ignore[reportMissingTypeStubs]  # ibis ships no stubs or py.typed; its inline annotations are used
+import ibis
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 

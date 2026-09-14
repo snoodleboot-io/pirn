@@ -93,14 +93,6 @@ class DaskAggregate(Knot):
             **kwargs,
         )
 
-    @staticmethod
-    def _group_aggregate(frame: dd.DataFrame, by: list[str], aggs: dict[str, Any]) -> dd.DataFrame:
-        """``frame.groupby(by).agg(aggs).reset_index()``, typed at the dask boundary."""
-        grouped: dd.DataFrame | None = frame.groupby(by).agg(aggs)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # dask's inline annotations leave this signature partially untyped
-        if grouped is None:
-            raise RuntimeError("DaskAggregate: groupby().agg() returned None")
-        return grouped.reset_index()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # dask's inline annotations leave this signature partially untyped
-
     async def process(
         self,
         batch: DaskDataFrame,
@@ -143,5 +135,5 @@ class DaskAggregate(Knot):
                 raise TypeError("DaskAggregate: aggs is required when by is supplied")
             if not ValueShape.is_str_mapping(aggs) or not aggs:
                 raise TypeError("DaskAggregate: aggs must be a non-empty dict")
-            aggregated = self._group_aggregate(batch.frame, list(by), aggs)
+            aggregated = batch.frame.groupby(list(by)).agg(aggs).reset_index()
         return batch.with_frame(aggregated)

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-import pandas as pd  # pyright: ignore[reportMissingTypeStubs]  # pandas ships no stubs or py.typed; its inline annotations are used
+import pandas as pd
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 
@@ -49,8 +49,7 @@ class PandasDataBatch:
 
     @property
     def column_names(self) -> tuple[str, ...]:
-        names: list[str] = self.frame.columns.tolist()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # pandas' inline annotations leave this signature partially untyped
-        return tuple(names)
+        return tuple(self.frame.columns.tolist())
 
     def with_frame(self, frame: pd.DataFrame) -> PandasDataBatch:
         """Return a copy with ``frame`` replaced; metadata preserved."""

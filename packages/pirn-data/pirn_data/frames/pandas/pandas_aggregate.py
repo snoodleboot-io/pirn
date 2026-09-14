@@ -46,7 +46,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import pandas as pd  # pyright: ignore[reportMissingTypeStubs]  # pandas ships no stubs or py.typed; its inline annotations are used
+import pandas as pd
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -107,14 +107,14 @@ class PandasAggregate(Knot):
                 )
         by_tuple: tuple[str, ...] = tuple(by)
         aggs_dict: dict[str, AggregateSpec] = dict(aggs)
-        grouped = batch.frame.groupby(list(by_tuple), sort=False, dropna=False)  # pyright: ignore[reportUnknownMemberType]  # pandas' inline annotations leave this signature partially untyped
+        grouped = batch.frame.groupby(list(by_tuple), sort=False, dropna=False)
         out_rows: list[dict[str, Any]] = []
         for key, group in grouped:
             key_tuple = key if ValueShape.is_tuple(key) else (key,)
             row: dict[str, Any] = dict(zip(by_tuple, key_tuple, strict=False))
             for output_name, spec in aggs_dict.items():
                 if spec.source in group.columns:
-                    selected = self._select_column(group, spec.source)
+                    selected = group[spec.source]
                     if isinstance(selected, pd.DataFrame):
                         raise ValueError(
                             f"PandasAggregate: aggs[{output_name!r}] source column "
@@ -129,19 +129,9 @@ class PandasAggregate(Knot):
         result = pd.DataFrame(out_rows, columns=column_order)
         return batch.with_frame(result)
 
-    @staticmethod
-    def _select_column(frame: pd.DataFrame, column: str) -> pd.Series | pd.DataFrame:
-        """``frame[column]`` — a Series, or a DataFrame when the name is duplicated."""
-        return frame[column]  # pyright: ignore[reportUnknownVariableType]  # pandas' inline annotations leave this signature partially untyped
-
-    @staticmethod
-    def _reduce(values: pd.Series, reducer: str) -> Any:
-        """``values.agg(reducer)``, typed at the pandas boundary."""
-        return values.agg(reducer)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # pandas' inline annotations leave this signature partially untyped
-
     def _apply(self, function: str, series: pd.Series) -> Any:
         if function in ("first", "last"):
-            values: list[Any] = series.tolist()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # pandas' inline annotations leave this signature partially untyped
+            values = series.tolist()
             if not values:
                 return None
             return values[0] if function == "first" else values[-1]
@@ -160,7 +150,7 @@ class PandasAggregate(Knot):
             raise ValueError(f"PandasAggregate: unknown aggregation function {function!r}")
         if len(non_null) == 0:
             return 0 if function in ("sum", "count_distinct") else None
-        reduced = self._reduce(non_null, reducers[function])
+        reduced = non_null.agg(reducers[function])
         if function == "mean":
             return float(reduced)
         if function == "count_distinct":

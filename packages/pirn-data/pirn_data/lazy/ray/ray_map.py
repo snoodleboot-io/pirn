@@ -102,4 +102,4 @@ class RayMap(Knot):
             map_kwargs["batch_format"] = batch_format
         if batch_size is not None:
             map_kwargs["batch_size"] = batch_size
-        return batch.with_dataset(batch.dataset.map_batches(fn, **map_kwargs))  # pyright: ignore[reportUnknownMemberType]  # ray's inline annotations leave this signature partially untyped
+        return batch.with_dataset(batch.dataset.map_batches(fn, **map_kwargs))

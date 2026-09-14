@@ -44,11 +44,11 @@ class DaskDataFrame:
 
     @property
     def column_names(self) -> tuple[str, ...]:
-        return tuple(self.frame.columns.tolist())  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]  # dask's inline annotations leave this signature partially untyped
+        return tuple(self.frame.columns.tolist())
 
     @property
     def npartitions(self) -> int:
-        return int(self.frame.npartitions)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]  # dask's inline annotations leave this signature partially untyped
+        return int(self.frame.npartitions)
 
     def with_frame(self, frame: dd.DataFrame) -> DaskDataFrame:
         """Return a copy with ``frame`` replaced; metadata preserved."""

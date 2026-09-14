@@ -70,4 +70,4 @@ class DaskFilter(Knot):
                 "DaskFilter: predicate must be a callable (frame) -> dask.dataframe.Series"
             )
         mask = predicate(batch.frame)
-        return batch.with_frame(batch.frame[mask])  # pyright: ignore[reportUnknownArgumentType]  # dask's inline annotations leave this signature partially untyped
+        return batch.with_frame(batch.frame[mask])

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import sys
+import types
 import unittest
 from typing import Any
+from unittest.mock import patch
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -13,6 +16,20 @@ from pirn.tapestry import Tapestry
 from pirn_data.specializations.feature_engineering.text_token_counter import (
     TextTokenCounter,
 )
+
+# tiktoken is an optional extra (``pirn-data[tiktoken]``) and fetches its BPE files
+# over the network. Every test here pins whether it is importable: a ``None``
+# entry in ``sys.modules`` makes the import fail, so the whitespace fallback is
+# what the counts below exercise, whatever the environment has installed.
+_no_tiktoken = patch.dict(sys.modules, {"tiktoken": None})
+
+
+def setUpModule() -> None:
+    _no_tiktoken.start()
+
+
+def tearDownModule() -> None:
+    _no_tiktoken.stop()
 
 
 def _make_knot(**overrides: Any) -> TextTokenCounter:
@@ -153,3 +170,44 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "plain identifier"):
             await self._call(k, text_column="bad col")
+
+
+class TestTokenizerSelection(unittest.IsolatedAsyncioTestCase):
+    async def test_whitespace_fallback_when_tiktoken_is_absent(self) -> None:
+        with Tapestry():
+            k = _make_knot()
+        result = await k.process(
+            rows=[{"text": "a b"}],
+            text_column="text",
+            output_column="token_count",
+            tiktoken_encoding="cl100k_base",
+        )
+        assert result["tokenizer"] == "whitespace"
+        assert result["rows"][0]["token_count"] == 2
+
+    async def test_uses_tiktoken_encoding_when_installed(self) -> None:
+        fake = types.ModuleType("tiktoken")
+
+        class _Encoding:
+            def encode(self, text: str) -> list[int]:
+                return list(range(len(text)))
+
+        requested: list[str] = []
+
+        def get_encoding(name: str) -> _Encoding:
+            requested.append(name)
+            return _Encoding()
+
+        fake.get_encoding = get_encoding
+        with Tapestry():
+            k = _make_knot()
+        with patch.dict(sys.modules, {"tiktoken": fake}):
+            result = await k.process(
+                rows=[{"text": "abcd"}],
+                text_column="text",
+                output_column="token_count",
+                tiktoken_encoding="cl100k_base",
+            )
+        assert requested == ["cl100k_base"]
+        assert result["tokenizer"] == "tiktoken:cl100k_base"
+        assert result["rows"][0]["token_count"] == 4
