@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.signer import Signer
 from pirn.backends.valkey.lazy_client import LazyClient
+
+if TYPE_CHECKING:
+    from glide import GlideClient, GlideClientConfiguration
 
 _logger = logging.getLogger(__name__)
 
@@ -23,8 +26,8 @@ class ValKeyDataStore(DataStore):
     def __init__(
         self,
         *,
-        client: Any = None,
-        config: Any = None,
+        client: GlideClient | None = None,
+        config: GlideClientConfiguration | None = None,
         ttl_seconds: int | None = None,
         signer: Signer | None = None,
         allow_unsigned: bool = False,

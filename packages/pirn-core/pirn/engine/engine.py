@@ -665,7 +665,7 @@ class Engine:
         has_container = False
         for knot_id in sorted(shed.knots):
             knot = shed.knots[knot_id]
-            if not type(knot)._holds_admission_slot:
+            if not knot.holds_admission_slot():
                 has_container = True
             group = knot.config.concurrency_group
             if group is None:
@@ -1109,7 +1109,7 @@ class Engine:
             knot, inputs, gate=gate, ticket_holder=ticket_holder
         )
         if knot.config.retry is not None:
-            knot._mutable_dispatch_extra = {"attempts": attempts}
+            knot.record_dispatch_extra({"attempts": attempts})
         return result, parent_hashes, started_at
 
     def _rebind_err(

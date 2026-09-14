@@ -200,7 +200,7 @@ class TestAPlainKnotReturnsItsOwnValue(unittest.IsolatedAsyncioTestCase):
     def test_it_is_not_a_sub_tapestry_and_holds_no_slot(self) -> None:
         self.assertFalse(issubclass(_TwoRunSum, SubTapestry))
         self.assertTrue(issubclass(SubTapestry, NestedRunKnot))
-        self.assertFalse(_TwoRunSum._holds_admission_slot)
+        self.assertFalse(_TwoRunSum.holds_admission_slot())
 
 
 class TestInnerRunsAreRecordedOnTheKnot(unittest.IsolatedAsyncioTestCase):

@@ -17,11 +17,14 @@ queries are fast (DuckDB's column-store wins on
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
+
+if TYPE_CHECKING:
+    from duckdb import DuckDBPyConnection
 
 
 class DuckDBHistory(RunHistory):
@@ -77,7 +80,9 @@ CREATE TABLE IF NOT EXISTS knot_sources (
 );
 """
 
-    def __init__(self, *, path: str = ":memory:", connection: Any = None) -> None:
+    def __init__(
+        self, *, path: str = ":memory:", connection: DuckDBPyConnection | None = None
+    ) -> None:
         """Initialise the history store.
 
         Args:
@@ -98,7 +103,7 @@ CREATE TABLE IF NOT EXISTS knot_sources (
             ) from exc
 
         self._path = path
-        self._conn = connection or duckdb.connect(path)  # type: ignore[attr-defined]
+        self._conn: DuckDBPyConnection = connection or duckdb.connect(path)
         self._initialized = False
 
     def _ensure_init(self) -> None:

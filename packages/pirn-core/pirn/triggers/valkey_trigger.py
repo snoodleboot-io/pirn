@@ -10,11 +10,15 @@ inside a pirn-only architecture.
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
-from typing import Any
+from collections.abc import AsyncIterator, Callable
+from typing import TYPE_CHECKING
 
 from pirn.core.run_request import RunRequest
+from pirn.core.shape_guard import ShapeGuard
 from pirn.triggers.trigger import Trigger
+
+if TYPE_CHECKING:
+    from glide import GlideClient, GlideClientConfiguration, PubSubMsg
 
 
 class ValKeyTrigger(Trigger):
@@ -31,10 +35,10 @@ class ValKeyTrigger(Trigger):
     def __init__(
         self,
         *,
-        client: Any = None,
+        client: GlideClient | None = None,
         channel: str | None = None,
-        config: Any = None,
-        request_builder: Any = None,
+        config: GlideClientConfiguration | None = None,
+        request_builder: Callable[[PubSubMsg], RunRequest] | None = None,
     ) -> None:
         """Initialise the trigger.
 
@@ -47,7 +51,7 @@ class ValKeyTrigger(Trigger):
                 to identify the trigger; the channel subscription must
                 be configured on the ``GlideClientConfiguration`` passed
                 via ``config``.
-            config: A ``GlideClientConfiguration`` (or compatible object)
+            config: A ``GlideClientConfiguration``
                 used to create a ``GlideClient`` lazily on first use.
                 Requires ``pirn[valkey]``.
             request_builder: Callable ``(msg) -> RunRequest``.  Receives
@@ -60,17 +64,19 @@ class ValKeyTrigger(Trigger):
         """
         if client is None and channel is None:
             raise TypeError("provide either client= or channel=")
-        self._client = client
+        self._client: GlideClient | None = client
         self._channel = channel
-        self._config = config
-        self._builder = request_builder or ValKeyTrigger.__default_request_builder
+        self._config: GlideClientConfiguration | None = config
+        self._builder: Callable[[PubSubMsg], RunRequest] = (
+            request_builder or ValKeyTrigger.__default_request_builder
+        )
         self._closed = False
 
     @property
     def name(self) -> str:
         return "ValKeyTrigger"
 
-    async def _ensure_client(self) -> Any:
+    async def _ensure_client(self) -> GlideClient:
         """Return the ValKey client, creating one lazily if needed.
 
         Returns:
@@ -78,6 +84,7 @@ class ValKeyTrigger(Trigger):
 
         Raises:
             ImportError: If ``valkey-glide`` is not installed.
+            TypeError: If no client was injected and no ``config`` was given.
         """
         if self._client is None:
             try:
@@ -89,15 +96,16 @@ class ValKeyTrigger(Trigger):
             # The user's config must include pubsub_subscriptions for
             # this trigger to receive messages; we don't attempt to
             # rewrite it here.
+            if self._config is None:
+                raise TypeError("ValKeyTrigger: config= is required when no client= is given")
             self._client = await GlideClient.create(self._config)
         return self._client
 
     async def stream(self) -> AsyncIterator[RunRequest]:
         """Yield one ``RunRequest`` per ValKey pub/sub message received.
 
-        Polls ``client.get_pubsub_message()`` in a loop.  Skips ``None``
-        returns (no message available yet) and exits when ``close()`` is
-        called.
+        Awaits ``client.get_pubsub_message()`` in a loop and exits when
+        ``close()`` is called.
 
         Yields:
             One ``RunRequest`` per message received on the channel.
@@ -108,8 +116,6 @@ class ValKeyTrigger(Trigger):
         # latter for a clean async-iterator surface.
         while not self._closed:
             msg = await client.get_pubsub_message()
-            if msg is None:
-                continue
             yield self._builder(msg)
 
     async def close(self) -> None:
@@ -117,15 +123,10 @@ class ValKeyTrigger(Trigger):
         self._closed = True
 
     @staticmethod
-    def __default_request_builder(msg: Any) -> RunRequest:
-        body = getattr(msg, "message", msg)
-        if isinstance(body, bytes):
-            body = body.decode("utf-8")
-        if isinstance(body, str):
-            params = json.loads(body)
-        else:
-            params = body
-        if not isinstance(params, dict):
+    def __default_request_builder(msg: PubSubMsg) -> RunRequest:
+        body = msg.message
+        params: object = json.loads(body if isinstance(body, str) else bytes(body).decode("utf-8"))
+        if not ShapeGuard.is_str_keyed_dict(params):
             raise TypeError(
                 f"ValKeyTrigger: expected JSON object for message, got {type(params).__name__}"
             )

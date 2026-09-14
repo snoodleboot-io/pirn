@@ -65,6 +65,12 @@ class TestKnotRegistrationNoticeDecodeTolerance(unittest.TestCase):
         self.assertEqual(notice.knot_id, raw)
         self.assertIsNone(notice.run_id)
 
+    def test_json_array_is_a_bare_id(self) -> None:
+        raw = '["k1"]'
+        notice = KnotRegistrationNotice.decode(raw)
+        self.assertEqual(notice.knot_id, raw)
+        self.assertIsNone(notice.run_id)
+
     def test_non_string_run_id_is_dropped(self) -> None:
         notice = KnotRegistrationNotice.decode('{"knot_id": "k1", "run_id": 7}')
         self.assertEqual(notice.knot_id, "k1")

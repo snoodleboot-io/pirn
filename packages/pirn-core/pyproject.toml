@@ -423,17 +423,24 @@ include = ["pirn"]
 # regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
 # docs/architecture/ci-pipelines.md.
 strict = [
+    "pirn/backends",
     "pirn/check",
     "pirn/emitters",
+    "pirn/engine",
     "pirn/exceptions",
     "pirn/managers",
     "pirn/recording",
     "pirn/security",
     "pirn/streaming",
+    "pirn/triggers",
     "pirn/viz",
     "pirn/yaml_loader",
     "pirn/*.py",
 ]
+# Local stubs for untyped third-party boundaries (PIR-872): asyncpg and cloudpickle
+# ship no py.typed, and aiokafka and celery ship no types at all. typings/ declares
+# exactly the subset pirn-core uses; extend it when new API is used.
+stubPath = "typings"
 pythonVersion = "3.12"
 # Backends/dispatchers import optional packages lazily; the Knot.process(**kwargs)
 # override pattern and dynamic registry access are intentional (was SCD-03 base).

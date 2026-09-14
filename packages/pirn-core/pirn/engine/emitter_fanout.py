@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.result import Result
     from pirn.core.run_context import RunContext
+    from pirn.emitters.emitter import Emitter
     from pirn.managers.status_event import StatusEvent
 
 _log = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class EmitterFanout:
 
     @staticmethod
     def handle_emitter_error(
-        emitter: Any,
+        emitter: Emitter,
         event_type: str,
         exc: Exception,
         policy: EmitterErrorPolicy,
@@ -61,7 +62,7 @@ class EmitterFanout:
     @staticmethod
     def subscribe_emitters_to_status(
         ctx: RunContext,
-        emitters: list[Any],
+        emitters: list[Emitter],
         emitter_error_policy: EmitterErrorPolicy,
     ) -> None:
         """Subscribe each emitter's ``on_status`` to ``StatusManager``.

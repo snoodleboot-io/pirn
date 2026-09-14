@@ -830,7 +830,7 @@ class Tapestry:
 
     @staticmethod
     @contextmanager
-    def _run_id_scope(run_id: str | None) -> Generator[None, None, None]:
+    def run_id_scope(run_id: str | None) -> Generator[None, None, None]:
         """Bind ``Tapestry.current_run_id()`` to ``run_id`` for the duration of the block.
 
         Internal.  ``Tapestry.run()`` owns run identity for real runs; this

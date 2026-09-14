@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
@@ -278,6 +279,47 @@ class TestValKeyStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(pending_a, [knot])
         self.assertEqual(pending_b, [knot])
+
+
+class TestValKeyStoreListenLoop(unittest.IsolatedAsyncioTestCase):
+    """The pub/sub listener builds its subscription from the installed glide."""
+
+    async def test_listener_subscribes_to_the_registrations_channel(self) -> None:
+        # Arrange
+        created: list[Any] = []
+
+        class _Config:
+            class PubSubChannelModes:
+                Exact = "exact"
+
+            class PubSubSubscriptions:
+                def __init__(self, **kwargs: Any) -> None:
+                    self.kwargs = kwargs
+
+            def __init__(self, addresses: Any, pubsub_subscriptions: Any = None) -> None:
+                self.addresses = addresses
+                self.pubsub_subscriptions = pubsub_subscriptions
+
+        sub_client = AsyncMock()
+
+        async def _create(config: Any) -> AsyncMock:
+            created.append(config)
+            return sub_client
+
+        glide_module = MagicMock(GlideClientConfiguration=_Config)
+        glide_module.GlideClient.create = _create
+        store = ValKeyStore(config=_Config(["addr"]))
+        # Act — no subscribers, so the loop connects, sees none and closes.
+        with patch.dict(sys.modules, {"glide": glide_module}):
+            await store._listen_loop()
+        # Assert
+        self.assertEqual(len(created), 1)
+        self.assertEqual(created[0].addresses, ["addr"])
+        self.assertEqual(
+            created[0].pubsub_subscriptions.kwargs["channels_and_patterns"],
+            {"exact": {ValKeyStore._registrations_channel}},
+        )
+        sub_client.close.assert_awaited_once()
 
 
 class TestValKeyStoreInheritance(unittest.TestCase):

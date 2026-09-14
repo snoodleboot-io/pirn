@@ -176,7 +176,7 @@ class ReadyQueue:
         Returns:
             The ticket, or ``None`` when the gate refuses the knot.
         """
-        if not type(knot)._holds_admission_slot:
+        if not knot.holds_admission_slot():
             return AdmissionTicket(knot_id=knot.knot_id, held=False)
         if not capacity:
             return None

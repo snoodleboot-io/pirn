@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from glide import GlideClient, GlideClientConfiguration
 
 
 class LazyClient:
@@ -9,7 +12,11 @@ class LazyClient:
     When a config is given the GlideClient is created lazily on first use.
     """
 
-    def __init__(self, client: Any = None, config: Any = None) -> None:
+    def __init__(
+        self,
+        client: GlideClient | None = None,
+        config: GlideClientConfiguration | None = None,
+    ) -> None:
         """Initialise the wrapper.
 
         Args:
@@ -24,10 +31,15 @@ class LazyClient:
         """
         if client is None and config is None:
             raise TypeError("provide either client= or config=")
-        self._client = client
-        self._config = config
+        self._client: GlideClient | None = client
+        self._config: GlideClientConfiguration | None = config
 
-    async def get(self) -> Any:
+    @property
+    def config(self) -> GlideClientConfiguration | None:
+        """The configuration a client is created from, or ``None`` for an injected client."""
+        return self._config
+
+    async def get(self) -> GlideClient:
         """Return the ValKey client, creating it lazily if needed.
 
         Returns:
@@ -43,6 +55,8 @@ class LazyClient:
                 raise ImportError(
                     "ValKey backends require valkey-glide; install via `pip install pirn[valkey]`"
                 ) from exc
+            if self._config is None:
+                raise TypeError("LazyClient: no client was injected and no config was given")
             self._client = await GlideClient.create(self._config)
         return self._client
 

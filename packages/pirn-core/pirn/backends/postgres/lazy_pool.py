@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from asyncpg import Pool
 
 
 class LazyPool:
@@ -14,7 +17,7 @@ class LazyPool:
     def __sanitize_dsn(dsn: str) -> str:
         return re.sub(r"(://)[^@]+(@)", r"\1<redacted>\2", dsn)
 
-    def __init__(self, pool: Any = None, dsn: str | None = None) -> None:
+    def __init__(self, pool: Pool | None = None, dsn: str | None = None) -> None:
         """Initialise the wrapper.
 
         Args:
@@ -29,11 +32,11 @@ class LazyPool:
         """
         if pool is None and dsn is None:
             raise TypeError("provide either pool= or dsn=")
-        self._pool = pool
+        self._pool: Pool | None = pool
         self._dsn = dsn
         self._dsn_display = self.__sanitize_dsn(dsn) if dsn else None
 
-    async def get(self) -> Any:
+    async def get(self) -> Pool:
         """Return the connection pool, creating it lazily if needed.
 
         Credentials in any exception messages are redacted before re-raising.

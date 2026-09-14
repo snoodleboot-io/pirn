@@ -16,6 +16,8 @@ from pirn.backends.valkey.lazy_client import LazyClient  # noqa: E402
 from pirn.exceptions.duplicate_knot_error import DuplicateKnotError  # noqa: E402
 
 if TYPE_CHECKING:
+    from glide import GlideClient, GlideClientConfiguration
+
     from pirn.core.knot import Knot
 
 
@@ -31,7 +33,12 @@ class ValKeyStore(TapestryStore, SubscribableStore):
     _knot_key_prefix = "pirn:tapestry:knot:"
     _registrations_channel = "pirn:tapestry:registrations"
 
-    def __init__(self, *, client: Any = None, config: Any = None) -> None:
+    def __init__(
+        self,
+        *,
+        client: GlideClient | None = None,
+        config: GlideClientConfiguration | None = None,
+    ) -> None:
         """Initialise the store.
 
         Args:
@@ -175,7 +182,10 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         Args:
             token: The token returned by :meth:`subscribe`.
         """
-        self._subscribers.pop(token, None)  # type: ignore[arg-type]
+        # Tokens this store issues are ints; any other object was never a
+        # subscription here and is ignored like an already-cancelled one.
+        if isinstance(token, int):
+            self._subscribers.pop(token, None)
         if not self._subscribers and self._listener_task is not None:
             self._listener_task.cancel()
             self._listener_task = None
@@ -224,20 +234,25 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         """
         try:
             from glide import GlideClient, GlideClientConfiguration
-            from glide.config import PubSubChannelModes, PubSubSubscriptions
         except ImportError:
             return
 
-        if self._client._config is None:
+        base_config = self._client.config
+        if base_config is None:
             return
 
-        subscriptions = PubSubSubscriptions(
-            channels_and_patterns={PubSubChannelModes.Exact: {self._registrations_channel}},
+        # valkey-glide >= 2 nests the pub/sub types on the configuration class;
+        # the ``glide.config`` module this used to import from no longer exists,
+        # so the listener silently never started.
+        subscriptions = GlideClientConfiguration.PubSubSubscriptions(
+            channels_and_patterns={
+                GlideClientConfiguration.PubSubChannelModes.Exact: {self._registrations_channel}
+            },
             callback=self._on_message,
             context=None,
         )
         config = GlideClientConfiguration(
-            self._client._config.addresses,
+            base_config.addresses,
             pubsub_subscriptions=subscriptions,
         )
         sub_client = await GlideClient.create(config)

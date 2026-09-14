@@ -241,7 +241,10 @@ class PostgresStore(TapestryStore, SubscribableStore):
         Args:
             token: The token returned by :meth:`subscribe`.
         """
-        self._subscribers.pop(token, None)  # type: ignore[arg-type]
+        # Tokens this store issues are ints; any other object was never a
+        # subscription here and is ignored like an already-cancelled one.
+        if isinstance(token, int):
+            self._subscribers.pop(token, None)
         if not self._subscribers and self._listener_task is not None:
             self._listener_task.cancel()
             self._listener_task = None

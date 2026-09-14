@@ -116,6 +116,15 @@ class Knot:
     # to it.  A container may therefore not declare a ``concurrency_group``.
     _holds_admission_slot: ClassVar[bool] = True
 
+    @classmethod
+    def holds_admission_slot(cls) -> bool:
+        """Whether knots of this class take a slot of the run's ``Admission``.
+
+        ``True`` for a leaf; ``False`` for a container, which a subclass
+        declares by setting ``_holds_admission_slot`` (see its comment).
+        """
+        return cls._holds_admission_slot
+
     @staticmethod
     def _is_knot_cls(candidate: Any) -> bool:
         """Return True if *candidate* is Knot or a subclass of Knot."""
@@ -556,6 +565,16 @@ class Knot:
         merged into ``KnotLineage.extra``.
         """
         return {**self._mutable_fan_out_extra, **self._mutable_dispatch_extra}
+
+    def record_dispatch_extra(self, extra: Mapping[str, Any]) -> None:
+        """Replace the engine-written dispatch metadata merged into :meth:`lineage_extra`.
+
+        Called by the engine on the **run-scoped copy** it dispatched -- e.g.
+        the attempt count under ``KnotConfig.retry``.  The mapping is copied
+        and the attribute reassigned, never mutated in place, so a shallow
+        ``run_scoped_copy`` never shares it with the graph knot.
+        """
+        self._mutable_dispatch_extra = dict(extra)
 
     def run_scoped_copy(self) -> Knot:
         """Return a copy of this knot for one run to execute and mutate.
