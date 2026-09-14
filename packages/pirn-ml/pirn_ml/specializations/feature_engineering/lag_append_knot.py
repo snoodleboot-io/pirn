@@ -1,4 +1,6 @@
-"""``_LagAppendKnot`` — internal core knot used by
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
+"""``LagAppendKnot`` — internal core knot used by
 :class:`LagFeatureGenerator` to append lag-feature names to every
 partition of a :class:`SplitManifest`.
 
@@ -30,7 +32,7 @@ from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class _LagAppendKnot(Knot):
+class LagAppendKnot(Knot):
     """Append ``<column>_lag_<N>`` feature names to every partition."""
 
     def __init__(
@@ -75,13 +77,13 @@ class _LagAppendKnot(Knot):
             ValueError: If time_column, columns, or lags are invalid.
         """
         if not isinstance(time_column, str) or not time_column:
-            raise ValueError("_LagAppendKnot: time_column must be a non-empty string")
+            raise ValueError("LagAppendKnot: time_column must be a non-empty string")
         column_tuple = tuple(columns)
         if not column_tuple:
-            raise ValueError("_LagAppendKnot: columns must be non-empty")
+            raise ValueError("LagAppendKnot: columns must be non-empty")
         lag_tuple = tuple(lags)
         if not lag_tuple:
-            raise ValueError("_LagAppendKnot: lags must be non-empty")
+            raise ValueError("LagAppendKnot: lags must be non-empty")
         now = datetime.now(UTC)
         return SplitManifest(
             train=self._add_lag_features(split.train, column_tuple, lag_tuple, now),

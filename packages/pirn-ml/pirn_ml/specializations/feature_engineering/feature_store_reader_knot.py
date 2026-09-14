@@ -1,4 +1,4 @@
-"""``_FeatureStoreReaderKnot`` — internal core knot that pulls feature
+"""``FeatureStoreReaderKnot`` — internal core knot that pulls feature
 rows from a :class:`FeatureStoreProvider` keyed by entity primary keys
 and joins the resulting feature names onto every partition of a
 :class:`SplitManifest`.
@@ -34,7 +34,7 @@ from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class _FeatureStoreReaderKnot(Knot):
+class FeatureStoreReaderKnot(Knot):
     """Read features from a feature store and join names onto a split."""
 
     def __init__(
@@ -80,13 +80,13 @@ class _FeatureStoreReaderKnot(Knot):
             ValueError: If entity_keys or feature_names are empty.
         """
         if not isinstance(feature_store, FeatureStoreProvider):
-            raise TypeError("_FeatureStoreReaderKnot: feature_store must be a FeatureStoreProvider")
+            raise TypeError("FeatureStoreReaderKnot: feature_store must be a FeatureStoreProvider")
         entity_key_tuple = tuple(entity_keys)
         if not entity_key_tuple:
-            raise ValueError("_FeatureStoreReaderKnot: entity_keys must be non-empty")
+            raise ValueError("FeatureStoreReaderKnot: entity_keys must be non-empty")
         feature_name_tuple = tuple(feature_names)
         if not feature_name_tuple:
-            raise ValueError("_FeatureStoreReaderKnot: feature_names must be non-empty")
+            raise ValueError("FeatureStoreReaderKnot: feature_names must be non-empty")
         # Probe the store with a synthetic single-key request so misconfigured
         # providers fail loudly at run time.
         probe_keys = [{key: "" for key in entity_key_tuple}]

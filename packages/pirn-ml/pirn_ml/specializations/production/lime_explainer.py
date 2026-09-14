@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LIMEExplainer`` — Knot that generates LIME explanations for
 individual predictions and returns per-feature importance for each
 explained instance.
@@ -76,10 +78,6 @@ class LIMEExplainer(Knot):
         """
         if not isinstance(n_samples, int) or n_samples < 1:
             raise ValueError("LIMEExplainer: n_samples must be an int >= 1")
-        try:
-            import lime  # noqa: F401
-        except ImportError:
-            pass
 
         features = model.feature_names if model.feature_names else split.test.feature_names
         feature_importance: dict[str, float] = {}

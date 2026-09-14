@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GroupKFoldCrossValidator`` — K-fold cross-validation that keeps all
 samples from the same group in the same fold.
 
@@ -9,10 +11,10 @@ Algorithm:
        ``group_column``, and ``k`` via process().
     2. Validate all inputs.
     3. Extract k logical folds via
-       :meth:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase._extract_folds_via_cross_validator`
+       :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds_via_cross_validator`
        (grouping is recorded as metadata only; see that method's docstring).
     4. Wire Trainer + Evaluator per fold (shared wiring in
-       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
+       :class:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase`).
     5. Aggregate per-fold metrics and return an EvalMetadata.
 
 Math:
@@ -34,8 +36,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 
-from pirn_ml.specializations.experiments._kfold_validator_base import (
-    _KFoldValidatorBase,
+from pirn_ml.specializations.experiments.kfold_validator_base import (
+    KFoldValidatorBase,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
@@ -81,7 +83,7 @@ async def _aggregate_group_kfold_reports(
     )
 
 
-class GroupKFoldCrossValidator(_KFoldValidatorBase):
+class GroupKFoldCrossValidator(KFoldValidatorBase):
     """K-fold CV that preserves group integrity across folds."""
 
     def __init__(

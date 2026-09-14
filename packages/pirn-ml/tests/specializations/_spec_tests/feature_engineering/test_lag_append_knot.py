@@ -1,4 +1,4 @@
-"""Tests for :class:`_LagAppendKnot`."""
+"""Tests for :class:`LagAppendKnot`."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_ml.specializations.feature_engineering._lag_append_knot import (
-    _LagAppendKnot,
+from pirn_ml.specializations.feature_engineering.lag_append_knot import (
+    LagAppendKnot,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
@@ -23,7 +23,7 @@ def _split_fixture() -> SplitManifest:
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_time_column(self) -> None:
         with Tapestry():
-            k = _LagAppendKnot.__new__(_LagAppendKnot)
+            k = LagAppendKnot.__new__(LagAppendKnot)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -35,7 +35,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_columns(self) -> None:
         with Tapestry():
-            k = _LagAppendKnot.__new__(_LagAppendKnot)
+            k = LagAppendKnot.__new__(LagAppendKnot)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -47,7 +47,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_lags(self) -> None:
         with Tapestry():
-            k = _LagAppendKnot.__new__(_LagAppendKnot)
+            k = LagAppendKnot.__new__(LagAppendKnot)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(

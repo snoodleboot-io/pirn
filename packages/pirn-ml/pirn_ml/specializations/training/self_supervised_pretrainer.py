@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SelfSupervisedPretrainer`` — pretrain via a self-supervised objective,
 then fine-tune on a labeled dataset.
 

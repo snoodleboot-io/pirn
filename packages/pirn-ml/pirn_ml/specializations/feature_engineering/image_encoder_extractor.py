@@ -1,4 +1,6 @@
-"""``_ImageEncoderExtractor`` — append a ``<image_column>_embedding``
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
+"""``ImageEncoderExtractor`` — append a ``<image_column>_embedding``
 feature to every partition of a :class:`SplitManifest` via an
 :class:`ImageEncoderProvider`.
 
@@ -31,7 +33,7 @@ from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class _ImageEncoderExtractor(Knot):
+class ImageEncoderExtractor(Knot):
     """Append a ``<image_column>_embedding`` feature to every partition."""
 
     def __init__(
@@ -73,9 +75,9 @@ class _ImageEncoderExtractor(Knot):
             TypeError: If image_encoder is not an ImageEncoderProvider.
         """
         if not isinstance(image_column, str) or not image_column:
-            raise ValueError("_ImageEncoderExtractor: image_column must be a non-empty string")
+            raise ValueError("ImageEncoderExtractor: image_column must be a non-empty string")
         if not isinstance(image_encoder, ImageEncoderProvider):
-            raise TypeError("_ImageEncoderExtractor: image_encoder must be an ImageEncoderProvider")
+            raise TypeError("ImageEncoderExtractor: image_encoder must be an ImageEncoderProvider")
         # Touch the provider with a single probe so misconfigured providers
         # fail loudly at run time. The probe uses the column-name bytes as
         # a placeholder image; the orchestration layer doesn't have rows.

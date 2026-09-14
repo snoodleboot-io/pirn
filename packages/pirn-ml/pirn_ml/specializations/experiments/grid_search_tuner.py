@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GridSearchTuner`` — exhaustive grid hyperparameter search.
 
 Wraps :class:`HyperparamSearch` with ``strategy="grid"`` so all

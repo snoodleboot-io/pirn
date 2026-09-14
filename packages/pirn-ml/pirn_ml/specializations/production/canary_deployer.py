@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CanaryDeployer`` — SubTapestry that routes a configurable percentage
 of traffic to a new model and the rest to the current model, collects
 metrics from both, and returns a comparison report.

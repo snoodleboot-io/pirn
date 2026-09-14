@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ContinuousTrainingPipeline`` — scheduled re-training SubTapestry.
 
 Same composition as :class:`FullTrainDeployPipeline` but designed to be
@@ -22,7 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, TypeGuard
 
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -48,7 +50,7 @@ from pirn_ml.types.split_manifest import SplitManifest
 
 @knot
 async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
-    rows = []
+    rows: list[Mapping[str, Any]] = []
     for index in range(int(split.test.row_count)):
         row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
         rows.append(row)
@@ -111,8 +113,8 @@ class ContinuousTrainingPipeline(SubTapestry):
         events = lineage_record["events"]
         if not events:
             return False, None
-        last_event = events[-1]
-        if not isinstance(last_event, Mapping):
+        last_event: object = events[-1]
+        if not ContinuousTrainingPipeline._is_event(last_event):
             return False, None
         recorded_at = last_event.get("recorded_at")
         last_model_id = last_event.get("model_id")
@@ -248,3 +250,8 @@ class ContinuousTrainingPipeline(SubTapestry):
             eval_report=evaluated,
             _config=KnotConfig(id="combine"),
         )
+
+    @staticmethod
+    def _is_event(value: object) -> TypeGuard[Mapping[str, object]]:
+        """Narrow one lineage event: a JSON object keyed by field name."""
+        return isinstance(value, Mapping)

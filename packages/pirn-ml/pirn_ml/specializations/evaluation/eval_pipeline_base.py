@@ -1,4 +1,4 @@
-"""``_EvalPipelineBase`` — shared model/split wiring for the *_eval_pipeline family.
+"""``EvalPipelineBase`` — shared model/split wiring for the *_eval_pipeline family.
 
 ``ClassificationEvalPipeline``, ``RegressionEvalPipeline``,
 ``RankingEvalPipeline``, and ``TimeSeriesEvalPipeline`` each re-inject
@@ -44,7 +44,7 @@ from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class _EvalPipelineBase(SubTapestry):
+class EvalPipelineBase(SubTapestry):
     """Shared model/split re-injection and Evaluator wiring."""
 
     _metrics: ClassVar[tuple[str, ...]] = ()

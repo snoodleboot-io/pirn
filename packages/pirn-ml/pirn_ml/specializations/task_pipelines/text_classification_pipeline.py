@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TextClassificationPipeline`` — TF-IDF/embedding → classifier train
 → evaluation, supporting binary and multiclass text classification.
 

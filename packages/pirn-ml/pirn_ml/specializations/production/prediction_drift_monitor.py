@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PredictionDriftMonitor`` — Knot that tracks rolling mean and std of
 predictions and alerts when they deviate beyond a configurable sigma
 threshold.

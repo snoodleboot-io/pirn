@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_ImageEncoderExtractor`."""
+"""Unit tests for :class:`ImageEncoderExtractor`."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_ml.image_encoder_provider import ImageEncoderProvider
-from pirn_ml.specializations.feature_engineering._image_encoder_extractor import (
-    _ImageEncoderExtractor,
+from pirn_ml.specializations.feature_engineering.image_encoder_extractor import (
+    ImageEncoderExtractor,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
@@ -36,8 +36,8 @@ class _SplitSource(Knot):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    def _make_knot(self) -> _ImageEncoderExtractor:
-        k = _ImageEncoderExtractor.__new__(_ImageEncoderExtractor)
+    def _make_knot(self) -> ImageEncoderExtractor:
+        k = ImageEncoderExtractor.__new__(ImageEncoderExtractor)
         object.__setattr__(k, "_config", KnotConfig(id="iee"))
         return k
 
@@ -66,7 +66,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_appends_embedding_feature(self) -> None:
         with Tapestry() as t:
             src = _SplitSource(_config=KnotConfig(id="src"))
-            _ImageEncoderExtractor(
+            ImageEncoderExtractor(
                 split=src,
                 image_column="img",
                 image_encoder=_StubEncoder(),

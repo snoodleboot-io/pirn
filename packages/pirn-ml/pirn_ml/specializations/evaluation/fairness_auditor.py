@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FairnessAuditor`` — Knot that computes demographic parity, equalized
 odds, and individual fairness metrics across protected attribute groups.
 
