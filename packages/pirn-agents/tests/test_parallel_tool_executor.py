@@ -6,20 +6,25 @@ Written in the project's ``asyncio_mode = "auto"`` style: module-level
 :class:`Probe` tool knot provides configurable latency, transient-failure and
 in-flight tracking so the engine's concurrency semantics can be asserted
 deterministically.  Every test runs the executor in a real tapestry: the
-executor is a ``SubTapestry`` whose ``process()`` returns the fan-out's sink,
-so a directly-awaited ``process()`` no longer exercises anything.
+executor is a ``NestedRunKnot`` whose ``process()`` runs the fan-out as an
+inner run under the resolved concurrency cap.
 """
 
 from __future__ import annotations
 
 import asyncio
 import time
+import warnings
 from typing import Any, ClassVar
 
 import pytest
+from pirn.core.concurrency.unused_concurrency_group_warning import (
+    UnusedConcurrencyGroupWarning,
+)
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_retry_policy import KnotRetryPolicy
+from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.tapestry import Tapestry
@@ -128,6 +133,29 @@ async def test_concurrency_cap_respected() -> None:
 
     assert counter.peak == 2
     assert all(r.status == "ok" for r in results)
+
+
+async def test_concurrency_cap_wired_from_an_upstream_knot_is_applied() -> None:
+    # ``max_concurrency`` produced by a parent knot is only known at run time;
+    # it still caps the batch (it used to be read from literal config only, so
+    # a wired cap silently ran the batch unbounded).
+    counter = InFlightCounter()
+    names = [f"t{i}" for i in range(4)]
+    for name in names:
+        Probe.counters[name] = counter
+    toolset = _named(names, latency=0.05)
+    calls = [ToolCall(tool_name=n, arguments={}, call_id=f"c{i}") for i, n in enumerate(names)]
+
+    with Tapestry() as t:
+        cap = Parameter("cap", int, default=1, _config=KnotConfig(id="cap"))
+        ParallelToolExecutor(
+            tool_calls=calls, toolset=toolset, max_concurrency=cap, _config=KnotConfig(id="pte")
+        )
+    run = await t.run(RunRequest())
+
+    assert run.succeeded, run.exceptions
+    assert counter.peak == 1
+    assert all(r.status == "ok" for r in run.outputs["pte"])
 
 
 async def test_failure_isolation() -> None:
@@ -261,6 +289,14 @@ async def test_every_call_gets_its_own_lineage_row_under_its_call_id() -> None:
 async def test_empty_batch_produces_an_empty_tuple() -> None:
     results, _, _ = await _run([], Toolset())
     assert results == ()
+
+
+async def test_empty_batch_declares_no_unused_concurrency_group() -> None:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        results, _, _ = await _run([], Toolset())
+    assert results == ()
+    assert not [w for w in caught if issubclass(w.category, UnusedConcurrencyGroupWarning)]
 
 
 async def test_rejects_non_tool_call() -> None:

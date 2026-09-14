@@ -8,7 +8,8 @@ agent-as-tool carries that a bare knot does not, and this container applies
 it around the nested run:
 
 * **nesting** — the inner tapestry gets a ``max_nesting_depth`` derived from
-  the tool's ``max_depth`` (agent-as-tool frames, two nested runs each), so
+  the call's resolved ``max_depth`` (agent-as-tool frames, two nested runs
+  each; a literal or an upstream knot's output alike), so
   core's :class:`~pirn.core.run_nesting.RunNesting` guard refuses runaway
   recursion and an agent re-entering itself (``NestedRunCycleError``), and
   the container's nesting key is the *agent* class, not this wrapper;
@@ -19,12 +20,17 @@ it around the nested run:
   input when it declares one, so nested agents reuse it by identity.
 
 Algorithm:
-    1. ``__call__`` — resolve the inherited policy, build this call's policy
-       with the effective meter/provider, spend an iteration, bind it, and
-       run as a ``SubTapestry``; afterwards spend the response's tokens.
-    2. ``process()`` — construct ``agent_class(**bound, **arguments,
-       llm=provider?, _config=KnotConfig(id=tool_name))`` and return it as
-       the sink; its output (an ``AgentResponse``) is this knot's output.
+    1. ``__call__`` — merge the literal inputs with the resolved parent
+       values, resolve the inherited policy, build this call's policy with
+       the effective meter/provider (the call's own ``budget``/``provider``,
+       wired or literal), spend an iteration, bind it, and run the knot;
+       afterwards spend the response's tokens.
+    2. ``process()`` — open an inner tapestry capped at
+       ``RunNesting.current().depth + 2 * max_depth``, construct
+       ``agent_class(**bound, **arguments, llm=provider?,
+       _config=KnotConfig(id=tool_name))`` in it, run it through
+       ``NestedRunKnot._run_inner`` and return the agent's output (an
+       ``AgentResponse``), or its ``Skipped``.
 """
 
 from __future__ import annotations
@@ -41,6 +47,7 @@ from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.run_nesting import RunNesting
 from pirn.core.skipped import Skipped
+from pirn.nodes.nested_run_knot import NestedRunKnot
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -53,7 +60,7 @@ from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class AgentToolCall(SubTapestry):
+class AgentToolCall(NestedRunKnot):
     """Run one agent-as-tool call under nesting, budget and provider policy."""
 
     def __init__(
@@ -87,7 +94,7 @@ class AgentToolCall(SubTapestry):
             provider: A pooled ``LLMProvider`` to inject as ``llm``.
             max_depth: Agent-as-tool frames allowed below this call; each frame
                 is two nested runs (this call and the agent), which
-                ``_make_inner_tapestry`` turns into core's ``max_nesting_depth``.
+                ``process()`` turns into core's ``max_nesting_depth``.
             _config: Framework metadata; ``id`` is the call id.
         """
         super().__init__(
@@ -112,15 +119,14 @@ class AgentToolCall(SubTapestry):
             return f"{agent_class.__module__}.{agent_class.__qualname__}:{agent_id}:tool"
         return super()._nesting_key()
 
-    def _make_inner_tapestry(self) -> Tapestry:
-        """An inner tapestry capped at ``max_depth`` agent-as-tool frames below here."""
-        max_depth = self.config_values.get("max_depth", 8)
-        frames = max_depth if isinstance(max_depth, int) and max_depth > 0 else 1
-        return Tapestry(max_nesting_depth=RunNesting.current().depth + 2 * frames)
-
     async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
-        """Bind the budget/provider context around the nested run and account for it."""
-        values = self.config_values
+        """Bind the budget/provider context around the nested run and account for it.
+
+        The policy inputs are read from the literal inputs merged with the
+        resolved parent values, so a ``budget`` or ``provider`` wired from an
+        upstream knot applies exactly like a literal one.
+        """
+        values: dict[str, Any] = {**self.config_values, **parent_results}
         base = AgentToolPolicy.current()
         meter: RunBudgetMeter | None = base.meter
         budget = values.get("budget")
@@ -164,8 +170,8 @@ class AgentToolCall(SubTapestry):
         provider: Any = None,
         max_depth: int = 8,
         **_: Any,
-    ) -> Knot:
-        """Construct the agent knot for this call and return it as the sink.
+    ) -> Any:
+        """Run the agent for this call as a nested run capped at ``max_depth`` frames.
 
         Args:
             arguments: The model's arguments.
@@ -173,28 +179,47 @@ class AgentToolCall(SubTapestry):
             tool_name: The declared tool name.
             agent_id: The agent knot's id; defaults to ``tool_name``.
             bound: Inputs bound at wrap time; ``arguments`` override them.
-            budget: Unused here (applied in ``__call__``); declared so the
+            budget: Applied by ``__call__`` around this run; declared so the
                 input is visible to lineage.
             provider: The pooled provider to inject as ``llm`` when the agent
                 declares that input and the call did not supply one.
-            max_depth: Unused here (applied to the inner tapestry).
+            max_depth: Agent-as-tool frames allowed below this call.
 
         Returns:
-            The agent instance — the inner pipeline's sink.
+            The agent's output, or the agent's ``Skipped`` when its run skipped it.
 
         Raises:
-            TypeError: If ``agent_class`` is not a ``SubTapestry`` class.
+            TypeError: If ``agent_class`` is not a ``SubTapestry`` class or
+                ``max_depth`` is not an int.
+            ValueError: If ``max_depth`` is not positive.
         """
         if not (isinstance(agent_class, type) and issubclass(agent_class, SubTapestry)):
             raise TypeError(
                 f"AgentToolCall: agent_class must be a SubTapestry class, got {agent_class!r}"
             )
+        if isinstance(max_depth, bool) or not isinstance(max_depth, int):
+            raise TypeError(f"AgentToolCall: max_depth must be an int, got {max_depth!r}")
+        if max_depth <= 0:
+            raise ValueError(f"AgentToolCall: max_depth must be positive, got {max_depth}")
         inputs: dict[str, Any] = {**(bound or {}), **arguments}
         effective = provider if provider is not None else AgentToolPolicy.current().provider
         if effective is not None and "llm" not in arguments and self._accepts(agent_class, "llm"):
             inputs["llm"] = effective
         knot_id = ToolFactory.knot_id_for(agent_id if agent_id else tool_name)
-        return agent_class(**inputs, _config=KnotConfig(id=knot_id))
+        with Tapestry(max_nesting_depth=RunNesting.current().depth + 2 * max_depth) as inner:
+            agent_class(**inputs, _config=KnotConfig(id=knot_id))
+        run = await self._run_inner(inner)
+        if knot_id in run.skipped:
+            reason = next(
+                (
+                    row.skip_reason
+                    for row in run.lineage
+                    if row.knot_id == knot_id and row.skip_reason
+                ),
+                "skipped",
+            )
+            return Skipped(reason=reason)
+        return run.outputs[knot_id]
 
     @staticmethod
     def _accepts(agent_class: type[Knot], name: str) -> bool:
