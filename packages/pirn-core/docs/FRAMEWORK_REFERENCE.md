@@ -403,10 +403,9 @@ not a second, private one it cannot see.
 live in a core `InMemoryDataStore` keyed by content hash, exactly like
 `SemanticResultCache`; the prefix/embedding index stays a plain
 `SimilarityIndex` resource. `DataStore` is async-only with no enumeration,
-so the previously-synchronous `invalidate`/`purge_expired`/`__len__` are now
-`ainvalidate`/`apurge_expired`/`asize`; the old names remain for one
-deprecation cycle as wrappers that bridge to the event loop (raising if
-called from inside one already running) and emit `DeprecationWarning`.
+so its management surface is async: `ainvalidate`/`apurge_expired`/`asize`.
+The synchronous `invalidate`/`purge_expired`/`__len__` bridges are deleted
+(PIR-872).
 
 **Resolved (PIR-866), superseded by full deletion (PIR-864).** PIR-866 first
 turned `BackpressureSemaphore`/`Bulkhead` into `AdmissionGate` subclasses
@@ -443,10 +442,6 @@ attach a concurrency group to — bounds its per-item concurrency with a plain
 remains open, deliberately out of this shim-deletion lane's scope — it is an
 architecture change to the evaluation harness, not a shim removal, and is
 flagged here for whichever lane picks it up next.
-`caching/prompt_cache.py::PromptCache` stays outside this migration
-entirely: its `get`/`set`/`__len__` are deliberately synchronous, and
-`DataStore` is async-only, so routing values through it would force a
-breaking signature change this ADR did not authorize unilaterally.
 
 **Resolved (PIR-870), three admission/dispatch refinements noted as future
 work above WS0b landed:**
