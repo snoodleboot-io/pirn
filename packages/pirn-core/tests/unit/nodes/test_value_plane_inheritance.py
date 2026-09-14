@@ -384,19 +384,19 @@ class TestLoopIterationTransportChoiceWins(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("step_1", own.written_knots)
 
 
-class TestApplyInheritedValuePlane(unittest.TestCase):
+class TestAdoptValuePlane(unittest.TestCase):
     """Unit coverage for the rule the two forwarding sites share."""
 
     def test_nothing_to_inherit_leaves_both_halves_alone(self) -> None:
         inner = Tapestry()
         store, transport = inner.data_store, inner.transport
-        SubTapestry._apply_inherited_value_plane(inner, data_store=None, transport=None)
+        inner.adopt_value_plane(data_store=None, transport=None)
         self.assertIs(store, inner.data_store)
         self.assertIs(transport, inner.transport)
 
     def test_the_data_store_is_replaced(self) -> None:
         inner, outer_store = Tapestry(), InMemoryDataStore()
-        SubTapestry._apply_inherited_value_plane(inner, data_store=outer_store, transport=None)
+        inner.adopt_value_plane(data_store=outer_store, transport=None)
         self.assertIs(outer_store, inner.data_store)
 
     def test_the_data_store_is_replaced_even_when_the_inner_named_one(self) -> None:
@@ -408,29 +408,25 @@ class TestApplyInheritedValuePlane(unittest.TestCase):
         """
         inner = Tapestry(data_store=InMemoryDataStore())
         outer_store = InMemoryDataStore()
-        SubTapestry._apply_inherited_value_plane(inner, data_store=outer_store, transport=None)
+        inner.adopt_value_plane(data_store=outer_store, transport=None)
         self.assertIs(outer_store, inner.data_store)
 
     def test_a_defaulted_transport_is_replaced(self) -> None:
         inner, outer_transport = Tapestry(), _RecordingTransport()
-        SubTapestry._apply_inherited_value_plane(inner, data_store=None, transport=outer_transport)
+        inner.adopt_value_plane(data_store=None, transport=outer_transport)
         self.assertIs(outer_transport, inner.transport)
 
     def test_an_explicit_transport_is_kept(self) -> None:
         own = _RecordingTransport()
         inner = Tapestry(transport=own)
-        SubTapestry._apply_inherited_value_plane(
-            inner, data_store=None, transport=_RecordingTransport()
-        )
+        inner.adopt_value_plane(data_store=None, transport=_RecordingTransport())
         self.assertIs(own, inner.transport)
 
     def test_an_explicitly_passed_inline_transport_is_also_kept(self) -> None:
         """The explicit flag exists because the default cannot be recognised by type."""
         own = InlineTransport()
         inner = Tapestry(transport=own)
-        SubTapestry._apply_inherited_value_plane(
-            inner, data_store=None, transport=_RecordingTransport()
-        )
+        inner.adopt_value_plane(data_store=None, transport=_RecordingTransport())
         self.assertIs(own, inner.transport)
 
 

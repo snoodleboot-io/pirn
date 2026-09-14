@@ -115,7 +115,7 @@ class WithContinuation(Knot):
         # precedence if they supply their own "end" knot.
         self._mutable_pool = {WithContinuation._end: EndKnot, **pool}
 
-    async def process(self, result: Any, **_: Any) -> Any:  # type: ignore[override]
+    async def process(self, result: Any, **_: Any) -> Any:
         """Invoke the continuation function on the upstream result, register successor knots, and return the result.
 
         Args:

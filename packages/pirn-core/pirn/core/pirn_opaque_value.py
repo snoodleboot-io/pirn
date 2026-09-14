@@ -46,6 +46,7 @@ from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 
 from pirn.core.pirn_identity_nonce import PirnIdentityNonce
+from pirn.core.shape_guard import ShapeGuard
 
 
 class PirnOpaqueValue:
@@ -129,7 +130,7 @@ class PirnOpaqueValue:
           always raises rather than substituting.
         """
         state = getattr(self, "__dict__", None)
-        if not isinstance(state, dict):
+        if not ShapeGuard.is_dict(state):
             return uuid.uuid4().hex
         nonce = state.get("_pirn_identity_nonce")
         if not isinstance(nonce, PirnIdentityNonce) or not nonce.is_owned_by(self):

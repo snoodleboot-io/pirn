@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Branch — route a value to one of N named paths.
 
 A ``Branch`` takes one input and a selector function that returns the
@@ -122,7 +124,7 @@ class Branch(Knot):
         selector: Callable[[Any], str],
         branch_names: tuple[str, ...],
         **_: Any,
-    ) -> str:  # type: ignore[override]
+    ) -> str:
         """Apply the selector to the input value and return the name of the chosen branch.
 
         Args:

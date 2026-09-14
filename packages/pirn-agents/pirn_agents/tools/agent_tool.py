@@ -178,7 +178,7 @@ class AgentTool(ToolFactory):
 
     def __call__(self, **kwargs: Any) -> Knot:
         """Construct one call: an :class:`AgentToolCall` over the wrapped agent's class."""
-        framework = {key: kwargs.pop(key) for key in tuple(Knot._reserved_kwargs) if key in kwargs}
+        framework = {key: kwargs.pop(key) for key in tuple(Knot.reserved_kwargs()) if key in kwargs}
         return AgentToolCall(
             arguments=kwargs,
             agent_class=type(self._agent),

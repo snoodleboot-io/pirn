@@ -14,8 +14,6 @@ importable.
 
 from __future__ import annotations
 
-from typing import Any
-
 from pirn.core.transport.serializers.pickle_serializer import PickleSerializer
 from pirn.core.transport.serializers.serializer import Serializer
 
@@ -42,7 +40,7 @@ class SerializerRegistry:
         """
         self._entries.insert(0, (handled_type, serialiser))
 
-    def get(self, value: Any) -> Serializer:
+    def get(self, value: object) -> Serializer:
         """Return the most specific registered serialiser for *value*.
 
         Falls back to :class:`~pirn.core.transport.serializers.pickle_serializer.PickleSerializer`

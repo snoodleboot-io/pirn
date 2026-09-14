@@ -425,10 +425,12 @@ include = ["pirn"]
 strict = [
     "pirn/backends",
     "pirn/check",
+    "pirn/core",
     "pirn/emitters",
     "pirn/engine",
     "pirn/exceptions",
     "pirn/managers",
+    "pirn/nodes",
     "pirn/recording",
     "pirn/security",
     "pirn/streaming",

@@ -207,7 +207,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
                 framework-reserved property, or requires an undeclared one.
         """
         schema = JsonSchemaTypeBuilder.validate_input_schema(
-            input_schema, reserved=Knot._reserved_kwargs
+            input_schema, reserved=Knot.reserved_kwargs()
         )
         if iscoroutinefunction(process):
             # design-decision-override: closure over ``process``, the body of
@@ -445,7 +445,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         merged = {**self._defaults, **self._bound, **kwargs}
         if self._packs_arguments:
             framework = {
-                key: merged.pop(key) for key in tuple(Knot._reserved_kwargs) if key in merged
+                key: merged.pop(key) for key in tuple(Knot.reserved_kwargs()) if key in merged
             }
             return self.knot_class(arguments=merged, **framework)
         for name, default in self._process_defaults().items():

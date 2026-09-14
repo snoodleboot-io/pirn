@@ -132,21 +132,21 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | package | subpackage | strict errors | strict |
 |---|---|---:|:---:|
 | pirn-core | `pirn/*.py` | 0 | yes |
+| pirn-core | `pirn/backends` | 0 | yes |
 | pirn-core | `pirn/check` | 0 | yes |
+| pirn-core | `pirn/core` | 0 | yes |
 | pirn-core | `pirn/emitters` | 0 | yes |
+| pirn-core | `pirn/engine` | 0 | yes |
 | pirn-core | `pirn/exceptions` | 0 | yes |
 | pirn-core | `pirn/managers` | 0 | yes |
+| pirn-core | `pirn/nodes` | 0 | yes |
 | pirn-core | `pirn/recording` | 0 | yes |
 | pirn-core | `pirn/security` | 0 | yes |
 | pirn-core | `pirn/streaming` | 0 | yes |
+| pirn-core | `pirn/triggers` | 0 | yes |
 | pirn-core | `pirn/viz` | 0 | yes |
 | pirn-core | `pirn/yaml_loader` | 0 | yes |
-| pirn-core | `pirn/engine` | 29 |  |
-| pirn-core | `pirn/triggers` | 30 |  |
-| pirn-core | `pirn/backends` | 43 |  |
-| pirn-core | `pirn/nodes` | 54 |  |
-| pirn-core | `pirn/core` | 152 |  |
-| pirn-core | `pirn/connectors` | 1071 |  |
+| pirn-core | `pirn/connectors` | 1050 |  |
 | pirn-agents | `pirn_agents/*.py` | 0 | yes |
 | pirn-agents | `pirn_agents/_internal` | 0 | yes |
 | pirn-agents | `pirn_agents/agent` | 0 | yes |
@@ -239,7 +239,8 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/types` | 0 | yes |
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
-Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 0 (fully strict;
+Totals outside the lists: pirn-core 1050 (`pirn/connectors` only; asyncpg, cloudpickle,
+aiokafka and celery are typed through `packages/pirn-core/typings/`), pirn-agents 1709, pirn-data 0 (fully strict;
 pyarrow, pandas, ibis, dask.dataframe and ray.data are typed through the local stubs in
 `packages/pirn-data/typings/`),
 pirn-health 0, pirn-ml 0, pirn-oilgas 0, pirn-signal 0. The dominant

@@ -20,7 +20,7 @@ class TestInlineTransport(unittest.IsolatedAsyncioTestCase):
         value = {"patient_id": "P1", "score": 0.9}
         handle = await t.write("run-1", "scorer", value)
         assert isinstance(handle, TransportHandle)
-        assert handle._inline_value is value
+        assert handle.inline_value is value
         assert handle.transport_id == "inline"
 
     async def test_read_returns_exact_value(self) -> None:
@@ -40,7 +40,7 @@ class TestInlineTransport(unittest.IsolatedAsyncioTestCase):
     async def test_exists_false_for_none_inline_value(self) -> None:
         t = InlineTransport()
         handle = TransportHandle(
-            transport_id="inline", key="", type_name="NoneType", _inline_value=None
+            transport_id="inline", key="", type_name="NoneType", inline_value=None
         )
         assert not await t.exists(handle)
 

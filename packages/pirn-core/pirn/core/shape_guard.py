@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence, Set
 from typing import TypeGuard
 
 
@@ -53,9 +53,24 @@ class ShapeGuard:
         return ShapeGuard.is_mapping(value) and all(isinstance(key, str) for key in value)
 
     @staticmethod
+    def is_sequence(value: object) -> TypeGuard[Sequence[object]]:
+        """Whether ``value`` is a ``Sequence`` (``str`` and ``bytes`` included), elements ``object``."""
+        return isinstance(value, Sequence)
+
+    @staticmethod
+    def is_abstract_set(value: object) -> TypeGuard[Set[object]]:
+        """Whether ``value`` is an abstract ``Set`` (``set``, ``frozenset``, key views), elements ``object``."""
+        return isinstance(value, Set)
+
+    @staticmethod
     def is_list(value: object) -> TypeGuard[list[object]]:
         """Whether ``value`` is a ``list``, narrowing its elements to ``object``."""
         return isinstance(value, list)
+
+    @staticmethod
+    def is_list_or_tuple(value: object) -> TypeGuard[list[object] | tuple[object, ...]]:
+        """Whether ``value`` is a ``list`` or a ``tuple``, narrowing its elements to ``object``."""
+        return isinstance(value, (list, tuple))
 
     @staticmethod
     def is_tuple(value: object) -> TypeGuard[tuple[object, ...]]:

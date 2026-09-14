@@ -52,6 +52,7 @@ from pirn.core.map_type_error import MapTypeError
 from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.run_context_vars import RunContextVars
+from pirn.core.shape_guard import ShapeGuard
 from pirn.core.skipped import Skipped
 from pirn.core.zip_map import ZipMap
 from pirn.managers.exception_record import ExceptionRecord
@@ -74,6 +75,15 @@ class Knot:
     _frozen: bool = False
 
     _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
+
+    @classmethod
+    def reserved_kwargs(cls) -> frozenset[str]:
+        """The constructor kwargs the framework owns (``_config``, ``tapestry``).
+
+        A declared input may not use one of these names; wrappers that forward
+        constructor kwargs split these off before forwarding the rest.
+        """
+        return cls._reserved_kwargs
 
     # Opt-in, per-class: declare ``process`` in the gradual parameter form
     # ``(*args: Any, **_: Any)`` so a type checker skips the parameter half
@@ -287,7 +297,7 @@ class Knot:
         ``None``), and the remaining kwargs with both reserved names removed.
         """
         kwargs = dict(kwargs)
-        config: KnotConfig = kwargs.pop("_config", None)  # type: ignore[assignment]  # None is narrowed to KnotConfig two lines below
+        config: object = kwargs.pop("_config", None)
         if config is None:
             raise TypeError(
                 f"{cls.__name__} requires _config=KnotConfig(id=...).  "
@@ -460,7 +470,7 @@ class Knot:
     def _validate_config_values(
         cls,
         config_values: dict[str, Any],
-        input_adapters: dict[str, TypeAdapter],
+        input_adapters: dict[str, TypeAdapter[Any]],
         config: KnotConfig,
     ) -> dict[str, Any]:
         """Validate config values against their declared types eagerly.
@@ -492,8 +502,8 @@ class Knot:
         config: KnotConfig,
         parents: Mapping[str, Knot],
         config_values: Mapping[str, Any] | None = None,
-        input_adapters: Mapping[str, TypeAdapter] | None = None,
-        output_adapter: TypeAdapter | None = None,
+        input_adapters: Mapping[str, TypeAdapter[Any]] | None = None,
+        output_adapter: TypeAdapter[Any] | None = None,
         mapped_inputs: Mapping[str, type] | None = None,
         tapestry: Tapestry | None = None,
     ) -> None:
@@ -958,7 +968,7 @@ class Knot:
     def _build_adapters(
         self,
         sig: inspect.Signature,
-    ) -> tuple[dict[str, TypeAdapter], TypeAdapter | None]:
+    ) -> tuple[dict[str, TypeAdapter[Any]], TypeAdapter[Any] | None]:
         """Build Pydantic ``TypeAdapter``s once at construction time.
 
         Input adapters come from ``_input_annotations`` -- one per annotated
@@ -968,7 +978,7 @@ class Knot:
         """
         hints = self._process_hints(sig)
         schema = type(self)._input_schema_override
-        input_adapters: dict[str, TypeAdapter]
+        input_adapters: dict[str, TypeAdapter[Any]]
         if schema is not None:
             input_adapters = JsonSchemaTypeBuilder.input_adapters(schema)
         else:
@@ -978,13 +988,13 @@ class Knot:
                 if ann is not Any or name in hints
             }
 
-        ret = hints.get("return", sig.return_annotation)
+        ret: object = hints.get("return", sig.return_annotation)
         _is_knot_type = (
             ret is not inspect.Signature.empty
             and ret is not None
             and (ret is Knot or (isinstance(ret, type) and issubclass(ret, Knot)))
         )
-        output_adapter = (
+        output_adapter: TypeAdapter[Any] | None = (
             None
             if ret is inspect.Signature.empty or ret is None or _is_knot_type
             else TypeAdapter(ret)
@@ -1007,12 +1017,12 @@ class Knot:
         mapped = self._mutable_mapped_inputs
         sole_type = next(iter(mapped.values()))
 
-        dict_keys: list[str] | None = None
+        dict_keys: list[object] | None = None
 
         if sole_type is Map:
             (input_name,) = mapped.keys()
             collection = kwargs[input_name]
-            if not isinstance(collection, (list, tuple)):
+            if not ShapeGuard.is_list_or_tuple(collection):
                 raise MapTypeError(
                     f"{type(self).__name__}({self.knot_id!r}): Map requires a list "
                     f"or tuple, got {type(collection).__name__!r}. "
@@ -1041,7 +1051,7 @@ class Knot:
         else:  # DictMap
             (key_name, val_name) = mapped.keys()
             the_dict = kwargs[key_name]  # both inputs resolve to the same dict
-            if not isinstance(the_dict, dict):
+            if not ShapeGuard.is_dict(the_dict):
                 raise MapTypeError(
                     f"{type(self).__name__}({self.knot_id!r}): DictMap requires a "
                     f"dict, got {type(the_dict).__name__!r}"

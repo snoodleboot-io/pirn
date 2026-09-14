@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -11,11 +11,14 @@ from pirn.nodes.loop_terminal import LoopTerminal
 from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
+    from pirn.backends.base.run_history import RunHistory
     from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
-    from pirn.tapestry import Tapestry
+
+#: The loop state type, shared with the ``LoopSubTapestry`` the chain belongs to.
+S = TypeVar("S")
 
 
-class IterationChainKnot(Knot):
+class IterationChainKnot(Knot, Generic[S]):
     """One link in a LoopSubTapestry chain.
 
     Runs its pre-planned iteration tapestry, folds the result into state,
@@ -45,10 +48,10 @@ class IterationChainKnot(Knot):
     def __init__(
         self,
         *,
-        _loop_sub: LoopSubTapestry,  # type: ignore[type-arg]
+        _loop_sub: LoopSubTapestry[S],
         _iter_tapestry: Tapestry,
         _iteration_idx: int,
-        _outer_history: Any = None,
+        _outer_history: RunHistory | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -60,7 +63,7 @@ class IterationChainKnot(Knot):
         self._mutable_iteration_idx = _iteration_idx
         self._mutable_outer_history = _outer_history
 
-    async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
+    async def process(self, state: Any, **_: Any) -> Any:
         """Run this iteration's tapestry, fold the result into state, and register the next iteration or terminal knot.
 
         Args:
@@ -73,10 +76,10 @@ class IterationChainKnot(Knot):
         from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
         from pirn.nodes.nested_run_knot import NestedRunKnot
 
-        loop: LoopSubTapestry = self._mutable_loop_sub  # type: ignore[type-arg]
+        loop: LoopSubTapestry[S] = self._mutable_loop_sub
         iter_tapestry: Tapestry = self._mutable_iter_tapestry
         iteration_idx: int = self._mutable_iteration_idx
-        outer_history: Any = self._mutable_outer_history
+        outer_history: RunHistory | None = self._mutable_outer_history
 
         if outer_history is None:
             outer_history = RunContextVars.history.get(None)
@@ -92,7 +95,7 @@ class IterationChainKnot(Knot):
             # The growth guard now lives where it belongs: the store declares a
             # `retention` capability and keeps a bounded window. Recording is
             # bounded rather than absent. See PIR-765.
-            iter_tapestry._history = outer_history
+            iter_tapestry.adopt_history(outer_history)
 
         # The value plane is inherited from the contextvars alone, with no
         # construction-time capture, for the same reason as emitters below: the
@@ -109,8 +112,7 @@ class IterationChainKnot(Knot):
         # history growth above is: the store declares a `retention` capability
         # and evicts to stay within it, so the value plane is bounded rather
         # than either unbounded or thrown away.  See PIR-839.
-        NestedRunKnot._apply_inherited_value_plane(
-            iter_tapestry,
+        iter_tapestry.adopt_value_plane(
             data_store=RunContextVars.data_store.get(None),
             transport=RunContextVars.transport.get(None),
         )
@@ -132,7 +134,7 @@ class IterationChainKnot(Knot):
         # emitter analogue, because emitters are always explicitly attached and
         # their intake is proportional to work the loop actually performed.
         # Consumers that need a ceiling can filter on `RunResult.parent_run_id`.
-        inherited = NestedRunKnot._inherited_emitters(
+        inherited = NestedRunKnot.inherited_emitters(
             iter_tapestry.emitters, RunContextVars.emitters.get(None)
         )
         parent_run_id = RunContextVars.run_id.get(None)
@@ -151,7 +153,7 @@ class IterationChainKnot(Knot):
                 RunContextVars.emitter_error_policy.get(None) if inherited is not None else None
             ),
         )
-        if not result.succeeded and not loop._tolerate_iteration_failures:
+        if not result.succeeded and not loop.tolerates_iteration_failures():
             from pirn.nodes.sub_tapestry_error import SubTapestryError
 
             raise SubTapestryError(result)
@@ -192,7 +194,7 @@ class IterationChainKnot(Knot):
             store.register(next_knot)
         else:
             store.register(
-                LoopTerminal(state=self, _config=KnotConfig(id=LoopSubTapestry._terminal_id))
+                LoopTerminal(state=self, _config=KnotConfig(id=LoopSubTapestry.terminal_id()))
             )
 
         return new_state

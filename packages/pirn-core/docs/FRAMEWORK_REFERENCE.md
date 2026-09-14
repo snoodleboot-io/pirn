@@ -386,7 +386,7 @@ needed no changes — they already composed core `Trigger`.
 A caveat this exposed: `SubTapestry`'s inner run does not forward the
 enclosing run's dispatcher or concurrency limits through a public seam, so
 `MapAgent` reaches into the inner `Tapestry`'s private fields the same way
-`SubTapestry._apply_inherited_value_plane` already does for the value plane.
+`SubTapestry` once did for the value plane (now the public `Tapestry.adopt_value_plane`).
 ADR WS0b's `ExecutionPlane` (`core/execution_plane.py`) closed this: it is
 published by `Tapestry.run` and inherited by every `SubTapestry` inner run and
 `LoopSubTapestry` iteration for whatever the inner tapestry did not name

@@ -186,7 +186,7 @@ class Tapestry:
         return self._history
 
     @property
-    def data_store(self) -> Any:
+    def data_store(self) -> DataStore:
         return self._data_store
 
     @property
@@ -217,6 +217,71 @@ class Tapestry:
         return list(self._admission_observers)
 
     # ------------------------------------------------------------- knot ops
+
+    def adopt_history(self, history: RunHistory) -> None:
+        """Record this tapestry's runs into *history*, an enclosing run's store.
+
+        A container knot calls this on the inner tapestry it is about to run so
+        inner runs land in the store the enclosing run is writing to and appear
+        beside it in the explorer (PIR-764).
+
+        Args:
+            history: The enclosing run's history.
+        """
+        self._history = history
+
+    def adopt_value_plane(
+        self,
+        *,
+        data_store: DataStore | None,
+        transport: DataTransport | None,
+    ) -> None:
+        """Point this tapestry at an enclosing run's value plane.
+
+        The *value plane* is the pair a run writes its outputs into: the
+        ``DataStore`` that holds each value by content hash, and the
+        ``DataTransport`` that moves it between edges.  An inner tapestry is
+        constructed with defaults, so without this its values go to a fresh
+        ``InMemoryDataStore`` that is discarded the moment the inner run ends —
+        while the inner *lineage* rows, written to the forwarded outer history, keep
+        advertising ``output_hash`` values that now resolve against nothing
+        (PIR-837).
+
+        The two halves are not treated identically, because they are not the same
+        kind of thing:
+
+        * **The data store is forwarded unconditionally**, exactly as the history
+          is.  A lineage row and the value it names are two halves of one record;
+          routing the row to the outer history while routing the value elsewhere
+          recreates the dangling reference this fixes.  Whoever owns the history
+          owns the store that answers it.
+        * **The transport yields to an inner tapestry that chose its own.**  A
+          transport is a movement layer inside a single run, not part of any
+          durable record: its handles never leave the run that created them and no
+          lineage row references one.  Inheriting it keeps a disk- or object-store-
+          backed pipeline from silently dropping to ``InlineTransport`` inside a
+          ``SubTapestry`` body, which is where the bulk of a pipeline's data often
+          moves.  But a ``LoopSubTapestry`` iteration built as
+          ``Tapestry(transport=...)`` inside ``step()`` named that transport
+          deliberately, and overwriting it would be the same silent override in the
+          opposite direction.
+
+        Sharing one transport instance across the outer and inner runs is safe:
+        every ``DataTransport`` method is keyed by ``run_id``, and the inner run has
+        its own, so ``begin_run`` / ``end_run`` allocate and release inner-run
+        resources without touching the outer run's.  Sharing one data store is safe
+        for a different reason: it is content-addressed, so an inner value that
+        collides with an outer one is the same value.
+
+        Args:
+            data_store: The enclosing run's data store, or ``None`` when there is
+                no enclosing run to inherit from.
+            transport: The enclosing run's transport, or ``None`` likewise.
+        """
+        if data_store is not None:
+            self._data_store = data_store
+        if transport is not None and not self._transport_explicit:
+            self._transport = transport
 
     def register(self, knot: Knot) -> None:
         """Add a knot to this tapestry.  Called automatically by ``Knot.__init__``
@@ -562,7 +627,7 @@ class Tapestry:
     ) -> list[AdmissionObserver]:
         """Combine a run's own observers with the enclosing run's, own first.
 
-        De-duplicated by identity, like ``SubTapestry._inherited_emitters``:
+        De-duplicated by identity, like ``NestedRunKnot.inherited_emitters``:
         the same controller registered at both levels must hear each
         admission once.
 

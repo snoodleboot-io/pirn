@@ -69,6 +69,7 @@ from pirn.nodes.loop_terminal import LoopTerminal
 from pirn.nodes.sub_tapestry import SubTapestry
 
 if TYPE_CHECKING:
+    from pirn.backends.base.run_history import RunHistory
     from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
@@ -163,6 +164,16 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
     #: error into a quietly wrong final state.  See PIR-772.
     _tolerate_iteration_failures: ClassVar[bool] = False
 
+    @classmethod
+    def terminal_id(cls) -> str:
+        """The knot id of the ``LoopTerminal`` that surfaces the loop's final state."""
+        return cls._terminal_id
+
+    @classmethod
+    def tolerates_iteration_failures(cls) -> bool:
+        """Whether a failed iteration is handed to ``fold`` (see ``_tolerate_iteration_failures``)."""
+        return cls._tolerate_iteration_failures
+
     def _resolve_output_key(self, sink: Knot) -> str:
         return self._terminal_id
 
@@ -226,7 +237,7 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         """
         return f"step_{idx}"
 
-    async def process(self, state: Any, **_: Any) -> Knot:  # type: ignore[override]
+    async def process(self, state: Any, **_: Any) -> Knot:
         """Wire the iteration chain into the inner tapestry and return the sink knot.
 
         For a zero-iteration loop (``step`` returns ``None`` immediately),
@@ -254,7 +265,7 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         # call site had no consumer to expose it until the PIR-713 pilot nested
         # a loop inside a pipeline.
 
-        outer_history: Any = RunContextVars.history.get(None)
+        outer_history: RunHistory | None = RunContextVars.history.get(None)
         if outer_history is None:
             outer_history = self._mutable_outer_history
 
