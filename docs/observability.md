@@ -37,10 +37,10 @@ Multiple emitters receive every event in parallel.
 | Class | Package | What it does |
 |-------|---------|--------------|
 | `LogEmitter` | core | Writes structured JSON to Python `logging` |
-| `OpenTelemetryEmitter` | `pirn[otel]` | Emits OTel spans per knot and per run |
-| `ValKeyEmitter` | `pirn[valkey]` | Publishes events to a ValKey pub/sub channel |
-| `KafkaEmitter` | `pirn[kafka]` | Publishes events to a Kafka topic |
-| `WebhookEmitter` | core | POSTs JSON payloads to an HTTP endpoint |
+| `OpenTelemetryEmitter` | `pirn-core[otel]` | Emits OTel spans per knot and per run |
+| `ValKeyEmitter` | `pirn-core[valkey]` | Publishes events to a ValKey pub/sub channel |
+| `KafkaEmitter` | `pirn-core[kafka]` | Publishes events to a Kafka topic |
+| `WebhookEmitter` | `pirn-core[http]` | POSTs JSON payloads to an HTTP endpoint |
 
 ---
 
@@ -51,7 +51,7 @@ Multiple emitters receive every event in parallel.
 Install the SDK:
 
 ```bash
-pip install pirn[otel]
+pip install "pirn-core[otel]"
 # plus an exporter, e.g.:
 pip install opentelemetry-exporter-otlp
 ```

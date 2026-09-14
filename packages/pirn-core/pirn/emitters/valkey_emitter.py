@@ -41,7 +41,7 @@ class ValKeyEmitter(Emitter):
                 instance.  When provided, ``config`` is ignored.
             config: A ``GlideClientConfiguration`` (or compatible object)
                 used to create a ``GlideClient`` lazily on first use.
-                Requires ``pirn[valkey]``.
+                Requires ``pirn-core[valkey]``.
             channel_status: ValKey pub/sub channel for status events.
                 Defaults to ``"pirn:status"``.
             channel_lineage: ValKey pub/sub channel for lineage records.

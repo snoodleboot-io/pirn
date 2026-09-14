@@ -37,10 +37,10 @@ implementation for each one and combine freely.
 |-------|--------|-------|
 | `InMemoryDataStore` | `pirn.backends.in_memory` | Default. No eviction. |
 | `LocalDiskDataStore` | `pirn.backends.local_disk_data_store` | Content-addressed files; survives restarts. |
-| `S3DataStore` | `pirn.backends.s3_data_store` | Large objects; needs `pirn[s3]`. |
-| `GCSDataStore` | `pirn.backends.gcs_data_store` | Large objects on GCS; needs `pirn[gcs]`. |
-| `AzureBlobDataStore` | `pirn.backends.azure_blob_data_store` | Large objects on Azure Blob; needs `pirn[azure]`. |
-| `ValKeyDataStore` | `pirn.backends.valkey` | Fast; optional TTL; needs `pirn[valkey]`. |
+| `S3DataStore` | `pirn.backends.s3_data_store` | Large objects; needs `pirn-core[s3]`. |
+| `GCSDataStore` | `pirn.backends.gcs_data_store` | Large objects on GCS; needs `pirn-core[gcs]`. |
+| `AzureBlobDataStore` | `pirn.backends.azure_blob_data_store` | Large objects on Azure Blob; needs `pirn-core[azure]`. |
+| `ValKeyDataStore` | `pirn.backends.valkey` | Fast; optional TTL; needs `pirn-core[valkey]`. |
 
 That table is the complete list. There is **no `SQLiteDataStore` and no
 `PostgresDataStore`** — `SQLiteStore` and `PostgresStore` implement
@@ -131,7 +131,7 @@ data    = S3DataStore(bucket="my-pirn-data", prefix="runs/")
 t = Tapestry(store=store, history=history, data=data)
 ```
 
-Requires `pirn[postgres]` and `pirn[s3]`.
+Requires `pirn-core[postgres]` and `pirn-core[s3]`.
 
 **Postgres pool sizing:** asyncpg defaults to `min_size=10, max_size=10`. Set
 `min_size` / `max_size` by passing a pre-built pool to `PostgresStore(pool=…)`.
@@ -220,9 +220,9 @@ combinations:
 Install optional backend dependencies via pip extras:
 
 ```
-pip install pirn[postgres]   # asyncpg
-pip install pirn[valkey]     # valkey-glide
-pip install pirn[s3]         # aiobotocore
-pip install pirn[duckdb]     # duckdb
-pip install pirn[otel]       # opentelemetry-sdk
+pip install "pirn-core[postgres]"   # asyncpg
+pip install "pirn-core[valkey]"     # valkey-glide
+pip install "pirn-core[s3]"         # aioboto3
+pip install "pirn-core[duckdb]"     # duckdb
+pip install "pirn-core[otel]"       # opentelemetry-sdk
 ```

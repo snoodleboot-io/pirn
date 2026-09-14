@@ -152,7 +152,7 @@ If `on_error` is not provided and a run raises, `Trigger.run_forever` re-raises 
 - **`CronTrigger` does not backfill missed ticks.** If the process is down during a scheduled window, those runs are lost.
 - **`CronTrigger(every_seconds=...)` fires immediately at t=0**, then once per interval. Use `delay_fn` if you need the first fire delayed too.
 - **`CronTrigger.close()` never emits a further request**, but *when* it takes effect depends on where the generator is when it lands. Called at the `yield` — the usual case, from inside your own `async for` — the generator returns immediately, without starting the next wait; in `every_seconds=` mode that means shutdown costs nothing, not one more interval. Called from a concurrent task while the generator is parked in a wait, the wait still runs to completion and the fire it was waiting on is dropped. `close()` sets a flag; it does not cancel a sleep. To bound shutdown latency in the parked case, cancel the task running `Trigger.run_forever` rather than relying on `close()` alone.
-- **`KafkaTrigger` requires `pirn[kafka]`.** It is not included in the base install.
+- **`KafkaTrigger` requires `pirn-core[kafka]`.** It is not included in the base install.
 - **`WebhookTrigger` does not run a server.** It exposes `trigger.app`; you mount it on uvicorn/hypercorn or compose it into an existing Starlette/FastAPI app, in a task alongside the rest of your async application.
 - **`ValKeyTrigger` requires a Valkey/Redis connection.** Pass a configured async client at construction.
 - **Nothing is exported from `pirn.triggers`.** Import from the concrete module (`pirn.triggers.trigger`, `pirn.triggers.cron_trigger`, …).

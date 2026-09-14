@@ -50,7 +50,7 @@ class ValKeyTrigger(Trigger):
                 via ``config``.
             config: A ``GlideClientConfiguration`` (or compatible object)
                 used to create a ``GlideClient`` lazily on first use.
-                Requires ``pirn[valkey]``.
+                Requires ``pirn-core[valkey]``.
             request_builder: Callable ``(msg) -> RunRequest``.  Receives
                 the raw pub/sub message object from ``valkey-glide``.
                 Defaults to JSON-decoding ``msg.message`` as a parameter

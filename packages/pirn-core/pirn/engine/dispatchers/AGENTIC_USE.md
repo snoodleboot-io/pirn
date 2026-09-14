@@ -30,9 +30,9 @@ pirn/engine/dispatchers/
 |---|---|---|---|
 | `LocalDispatcher` | Pure async knots, fast I/O, dev/test | nothing | Single-process; blocking knots stall the event loop |
 | `ThreadDispatcher` | Blocking I/O (DB calls, file I/O, sync SDKs) | nothing | Thread pool overhead; GIL limits CPU parallelism |
-| `DaskDispatcher` | CPU-bound data transforms, large collections | `dask` | Cluster setup; values must be serialisable by cloudpickle |
-| `RayDispatcher` | GPU/ML workloads, actor-based fan-out | `ray` | Cluster setup; object store serialisation |
-| `CeleryDispatcher` | Long-running tasks, retries, distributed queues | `celery` + broker | Broker setup; knots must be registered on workers |
+| `DaskDispatcher` | CPU-bound data transforms, large collections | `pirn-core[dask]` | Cluster setup; values must be serialisable by cloudpickle |
+| `RayDispatcher` | GPU/ML workloads, actor-based fan-out | `pirn-core[ray]` | Cluster setup; object store serialisation |
+| `CeleryDispatcher` | Long-running tasks, retries, distributed queues | `pirn-core[celery]` + broker | Broker setup; knots must be registered on workers |
 
 ---
 
