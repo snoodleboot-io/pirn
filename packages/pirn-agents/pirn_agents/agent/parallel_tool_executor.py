@@ -7,8 +7,10 @@ concurrency_group="tools")`` — under an ``Aggregator`` that receives every
 call's ``Ok | Err | Skipped`` (ADR agents-speaks-core, WS1).  Everything the
 pre-ADR version hand-rolled is the engine's now:
 
-* **Bounded concurrency** — the inner tapestry's ``ConcurrencyLimits`` cap the
-  ``"tools"`` group at ``max_concurrency``; the engine admits calls under it.
+* **Bounded concurrency** — the inner run's ``ConcurrencyLimits`` cap the
+  ``"tools"`` group at the *resolved* ``max_concurrency`` (a literal or an
+  upstream knot's output), passed to ``NestedRunKnot._run_inner``; the engine
+  admits calls under it, chained beneath any enclosing cap.
 * **Per-call timeout** — ``KnotConfig.timeout``: an attempt that outlives it
   is cancelled and recorded as ``Err(KnotTimeoutError)``, which the
   :class:`ToolResult` view reports as ``TIMEOUT``.
@@ -19,6 +21,10 @@ pre-ADR version hand-rolled is the engine's now:
 * **Failure isolation** — a failed call is its own recorded ``Err``; the
   ``Aggregator`` combines the batch regardless, so a sibling never skips.
 * **Cancellation** — cancelling the run cancels every in-flight call (core).
+
+The executor is a :class:`~pirn.nodes.nested_run_knot.NestedRunKnot`: its
+``process()`` builds the fan-out, runs it through ``_run_inner`` with the cap,
+and returns the views. An empty batch starts no inner run at all.
 
 Output is a tuple of :class:`ToolResult` views in input order, built through
 the single :meth:`ToolResult.from_result`; a call naming an unregistered
@@ -34,17 +40,16 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_retry_policy import KnotRetryPolicy
-from pirn.core.parameter import Parameter
 from pirn.core.result import Result
 from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.sub_tapestry import SubTapestry
+from pirn.nodes.nested_run_knot import NestedRunKnot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.exceptions.tool_argument_validation_error import (
@@ -59,7 +64,7 @@ from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.toolset import Toolset
 
 
-class ParallelToolExecutor(SubTapestry):
+class ParallelToolExecutor(NestedRunKnot):
     """Execute a batch of :class:`ToolCall`s as sibling knots under one ``Aggregator``.
 
     ``retry`` is a :class:`KnotRetryPolicy` applied to every call; backoff
@@ -68,7 +73,13 @@ class ParallelToolExecutor(SubTapestry):
     """
 
     # Every call's ``Err`` is delivered to the Aggregator, not to this knot.
-    _inner_failures_reach_sink = True
+    _inner_failures_reach_sink: ClassVar[bool] = True
+
+    #: The concurrency group every call is admitted under.
+    _group: ClassVar[str] = "tools"
+
+    #: The inner run's combining knot id.
+    _results_id: ClassVar[str] = "results"
 
     def __init__(
         self,
@@ -93,23 +104,6 @@ class ParallelToolExecutor(SubTapestry):
             **kwargs,
         )
 
-    def _make_inner_tapestry(self) -> Tapestry:
-        """The inner run: calls admitted under the ``"tools"`` group cap; secrets redacted.
-
-        ``max_concurrency`` is read from this knot's literal inputs; when it
-        arrives from an upstream knot instead it is unknown here and the
-        batch runs unbounded.
-        """
-        max_concurrency = self.config_values.get("max_concurrency")
-        limits = (
-            ConcurrencyLimits(groups={"tools": max_concurrency})
-            if isinstance(max_concurrency, int) and max_concurrency >= 1
-            else None
-        )
-        return Tapestry(
-            concurrency=limits, traceback_filter=SecretRedactor.default_traceback_filter()
-        )
-
     async def process(
         self,
         tool_calls: Sequence[ToolCall],
@@ -119,8 +113,8 @@ class ParallelToolExecutor(SubTapestry):
         retry: KnotRetryPolicy | None = None,
         approval_hook: Any = None,
         **_: Any,
-    ) -> Knot:
-        """Wire one tool knot per call and return the view-building sink.
+    ) -> tuple[ToolResult, ...]:
+        """Run one tool knot per call under the concurrency cap and return the views.
 
         Args:
             tool_calls: Ordered calls to execute; each element must be a
@@ -135,9 +129,8 @@ class ParallelToolExecutor(SubTapestry):
                 :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`.
 
         Returns:
-            The sink of the inner pipeline: an ``Aggregator`` over one knot per
-            call whose output — a tuple of :class:`ToolResult` views in input
-            order — becomes this knot's output.
+            One :class:`ToolResult` view per call, in input order, combined by
+            an ``Aggregator`` over the calls' results.
 
         Raises:
             TypeError: If any ``tool_calls`` element is not a
@@ -163,23 +156,28 @@ class ParallelToolExecutor(SubTapestry):
                 f"ParallelToolExecutor: max_concurrency must be >= 1, got {max_concurrency}"
             )
         if not call_list:
-            return Parameter("empty", tuple, default=(), _config=KnotConfig(id="empty"))
+            return ()
 
-        per_call: dict[str, Knot] = {}
-        used_ids: set[str] = set()
-        for index, call in enumerate(call_list):
-            knot_id = ToolFactory.knot_id_for(call.call_id)
-            if knot_id in used_ids:
-                knot_id = f"{knot_id}-{index}"
-            used_ids.add(knot_id)
-            per_call[f"call_{index}"] = self._call_knot(
-                call, toolset, knot_id, timeout, retry, approval_hook
+        with Tapestry(traceback_filter=SecretRedactor.default_traceback_filter()) as inner:
+            per_call: dict[str, Knot] = {}
+            used_ids: set[str] = set()
+            for index, call in enumerate(call_list):
+                knot_id = ToolFactory.knot_id_for(call.call_id)
+                if knot_id in used_ids:
+                    knot_id = f"{knot_id}-{index}"
+                used_ids.add(knot_id)
+                per_call[f"call_{index}"] = self._call_knot(
+                    call, toolset, knot_id, timeout, retry, approval_hook
+                )
+            Aggregator(
+                combine=functools.partial(self._views, call_list),
+                _config=KnotConfig(id=self._results_id, error_policy=ErrorPolicy.RECEIVE_ERRORS),
+                **per_call,
             )
-        return Aggregator(
-            combine=functools.partial(self._views, call_list),
-            _config=KnotConfig(id="results", error_policy=ErrorPolicy.RECEIVE_ERRORS),
-            **per_call,
+        run = await self._run_inner(
+            inner, concurrency=ConcurrencyLimits(groups={self._group: max_concurrency})
         )
+        return run.outputs[self._results_id]
 
     @staticmethod
     def _call_knot(
@@ -196,7 +194,7 @@ class ParallelToolExecutor(SubTapestry):
             return ToolCallRejection(
                 call=call,
                 error=ToolNotFoundError(call.tool_name, call.call_id),
-                _config=KnotConfig(id=knot_id, concurrency_group="tools"),
+                _config=KnotConfig(id=knot_id, concurrency_group=ParallelToolExecutor._group),
             )
         try:
             return factory.for_call(
@@ -204,12 +202,14 @@ class ParallelToolExecutor(SubTapestry):
                 knot_id=knot_id,
                 timeout=timeout,
                 retry=retry,
-                concurrency_group="tools",
+                concurrency_group=ParallelToolExecutor._group,
                 approval_hook=approval_hook,
             )
         except ToolArgumentValidationError as exc:
             return ToolCallRejection(
-                call=call, error=exc, _config=KnotConfig(id=knot_id, concurrency_group="tools")
+                call=call,
+                error=exc,
+                _config=KnotConfig(id=knot_id, concurrency_group=ParallelToolExecutor._group),
             )
 
     @staticmethod
