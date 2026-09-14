@@ -286,6 +286,62 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ---
 
+### Removed
+
+#### The ADR "agents speaks core" one-cycle deprecation shims (PIR-864)
+
+Every public name below was kept importable for exactly one deprecation cycle (each raising `DeprecationWarning` on construction) after the ADR "agents speaks core" workstream that replaced it; this release deletes them outright. Each entry names its replacement.
+
+**Tool / agents (WS1):**
+- `Tool.invoke()` and the invoke-shaped `Tool` subclass path (`Tool.__init_subclass__`'s legacy detection, `_legacy_tool`/`_legacy_init`/`_legacy_factory`/`_legacy_declaration`) — construct the tool knot and run it in a `Tapestry`, or `ToolFactory.for_call(call)`.
+- `ToolFactory.invoke()`, `ToolFactory.as_tool_result()`, `ToolFactory.from_legacy()` — run the call as a knot and read its `Result`; `ToolResult.from_result()` builds the view.
+- `BaseTool` — subclass `Tool` directly.
+- `ToolSchemaCompiler` — `Tool.declaration()` / `ToolFactory.declaration()` (backed by `Knot.input_json_schema()`).
+- `ArgumentValidator` (and the now-empty `pirn_agents.validation` subpackage) — `ToolFactory.validate_arguments()`.
+- `AgentSchemaDeriver` — `AgentTool(agent).declaration().parameters`.
+- `AgentInvoker` — wrap the agent with `AgentTool` and run the call as a knot.
+- `ToolInvocationHook` (and `ParallelToolExecutor`'s `hook=`/`retries=`/`retry_policy=`/`rng=`/`sleep=` constructor kwargs) — observe a call through its `KnotLineage` row and the run's emitters; `retry=KnotRetryPolicy(max_attempts=...)` for retries.
+- `_FanoutRunner`, `AsyncFanoutEngine` — one knot per item under a core `Aggregator`; per-item timeout/retry via `KnotConfig.timeout`/`KnotConfig.retry`.
+- `AgentTool.invoke()` — `AgentTool.for_call(call)` run as a knot, or `run_view()`.
+
+`ToolResult`/`ToolStatus` are **not** removed: PIR-865 (#348) gave `ToolResult.from_result(gated=)`/`ToolStatus.SKIPPED` a live role rendering gated/approval outcomes to the model, so they remain the codec's rendering type.
+
+**Observability (WS4a):**
+- `Tracer`, `OtelSink`, `LoggingSink`, `SpanEmittingToolInvocationHook`, `Span`, `SpanKind`, `SpanStatus`, `OpenSpanEntry`, `ObservabilitySink` — `AgentCallRecorder.record(...)` emits a core `StatusEvent` through the run's own emitters (`OpenTelemetryEmitter`, `LogEmitter`, or any custom `Emitter`); no separate sink or hook to build.
+
+**Sessions / determinism (WS3):**
+- `RunCheckpoint`, `RunCheckpointer`, `SessionStore`, `InMemorySessionStore`, `PersistedSessionStore`, `ThreadRepository`, `MemoryStoreKeyIndex` — a session is a chain of engine runs (`SessionChain`); `RunState.from_chain()` projects the read model; `ConversationThread` persists multi-turn history over core's own `DataStore`/`RunHistory`.
+- `CassetteStore`, `InMemoryCassetteStore`, `FileCassetteStore` — `CassetteRecorder` records to and replays from `RunHistory`/`DataStore` directly.
+- `TrajectoryRecorder` — a `TrajectoryEmitter` attached to a `Tapestry` captures every knot's lineage via `on_lineage` automatically.
+
+**Batch (WS4b):**
+- `BatchScheduler`, `BatchCheckpointer` — `MapAgent` resumes from a `RunHistory` lineage query on the item's knot id; pass `history=`/`data_store=`.
+
+`BatchProgress` is **not** removed: it is not itself a deprecation shim, and `TriggeredBatch`'s live `run()` still returns it as its per-fire summary.
+
+**Concurrency (WS4b/PIR-866):**
+- `BackpressureSemaphore`, `Bulkhead`, `ConcurrencyConfig`, `BulkheadConfig` (and their private `_backpressure_admission`/`_admission_slot_knot` implementation) — declare `KnotConfig(concurrency_group=<backend>)` on the knots that call a backend and `ConcurrencyLimits(groups={<backend>: n})` on the run; every knot in that group is metered together by one shared `AdmissionGate`. `agent/parallel_tool_executor.py` and three `specializations/` pipelines (`document_processing/ingestion_pipeline.py`, `multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`) that read `ConcurrencyConfig.max_concurrency` as a class-level default now default to a plain literal `8`. `evaluation/run_eval.py::RunEval.run` — the one caller with no `Tapestry` to attach a group to — now bounds its per-item concurrency with a plain `asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8) instead.
+
+**Naming (`*Gate` → `*Check`, Knot Design Rule 7):**
+- `FactCheckGate`, `InputGuardrailGate`, `OutputGuardrailGate`, `AcceptGate` (pirn-agents), `ChampionChallengerGate` (pirn-ml), `SeismicQCGate` (pirn-oilgas), `ClinicalDataQualityGate`, `GenomicsQCGate` (pirn-health) — construct `FactCheck`, `InputGuardrailCheck`, `OutputGuardrailCheck`, `AcceptCheck`, `ChampionChallengerCheck`, `SeismicQCCheck`, `ClinicalDataQualityCheck`, `GenomicsQCCheck` respectively.
+
+**Miscellaneous:**
+- `ResolvedValueKnot` (WS5a) — construct `pirn.core.parameter.Parameter` directly.
+- `MessagesPassthrough` (WS5a/WS5b) — `Parameter("seed_messages", tuple[AgentMessage, ...], default=..., ...)` for the constant-seed case (the class's other call shape, an upstream `Knot`, had no in-tree or external caller).
+- `ConsensusAggregator` (WS5b) — `ConsensusPipeline`.
+- `AgentContext` (WS6b) — `ConversationPayload` (its `extra=` kwarg replaces `AgentContext`'s `metadata`).
+- `ContentAddress`, `content_address()` (WS2) — `pirn.core.hashing.content_hash(value, strict=True)` directly.
+- `IdempotencyKeyAssigner.legacy_key()` (WS2 part 2) — `IdempotencyKeyAssigner.assign()` (already the default derivation).
+- `AgentSpecLoader`'s legacy flat-dict dialect (WS6a) — `AgentSpecLoader.from_mapping`/`from_json`/`from_yaml`/`from_path` now accept only a core pipeline document (a top-level `nodes:` list); `AgentSpecLoader.to_json`/`to_yaml` now write that same shape (previously the flat dict) so read/write keep round-tripping. `AgentSpec.from_dict()`/`.to_dict()` are unaffected — they were never deprecated and still construct/serialise the flat shape directly for a caller that already has one.
+
+**Module-level functions folded into their class (PIR-869 follow-through):**
+- `pirn_agents.evaluation.run_eval:run_eval` — `RunEval.run(...)` (already the implementation; the free function was a thin wrapper).
+- `pirn_agents.specializations.structured_output.structured_decoder:structured_decode` — `StructuredDecoder.decode_once(...)` (already the implementation).
+
+**Deferred, not removed in this release:** `CanonicalJson` and `OpaquePolicy` are still imported by `determinism/content_digest.py` and `evaluation/trajectory_call_key.py` (both non-durable, in-memory-only per their own module docstrings); retiring those two callers is a decision for whichever lane owns `CanonicalJson`'s eventual retirement, not made unilaterally here. `IdempotencyKeyAssigner.legacy_key()` (the only other caller) is deleted above.
+
+---
+
 ### Added (prior)
 
 #### Agentic design patterns guide
