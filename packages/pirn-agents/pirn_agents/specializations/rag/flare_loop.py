@@ -58,7 +58,7 @@ class FlareLoop(AgentLoopPipeline[FlareState]):
     _regenerate_id: ClassVar[str] = "regenerate"
 
     _generation_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.flare_active_rag_pipeline.generation_prompt",
+        name="specializations.rag.flare_loop.generation_prompt",
         default=(
             "Answer the question one sentence at a time. Reply with 'DONE' if the answer is "
             "complete, otherwise reply exactly 'CONF=<0-1>: <the next sentence>' where the number "

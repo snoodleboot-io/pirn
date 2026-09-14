@@ -29,7 +29,7 @@ class DocumentCompressor(Knot):
     """
 
     _compression_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.contextual_compressor.compression_prompt",
+        name="specializations.rag.document_compressor.compression_prompt",
         default=(
             "Extract only the sentences from the document that are relevant to the "
             "query. Preserve wording exactly. If nothing is relevant, reply with only "

@@ -251,9 +251,19 @@ attribute name with any leading underscore stripped:
 |------|-----------|--------------|
 | `control/reflection_check.py` | `reflection_prompt` | `control.reflection_check.reflection_prompt` |
 | `specializations/reflection/self_critique_revise.py` | `_critique_system` | `specializations.reflection.self_critique_revise.critique_system` |
+| `specializations/rag/decide_follow_up.py` | `_decide_prompt` | `specializations.rag.decide_follow_up.decide_prompt` |
+| `tools/retrieval/rag_tool.py` | `_system_prompt_binding` | `tools.retrieval.rag_tool.system_prompt_binding` |
 
 This is mechanically derivable and collision-free (three different classes ship
-a `_revision_system`; their module paths keep them apart). Built-ins resolve in
+a `_revision_system`; their module paths keep them apart). The rule holds for the
+attribute as spelled, suffixes included: `LlmInjectionClassifier._system_prompt_binding`
+is `security.llm_injection_classifier.system_prompt_binding`. A class that moves to
+its own module takes its prompts' names with it — `DecideFollowUp._decide_prompt`
+is `specializations.rag.decide_follow_up.decide_prompt`, not the name of the module
+it was split out of — and no old name is kept as an alias, so a prompt pack keyed
+on a pre-move name must be updated. `tests/prompt/test_prompt_binding_names.py`
+walks every shipped binding and fails on a name that does not match its owner.
+Built-ins resolve in
 the `pirn_agents` namespace, so an operator pack cannot collide with an
 application's own templates. The module path is used as it is spelled; the rule
 strips a leading underscore from the *attribute* only

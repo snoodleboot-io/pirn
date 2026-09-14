@@ -38,7 +38,7 @@ class RaptorSummary(Knot):
     """Summarize one cluster of RAPTOR node texts into a single summary."""
 
     _summary_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.indexing.raptor_assembler.summary_prompt",
+        name="specializations.rag.indexing.raptor_summary.summary_prompt",
         default=(
             "Summarize the following passages into one concise summary that preserves the "
             "key facts.\n\n{{ joined }}\n\nSummary:"

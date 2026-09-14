@@ -29,7 +29,7 @@ class PlanStepCall(Knot):
     """Execute one plan step via a single LLM call, given prior results as context."""
 
     _step_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.plan_and_execute.plan_executor.step_system",
+        name="specializations.plan_and_execute.plan_step_call.step_system",
         default=(
             "You are a task executor. Complete the given step accurately and concisely. "
             "Use the previous step results as context where relevant."

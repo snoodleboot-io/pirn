@@ -17,7 +17,7 @@ class DecideFollowUp(Knot):
     """Ask the LLM whether more evidence is needed, and for what query."""
 
     _decide_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.iterative_retriever.decide_prompt",
+        name="specializations.rag.decide_follow_up.decide_prompt",
         default=(
             "You are running iterative retrieval. Given the original question and the "
             "evidence gathered so far, reply with exactly 'DONE' if the evidence is "

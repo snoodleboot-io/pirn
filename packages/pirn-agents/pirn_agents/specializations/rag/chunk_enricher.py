@@ -18,7 +18,7 @@ class ChunkEnricher(Knot):
     """Prefix one chunk with an LLM-generated situating context sentence."""
 
     _enrichment_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.contextual_chunk_enricher.enrichment_prompt",
+        name="specializations.rag.chunk_enricher.enrichment_prompt",
         default=(
             "Give a single short sentence that situates the following chunk within the "
             "document, so it can be understood in isolation. Reply with only the sentence.\n\n"

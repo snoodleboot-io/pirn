@@ -47,7 +47,7 @@ class ComplexRagArm(AgentPipeline):
     """Decompose into sub-questions, retrieve per sub-question, then answer."""
 
     _decompose_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.adaptive_rag_pipeline.decompose_prompt",
+        name="specializations.rag.complex_rag_arm.decompose_prompt",
         default=(
             "Decompose the following question into exactly three concise "
             "sub-questions, one per line, no numbering or bullets.\n\n"

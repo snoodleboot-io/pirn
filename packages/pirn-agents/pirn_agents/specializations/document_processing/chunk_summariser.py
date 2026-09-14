@@ -9,13 +9,6 @@ becomes its own engine-scheduled invocation with its own ``Result``.
 ``Map`` injects only the element, so the position labels arrive from
 :class:`ChunkPositions` as a second zipped collection.
 
-Note:
-    The ``PromptBinding`` name still reads ``_map_reduce_summariser.*`` even
-    though that module is gone. That is deliberate, not an oversight: the
-    binding name is an **operator-facing override key**, so renaming it would
-    silently break any deployment overriding this prompt. Same call as the
-    ``assess_prompt`` binding in PIR-715.
-
 Internal API.
 """
 
@@ -36,7 +29,7 @@ class ChunkSummariser(Knot):
     """Summarise a single chunk, positioned within the document."""
 
     _chunk_summary_system: ClassVar[PromptBinding] = PromptBinding(
-        name=("specializations.document_processing._map_reduce_summariser.chunk_summary_system"),
+        name=("specializations.document_processing.chunk_summariser.chunk_summary_system"),
         default=(
             "Summarise the supplied document chunk in 3-5 sentences. "
             "Preserve key facts and named entities."

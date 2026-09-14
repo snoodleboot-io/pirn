@@ -248,6 +248,30 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ### Removed
 
+#### Built-in prompt names that no longer matched their owner (PIR-872)
+
+Seventeen `PromptBinding` names still named the module their class was split out of (or dropped the attribute's suffix). Each is now `<module path>.<attribute>` per `pirn_agents/prompt/PROMPTS.md`, with no alias; a prompt pack keyed on an old name must use the new one.
+
+| Removed name | Name |
+|---|---|
+| `security.llm_injection_classifier.system_prompt` | `security.llm_injection_classifier.system_prompt_binding` |
+| `specializations.chain_of_thought.tree_of_thought.expansion_system` | `specializations.chain_of_thought.expand_one_thought.expansion_system` |
+| `specializations.chain_of_thought.tree_of_thought.scoring_system` | `specializations.chain_of_thought.score_candidate.scoring_system` |
+| `specializations.document_processing._map_reduce_summariser.chunk_summary_system` | `specializations.document_processing.chunk_summariser.chunk_summary_system` |
+| `specializations.document_processing._map_reduce_summariser.reduce_system` | `specializations.document_processing.summary_reducer.reduce_system` |
+| `specializations.document_processing.chunk_translator.system_prompt` | `specializations.document_processing.chunk_translation.system_prompt` |
+| `specializations.plan_and_execute.plan_executor.step_system` | `specializations.plan_and_execute.plan_step_call.step_system` |
+| `specializations.rag.adaptive_rag_pipeline.decompose_prompt` | `specializations.rag.complex_rag_arm.decompose_prompt` |
+| `specializations.rag.agentic_rag_pipeline.next_question_prompt` | `specializations.rag.follow_up_decision.next_question_prompt` |
+| `specializations.rag.contextual_chunk_enricher.enrichment_prompt` | `specializations.rag.chunk_enricher.enrichment_prompt` |
+| `specializations.rag.contextual_compressor.compression_prompt` | `specializations.rag.document_compressor.compression_prompt` |
+| `specializations.rag.flare_active_rag_pipeline.generation_prompt` | `specializations.rag.flare_loop.generation_prompt` |
+| `specializations.rag.flare_active_rag_pipeline.regeneration_prompt` | `specializations.rag.flare_regenerate_prompt_builder.regeneration_prompt` |
+| `specializations.rag.indexing.raptor_assembler.summary_prompt` | `specializations.rag.indexing.raptor_summary.summary_prompt` |
+| `specializations.rag.iterative_retriever.decide_prompt` | `specializations.rag.decide_follow_up.decide_prompt` |
+| `specializations.rag.reranker.score_prompt` | `specializations.rag.document_relevance_scorer.score_prompt` |
+| `tools.retrieval.rag_tool.system_prompt` | `tools.retrieval.rag_tool.system_prompt_binding` |
+
 #### `Tool`'s knot-introspection wrappers (PIR-872)
 
 - `Tool.framework_kwarg_names()`, `Tool.declared_input_schema(cls)`, `Tool.input_annotations(cls)` — `Knot` (pirn-core) answers "what does this knot class accept" itself: `knot_class.reserved_kwargs()`, `knot_class.declared_input_schema()`, `knot_class.input_annotations()` (all classmethods, next to `input_json_schema()`). `ToolFactory` and `AgentTool` read those.
