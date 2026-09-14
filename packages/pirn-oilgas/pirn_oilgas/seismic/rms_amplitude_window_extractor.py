@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RMSAmplitudeWindowExtractor`` — extract RMS amplitude within a time window around a horizon.
 
 Algorithm:

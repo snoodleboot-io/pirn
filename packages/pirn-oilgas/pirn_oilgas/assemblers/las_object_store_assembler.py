@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LasObjectStoreAssembler`` — assemble a :class:`LASPayload` from raw LAS bytes.
 
 Sits between :class:`~pirn.connectors.knots.object_store_read_source.ObjectStoreReadSource`
@@ -30,6 +32,7 @@ from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 
@@ -44,22 +47,17 @@ class LasObjectStoreAssembler(Assembler):
         curves: tuple[str, ...],
         depth_unit: str,
     ) -> LASPayload:
-        try:
-            import lasio
-        except ImportError as exc:
-            raise ImportError(
-                "LasObjectStoreAssembler: decoding LAS bytes requires lasio — "
-                "install pirn-oilgas[oilgas]"
-            ) from exc
+        lasio = OilgasOptionalImport.require("lasio", "LasObjectStoreAssembler: decoding LAS bytes")
 
         las = lasio.read(io.StringIO(body.decode("utf-8", errors="replace")))
-        available = {curve_entry.mnemonic for curve_entry in las.curves}
+        available: set[str] = {str(curve_entry.mnemonic) for curve_entry in las.curves}
         curve_data: dict[str, np.ndarray] = {}
         for mnemonic in curves:
             if mnemonic in available:
                 curve_data[mnemonic] = np.asarray(las[mnemonic], dtype=np.float64)
             else:
-                depth_len = len(las.index) if len(las.index) > 0 else 100
+                index_len = len(np.asarray(las.index, dtype=np.float64))
+                depth_len = index_len if index_len > 0 else 100
                 curve_data[mnemonic] = np.zeros(depth_len, dtype=np.float64)
         return LASPayload(
             metadata=LASFile(

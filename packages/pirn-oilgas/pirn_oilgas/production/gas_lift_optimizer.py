@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GasLiftOptimizer`` — optimize gas injection rate to maximize oil production from gas-lifted wells.
 
 Algorithm:
