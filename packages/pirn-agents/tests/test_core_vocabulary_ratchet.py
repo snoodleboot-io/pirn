@@ -10,6 +10,9 @@ retires three agents-local parallels to a core primitive:
 (c) an outcome enum modelling success/failure/skip beside core's
     ``Ok | Err | Skipped`` ``Result``.
 
+PIR-872 burned all three inventories down to empty; each is kept as an empty
+exact-equality assertion so a reintroduction fails loudly.
+
 Like ``tests/specializations/base/test_no_engine_bypass.py``, this is a
 ratchet, not a clean assertion: WS2 burns down (a) for the files it owns
 (``exceptions/**``, ``security/**``) and leaves the rest — other lanes own
@@ -72,35 +75,19 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR: frozenset[str] = frozenset()
 # assertion so a reintroduced parallel canonicaliser is loud.
 CANONICAL_JSON_IMPORTERS: frozenset[str] = frozenset()
 
-# --- (c) outcome enums beside Result, frozen --------------------------------
+# --- (c) outcome enums beside Result ----------------------------------------
 #
-# Hand-curated, not purely structural: "models success/failure/skip beside
-# Result" is a semantic judgment (see the ADR review), not something member
-# names alone determine cleanly — `RetryClassification`'s SAFE/UNSAFE members
-# don't textually match an OK/ERROR shape the way the other three do, yet the
-# ADR review named it explicitly as one of these four. The self-test below
-# guards the parts that *are* mechanical: every name here must resolve to a
-# real `Enum` subclass discovered by the walk (catches a rename/deletion),
-# and the walk's total count must not collapse to zero (catches the walk
-# itself silently breaking).
-#
-# `BatchItemStatus` is WS2's own lane: it now has `to_result()`/`from_result()`
-# bridges to `Ok | Err | Skipped` (see `batch/batch_item_result.py`), kept
-# for one deprecation cycle because `MapAgent`'s scheduling (WS4b) still
-# produces/consumes it directly — so it remains in this inventory until that
-# lane retires it, not because WS2 left it untouched. `ToolStatus` is not a
-# one-cycle shim (PIR-865 gave it a live rendering role — see
-# `tools/tool_result.py`); it stays in this inventory because it is still,
-# structurally, an outcome enum beside `Result`, independent of whether it is
-# deprecated. `SpanStatus` (`observability/span_status.py`) was the
-# observability plane's one-cycle shim and is deleted (PIR-864).
-OUTCOME_ENUMS_BESIDE_RESULT = frozenset(
-    {
-        "tools/tool_status.py::ToolStatus",
-        "resilience/failover_outcome.py::FailoverOutcome",
-        "resilience/retry_classification.py::RetryClassification",
-    }
-)
+# An outcome is `Ok | Err | Skipped`. PIR-872 deleted the last four parallel
+# enums: `BatchItemStatus` (`BatchItemResult.outcome` is the item's `Result`; a
+# timeout is an `Err` whose error type is `KnotTimeoutError`), `ToolStatus`
+# (`ToolResult.outcome` is the call's `Result`; the model-facing `status` is a
+# string derived from it), `FailoverOutcome` (`FailoverAttempt.result` already
+# carried the `Result`; a circuit-open skip is `Skipped(reason="circuit_open")`),
+# and `RetryClassification` -- not an outcome at all but a two-valued
+# retry-safety verdict about an error, now `RetrySafetyClassifier.is_safe()`
+# returning a `bool`. Empty, not deleted: the self-test below still fails on any
+# new enum with both an OK-like and an ERROR-like member.
+OUTCOME_ENUMS_BESIDE_RESULT: frozenset[str] = frozenset()
 
 
 class TestExceptionRootsFrozen(unittest.TestCase):
@@ -222,7 +209,7 @@ class TestCanonicalJsonImportersFrozen(unittest.TestCase):
 
 
 class TestOutcomeEnumsFrozen(unittest.TestCase):
-    """(c) outcome enums beside Result are listed here, and are real Enums."""
+    """(c) outcome enums beside Result are listed here (none remain), and are real Enums."""
 
     def setUp(self) -> None:
         self.classes = VocabularyInventory.discover_classes(_PACKAGE_ROOT)
@@ -231,7 +218,7 @@ class TestOutcomeEnumsFrozen(unittest.TestCase):
         enums = [
             name for name in self.classes if VocabularyInventory.is_enum_class(name, self.classes)
         ]
-        assert len(enums) >= 15, enums
+        assert len(enums) >= 10, enums
 
     def test_every_listed_outcome_enum_resolves_to_a_real_enum(self) -> None:
         for label in OUTCOME_ENUMS_BESIDE_RESULT:

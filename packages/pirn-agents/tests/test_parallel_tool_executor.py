@@ -27,7 +27,6 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -127,7 +126,7 @@ async def test_concurrency_cap_respected() -> None:
     results, _, _ = await _run(calls, toolset, max_concurrency=2)
 
     assert counter.peak == 2
-    assert all(r.status is ToolStatus.OK for r in results)
+    assert all(r.status == "ok" for r in results)
 
 
 async def test_failure_isolation() -> None:
@@ -143,9 +142,9 @@ async def test_failure_isolation() -> None:
     results, _, _ = await _run(calls, toolset)
 
     by_id = {r.call_id: r for r in results}
-    assert by_id["c1"].status is ToolStatus.OK
+    assert by_id["c1"].status == "ok"
     assert by_id["c1"].result == "value"
-    assert by_id["c2"].status is ToolStatus.ERROR
+    assert by_id["c2"].status == "error"
     assert by_id["c2"].error is not None and "transient failure" in by_id["c2"].error
 
 
@@ -159,9 +158,9 @@ async def test_timeout_isolated_from_siblings() -> None:
     results, _, _ = await _run(calls, toolset, timeout=0.05)
 
     by_id = {r.call_id: r for r in results}
-    assert by_id["c1"].status is ToolStatus.TIMEOUT
+    assert by_id["c1"].status == "timeout"
     assert by_id["c1"].error is not None and "did not finish within" in by_id["c1"].error
-    assert by_id["c2"].status is ToolStatus.OK
+    assert by_id["c2"].status == "ok"
     assert by_id["c2"].result == "quick"
 
 
@@ -176,7 +175,7 @@ async def test_retry_then_success() -> None:
     )
 
     assert Probe.calls["flaky"] == 3
-    assert results[0].status is ToolStatus.OK
+    assert results[0].status == "ok"
     assert results[0].result == "recovered"
     rows = await _inner_rows(t, run)
     assert rows["c1"].extra.get("attempts") == 3
@@ -192,7 +191,7 @@ async def test_retry_exhausted_returns_error() -> None:
     )
 
     assert Probe.calls["flaky"] == 2  # initial attempt + 1 retry
-    assert results[0].status is ToolStatus.ERROR
+    assert results[0].status == "error"
 
 
 async def test_unknown_tool_yields_error_and_batch_completes() -> None:
@@ -205,11 +204,11 @@ async def test_unknown_tool_yields_error_and_batch_completes() -> None:
     results, _, _ = await _run(calls, toolset)
 
     by_id = {r.call_id: r for r in results}
-    assert by_id["c1"].status is ToolStatus.ERROR
+    assert by_id["c1"].status == "error"
     assert by_id["c1"].error is not None and "missing" in by_id["c1"].error
     assert by_id["c1"].exception is not None
     assert by_id["c1"].exception.exc_type == "ToolNotFoundError"
-    assert by_id["c2"].status is ToolStatus.OK
+    assert by_id["c2"].status == "ok"
 
 
 async def test_results_returned_in_input_order() -> None:
@@ -298,7 +297,7 @@ async def test_error_path_carries_the_exception_record() -> None:
 
     results, _, _ = await _run([ToolCall(tool_name="t", arguments={}, call_id="c1")], toolset)
 
-    assert results[0].status is ToolStatus.ERROR
+    assert results[0].status == "error"
     record = results[0].exception
     assert record is not None
     assert record.exc_type == "RuntimeError"

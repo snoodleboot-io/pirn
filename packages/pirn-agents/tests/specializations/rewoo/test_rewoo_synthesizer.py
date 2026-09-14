@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -12,7 +13,6 @@ from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
 from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -25,8 +25,8 @@ def _plan() -> tuple[ToolCall, ...]:
 
 def _results() -> tuple[ToolResult, ...]:
     return (
-        ToolResult(call_id="c0", result="hit", status=ToolStatus.OK),
-        ToolResult(call_id="c1", result=4, status=ToolStatus.OK),
+        ToolResult(call_id="c0", outcome=Ok(value="hit")),
+        ToolResult(call_id="c1", outcome=Ok(value=4)),
     )
 
 

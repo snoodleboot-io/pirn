@@ -122,7 +122,7 @@ async def _observation_assembler(
     view = (
         ToolResult.from_result(call_id, outcome, gated=gated)
         if isinstance(outcome, (Ok, Err, Skipped))
-        else ToolResult(call_id=call_id, result=outcome)
+        else ToolResult(call_id=call_id, outcome=Ok(value=outcome))
     )
     content = (
         str(view.result)

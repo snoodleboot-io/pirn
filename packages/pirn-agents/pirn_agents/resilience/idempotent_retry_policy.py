@@ -18,7 +18,6 @@ from typing import Any
 
 from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.resilience.idempotency_key_assigner import IdempotencyKeyAssigner
-from pirn_agents.resilience.retry_classification import RetryClassification
 from pirn_agents.resilience.retry_safety_classifier import RetrySafetyClassifier
 
 
@@ -104,7 +103,7 @@ class IdempotentRetryPolicy:
             try:
                 return await call(key)
             except Exception as exc:
-                unsafe = self._classifier.classify(exc) is RetryClassification.UNSAFE
+                unsafe = not self._classifier.is_safe(exc)
                 if unsafe or attempt >= self._backoff.max_retries:
                     raise
                 await self._sleep(self._backoff.backoff_delay(attempt, rng=rng))

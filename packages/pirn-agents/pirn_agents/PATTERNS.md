@@ -701,10 +701,9 @@ react = ReActLoop(
 
 Schemas and results **round-trip through F1's protocol**: `toolset.schema()` is
 the provider-neutral tool schema, and a `ToolCall` dispatched through
-`ParallelToolExecutor` invokes `McpTool.invoke` → `tools/call` and wraps the
-result into a `ToolResult` (a server `isError` becomes `ToolStatus.ERROR`). For
-executor-free use, `McpTool.as_tool_result(call)` returns the `ToolResult`
-directly.
+`ParallelToolExecutor` runs the MCP tool knot → `tools/call` and renders the
+call's `Result` as a `ToolResult` (a server `isError` is an `Err` outcome, whose
+`status` is `"error"`).
 
 **Resources** map to context injection: `McpResourceAdapter(client=session)`
 lists/reads resources and yields either system-role `AgentMessage`s
@@ -990,8 +989,7 @@ registry, with no LLM provider baked in.
 | Type | Role |
 |---|---|
 | `ToolCall` | One decided invocation: `tool_name`, `arguments`, `call_id`, optional `raw`. |
-| `ToolResult` | Its outcome: `call_id`, `result`, `error`, `status`, `latency`, `tokens`. |
-| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`. |
+| `ToolResult` | Its model-facing view: `call_id`, `outcome` (the call's core `Ok \| Err \| Skipped`), `latency`, `tokens`, and derived `result`, `error`, `status` (`"ok"`/`"error"`/`"timeout"`/`"skipped"`). |
 | `Toolset` | Immutable, ordered, unique-by-name registry of `Tool`s. |
 
 `ParallelToolExecutor` runs a batch of `ToolCall`s concurrently against a
@@ -1010,7 +1008,6 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class SearchTool(Tool):
@@ -1038,7 +1035,7 @@ with Tapestry() as tapestry:
 run = await tapestry.run()
 
 for r in run.outputs["pte"]:
-    assert r.status is ToolStatus.OK
+    assert r.succeeded
     print(r.call_id, r.result, f"{r.latency:.4f}s")
 ```
 

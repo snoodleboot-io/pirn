@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import unittest
 
+from pirn.core.ok import Ok
+
 from pirn_agents.llm.openai_compatible_tool_adapter import OpenAICompatibleToolAdapter
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_result import ToolResult
@@ -58,7 +60,7 @@ class TestOpenAICompatibleToolAdapter(unittest.TestCase):
 
     def test_encode_result_message(self) -> None:
         codec = ToolCallCodec(OpenAICompatibleToolAdapter())
-        native = codec.encode_results([ToolResult(call_id="c1", result={"ok": True})])
+        native = codec.encode_results([ToolResult(call_id="c1", outcome=Ok(value={"ok": True}))])
         assert native == [{"role": "tool", "tool_call_id": "c1", "content": {"ok": True}}]
 
 

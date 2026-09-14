@@ -122,9 +122,10 @@ under the `"tools"` concurrency group, with per-knot `timeout` and
 back into the model's tool-result messages. A single call is a `ToolInvocation`
 knot. The text ReAct loop supplies each action input as `{"input": ...}`;
 single-argument base tools accept that as an alias for their canonical
-parameter, so the same tool works both ways. `ToolResult`/`ToolStatus` remain
-for one cycle as a deprecated *view* of a call's `Result`
-(`ToolResult.from_result(call_id, result, lineage)`).
+parameter, so the same tool works both ways. `ToolResult` is the model-facing
+*view* of a call's `Result` — its `outcome` is that `Result`, and its `status`
+is a string derived from it (`"ok"`, `"error"`, `"timeout"`, `"skipped"`) —
+built by `ToolResult.from_result(call_id, result, lineage)`.
 
 ## Security notes
 
@@ -152,7 +153,7 @@ behind a core `Gate` in front of the call whenever the capability requires
 approval; an unrestricted capability is never gated at all, so this costs
 nothing when unused. **A denial is a core `Skipped`, not an error:** the
 tool's own `process()` is never invoked, and the `ToolResult` view a caller
-or the model reads back has `status = ToolStatus.SKIPPED` and
+or the model reads back has a `Skipped` `outcome`, `status == "skipped"`, and
 `error = "call skipped: approval denied"` — the model is told the call was
 skipped, not that it failed. Passing no `approval_hook` uses the base
 `ApprovalHook`, which auto-approves — the zero-cost default until a human-

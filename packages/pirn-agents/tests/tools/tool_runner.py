@@ -18,8 +18,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
+from pirn.managers.exception_record import ExceptionRecord
 from pirn.tapestry import Tapestry
 
 from pirn_agents.exceptions.tool_argument_validation_error import (
@@ -54,7 +56,10 @@ class ToolRunner:
             try:
                 factory.for_call(call)
             except ToolArgumentValidationError as exc:
-                return ToolResult(call_id=call.call_id, result=None, error=str(exc))
+                return ToolResult(
+                    call_id=call.call_id,
+                    outcome=Err(record=ExceptionRecord.for_knot(call.call_id, exc)),
+                )
         run = await tapestry.run(RunRequest())
         outcome = ToolCallCodec.outcomes_of(run, [call])[call.call_id]
         return ToolCallCodec.views({call.call_id: outcome}, lineage=run.lineage)[0]

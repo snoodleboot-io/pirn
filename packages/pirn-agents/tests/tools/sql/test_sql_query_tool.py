@@ -25,7 +25,6 @@ from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.tools.tool_runner import ToolRunner
 
 
@@ -112,7 +111,7 @@ class TestRowCapAndShape:
         tool = SqlQueryTool.bind(connector=_StubSqlConnector(["n"], [[1]]))
         call = ToolCall(tool_name="sql_query", arguments={"query": "DROP TABLE t"}, call_id="c")
         outcome = await ToolRunner.view(tool, call)
-        assert outcome.status is ToolStatus.ERROR
+        assert outcome.status == "error"
 
     def test_rejects_non_connector(self) -> None:
         with pytest.raises(TypeError):

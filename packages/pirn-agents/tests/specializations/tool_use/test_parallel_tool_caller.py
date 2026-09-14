@@ -30,7 +30,6 @@ from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.specializations.conftest import StubTool
 
 
@@ -185,7 +184,7 @@ class TestParallelToolCallerApproval(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         view = result.outputs["par"][0]
-        assert view.status is ToolStatus.OK
+        assert view.status == "ok"
         assert view.result == "ran"
 
     async def test_denied_gated_call_is_skipped_not_an_error(self) -> None:
@@ -201,6 +200,6 @@ class TestParallelToolCallerApproval(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         view = result.outputs["par"][0]
-        assert view.status is ToolStatus.SKIPPED
+        assert view.status == "skipped"
         assert view.error == "call skipped: approval denied"
         assert danger.invocations == []

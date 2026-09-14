@@ -3,28 +3,26 @@
 Since the ADR "agents speaks core" (WS1) a tool call is a knot, and its outcome
 is the engine's ``Ok | Err | Skipped`` plus the ``KnotLineage`` row the run
 records under the call's id — that is the source of truth every executor
-reads. ``ToolResult`` is the *view* :class:`~pirn_agents.tools.tool_call_codec.ToolCallCodec`
-renders that outcome into for the model (and for any other caller that wants
-the pre-knot shape): every executor builds it through the single
-:meth:`from_result`, and nothing else constructs one. This is not a
-one-cycle shim — PIR-865 (#348) gave it and :class:`~pirn_agents.tools.tool_status.ToolStatus.SKIPPED`
-a live, actively-maintained role rendering gated/approval outcomes, so it
-stays. ``latency`` is derived from the lineage row's timestamps when a row is
-given and is ``None`` otherwise; ``tokens`` is a caller-supplied annotation a
-bare ``Result`` never carries.
+reads. ``ToolResult`` carries that ``Result`` as its :attr:`outcome` and adds
+only what a model (or a caller rendering for one) needs besides it: the call id,
+latency and token annotations, and the derived model-facing text.
+:class:`~pirn_agents.tools.tool_call_codec.ToolCallCodec` renders it for the
+model, and every executor builds it through :meth:`from_result`.
 
-A ``Skipped`` outcome renders as :attr:`~pirn_agents.tools.tool_status.ToolStatus.SKIPPED`
-(PIR-865), not ``ERROR``: the call deliberately did not run — most commonly a
-denied approval, see :meth:`from_result`'s ``gated`` argument and
-:mod:`pirn_agents.agent.tool_approval_check` — and a caller (or the model, via
-:class:`~pirn_agents.tools.tool_call_codec.ToolCallCodec`) is told exactly
+There is no parallel outcome enum (PIR-872 deleted ``ToolStatus``): the
+model-facing :attr:`status` is a string derived from the ``Result`` variant and
+the error type — ``"ok"``, ``"error"``, ``"timeout"`` (an ``Err`` whose error
+type is a timeout), or ``"skipped"``. A ``Skipped`` outcome renders as
+``"skipped"``, not ``"error"`` (PIR-865): the call deliberately did not run —
+most commonly a denied approval, see :meth:`from_result`'s ``gated`` argument
+and :mod:`pirn_agents.agent.tool_approval_check` — and the model is told exactly
 that rather than that the tool failed.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.err import Err
 from pirn.core.knot_lineage import KnotLineage
@@ -33,8 +31,6 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.result import Result
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
-
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 @dataclass(frozen=True)
@@ -45,23 +41,8 @@ class ToolResult(PirnOpaqueValue):
     ----------
     call_id:
         Identifier matching the originating :class:`ToolCall`.
-    result:
-        Raw value the tool produced. May be any python object.
-    error:
-        Human-readable failure detail, or ``None`` when the invocation
-        succeeded. Derived from ``exception`` when one is supplied and this is
-        left unset, so the two never disagree.
-    exception:
-        The captured :class:`ExceptionRecord` when the failure came from a
-        python exception; ``None`` otherwise — an MCP tool reporting a
-        protocol-level error has a message and nothing to capture, and such a
-        caller passes ``error`` alone rather than fabricating a record.
-    status:
-        Terminal disposition of the invocation. Defaults to
-        :attr:`ToolStatus.OK`; when left at the default and ``error`` is
-        set, it is promoted to :attr:`ToolStatus.ERROR` in
-        ``__post_init__``. An explicit non-OK status (``TIMEOUT``,
-        ``SKIPPED``) is always preserved.
+    outcome:
+        The call's core ``Ok | Err | Skipped``.
     latency:
         Wall-clock duration of the invocation in seconds, or ``None`` when
         not measured (a view built from a bare ``Result`` has no row to read
@@ -71,40 +52,70 @@ class ToolResult(PirnOpaqueValue):
         measured.
     """
 
+    #: ``ExceptionRecord.exc_type`` values :attr:`status` renders as ``"timeout"``.
+    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset(
+        {"KnotTimeoutError", "ToolTimeoutError", "TimeoutError"}
+    )
+
     call_id: str
-    result: Any
-    error: str | None = None
-    status: ToolStatus = ToolStatus.OK
+    outcome: Result[Any]
     latency: float | None = None
     tokens: int | None = None
-    exception: ExceptionRecord | None = None
 
     def __post_init__(self) -> None:
-        """Fill ``error`` from ``exception``, then derive ``status``.
-
-        Frozen-safe: uses ``object.__setattr__`` to mutate the fields.
-
-        ``error`` is filled from the record's ``"<type>: <message>"`` when it
-        was not supplied — the shape every executor reported before the view
-        existed — so the message and the record cannot drift apart.
-        ``status`` is only ever promoted from the default ``OK`` to ``ERROR``,
-        so an explicitly supplied ``TIMEOUT`` is never overwritten.
+        """Refuse an outcome that is not a core ``Result``.
 
         Raises:
-            TypeError: If ``exception`` is neither ``None`` nor an
-                :class:`ExceptionRecord`.
+            TypeError: If ``outcome`` is not an ``Ok``, ``Err``, or ``Skipped``.
         """
-        if self.exception is not None and not isinstance(self.exception, ExceptionRecord):
+        if not isinstance(self.outcome, (Ok, Err, Skipped)):
             raise TypeError(
-                f"ToolResult: exception must be an ExceptionRecord, "
-                f"got {type(self.exception).__name__}"
+                f"ToolResult: outcome must be Ok, Err, or Skipped, "
+                f"got {type(self.outcome).__name__}"
             )
-        if self.error is None and self.exception is not None:
-            object.__setattr__(
-                self, "error", f"{self.exception.exc_type}: {self.exception.message}"
-            )
-        if self.error is not None and self.status == ToolStatus.OK:
-            object.__setattr__(self, "status", ToolStatus.ERROR)
+
+    @property
+    def succeeded(self) -> bool:
+        """Whether the call's outcome is ``Ok``."""
+        return isinstance(self.outcome, Ok)
+
+    @property
+    def result(self) -> Any:
+        """The value the tool produced for an ``Ok`` outcome; otherwise ``None``."""
+        return self.outcome.value if isinstance(self.outcome, Ok) else None
+
+    @property
+    def exception(self) -> ExceptionRecord | None:
+        """The captured failure record for an ``Err`` outcome; otherwise ``None``."""
+        return self.outcome.record if isinstance(self.outcome, Err) else None
+
+    @property
+    def error(self) -> str | None:
+        """The model-facing failure text, or ``None`` for an ``Ok`` outcome.
+
+        ``"<type>: <message>"`` for an ``Err`` — the shape every executor
+        reported before the view existed — and ``"call skipped: <reason>"``
+        for a ``Skipped``.
+        """
+        if isinstance(self.outcome, Err):
+            return f"{self.outcome.record.exc_type}: {self.outcome.record.message}"
+        if isinstance(self.outcome, Skipped):
+            return f"call skipped: {self.outcome.reason}"
+        return None
+
+    @property
+    def status(self) -> str:
+        """The model-facing status token derived from the outcome's variant and error type."""
+        if isinstance(self.outcome, Ok):
+            return "ok"
+        if isinstance(self.outcome, Skipped):
+            return "skipped"
+        if (
+            isinstance(self.outcome, Err)
+            and self.outcome.record.exc_type in self._timeout_exc_types
+        ):
+            return "timeout"
+        return "error"
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
@@ -114,33 +125,16 @@ class ToolResult(PirnOpaqueValue):
             "exception": (
                 None if self.exception is None else self.exception.model_dump(mode="json")
             ),
-            "status": self.status.value,
+            "status": self.status,
             "latency": self.latency,
             "tokens": self.tokens,
         }
 
-    def to_result(self) -> Result[ToolResult]:
-        """Return the core ``Ok | Err | Skipped`` view of this outcome.
-
-        Returns:
-            ``Ok(value=self)`` for :attr:`ToolStatus.OK`; ``Skipped(reason=...)``
-            for :attr:`ToolStatus.SKIPPED`, reading the reason back out of
-            :attr:`error` (PIR-865: round-trips the skip a gated
-            :meth:`from_result` recorded there); otherwise ``Err(record=...)``,
-            using :attr:`exception` when the failure came from a captured
-            python exception, or a synthetic
-            :class:`~pirn.managers.exception_record.ExceptionRecord` built from
-            :attr:`error` (or the status name, if ``error`` is unset)
-            otherwise.
-        """
-        if self.status is ToolStatus.OK:
-            return Ok(value=self)
-        if self.status is ToolStatus.SKIPPED:
-            return Skipped(reason=self.error if self.error is not None else "skipped")
-        if self.exception is not None:
-            return Err(record=self.exception)
-        message = self.error if self.error is not None else f"tool status {self.status.value}"
-        return Err(record=ExceptionRecord.for_knot(self.call_id, RuntimeError(message)))
+    def with_latency(self, latency: float | None) -> ToolResult:
+        """Return this view with ``latency`` attached (the outcome is unchanged)."""
+        return ToolResult(
+            call_id=self.call_id, outcome=self.outcome, latency=latency, tokens=self.tokens
+        )
 
     @staticmethod
     def latency_of(lineage: KnotLineage | None) -> float | None:
@@ -173,52 +167,26 @@ class ToolResult(PirnOpaqueValue):
                 (:meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`,
                 PIR-865). A gated call's only possible parent besides its own
                 (always-``Ok``) arguments is that gate, so a ``Skipped``
-                result can only be the gate closing — the message names
-                :attr:`~pirn_agents.agent.tool_approval_check.ToolApprovalCheck.skip_reason`
-                ("approval denied") rather than the engine's generic
+                result can only be the gate closing — the view's skip reason
+                names "approval denied" rather than the engine's generic
                 propagation reason. Ignored for ``Ok``/``Err``.
 
         Returns:
             ``result.value`` unchanged when it is already a :class:`ToolResult`;
-            otherwise an ``OK`` view of an ``Ok`` value, an ``ERROR`` view
-            carrying ``Err``'s record — ``TIMEOUT`` when the record is core's
-            ``KnotTimeoutError``, i.e. the call outlived ``KnotConfig.timeout``
-            — or a ``SKIPPED`` view of a ``Skipped`` (PIR-865): the call
-            deliberately did not run, and the model is told exactly that
-            rather than that it failed.
+            otherwise a view carrying ``result`` (a gated ``Skipped`` re-reasoned
+            as "approval denied").
 
         Raises:
             TypeError: If ``result`` is not an ``Ok``, ``Err``, or ``Skipped``.
         """
-        latency = cls.latency_of(lineage)
-        if isinstance(result, Ok):
-            if isinstance(result.value, ToolResult):
-                return result.value
-            return cls(
-                call_id=call_id,
-                result=result.value,
-                status=ToolStatus.OK,
-                latency=latency,
-                tokens=tokens,
+        if isinstance(result, Ok) and isinstance(result.value, ToolResult):
+            return result.value
+        if not isinstance(result, (Ok, Err, Skipped)):
+            raise TypeError(
+                f"ToolResult.from_result: result must be Ok, Err, or Skipped, "
+                f"got {type(result).__name__}"
             )
-        if isinstance(result, Err):
-            timed_out = result.record.exc_type == "KnotTimeoutError"
-            return cls(
-                call_id=call_id,
-                result=None,
-                status=ToolStatus.TIMEOUT if timed_out else ToolStatus.ERROR,
-                exception=result.record,
-                latency=latency,
-            )
-        if isinstance(result, Skipped):
-            reason = "approval denied" if gated else result.reason
-            return cls(
-                call_id=call_id,
-                result=None,
-                status=ToolStatus.SKIPPED,
-                error=f"call skipped: {reason}",
-                latency=latency,
-            )
-        raise TypeError(
-            f"ToolResult.from_result: result must be Ok, Err, or Skipped, got {type(result).__name__}"
-        )
+        outcome: Result[Any] = result
+        if isinstance(result, Skipped) and gated:
+            outcome = Skipped(reason="approval denied", detail=dict(result.detail))
+        return cls(call_id=call_id, outcome=outcome, latency=cls.latency_of(lineage), tokens=tokens)

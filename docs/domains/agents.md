@@ -266,7 +266,7 @@ content.
 | `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` was the pre-ADR name, kept importable for one cycle and now deleted (PIR-864). |
 | `AgentResponse` | Outcome of one agent turn: `Payload[GenerationFrame, str]` — `data` is the reply text, `frame` carries `tool_calls`, `finish_reason`, `usage`, `cost`, `model`, `provider`. The pre-ADR field names (`content`, `tool_calls`, `finish_reason`, `usage`, `cost`) stay available as properties. |
 | `ToolCall` | A single tool invocation requested by the LLM: `tool_name`, `arguments` mapping, `call_id`. |
-| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. Not a one-cycle shim — PIR-865 gave it and `ToolStatus.SKIPPED` a live role rendering gated/approval outcomes. |
+| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `outcome` (the `Result` itself), `latency`, `tokens`, and derived `result`/`error`/`status` (a string: `"ok"`, `"error"`, `"timeout"`, `"skipped"`), built by `ToolResult.from_result(call_id, result, lineage)`. PIR-865 gave it its gated/approval rendering (`"call skipped: approval denied"`); PIR-872 deleted the parallel `ToolStatus` enum. |
 | `Plan` | An ordered `tuple` of plan step strings plus an optional `rationale` string. |
 
 ---
