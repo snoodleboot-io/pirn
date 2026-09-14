@@ -1,10 +1,10 @@
-"""``_TierAttemptFold`` — fold a tier invocation's raw ``Result`` into cascade state.
+"""``_TierAttemptFold`` — fold a tier's model-call ``Result`` into cascade state.
 
 Internal knot for
 :class:`~pirn_agents.specializations.routing._attempt_tier._AttemptTier`
-(PIR-867). Wired with ``error_policy=RECEIVE_ERRORS`` over the
-:class:`~pirn_agents.specializations.routing._tier_invocation._TierInvocation`
-knot, so ``outcome`` here is the invocation's raw ``Ok``/``Err`` — never
+(PIR-867). Wired with ``error_policy=RECEIVE_ERRORS`` over the tier's
+:class:`~pirn_agents.specializations.rag.llm_chat_call.LLMChatCall` knot
+(PIR-872), so ``outcome`` here is the call's raw ``Ok``/``Err`` — never
 short-circuited to a knot-level failure — exactly like
 :class:`~pirn_agents.specializations.react.react_step_executor._observation_assembler`
 does for a tool call. A failed invocation folds into an "escalate" decision
@@ -69,13 +69,13 @@ class _TierAttemptFold(Knot):
 
         Args:
             prior: The chain's accumulated state before this tier.
-            tier: This tier's name, invoke callable, floor, and cost.
+            tier: This tier's name, provider, floor, and cost.
             index: This tier's 0-based position (0 = cheapest).
             confidence: Async scorer mapping the tier's output to ``[0, 1]``.
             meter: Optional budget meter accruing this tier's estimated cost
                 on a successful invocation.
             outcome: The raw ``Result`` (``Ok`` on success, ``Err`` on a
-                failed invocation) of the wired ``_TierInvocation``.
+                failed call) of the wired ``LLMChatCall``.
 
         Returns:
             ``prior`` folded with this tier's decision: escalate on a failed

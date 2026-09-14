@@ -16,12 +16,14 @@ surfaced to a caller or log.
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
+from pirn.core.knot_retry_policy import KnotRetryPolicy
+
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.rate_limit_error import RateLimitError
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.llm.transient_llm_error import TransientLLMError
 
 
@@ -31,7 +33,7 @@ class HttpTransport:
     def __init__(
         self,
         *,
-        retry_policy: RetryPolicy,
+        retry_policy: KnotRetryPolicy,
         sleeper: Callable[[float], Awaitable[None]],
         rng: Callable[[], float] | None,
     ) -> None:
@@ -43,12 +45,12 @@ class HttpTransport:
             rng: Optional jitter source returning a float in ``[0, 1)``; ``None``
                 defers to the policy's own :func:`random.random`.
         """
-        self._retry_policy: RetryPolicy = retry_policy
+        self._retry_policy: KnotRetryPolicy = retry_policy
         self._sleep: Callable[[float], Awaitable[None]] = sleeper
         self._rng: Callable[[], float] | None = rng
 
     @property
-    def retry_policy(self) -> RetryPolicy:
+    def retry_policy(self) -> KnotRetryPolicy:
         """Return the retry/backoff policy this transport applies."""
         return self._retry_policy
 
@@ -73,32 +75,32 @@ class HttpTransport:
         """POST ``payload`` with jittered-backoff retries and 429 handling.
 
         Retries HTTP 429 (honouring ``Retry-After`` when present) and transient
-        5xx/network errors up to the policy's ``max_retries``; propagates
-        non-retryable errors immediately. The retry loop itself is
-        :meth:`~pirn_agents.llm.retry_policy.RetryPolicy.run` (PIR-856); this
+        5xx/network errors until the policy's ``max_attempts`` are spent;
+        propagates non-retryable errors immediately. The retry loop itself is
+        core's :meth:`~pirn.core.knot_retry_policy.KnotRetryPolicy.run`; this
         method supplies only what is transport-specific: which exceptions are
         retryable, and the ``Retry-After`` hint.
         """
-
-        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
-        async def _attempt(_attempt: int) -> Any:
-            return await self._post_json(client=client, url=url, headers=headers, payload=payload)
-
-        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
-        def _is_retryable(exc: BaseException) -> bool:
-            return isinstance(exc, (RateLimitError, TransientLLMError))
-
-        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
-        def _retry_after(exc: BaseException) -> float | None:
-            return exc.retry_after if isinstance(exc, RateLimitError) else None
-
         return await self._retry_policy.run(
-            _attempt,
-            is_retryable=_is_retryable,
-            retry_after=_retry_after,
+            functools.partial(
+                self._post_json, client=client, url=url, headers=headers, payload=payload
+            ),
+            call_id="llm_http_post",
+            retry_on=self._is_retryable,
+            retry_after_hint=self._retry_after_of,
             sleep=self._sleep,
             rng=self._rng,
         )
+
+    @staticmethod
+    def _is_retryable(exc: Exception) -> bool:
+        """Whether a failed POST may be retried: a 429 or a transient error."""
+        return isinstance(exc, (RateLimitError, TransientLLMError))
+
+    @staticmethod
+    def _retry_after_of(exc: Exception) -> float | None:
+        """The server's ``Retry-After`` hint carried by a 429, if any."""
+        return exc.retry_after if isinstance(exc, RateLimitError) else None
 
     async def _post_json(
         self,

@@ -27,9 +27,7 @@ _S1_IMPORT_SURFACE: list[tuple[str, str]] = [
     # agent domain subpackage
     ("pirn_agents.agent.agent_introspector", "AgentIntrospector"),
     ("pirn_agents.agent.agent_response_mapper", "AgentResponseMapper"),
-    ("pirn_agents.agent.agent_tool_context", "AgentToolContext"),
-    ("pirn_agents.agent.agent_tool_context", "current_agent_tool_context"),
-    ("pirn_agents.agent.agent_tool_context", "bind_agent_tool_context"),
+    ("pirn_agents.agent.agent_tool_policy", "AgentToolPolicy"),
     ("pirn_agents.agent.parallel_tool_executor", "ParallelToolExecutor"),
     ("pirn_agents.agent.approval_hook", "ApprovalHook"),
     ("pirn_agents.agent.approval_hook", "authorize_tool_call"),

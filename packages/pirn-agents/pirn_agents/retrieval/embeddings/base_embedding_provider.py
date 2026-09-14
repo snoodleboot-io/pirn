@@ -13,10 +13,10 @@ The base then layers three cross-cutting behaviours every adapter shares:
   round-trips;
 * **async client reuse** — the backend client is constructed once via
   :meth:`_get_client` and reused for every batch and every call;
-* **retries** — each batch is retried on failure per a composed
-  :class:`~pirn_agents.llm.retry_policy.RetryPolicy` (the same jittered,
-  capped exponential schedule the fan-out engines use), not a hand-rolled
-  ``2**attempt`` formula.
+* **retries** — each batch is retried on failure per a composed core
+  :class:`~pirn.core.knot_retry_policy.KnotRetryPolicy` (the same jittered,
+  capped exponential schedule the engine applies to a knot), driven by
+  :meth:`~pirn.core.knot_retry_policy.KnotRetryPolicy.run`.
 
 Client pooling, teardown, and credential scrubbing come from
 :class:`pirn.connectors.connector_base.ConnectorBase` — the same base
@@ -30,12 +30,13 @@ copies of it. The public surface aligns with
 from __future__ import annotations
 
 import asyncio
+import functools
 from collections.abc import Awaitable, Callable, Iterator, Sequence
 
 from pirn.connectors.connector_base import ConnectorBase
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 
 
@@ -56,7 +57,7 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
         self,
         *,
         batch_size: int = 32,
-        retry_policy: RetryPolicy | None = None,
+        retry_policy: KnotRetryPolicy | None = None,
         rng: Callable[[], float] | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
         model: str | None = None,
@@ -68,11 +69,11 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
             batch_size: Maximum number of texts sent to the backend per
                 round-trip. Must be a positive integer.
             retry_policy: How many times, and how long, to back off between
-                per-batch retries. Defaults to :class:`RetryPolicy` — the same
-                jittered, capped exponential schedule the fan-out engines use
-                (2 retries, 0.05s base, full jitter). Pass
-                ``RetryPolicy(max_retries=0)`` to disable retrying, or
-                ``RetryPolicy(base_delay=0.0)`` to retry instantly.
+                per-batch retries. Defaults to ``KnotRetryPolicy(max_attempts=3)``
+                (the first attempt plus 2 retries, 0.05s base, full jitter).
+                Pass ``KnotRetryPolicy()`` (one attempt) to disable retrying, or
+                ``KnotRetryPolicy(max_attempts=3, base_delay=0.0)`` to retry
+                instantly.
             rng: Optional zero-arg ``() -> float in [0, 1)`` used for the jitter
                 draw; defaults to :func:`random.random`. Injected in tests for
                 deterministic delays.
@@ -85,20 +86,22 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
 
         Raises:
             ValueError: If ``batch_size`` is not a positive int.
-            TypeError: If ``retry_policy`` is not a :class:`RetryPolicy`, or if
+            TypeError: If ``retry_policy`` is not a :class:`KnotRetryPolicy`, or if
                 ``credential`` is neither a ``CredentialRef`` nor ``None``
                 (the latter raised by :class:`ConnectorBase`).
         """
         super().__init__(credential=credential)
         if not isinstance(batch_size, int) or batch_size <= 0:
             raise ValueError(f"batch_size must be a positive int, got {batch_size!r}")
-        resolved_policy = retry_policy if retry_policy is not None else RetryPolicy()
-        if not isinstance(resolved_policy, RetryPolicy):
+        resolved_policy = (
+            retry_policy if retry_policy is not None else KnotRetryPolicy(max_attempts=3)
+        )
+        if not isinstance(resolved_policy, KnotRetryPolicy):
             raise TypeError(
-                f"retry_policy must be a RetryPolicy, got {type(retry_policy).__name__}"
+                f"retry_policy must be a KnotRetryPolicy, got {type(retry_policy).__name__}"
             )
         self._batch_size: int = batch_size
-        self._retry_policy: RetryPolicy = resolved_policy
+        self._retry_policy: KnotRetryPolicy = resolved_policy
         self._rng: Callable[[], float] | None = rng
         self._sleep: Callable[[float], Awaitable[None]] = (
             sleep if sleep is not None else asyncio.sleep
@@ -141,19 +144,19 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
         return out
 
     async def _embed_with_retry(self, batch: Sequence[str], model: str | None) -> list[list[float]]:
-        """Embed one batch, retrying on failure per the composed ``RetryPolicy``.
+        """Embed one batch, retrying on failure per the composed ``KnotRetryPolicy``.
 
-        The retry loop itself is
-        :meth:`~pirn_agents.llm.retry_policy.RetryPolicy.run` (PIR-856); every
-        exception is retryable here, matching the original bare
-        ``except Exception``.
+        The retry loop itself is core's
+        :meth:`~pirn.core.knot_retry_policy.KnotRetryPolicy.run`; every
+        exception is retryable here unless the policy's own ``is_retryable``
+        says otherwise.
         """
-
-        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
-        async def _attempt(_attempt: int) -> list[list[float]]:
-            return await self._embed_batch(batch, model)
-
-        return await self._retry_policy.run(_attempt, sleep=self._sleep, rng=self._rng)
+        return await self._retry_policy.run(
+            functools.partial(self._embed_batch, batch, model),
+            call_id="embedding_batch",
+            sleep=self._sleep,
+            rng=self._rng,
+        )
 
     @staticmethod
     def _iter_batches(items: list[str], size: int) -> Iterator[list[str]]:

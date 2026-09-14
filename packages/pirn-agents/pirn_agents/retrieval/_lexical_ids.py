@@ -9,8 +9,8 @@ concretes — it is typed ``Any`` here too and checked with ``isinstance`` in
 ``process()``. The scoring work is CPU-bound, so it still runs on a worker
 thread via ``asyncio.to_thread`` exactly as it did inside the old
 ``asyncio.gather`` call — ``asyncio.to_thread`` copies the contextvars
-context (``run_in_executor`` does not), so an active ``AgentToolContext``
-still survives the thread hop.
+context (``run_in_executor`` does not), so the active ``RunNesting`` frame
+and ``AgentToolPolicy`` still survive the thread hop.
 
 Internal API.
 """

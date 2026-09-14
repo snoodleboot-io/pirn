@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import unittest
 
 from pydantic import ValidationError
@@ -130,3 +131,98 @@ class TestDelayBeforeRetry(unittest.TestCase):
     def test_a_missing_hint_falls_back_to_backoff(self) -> None:
         policy = KnotRetryPolicy(base_delay=0.3, jitter=False, retry_after=lambda r: None)
         self.assertEqual(policy.delay_before_retry(0, _record()), 0.3)
+
+
+class _Flaky:
+    """An attempt that raises ``errors`` in order, then returns ``"ok"``."""
+
+    def __init__(self, *errors: BaseException) -> None:
+        self._errors = list(errors)
+        self.calls = 0
+
+    async def __call__(self) -> str:
+        self.calls += 1
+        if self._errors:
+            raise self._errors.pop(0)
+        return "ok"
+
+
+class _Sleeps:
+    """Records every requested delay instead of sleeping."""
+
+    def __init__(self) -> None:
+        self.delays: list[float] = []
+
+    async def __call__(self, delay: float) -> None:
+        self.delays.append(delay)
+
+
+class _HintedError(Exception):
+    def __init__(self, retry_after: float | None) -> None:
+        super().__init__("hinted")
+        self.retry_after = retry_after
+
+
+def _hint(exc: Exception) -> float | None:
+    return exc.retry_after if isinstance(exc, _HintedError) else None
+
+
+class TestRun(unittest.IsolatedAsyncioTestCase):
+    """``run`` — the same schedule for a call below the knot boundary."""
+
+    async def test_returns_the_first_success_without_sleeping(self) -> None:
+        attempt, sleeps = _Flaky(), _Sleeps()
+        value = await KnotRetryPolicy(max_attempts=3).run(attempt, sleep=sleeps)
+        self.assertEqual((value, attempt.calls, sleeps.delays), ("ok", 1, []))
+
+    async def test_retries_on_the_backoff_schedule(self) -> None:
+        attempt, sleeps = _Flaky(RuntimeError("a"), RuntimeError("b")), _Sleeps()
+        policy = KnotRetryPolicy(max_attempts=3, base_delay=0.1, jitter=False)
+        value = await policy.run(attempt, sleep=sleeps)
+        self.assertEqual((value, attempt.calls, sleeps.delays), ("ok", 3, [0.1, 0.2]))
+
+    async def test_reraises_the_last_error_once_attempts_are_spent(self) -> None:
+        attempt, sleeps = _Flaky(RuntimeError("a"), RuntimeError("b")), _Sleeps()
+        with self.assertRaisesRegex(RuntimeError, "b"):
+            await KnotRetryPolicy(max_attempts=2, jitter=False).run(attempt, sleep=sleeps)
+        self.assertEqual((attempt.calls, len(sleeps.delays)), (2, 1))
+
+    async def test_a_single_attempt_policy_never_retries(self) -> None:
+        attempt = _Flaky(RuntimeError("a"))
+        with self.assertRaises(RuntimeError):
+            await KnotRetryPolicy().run(attempt, sleep=_Sleeps())
+        self.assertEqual(attempt.calls, 1)
+
+    async def test_retry_on_rejects_the_live_exception(self) -> None:
+        attempt = _Flaky(ValueError("no"))
+        with self.assertRaises(ValueError):
+            await KnotRetryPolicy(max_attempts=5).run(
+                attempt, retry_on=lambda exc: isinstance(exc, RuntimeError), sleep=_Sleeps()
+            )
+        self.assertEqual(attempt.calls, 1)
+
+    async def test_the_policy_predicate_sees_a_record_named_by_call_id(self) -> None:
+        seen: list[ExceptionRecord] = []
+
+        def retryable(record: ExceptionRecord) -> bool:
+            seen.append(record)
+            return False
+
+        with self.assertRaises(RuntimeError):
+            await KnotRetryPolicy(max_attempts=5, is_retryable=retryable).run(
+                _Flaky(RuntimeError("boom")), call_id="post", sleep=_Sleeps()
+            )
+        self.assertEqual([(r.knot_id, r.exc_type) for r in seen], [("post", "RuntimeError")])
+
+    async def test_a_live_hint_wins_and_is_capped(self) -> None:
+        attempt = _Flaky(_HintedError(3.0), _HintedError(900.0), _HintedError(None))
+        sleeps = _Sleeps()
+        policy = KnotRetryPolicy(max_attempts=4, base_delay=0.5, jitter=False, max_retry_after=10.0)
+        await policy.run(attempt, retry_after_hint=_hint, sleep=sleeps)
+        self.assertEqual(sleeps.delays, [3.0, 10.0, 2.0])
+
+    async def test_cancellation_is_never_retried(self) -> None:
+        attempt = _Flaky(asyncio.CancelledError())
+        with self.assertRaises(asyncio.CancelledError):
+            await KnotRetryPolicy(max_attempts=5).run(attempt, sleep=_Sleeps())
+        self.assertEqual(attempt.calls, 1)

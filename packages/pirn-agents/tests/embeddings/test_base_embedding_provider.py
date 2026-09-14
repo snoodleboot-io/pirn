@@ -10,9 +10,9 @@ import unittest
 from collections.abc import Sequence
 from typing import Any
 
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.retrieval.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
@@ -80,7 +80,7 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
 
     async def test_retries_until_success(self) -> None:
         provider = RecordingProvider(
-            batch_size=2, retry_policy=RetryPolicy(max_retries=2, base_delay=0.0), fail_times=2
+            batch_size=2, retry_policy=KnotRetryPolicy(max_attempts=3, base_delay=0.0), fail_times=2
         )
 
         vectors = await provider.embed(["a", "b"])
@@ -90,14 +90,14 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
 
     async def test_raises_after_exhausting_retries(self) -> None:
         provider = RecordingProvider(
-            batch_size=2, retry_policy=RetryPolicy(max_retries=1, base_delay=0.0), fail_times=5
+            batch_size=2, retry_policy=KnotRetryPolicy(max_attempts=2, base_delay=0.0), fail_times=5
         )
 
         with self.assertRaises(RuntimeError):
             await provider.embed(["a", "b"])
 
     async def test_backoff_uses_retry_policy_schedule(self) -> None:
-        # The between-retry sleeps come straight from RetryPolicy.backoff_delay,
+        # The between-retry sleeps come straight from KnotRetryPolicy.backoff_delay,
         # not a hand-rolled formula: with jitter off the two backoffs are the
         # capped exponential terms 0.1 and 0.2.
         slept: list[float] = []
@@ -107,7 +107,9 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
 
         provider = RecordingProvider(
             batch_size=2,
-            retry_policy=RetryPolicy(max_retries=3, base_delay=0.1, multiplier=2.0, jitter=False),
+            retry_policy=KnotRetryPolicy(
+                max_attempts=4, base_delay=0.1, multiplier=2.0, jitter=False
+            ),
             sleep=_record_sleep,
             fail_times=2,
         )

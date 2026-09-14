@@ -42,6 +42,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequenc
 from typing import Any
 
 from pirn.connectors.connector_base import ConnectorBase
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents.llm.http_transport import HttpTransport
@@ -52,7 +53,6 @@ from pirn_agents.llm.llm_provider_streaming_mixin import LLMProviderStreamingMix
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.llm.response_mapper import ResponseMapper
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.toolset import Toolset
@@ -87,7 +87,7 @@ class BaseLLMProvider(
         model: str,
         base_url: str,
         credential: CredentialRef | None = None,
-        retry_policy: RetryPolicy | None = None,
+        retry_policy: KnotRetryPolicy | None = None,
         pricing: ModelPricing | None = None,
         timeout: float = 30.0,
         default_max_tokens: int | None = None,
@@ -103,7 +103,9 @@ class BaseLLMProvider(
             base_url: Base endpoint URL (e.g. ``https://host/v1``); the
                 provider's completions path is appended to it.
             credential: Optional API-key :class:`CredentialRef`.
-            retry_policy: Retry/backoff policy; a default is used when ``None``.
+            retry_policy: Retry/backoff policy for each request; ``None`` uses
+                ``KnotRetryPolicy(max_attempts=3)`` (the first attempt plus two
+                retries).
             pricing: Optional per-model price sheet enabling cost estimation.
             timeout: Per-request timeout, in seconds, for the real HTTP client.
             default_max_tokens: Default output-token cap applied when a call
@@ -126,16 +128,16 @@ class BaseLLMProvider(
             raise TypeError(f"model must be a str, got {type(model).__name__}")
         if not isinstance(base_url, str):
             raise TypeError(f"base_url must be a str, got {type(base_url).__name__}")
-        if retry_policy is not None and not isinstance(retry_policy, RetryPolicy):
+        if retry_policy is not None and not isinstance(retry_policy, KnotRetryPolicy):
             raise TypeError(
-                f"retry_policy must be a RetryPolicy or None, got {type(retry_policy).__name__}"
+                f"retry_policy must be a KnotRetryPolicy or None, got {type(retry_policy).__name__}"
             )
         if pricing is not None and not isinstance(pricing, ModelPricing):
             raise TypeError(f"pricing must be a ModelPricing or None, got {type(pricing).__name__}")
         self._model: str = model
         self._base_url: str = base_url
-        self._retry_policy: RetryPolicy = (
-            retry_policy if retry_policy is not None else RetryPolicy()
+        self._retry_policy: KnotRetryPolicy = (
+            retry_policy if retry_policy is not None else KnotRetryPolicy(max_attempts=3)
         )
         self._pricing: ModelPricing | None = pricing
         self._timeout: float = float(timeout)

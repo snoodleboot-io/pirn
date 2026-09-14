@@ -46,16 +46,16 @@ available_extras()["web"]   # True once httpx is installed
 ## Minimal usage
 
 ```python
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
 from pirn_agents.llm.model_pricing import ModelPricing
-from pirn_agents.llm.retry_policy import RetryPolicy
 
 provider = OpenAICompatibleProvider(
     model="my-model",
     base_url="https://host/v1",                 # e.g. http://localhost:11434/v1 (Ollama)
     credential=CredentialRef("sk-..."),          # optional; omitted for keyless local servers
-    retry_policy=RetryPolicy(max_retries=3),
+    retry_policy=KnotRetryPolicy(max_attempts=4),  # core retry schedule: 1 attempt + 3 retries
     pricing=ModelPricing(input_per_million=0.5, output_per_million=1.5),
 )
 
@@ -93,7 +93,8 @@ same configuration.
 - **Some configurations stay identity-keyed** (replay in another process refuses,
   which is the safe direction): a `base_url` with userinfo, a query string (such as
   `?api-version=`) or a fragment; an injected `client`, `sleeper` or `rng`; a
-  subclassed `ModelPricing` or `RetryPolicy`.
+  subclassed `ModelPricing` or `KnotRetryPolicy`, or a `KnotRetryPolicy` carrying an
+  `is_retryable`/`retry_after` callable.
 - **Subclasses must re-declare `content_identity`.** The opt-in is not inherited: a
   subclass that adds constructor arguments, headers or request fields must
   re-declare it with that config included (and add a row to
