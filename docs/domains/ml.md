@@ -153,7 +153,7 @@ Knots for feature engineering.
 | `Encoder` | One-hot or ordinal encoding for categorical columns. |
 | `Imputer` | Missing-value imputation (mean, median, most-frequent, constant). |
 | `PolynomialFeatures` | Generates interaction and polynomial features. |
-| `FeatureSelector` | Selects features by variance threshold or univariate test. |
+| `FeatureSelector` | Keeps the `k` best features of a `DataSplitPayload`, scored on the training partition by variance, mutual information, or recursive feature elimination. |
 | `EmbeddingExtractor` | Calls an `EmbeddingProvider` to embed text columns; appends vectors to the dataset. |
 | `ImageEmbeddingExtractor` | Calls an `ImageEncoderProvider` to embed image bytes; appends vectors to the dataset. |
 | `FeatureStore` | Reads from or writes to a `FeatureStoreProvider`. |
