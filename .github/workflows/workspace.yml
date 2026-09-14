@@ -210,13 +210,6 @@ jobs:
           ruff format --check tests
       - name: Pyright (package's own config)
         run: cd packages/${{ matrix.package }} && pyright
-      - name: Pyright strict list is exact (ratcheted per subpackage, PIR-869)
-        # Measures every top-level subpackage of the package in strict mode and
-        # fails if a strict-listed subpackage regressed, if a subpackage with 0
-        # strict errors is missing from [tool.pyright].strict, or if the list
-        # names a path that is not a subpackage. Policy and burn-down table:
-        # docs/architecture/ci-pipelines.md. Stdlib-only apart from pyright.
-        run: python scripts/check_pyright_strict_list.py packages/${{ matrix.package }}
 
   # ===========================================================================
   # Per-package test matrix × Python 3.11–3.14. Editable-install the package with

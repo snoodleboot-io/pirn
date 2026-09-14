@@ -76,45 +76,34 @@ Environment vars:    UPPER_SNAKE_CASE always
 #### Type Checking Enforcement
 - **ENFORCE the use of `pyright`** while coding — run continuously during development
 - Treat type errors as blocking issues
-- **Strict mode is adopted per top-level subpackage, ratcheted (PIR-869).** Each package's
-  `[tool.pyright]` carries a `strict = [...]` list of subpackage paths (`pirn/check`,
-  `pirn_agents/caching`, ... and `<pkg>/*.py` for the modules directly under the import
-  root). Every listed subpackage passes strict with 0 errors; the rest run in basic mode
-  until their strict count reaches 0. The rules:
-  - **new subpackages start strict** — add the path to the list in the same change that
-    creates the directory;
-  - **a subpackage joins the strict list when its count hits 0** — never later;
-  - **a listed subpackage may not regress** — CI's `lint` job runs
-    `scripts/check_pyright_strict_list.py`, which measures every subpackage in strict mode
-    and fails on a regression, on a 0-error subpackage missing from the list, or on a listed
-    path that is not a subpackage.
-  - the remaining per-subpackage counts are the burn-down table in
-    `docs/architecture/ci-pipelines.md` (regenerate it with
-    `python scripts/check_pyright_strict_list.py packages/<dist> --table`).
+- **Every package runs pyright strict.** Each package's `[tool.pyright]` sets
+  `typeCheckingMode = "strict"` for its whole import package; there is no per-subpackage
+  list and no per-file mode directive. A new module is strict the moment it exists, and
+  CI's `lint` job fails on any pyright error.
 - Fixing strict errors means real annotations, not `Any`: type the third-party return you
   actually use (`dict[str, Any]` for a JSON payload, a small `TypedDict`/dataclass for a
-  known shape), narrow with `isinstance` on a genuinely unknown value, and keep the
-  connector pattern of a lazily imported optional SDK typed as `Any` at the import.
-  `# pyright: ignore[<rule>]` only with a one-line reason on the same line.
-- **`reportUnnecessaryIsInstance` is the one strict rule the house style contradicts**:
-  `process()` and constructor validation is explicit — type check, then value check,
-  `TypeError` before `ValueError` (`docs/contributing/domain-knots.md`) — because knot inputs
-  are runtime-bound. Keep the guard. In a strict-listed subpackage suppress the rule per
-  file with a two-line header above the module docstring — a config override does not
-  apply inside `strict` paths, and pyright rejects trailing text on a directive line, so
-  the reason goes on the next line:
-  ```python
-  # pyright: reportUnnecessaryIsInstance=false
-  # runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
-  ```
-  Never satisfy the rule by deleting the check.
-- **Optional extras inside a strict-listed subpackage**: CI's per-package image may not
-  carry an extra (`lance` is one), and `reportMissingImports = "none"` in the package
-  config does not apply inside `strict` paths. A lazily imported optional dependency
-  therefore carries `# pyright: ignore[reportMissingImports]` (and
-  `reportUnknownVariableType` on the names it binds) with the reason on the same line.
-  Locally, where the extra is installed, the ignore is inert; strict does not enable
-  `reportUnnecessaryTypeIgnoreComment`.
+  known shape), narrow with `isinstance` on a genuinely unknown value, and add to the
+  package's `typings/` stubs for an untyped library boundary.
+- **`reportUnnecessaryIsInstance` is off in config — the one strict rule the house style
+  contradicts.** `process()` and constructor validation is explicit — type check, then
+  value check, `TypeError` before `ValueError` (`docs/contributing/domain-knots.md`) —
+  because knot inputs are runtime-bound. Each package's `[tool.pyright]` sets
+  `reportUnnecessaryIsInstance = "none"` once, with a comment pointing here. Keep the
+  guard; never satisfy the rule by deleting the check, and never re-suppress it per file
+  or per line.
+- **Optional third-party imports go through `OptionalDependency.require`.** A backend that
+  lives behind an extra is imported inside the method that uses it with
+  `pirn.core.optional_dependency.OptionalDependency.require(module, extra="<extra>",
+  package="pirn-<pkg>")`, which raises an `ImportError` naming
+  `pip install "pirn-<pkg>[<extra>]"`. No per-package helper, no hand-rolled
+  `try: import ... except ImportError`, and no module-scope import of an optional backend
+  (annotations go under `if TYPE_CHECKING:`). The returned `ModuleType` is the typed
+  boundary: convert what you read off it to precise types at the call site.
+- **Suppressions name a rule and carry a reason.** `# pyright: ignore[<rule>]` only where
+  the type system cannot express a correct program, with the reason on the same line
+  (`# pyright: ignore[reportPrivateUsage]  # <reason>`). A bare `# type: ignore`, an
+  ignore without a bracketed rule or reason, and any file-level `# pyright:` directive
+  fail `scripts/check_conventions.py`.
 - No commits with type errors or `Any` types without explicit justification
 
 ### Testing
