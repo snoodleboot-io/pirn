@@ -53,9 +53,7 @@ class ToolResult(PirnOpaqueValue):
     """
 
     #: ``ExceptionRecord.exc_type`` values :attr:`status` renders as ``"timeout"``.
-    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset(
-        {"KnotTimeoutError", "TimeoutError"}
-    )
+    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset({"KnotTimeoutError", "TimeoutError"})
 
     call_id: str
     outcome: Result[Any]
