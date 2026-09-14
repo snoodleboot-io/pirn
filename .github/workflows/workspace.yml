@@ -279,6 +279,77 @@ jobs:
           fail_ci_if_error: false
 
   # ===========================================================================
+  # Slow-marked tests per affected package (PIR-872). Every package's addopts
+  # deselects `slow`, so the `test` job never runs them; this job runs exactly
+  # `-m slow` with the same extras (minus heavy ML) on py3.12. A package with no
+  # slow tests exits 5 (nothing collected) and passes. Any skipped slow test
+  # FAILS the job: a slow test that skips on a missing backend is not running.
+  # ===========================================================================
+  slow-tests:
+    name: Slow tests (${{ matrix.package }})
+    needs: [changes, build-wheelhouse, lint]
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-${{ matrix.package }}:py3.12
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+        with: { name: wheelhouse, path: dist/ }
+      - name: Compute install spec (extras minus heavy ML) + cross-dep refresh
+        id: spec
+        run: |
+          set -euo pipefail
+          p='${{ matrix.package }}'
+          extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml','rb'));e=list(d.get('project',{}).get('optional-dependencies',{}));h={'pytorch','tensorflow','tflite'};print(','.join(x for x in e if x not in h))")
+          if [ -n "$extras" ]; then echo "spec=packages/$p[$extras]" >> "$GITHUB_OUTPUT";
+          else echo "spec=packages/$p" >> "$GITHUB_OUTPUT"; fi
+          case "$p" in
+            pirn-core) xr="" ;;
+            pirn-ml)   xr="--reinstall-package pirn-core --reinstall-package pirn-data" ;;
+            *)         xr="--reinstall-package pirn-core" ;;
+          esac
+          echo "xr=$xr" >> "$GITHUB_OUTPUT"
+          case "$p" in
+            pirn-data)   cte="pirn-core[sqlite]" ;;
+            pirn-agents) cte="pirn-core[http]" ;;
+            *)           cte="" ;;
+          esac
+          echo "cte=$cte" >> "$GITHUB_OUTPUT"
+      - name: Install a JVM for the Spark slow tests
+        # pirn-data's slow suite boots a local SparkSession (the `spark` extra);
+        # pyspark needs a Java runtime the base image does not carry.
+        if: matrix.package == 'pirn-data'
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y --no-install-recommends default-jre-headless
+          java -version
+      - name: Install editable (deps pre-baked) + refresh cross-deps + test tooling
+        run: |
+          set -euo pipefail
+          uv pip install --system --find-links dist/ ${{ steps.spec.outputs.xr }} \
+            -e "${{ steps.spec.outputs.spec }}" ${{ steps.spec.outputs.cte }} \
+            pytest pytest-asyncio pytest-timeout anyio
+      - name: Run slow tests (fail on any failure or skip)
+        run: |
+          # GitHub runs bash with -e; turn it off so exit code 5 (nothing collected) is inspected.
+          set +e -uo pipefail
+          cd packages/${{ matrix.package }}
+          python -m pytest tests -m slow --timeout=600 -q -rs --junitxml=slow-results.xml
+          rc=$?
+          if [ "$rc" -eq 5 ]; then
+            echo "no slow-marked tests in ${{ matrix.package }}"
+            exit 0
+          fi
+          [ "$rc" -eq 0 ] || exit "$rc"
+          python3 -c "import sys, xml.etree.ElementTree as E; r=E.parse('slow-results.xml').getroot(); s=sum(int(x.get('skipped', 0)) for x in r.iter('testsuite')); print(f'skipped slow tests: {s}'); sys.exit(1 if s else 0)"
+
+  # ===========================================================================
   # Clean-env install-isolation (SCD-25). Install ONLY the package's wheel from
   # the wheelhouse and assert the resolved pirn-* tree equals the declared closure.
   # ===========================================================================
@@ -470,7 +541,7 @@ jobs:
   # ===========================================================================
   ci-status:
     name: CI status (all green)
-    needs: [changes, build-wheelhouse, lint, test, install-isolation, agents-extras-install, unified, import-graph, import-forwarding, version-lockstep]
+    needs: [changes, build-wheelhouse, lint, test, slow-tests, install-isolation, agents-extras-install, unified, import-graph, import-forwarding, version-lockstep]
     if: always()
     runs-on: ubuntu-latest
     steps:

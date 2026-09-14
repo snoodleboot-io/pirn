@@ -118,7 +118,8 @@ Environment vars:    UPPER_SNAKE_CASE always
   across packages: `unit/`, `integration/`, `slow/`, `perf/`, `security/`, `smoke/`,
   `end_to_end/`, `mutation/` — not every package uses every one; add a subdirectory only
   when a test genuinely belongs to that category.
-- Markers: tag anything that is not a fast, isolated unit test — `slow`, `heavy` (large ML
+- Markers: tag anything that is not a fast, isolated unit test — `slow` (deselected by default,
+  run by CI's required `slow-tests` job for every affected package, which fails on a skip), `heavy` (large ML
   deps like torch/tensorflow), `cross_domain` (needs more than one pirn package installed;
   skipped in per-package CI, run by the `unified` cross-domain suite), `mutation`, or a
   `needs_<backend>` marker (`needs_postgres`, `needs_valkey`, `needs_kafka`, `needs_s3`,

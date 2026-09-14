@@ -22,6 +22,7 @@ flowchart TD
 
     CH -->|"any == true"| LINT["lint · matrix: affected pkgs<br/>ruff + pyright (py3.12)"]:::job
     LINT --> TEST["test · matrix: pkg × py3.11–3.14<br/>pytest + per-pkg coverage → Codecov"]:::job
+    LINT --> SLOW["slow-tests · matrix: affected pkgs<br/>pytest -m slow (py3.12), fails on any skip"]:::job
     CH --> ISO["install-isolation · matrix: affected<br/>clean venv → dep-tree closure<br/>+ no-backend + extras import"]:::job
     CH --> UNI["unified<br/>all pkgs installed → -m cross_domain<br/>registry parity / extras isolation"]:::job
     CH --> IG["import-graph<br/>C1 acyclic · C2 sink · C3 sole edge"]:::job
