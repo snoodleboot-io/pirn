@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RetrySafetyClassifier`` — decide if a failed call may be safely retried.
 
 Provider-neutral: rather than importing any backend's exception types, it

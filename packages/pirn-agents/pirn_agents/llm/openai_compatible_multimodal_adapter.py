@@ -19,8 +19,10 @@ while an inline payload is emitted as a ``data:`` base64 URI. Native shapes:
 from __future__ import annotations
 
 import base64
+from collections.abc import Mapping
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.modality_capability import ModalityCapability
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.types.content.audio_block import AudioBlock
@@ -65,16 +67,17 @@ class OpenAICompatibleMultimodalAdapter(MultimodalAdapter):
         return {"type": "file", "file": file_part}
 
     def _decode_block(self, native: Any) -> ContentBlock | None:
-        if not isinstance(native, dict):
+        if not JsonShape.is_dict(native):
             return None
         part_type = native.get("type")
         if part_type == "text":
             return TextBlock(text=str(native.get("text", "")))
         if part_type == "image_url":
-            url = (native.get("image_url") or {}).get("url", "")
+            image_url: Mapping[str, Any] = native.get("image_url") or {}
+            url = image_url.get("url", "")
             return ImageBlock(source=self._handle_from_url(url, "image/*"))
         if part_type == "input_audio":
-            audio = native.get("input_audio") or {}
+            audio: Mapping[str, Any] = native.get("input_audio") or {}
             if "url" in audio:
                 return AudioBlock(
                     source=MediaHandle(media_type="audio/*", uri=str(audio.get("url")))
@@ -83,7 +86,7 @@ class OpenAICompatibleMultimodalAdapter(MultimodalAdapter):
             fmt = str(audio.get("format", "wav"))
             return AudioBlock(source=MediaHandle(media_type=f"audio/{fmt}", data=data))
         if part_type == "file":
-            file_part = native.get("file") or {}
+            file_part: Mapping[str, Any] = native.get("file") or {}
             filename = file_part.get("filename")
             if "file_url" in file_part:
                 source = MediaHandle(

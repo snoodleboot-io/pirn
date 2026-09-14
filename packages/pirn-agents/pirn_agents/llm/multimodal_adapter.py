@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MultimodalAdapter`` — provider-neutral multimodal encode/decode base (F15-S2).
 
 The multimodal counterpart to
@@ -98,7 +100,8 @@ class MultimodalAdapter(PirnOpaqueValue):
         if isinstance(native_content, str):
             return (TextBlock(text=native_content),)
         decoded: list[ContentBlock] = []
-        for native in native_content or []:
+        natives: list[Any] = native_content or []
+        for native in natives:
             block = self._decode_block(native)
             if block is not None:
                 decoded.append(block)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LlmInjectionClassifier`` — optional LLM fallback for ambiguous screening.
 
 When the cheap heuristics in

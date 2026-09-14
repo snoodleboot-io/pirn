@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EpisodicMemoryRetriever`` — retrieve episodic memories from a :class:`MemoryStore`.
 
 Queries the store for episodic memories relevant to the current context

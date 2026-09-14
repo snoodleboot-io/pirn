@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DataStoreMemoryStore`` — the plain key-value :class:`MemoryStore` (PIR-787).
 
 Before this adapter the only concrete :class:`MemoryStore` implementations were

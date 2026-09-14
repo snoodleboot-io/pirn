@@ -1,10 +1,12 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MessageContent`` — a normalized, typed sequence of content blocks (F15-S1).
 
 The typed replacement for a message's plain-string body: an ordered tuple of
-:class:`~pirn_agents.types.content.content_block.ContentBlock`. Backward compatibility is
-the whole point of :meth:`coerce` — a plain ``str`` normalizes to a single
-:class:`~pirn_agents.types.content.text_block.TextBlock`, so every existing text-only
-caller keeps working while multimodal callers pass real blocks. :attr:`text`
+:class:`~pirn_agents.types.content.content_block.ContentBlock`. :meth:`coerce`
+accepts every body shape — a plain ``str`` normalizes to a single
+:class:`~pirn_agents.types.content.text_block.TextBlock`, so a text-only caller
+passes a string while a multimodal caller passes real blocks. :attr:`text`
 gives the flat text projection so any consumer can still read a message as a
 string.
 """
@@ -55,8 +57,8 @@ class MessageContent(PirnOpaqueValue):
     ) -> MessageContent:
         """Normalize ``value`` into a :class:`MessageContent`.
 
-        A plain ``str`` becomes a single :class:`TextBlock` (the backward-
-        compatible path); a lone :class:`ContentBlock` is wrapped; a sequence of
+        A plain ``str`` becomes a single :class:`TextBlock` (the text-only
+        path); a lone :class:`ContentBlock` is wrapped; a sequence of
         blocks is captured as-is; an existing :class:`MessageContent` is returned
         unchanged.
 

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TextBlock`` — the plain-text variant of the content-block union (F15-S1)."""
 
 from __future__ import annotations

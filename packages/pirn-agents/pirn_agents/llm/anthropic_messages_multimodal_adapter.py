@@ -22,6 +22,7 @@ from __future__ import annotations
 import base64
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.modality_capability import ModalityCapability
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.types.content.audio_block import AudioBlock
@@ -54,7 +55,7 @@ class AnthropicMessagesMultimodalAdapter(MultimodalAdapter):
         return {"type": "document", "source": self._source_of(block.source)}
 
     def _decode_block(self, native: Any) -> ContentBlock | None:
-        if not isinstance(native, dict):
+        if not JsonShape.is_dict(native):
             return None
         part_type = native.get("type")
         if part_type == "text":

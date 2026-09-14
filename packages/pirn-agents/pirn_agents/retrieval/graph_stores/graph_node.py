@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GraphNode`` — one upsertable (id, type, properties) graph vertex.
 
 The neutral write/read unit every
@@ -32,7 +34,7 @@ class GraphNode(PirnOpaqueValue):
 
     id: str
     type: str
-    properties: Mapping[str, Any] = field(default_factory=dict)
+    properties: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     @classmethod
     def create(

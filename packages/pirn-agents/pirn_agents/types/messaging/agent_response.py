@@ -18,13 +18,10 @@ class AgentResponse(Payload[GenerationFrame, str]):
     ``AgentResponse`` is ``Payload[GenerationFrame, str]`` (ADR
     agents-speaks-core WS6b) — ``data`` is the free-form textual reply,
     ``metadata`` is the :class:`~pirn_agents.types.messaging.generation_frame.GenerationFrame`
-    describing how the turn ended. The pre-ADR field names
-    (``content``, ``tool_calls``, ``finish_reason``, ``usage``, ``cost``) stay
-    available as read-only properties, so every existing construction and
-    attribute-access call site keeps compiling unchanged; only code that
-    pattern-matched on ``dataclasses.fields`` or called
-    ``dataclasses.replace`` (neither occurs in this codebase) would need to
-    change to :meth:`derive`.
+    describing how the turn ended. The constructor takes the turn's fields by
+    name (``content``, ``tool_calls``, ``finish_reason``, ``usage``, ``cost``,
+    ``model``, ``provider``) and each is readable as a property of the same
+    name; build a changed copy with :meth:`derive`.
 
     Attributes
     ----------
@@ -138,7 +135,7 @@ class AgentResponse(Payload[GenerationFrame, str]):
         return AgentResponse(content=content, **fields)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["content"] = self.content
         return audit
 

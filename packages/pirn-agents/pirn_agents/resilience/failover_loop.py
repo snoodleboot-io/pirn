@@ -1,6 +1,6 @@
-"""``_FailoverLoop`` — try failover candidates one at a time, stopping at the first success.
+"""``FailoverLoop`` — try failover candidates one at a time, stopping at the first success.
 
-Replaces the static chain of one ``_AttemptCandidate`` knot per candidate that
+Replaces the static chain of one ``AttemptCandidate`` knot per candidate that
 ``FailoverChain`` unrolled up front — every candidate got a knot even after
 the chain had already succeeded, each already-succeeded candidate merely
 passing the result through unchanged — with a ``LoopSubTapestry`` that builds
@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.resilience._attempt_candidate import _AttemptCandidate
+from pirn_agents.resilience.attempt_candidate import AttemptCandidate
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
 from pirn_agents.resilience.failover_result import FailoverResult
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _FailoverLoop(AgentLoopPipeline[FailoverResult]):
+class FailoverLoop(AgentLoopPipeline[FailoverResult]):
     """Attempt failover candidates in order, stopping at the first success."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -62,7 +62,7 @@ class _FailoverLoop(AgentLoopPipeline[FailoverResult]):
 
         attempt = Tapestry()
         with attempt:
-            _AttemptCandidate(
+            AttemptCandidate(
                 prior=state,
                 candidate=self._candidates[index],
                 breakers=self._breakers,
@@ -74,12 +74,12 @@ class _FailoverLoop(AgentLoopPipeline[FailoverResult]):
         """Adopt the candidate's folded result.
 
         Args:
-            state: State as ``step`` returned it (unused -- ``_AttemptCandidate``
+            state: State as ``step`` returned it (unused -- ``AttemptCandidate``
                 already folded ``prior`` into its own resolved output).
             result: The attempt's run result.
 
         Returns:
-            The result ``_AttemptCandidate`` returned.
+            The result ``AttemptCandidate`` returned.
         """
         return result.outputs[self._attempt_id]
 

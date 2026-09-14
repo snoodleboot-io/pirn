@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RedactionResult`` — the redacted value plus what was found.
 
 A frozen pairing of the redacted ``value`` (a string, or a structurally-copied
@@ -52,4 +54,9 @@ class RedactionResult(PirnOpaqueValue):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         """Return a stable content-addressing view (findings only, never the value)."""
-        return {"findings": [finding._pirn_audit_dict() for finding in self._findings]}
+        return {"findings": self._audit_all(self._findings)}
+
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]

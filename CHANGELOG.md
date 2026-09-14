@@ -50,7 +50,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 #### pirn-agents on the WS0b seams
 
 - `MapAgent` no longer assigns its inner tapestry's private `_concurrency` / `_dispatcher` / `_admission_observers` (`_apply_run_settings` is gone); it overrides `SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` instead, and `tests/core_seams/test_execution_plane_reach_through.py` ratchets the reach-through inventory at empty.
-- `MapAgent.run()` yields each `BatchItemResult` the instant its item settles again (resumed items first, then completion order), via the new `_BatchItemStreamer` emitter over `Emitter.on_knot_result`; the streamed result carries the item's attempt count and latency from its lineage row. Closing the stream early or cancelling its consumer cancels the run.
+- `MapAgent.run()` yields each `BatchItemResult` the instant its item settles again (resumed items first, then completion order), via the new `BatchItemStreamer` emitter over `Emitter.on_knot_result`; the streamed result carries the item's attempt count and latency from its lineage row. Closing the stream early or cancelling its consumer cancels the run.
 
 #### `@tool` decorator and scalar auto-coercion
 
@@ -376,6 +376,23 @@ parametrised form a decorator) and takes the function positionally only.
 `RunTrace`/`TraceEvent`/`TraceDiff`/`ToolDeclaration.from_payload` are typed
 `Mapping[str, Any]` (the runtime `TypeError` guard stays); an `EvalSubject`
 metric is typed to return `MetricResult | Awaitable[MetricResult]`.
+| `pirn_agents._internal._json_shape._JsonShape` | `pirn_agents._internal.json_shape.JsonShape` |
+| `pirn_agents.batch._map_item._MapItem` | `pirn_agents.batch.map_item.MapItem` |
+| `pirn_agents.batch._batch_item_streamer._BatchItemStreamer` | `pirn_agents.batch.batch_item_streamer.BatchItemStreamer` |
+| `pirn_agents.builder._constant_thunk._ConstantThunk` | `pirn_agents.builder.constant_thunk.ConstantThunk` |
+| `pirn_agents.resilience._attempt_candidate._AttemptCandidate` | `pirn_agents.resilience.attempt_candidate.AttemptCandidate` |
+| `pirn_agents.resilience._failover_loop._FailoverLoop` | `pirn_agents.resilience.failover_loop.FailoverLoop` |
+| `pirn_agents.retrieval._dense_ids._DenseIds` | `pirn_agents.retrieval.dense_ids.DenseIds` |
+| `pirn_agents.retrieval._lexical_ids._LexicalIds` | `pirn_agents.retrieval.lexical_ids.LexicalIds` |
+| `AgentBuilder._component_label` / `_component_labels` | `AgentBuilder.component_label` / `component_labels` |
+
+`HybridRetrieverBase` is generic in its `process()` return type:
+`HybridGraphRetriever` is a `HybridRetrieverBase[list[Mapping[str, Any]]]` and the
+`SubTapestry` `HybridRetriever` a `HybridRetrieverBase[Knot]`.
+`KeyedLineageStore.put` records its value through a core `Parameter` knot.
+The pirn-agents `batch`, `builder`, `context`, `input`, `llm`, `mcp`, `memory`,
+`prompt`, `resilience`, `retrieval`, `security`, `sessions` and `types`
+subpackages are pyright strict.
 
 `Knot.process` and `SubTapestry.process` declare their catch-all as `**_`, and
 the conventions gate no longer applies the knot-subclass rules to pirn-core's

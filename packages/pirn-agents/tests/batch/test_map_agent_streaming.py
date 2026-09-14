@@ -3,7 +3,7 @@
 WS4b's engine-scheduled ``MapAgent`` joined its items through a core
 ``Aggregator``, so the standalone ``run()`` shim could only yield the whole
 batch once the join completed. Core's ``Emitter.on_knot_result`` now fires
-inside the engine loop as each knot settles, and ``_BatchItemStreamer``
+inside the engine loop as each knot settles, and ``BatchItemStreamer``
 turns that into the pre-migration stream: a fast item is yielded while a
 slow sibling is still running.
 """

@@ -44,10 +44,15 @@ class CompactionResult(PirnOpaqueValue):
     tokens_before: int
     tokens_after: int
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "retained": [item._pirn_audit_dict() for item in self.retained],
-            "evicted": [item._pirn_audit_dict() for item in self.evicted],
+            "retained": self._audit_all(self.retained),
+            "evicted": self._audit_all(self.evicted),
             "summary": self.summary,
             "triggered": self.triggered,
             "tokens_before": self.tokens_before,

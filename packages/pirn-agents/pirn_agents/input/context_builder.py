@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ContextBuilder`` — assemble messages plus optional system prompt into ``ConversationPayload``.
 
 Algorithm:

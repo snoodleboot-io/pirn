@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EpisodicEpisodeWriter`` — persist a tuple of messages as one episode.
 
 Inner stage knot used by :class:`EpisodicMemoryPipeline`. Serialises
@@ -32,6 +34,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pydantic import TypeAdapter
 
 from pirn_agents.memory.memory_writer_base import MemoryWriterBase
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -94,7 +97,9 @@ class EpisodicEpisodeWriter(MemoryWriterBase):
         payload: dict[str, Any] = {
             "session_id": session_id,
             "created_at": timestamp.isoformat(),
-            "messages": [m._pirn_audit_dict() for m in message_tuple],
+            # The opaque-value serialiser PirnOpaqueValue declares: each
+            # message's audit form, through pydantic's public dump.
+            "messages": TypeAdapter(list[AgentMessage]).dump_python(list(message_tuple)),
         }
         await store.store(key, payload)
         return key

@@ -1,4 +1,4 @@
-"""``_DenseIds`` — embed a query and rank the dense-store arm's candidate ids.
+"""``DenseIds`` — embed a query and rank the dense-store arm's candidate ids.
 
 Internal per-arm knot for
 :class:`~pirn_agents.retrieval.hybrid_retriever.HybridRetriever`'s fan-out
@@ -20,7 +20,7 @@ from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvide
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 
 
-class _DenseIds(Knot):
+class DenseIds(Knot):
     """Embed ``query`` and return the dense-store's top ``fetch`` ranked ids."""
 
     def __init__(

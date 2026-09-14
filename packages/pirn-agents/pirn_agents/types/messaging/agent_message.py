@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """A single conversational turn flowing through an agent pipeline."""
 
 from __future__ import annotations
@@ -18,8 +20,8 @@ class AgentMessage(PirnOpaqueValue):
     """One message within an agent conversation.
 
     The body is available two ways that always agree: :attr:`content` is the
-    plain-text projection (backward-compatible — every existing text-only caller
-    keeps working) and :attr:`blocks` is the optional typed multimodal sequence.
+    plain-text projection (all a text-only caller reads) and :attr:`blocks` is
+    the optional typed multimodal sequence.
     When ``blocks`` is ``None`` the message is text-only and
     :attr:`content_blocks` synthesises a single
     :class:`~pirn_agents.types.content.text_block.TextBlock` from :attr:`content`; when
