@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HorizonPicker`` — auto-pick a seed horizon through a seismic volume.
 
 Algorithm:

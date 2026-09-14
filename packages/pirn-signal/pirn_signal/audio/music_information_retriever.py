@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MusicInformationRetriever`` — high-level MIR feature aggregator.
 
 Algorithm:
@@ -70,7 +72,7 @@ class MusicInformationRetriever(Knot):
         self,
         *,
         signal: Knot,
-        feature_set: Knot | tuple = ("chroma", "tempo", "key"),
+        feature_set: Knot | tuple[str, ...] = ("chroma", "tempo", "key"),
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -144,7 +146,7 @@ class MusicInformationRetriever(Knot):
         ``np.ndarray`` (no ``.tolist()`` conversion).
         """
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "MusicInformationRetriever requires 'librosa'. Install via pip install pirn-signal[signal]"

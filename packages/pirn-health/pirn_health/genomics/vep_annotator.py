@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VEPAnnotator`` — Ensembl Variant Effect Predictor annotator.
 
 Production version invokes the VEP CLI or REST API; this stub

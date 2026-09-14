@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ZeroPhaseFilter`` — zero-phase forward-backward IIR filter.
 
 Algorithm:
@@ -28,10 +30,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -43,7 +45,7 @@ class ZeroPhaseFilter(Knot):
         *,
         signal: Knot,
         filter_type: Knot | str,
-        cutoff_hz: Knot | float | tuple,
+        cutoff_hz: Knot | float | tuple[float, float],
         order: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
@@ -79,12 +81,7 @@ class ZeroPhaseFilter(Knot):
         Raises:
             ValueError: If filter_type, order, or cutoff_hz are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ZeroPhaseFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if filter_type not in frozenset({"lowpass", "highpass", "bandpass", "bandstop"}):
             raise ValueError(
                 "ZeroPhaseFilter: filter_type must be one of "
@@ -106,18 +103,16 @@ class ZeroPhaseFilter(Knot):
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
                 raise ValueError("ZeroPhaseFilter: cutoff_hz must be a positive scalar")
 
-        btype_map = {
+        btype_map: dict[str, str] = {
             "lowpass": "low",
             "highpass": "high",
             "bandpass": "bandpass",
             "bandstop": "bandstop",
         }
         fs = signal.frame.sample_rate_hz
-        sos = await asyncio.to_thread(
-            ss.butter, order, cutoff_hz, btype=btype_map[filter_type], fs=fs, output="sos"
-        )
+        sos = await asyncio.to_thread(ss.butter_sos, order, cutoff_hz, btype_map[filter_type], fs)
         filtered = await asyncio.to_thread(ss.sosfiltfilt, sos, signal.data, axis=-1)
         return signal.derive(
             f"zerophase-{filter_type}",
-            np.asarray(filtered),
+            filtered,
         )

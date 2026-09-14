@@ -82,7 +82,7 @@ class LLMProvider(PirnOpaqueValue):
 | `KnotFactory` / `@knot` | factory | — | `core/knot_factory.py` — a function's signature becomes a Knot's input contract; `from_schema(name, input_schema, process)` / `@knot(input_schema=)` do the same from a JSON object schema |
 | `JsonSchemaTypeBuilder` | helper | — | `core/json_schema_type_builder.py` — JSON-schema fragment → Python type for `TypeAdapter` (scalars, enum/const, nullable, anyOf/oneOf, arrays, objects as `TypedDict`, local `$ref`, bounds). **Do not write a second schema→validator or signature→schema compiler.** |
 | `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport`, `concurrency_group`, `timeout`, `retry` |
-| `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). **Do not write a retry loop inside a knot.** |
+| `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). `run(attempt, *, retry_on=, retry_after_hint=, sleep=, rng=)` drives the same schedule for a call *below* the knot boundary (an HTTP POST, an embedding batch, a reconnect). **Do not write a retry loop inside a knot, or a second backoff implementation anywhere.** |
 | `RunRequest` / `RunResult` / `RunContext` | value-object | — | a run's input/output/ambient context; `RunContext.nesting` is the run's `RunNesting` frame |
 | `RunNesting` | value-object | — | `core/run_nesting.py` — where a run sits in the nested-run tree (`depth`, enclosing `run_ids`, container `path`, tightest `max_depth`); `RunNesting.current()` inside a knot. `Tapestry(max_nesting_depth=n)` turns the guard on: `NestingDepthExceededError` / `NestedRunCycleError` as the container knot's `Err`. **Do not carry a recursion counter through agent code.** |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
@@ -251,17 +251,29 @@ Core now owns per-knot timeout and retry (`KnotConfig.timeout` →
 `Err(KnotTimeoutError)`, `KnotConfig.retry: KnotRetryPolicy` run by
 `GovernedDispatch`, attempts recorded in lineage) and the nested-run depth and
 cycle guard (`RunNesting` on every run, `Tapestry(max_nesting_depth=)`,
-inherited and only tightened by inner tapestries). Agents' `llm/retry_policy.py::RetryPolicy`,
-`exceptions/tool_timeout_error.py::ToolTimeoutError`, and the
-`AgentRecursionError` family are still listed as shadows in
-`tests/core_seams/test_core_seam_shadows.py` pending migration
-(`AgentToolContext` already composes core's `RunNesting` frame — see its
-module docstring — but is not yet collapsed onto it entirely). `AgentInvoker`
-was a one-cycle shim, not a shadow pending migration, and PIR-864 deleted it
-outright (§7, Tool section, and `CHANGELOG.md`); `AgentNestingConfig` was
-checked against the "delete" list and kept — it is not a shim, it is
-`AgentToolContext`'s own live nesting-depth configuration, with no core seam
-yet to fold onto.
+inherited and only tightened by inner tapestries). **Resolved (PIR-872):** agents
+carries none of these any more, and every set in
+`tests/core_seams/test_core_seam_shadows.py` is a `frozenset()` assertion.
+
+- **Retry.** A knot declares `KnotConfig(retry=KnotRetryPolicy(...))`. A retry
+  that is not a knot dispatch — `HttpTransport`'s POST, an embedding batch in
+  `BaseEmbeddingProvider`, `McpConnector`'s reconnect, `IdempotentRetryPolicy`'s
+  safe-retry — calls `KnotRetryPolicy.run(attempt, retry_on=, retry_after_hint=)`,
+  the same `should_retry`/`delay_before_retry` decision `GovernedDispatch`
+  makes, over an `ExceptionRecord` built from the live exception. Agents'
+  `RetryPolicy` is deleted.
+- **Timeout.** `KnotConfig.timeout` → `Err(KnotTimeoutError)`; `ToolTimeoutError`
+  is deleted.
+- **Nesting.** Depth, enclosing run ids, container path and cap are
+  `RunNesting` (`RunNesting.current()`), refused with
+  `NestingDepthExceededError`/`NestedRunCycleError`. `AgentRecursionError`,
+  `AgentDepthExceededError`, `AgentCycleError`, `AgentToolContext` (with its
+  own `child()`/`stack` depth and cycle tracking) and `AgentNestingConfig` are
+  deleted; `AgentToolCall` turns its `max_depth=8` agent-as-tool frames into
+  `Tapestry(max_nesting_depth=RunNesting.current().depth + 2 * frames)`. What
+  core does not own — the shared `RunBudgetMeter` and pooled `LLMProvider` an
+  agent-as-tool tree propagates — is `AgentToolPolicy`, a `meter`/`provider`
+  carrier with no nesting state.
 
 ### Tool — RESOLVED (WS1)
 
@@ -543,7 +555,7 @@ document's failure is still isolated inside `_DocumentIngest` and folded into
 the `IngestionReport` rather than raised, so isolation survives the move to
 the engine's own scheduling.
 
-`AWAITS_INVOKE` re-checked in PIR-867: `specializations/routing/_attempt_tier.py::_AttemptTier`
+`AWAITS_INVOKE` re-checked in PIR-867 (superseded by PIR-872, below): `specializations/routing/_attempt_tier.py::_AttemptTier`
 awaited `CascadeTier.invoke` (the cascade's own bare-callable provider seam,
 not a `Tool`) directly. There is no tool knot to substitute — the fix is the
 same shape `ToolInvocation` plays for tool calls: a dedicated vending knot,
@@ -552,15 +564,29 @@ same shape `ToolInvocation` plays for tool calls: a dedicated vending knot,
 outcome into the cascade's state. `_AttemptTier` itself became an
 `AgentPipeline` (only the pre-call locked/spend-cap decisions stay
 synchronous, since they decide whether to build the call at all).
-`AWAITS_INVOKE` now names `_TierInvocation` instead of `_AttemptTier` — a
-sanctioned entry, not a fixed one, since the underlying call has to happen
-somewhere.
+`AWAITS_INVOKE` then named `_TierInvocation` instead of `_AttemptTier`.
+**PIR-872** removed that entry too: a cascade tier *is* a model call, so
+`CascadeTier` carries an `LLMProvider` and `_AttemptTier` wires the shared
+`LLMChatCall` knot over it; `CascadeTier.invoke` and `_TierInvocation` are
+deleted and nothing awaits an invoke inside `process()`.
+
+`GatedAgentResponse` (the `CHECK_ROLE` shadow — a knot joining a value with a
+`Gate` so a single-parent gate could feed a multi-input knot) is deleted
+(PIR-872): `_EvaluatorOptimizerLoop` gates the candidate itself with
+`Gate(input=candidate, check=_CandidateRejectedCheck(accepted))`, and
+`AcceptCheck` is a `Check`. `ConversationMemoryPruner`'s `while True`
+(`HAND_ROLLED_WHILE_TRUE_RETRY`) was a pruning loop, not a retry; it now loops
+on its real condition.
 
 The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
 is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
-`DEFINES_INLINE_SOURCE`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and
-`USES_ASYNCIO_GATHER`; kept as `frozenset()` assertions so a regression is
-loud, not deleted.
+`DEFINES_INLINE_SOURCE`, `AWAITS_INVOKE`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`,
+`USES_ASYNCIO_GATHER` and `HAND_ROLLED_WHILE_TRUE_RETRY`; kept as
+`frozenset()` assertions so a regression is loud, not deleted.
+`agent/parallel_tool_executor.py::ParallelToolExecutor` is one tool knot per
+call under an `Aggregator` with `KnotConfig(retry=, timeout=,
+concurrency_group="tools")`, so `GovernedDispatch` owns the inter-attempt
+backoff (PIR-872).
 
 **Resolved (PIR-872): `rag/indexing/_raptor_assembler.py`'s clustering loop.**
 It stays a deliberate ETL exception (atomic read-check-transform-write cycle
@@ -575,13 +601,6 @@ requires `process()` to return a sink `Knot` — is gone: core's new
 `SubTapestry` is now a `NestedRunKnot` that adds it.
 `_RaptorAssembler(Assembler, NestedRunKnot)` keeps returning its `RaptorTree`
 value directly.
-
-**Still open** (frozen in the same ratchet, not this ADR's blast radius to
-fix unilaterally):
-- `agent/parallel_tool_executor.py::ParallelToolExecutor`'s own
-  `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
-  richness needs real inter-attempt backoff sleep, not expressible as a
-  static `Aggregator` fan-out.
 
 **Resolved since (PIR-865):** approval denial is a core `Skipped`, not a
 `ToolCallRejection` `Err` — see §7's Tool section.
@@ -708,7 +727,7 @@ constructor is unchanged.
 
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
-- `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting`.
+- `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting` (no agents nesting state; the shared budget meter and pooled provider ride `AgentToolPolicy`, PIR-872).
 - Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` are **not** a deprecation shim — PIR-865 gave them a live role rendering a gated/approval outcome back to the model (`ToolResult.from_result(call_id, result, lineage)`, `ToolStatus.SKIPPED`), so the codec still builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
 - **Deleted (PIR-864), one deprecation cycle closed:** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
 - Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`. A denied approval reports no `"tool"` event for the tool's own identity at all — `process()`, and the `Tool.__call__` recorder inside it, never run; a *container* (`ToolInvocation`) that reports its own view regardless of outcome still fires, unchanged, attributed to its own knot id.

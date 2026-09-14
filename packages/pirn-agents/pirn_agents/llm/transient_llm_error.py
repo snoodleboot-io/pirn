@@ -10,7 +10,7 @@ class TransientLLMError(LLMProviderError):
 
     Covers HTTP 5xx responses and transport-level errors (connection resets,
     read/write/connect timeouts). The retry loop retries these with jittered
-    exponential backoff until the policy's ``max_retries`` is exhausted.
+    exponential backoff until the policy's ``max_attempts`` are spent.
 
     Parameters
     ----------

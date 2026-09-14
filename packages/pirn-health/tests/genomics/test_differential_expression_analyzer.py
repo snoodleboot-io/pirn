@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 import unittest
-
-try:
-    import scipy  # noqa: F401
-except ImportError as _e:
-    raise unittest.SkipTest("scipy not installed") from _e
-
 from collections.abc import Mapping
+from unittest.mock import patch
 
+import numpy as np
+import pytest
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.genomics.differential_expression_analyzer import (
@@ -59,3 +58,27 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out, Mapping)
         assert "G1" in out
         assert "log2fc" in out["G1"]
+
+    @unittest.skipUnless(importlib.util.find_spec("scipy"), "scipy not installed")
+    async def test_welch_pvalue_and_bh_adjustment(self) -> None:
+        knot = self._make_knot()
+        out = await knot.process(
+            case_counts={"S1": {"G1": 10.0, "G2": 5.0}, "S2": {"G1": 12.0, "G2": 6.0}},
+            control_counts={"S3": {"G1": 1.0, "G2": 5.5}, "S4": {"G1": 2.0, "G2": 5.0}},
+            gene_ids=["G1", "G2"],
+        )
+        assert out["G1"]["log2fc"] == pytest.approx(np.log2(11.0 / 1.5))
+        assert 0.0 < out["G1"]["pvalue"] < 0.05
+        assert out["G2"]["pvalue"] > 0.05
+        assert out["G1"]["padj"] >= out["G1"]["pvalue"]
+        assert out["G1"]["padj"] <= out["G2"]["padj"] <= 1.0
+
+    async def test_missing_scipy_raises_install_hint(self) -> None:
+        knot = self._make_knot()
+        with patch.dict(sys.modules, {"scipy.stats": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                await knot.process(
+                    case_counts={"S1": {"G1": 1.0}},
+                    control_counts={"S2": {"G1": 1.0}},
+                    gene_ids=["G1"],
+                )

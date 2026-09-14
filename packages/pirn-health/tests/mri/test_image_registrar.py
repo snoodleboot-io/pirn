@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.image_registrar import ImageRegistrar
 
 _CFG = KnotConfig(id="r")
@@ -46,9 +48,10 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_sitk.ImageRegistrationMethod.return_value = MagicMock()
         mock_sitk.Resample.return_value = mock_img
 
-        with (
-            patch("pirn_health.mri.image_registrar.sitk", mock_sitk),
-            patch("pirn_health.mri.image_registrar._HAS_SITK", True),
+        with patch.object(
+            HealthOptionalDependency,
+            "require",
+            side_effect=lambda module, **_: {"SimpleITK": mock_sitk}[module],
         ):
             out = await knot.process(
                 moving_path="m.nii.gz",
@@ -60,11 +63,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_raises_without_sitk(self) -> None:
         knot = self._make_knot()
-        with (
-            patch("pirn_health.mri.image_registrar._HAS_SITK", False),
-            patch("pirn_health.mri.image_registrar.sitk", None),
-        ):
-            with self.assertRaises(ImportError):
+        with patch.dict(sys.modules, {"SimpleITK": None}):
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[mri\\]"):
                 await knot.process(
                     moving_path="m.nii.gz",
                     fixed_path="f.nii.gz",

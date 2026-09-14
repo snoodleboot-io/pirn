@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.brain_mask_extractor import BrainMaskExtractor
 
 _CFG = KnotConfig(id="b")
@@ -38,19 +40,22 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             return_value=(np.zeros((4, 4, 4)), np.zeros((4, 4, 4), dtype=bool))
         )
 
-        with (
-            patch("pirn_health.mri.brain_mask_extractor.nib", mock_nib),
-            patch("pirn_health.mri.brain_mask_extractor.median_otsu", mock_median_otsu),
-            patch("pirn_health.mri.brain_mask_extractor._HAS_DIPY", True),
+        modules = {
+            "nibabel": mock_nib,
+            "dipy.segment.mask": MagicMock(median_otsu=mock_median_otsu),
+        }
+
+        with patch.object(
+            HealthOptionalDependency,
+            "require",
+            side_effect=lambda module, **_: modules[module],
         ):
             out = await knot.process(nifti_path="in.nii.gz", output_mask_path="mask.nii.gz")
         assert out == "mask.nii.gz"
+        mock_median_otsu.assert_called_once()
 
     async def test_raises_without_dipy(self) -> None:
         knot = self._make_knot()
-        with (
-            patch("pirn_health.mri.brain_mask_extractor._HAS_DIPY", False),
-            patch("pirn_health.mri.brain_mask_extractor.nib", None),
-        ):
-            with self.assertRaises(ImportError):
+        with patch.dict(sys.modules, {"dipy.segment.mask": None}):
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[mri\\]"):
                 await knot.process(nifti_path="in.nii.gz", output_mask_path="mask.nii.gz")

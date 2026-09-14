@@ -82,6 +82,25 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
         assert result.iterations == 1
         assert len(llm.calls) == 3
 
+    async def test_reflection_gate_never_calls_the_llm_for_an_accepted_candidate(self) -> None:
+        # gen, judge (clears threshold): the Check closes the Gate, so the
+        # reflection call is Skipped rather than paid for.
+        llm = StubLLMProvider(["c1", "SCORE: 9\ngreat", "yes, iterate"])
+        with Tapestry() as t:
+            EvaluatorOptimizerPipeline(
+                task="q",
+                llm=llm,
+                threshold=8.0,
+                max_iterations=5,
+                reflection_gate=True,
+                _config=KnotConfig(id="eo"),
+            )
+        run = await t.run(RunRequest())
+        result = run.outputs["eo"]
+        assert result.accepted is True
+        assert result.iterations == 1
+        assert len(llm.calls) == 2
+
     async def test_rejects_non_positive_iterations(self) -> None:
         llm = StubLLMProvider(["c", "SCORE: 9"])
         with Tapestry():

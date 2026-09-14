@@ -29,8 +29,6 @@ def _sample_dicom_bytes() -> bytes:
     ds = FileDataset("in-memory.dcm", {}, file_meta=file_meta, preamble=b"\x00" * 128)
     ds.PatientID = "P123"
     ds.SeriesInstanceUID = "1.2.3.4.5.6"
-    ds.is_little_endian = True
-    ds.is_implicit_VR = False
     buf = io.BytesIO()
     ds.save_as(buf)
     return buf.getvalue()

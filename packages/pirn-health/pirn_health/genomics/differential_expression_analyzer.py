@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DifferentialExpressionAnalyzer`` — case/control DE analysis.
 
 Production version wraps DESeq2 / edgeR / limma-voom (R) or PyDESeq2.
@@ -35,13 +37,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    from scipy import stats as ss
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    ss = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class DifferentialExpressionAnalyzer(Knot):
@@ -106,11 +102,7 @@ class DifferentialExpressionAnalyzer(Knot):
         gene_ids: list[str],
     ) -> dict[str, dict[str, float]]:
         """Compute log2FC, Welch t-test p-value, and BH-adjusted p-value per gene."""
-        if not _HAS_SCIPY or ss is None:
-            raise ImportError(
-                "scipy is required for DifferentialExpressionAnalyzer — "
-                "install with: pip install 'pirn-health[health]'"
-            )
+        stats = HealthOptionalDependency.require("scipy.stats", extra="health")
         log2fcs: list[float] = []
         pvalues: list[float] = []
 
@@ -126,8 +118,8 @@ class DifferentialExpressionAnalyzer(Knot):
             if len(case_vals) < 2 or len(ctrl_vals) < 2:
                 pvalues.append(1.0)
             else:
-                result = ss.ttest_ind(case_vals, ctrl_vals, equal_var=False)
-                pval = float(result.pvalue)
+                raw_pvalue: float = stats.ttest_ind(case_vals, ctrl_vals, equal_var=False).pvalue
+                pval = float(raw_pvalue)
                 if np.isnan(pval):
                     pval = 1.0
                 pvalues.append(pval)
@@ -137,7 +129,7 @@ class DifferentialExpressionAnalyzer(Knot):
             return {}
 
         # Benjamini-Hochberg correction
-        order = np.argsort(pvalues)
+        order: list[int] = np.argsort(pvalues).tolist()
         padjs = np.array(pvalues, dtype=float)
         for rank_minus1, sorted_index in enumerate(order):
             rank = rank_minus1 + 1

@@ -45,14 +45,14 @@ _PACKAGE_ROOT = Path(__file__).parent.parent / "pirn_agents"
 # A "root" is an exception class whose own immediate bases are all builtins
 # (or another agents exception that is itself unfixed) — i.e. every class
 # below is the class that would need `PirnError` added to its own bases; a
-# subclass of an already-fixed root (`ToolTimeoutError(ToolInvocationError)`,
-# `AgentCycleError(AgentRecursionError)`, ...) is not listed here because it
+# subclass of an already-fixed root (`ToolNotFoundError(ToolInvocationError)`,
+# ...) is not listed here because it
 # inherits `PirnError` transitively the moment its root is fixed, and this
 # ratchet checks the resolved MRO, not immediate bases.
 #
 # WS2 fixed the 8 roots under exceptions/** and security/** (its lane):
-# ToolInvocationError, AgentRecursionError, SandboxDisabledError,
-# UnsupportedModalityError, MissingCassetteEntryError, InjectionDetectedError,
+# ToolInvocationError, AgentRecursionError (since deleted, PIR-872), SandboxDisabledError,
+# UnsupportedModalityError, MissingCassetteEntryError (since deleted, PIR-872), InjectionDetectedError,
 # McpTrustError, UntrustedDirectiveError. The 10 below predate this ticket and
 # sit outside WS2's owned directories.
 EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
@@ -170,12 +170,12 @@ class TestExceptionRootsFrozen(unittest.TestCase):
     def test_ws2_owned_roots_now_have_pirn_error(self) -> None:
         """The roots WS2 fixed must actually resolve PirnError, not just be absent above.
 
-        WS2 fixed 8; ``MissingCassetteEntryError`` was deleted with the cassette
-        recorder it served (PIR-872), leaving 7.
+        WS2 fixed 8; ``AgentRecursionError`` (core ``RunNesting``) and
+        ``MissingCassetteEntryError`` (core replay) were since deleted (PIR-872),
+        leaving 6.
         """
         fixed = [
             "ToolInvocationError",
-            "AgentRecursionError",
             "SandboxDisabledError",
             "UnsupportedModalityError",
             "InjectionDetectedError",
@@ -190,10 +190,7 @@ class TestExceptionRootsFrozen(unittest.TestCase):
         for name in (
             "ToolCancelledError",
             "ToolNotFoundError",
-            "ToolTimeoutError",
             "ToolArgumentValidationError",
-            "AgentCycleError",
-            "AgentDepthExceededError",
         ):
             assert VocabularyInventory.roots_on_pirn_error(name, self.classes), name
 

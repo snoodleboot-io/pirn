@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MitosisCounter`` — count mitotic figures across WSI tiles.
 
 Production version uses MIDOG-style classifiers. This implementation uses

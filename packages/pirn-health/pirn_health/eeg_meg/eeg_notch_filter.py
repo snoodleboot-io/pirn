@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EegNotchFilter`` — notch-filter at a specific frequency (e.g. 50/60 Hz).
 
 Algorithm:
@@ -26,16 +28,9 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    from scipy import signal as ss
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    ss = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
 
 
 class EegNotchFilter(Knot):
@@ -94,10 +89,10 @@ class EegNotchFilter(Knot):
 
     @staticmethod
     def _apply_notch(data: np.ndarray, notch_hz: float, fs: float) -> np.ndarray:
-        if not _HAS_SCIPY or ss is None:
-            raise ImportError(
-                "scipy is required for EegNotchFilter — install with: pip install 'pirn-health[health]'"
-            )
-        numerator_coeffs, denominator_coeffs = ss.iirnotch(notch_hz, Q=30.0, fs=fs)
-        sos = ss.tf2sos(numerator_coeffs, denominator_coeffs)
-        return ss.sosfiltfilt(sos, data, axis=-1)
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        numerator_coeffs: np.ndarray
+        denominator_coeffs: np.ndarray
+        numerator_coeffs, denominator_coeffs = signal.iirnotch(notch_hz, Q=30.0, fs=fs)
+        sos: np.ndarray = signal.tf2sos(numerator_coeffs, denominator_coeffs)
+        filtered: np.ndarray = signal.sosfiltfilt(sos, data, axis=-1)
+        return filtered

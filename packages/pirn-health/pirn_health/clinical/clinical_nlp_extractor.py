@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ClinicalNLPExtractor`` — extract structured fields from clinical notes.
 
 Wraps an :class:`HealthLLMProvider`; the production path crafts a clinical-

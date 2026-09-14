@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 
 try:
     import scipy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
+
+from unittest.mock import patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
@@ -59,3 +62,10 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["d"]
         assert isinstance(out, tuple)
+
+
+class TestOptionalDependency(unittest.TestCase):
+    def test_raises_without_scipy(self) -> None:
+        with patch.dict(sys.modules, {"scipy.signal": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                ECGRPeakDetector._pan_tompkins(np.zeros(64), 360.0)

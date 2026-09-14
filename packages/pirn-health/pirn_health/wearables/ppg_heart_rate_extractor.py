@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PPGHeartRateExtractor`` — extract heart rate from PPG waveform data.
 
 Algorithm:
@@ -26,13 +28,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    import scipy.signal
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    scipy = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class PPGHeartRateExtractor(Knot):
@@ -113,26 +109,25 @@ class PPGHeartRateExtractor(Knot):
         Returns:
             List of dicts with hr_bpm and timestamp_sec for each inter-peak segment.
         """
-        if not _HAS_SCIPY or scipy is None:
-            raise ImportError(
-                "scipy is required for PPGHeartRateExtractor — install with: pip install 'pirn-health[health]'"
-            )
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
         if ppg.size < 4 or fs <= 0:
             return []
         low = 0.5
         high = min(4.0, fs / 2.0 - 0.1)
         if low >= high:
             return []
-        sos = scipy.signal.butter(2, [low, high], btype="bandpass", fs=fs, output="sos")
-        filtered = scipy.signal.sosfiltfilt(sos, ppg)
+        sos: np.ndarray = signal.butter(2, [low, high], btype="bandpass", fs=fs, output="sos")
+        filtered: np.ndarray = signal.sosfiltfilt(sos, ppg)
         min_distance = max(1, int(0.25 * fs))
-        peaks, _ = scipy.signal.find_peaks(filtered, distance=min_distance)
+        peaks: np.ndarray
+        peaks, _ = signal.find_peaks(filtered, distance=min_distance)
         if peaks.size < 2:
             return []
+        peak_indices: list[int] = [int(peak) for peak in peaks.tolist()]
         results: list[dict[str, Any]] = []
-        for i in range(len(peaks) - 1):
-            ibi_sec = (peaks[i + 1] - peaks[i]) / fs
+        for i in range(len(peak_indices) - 1):
+            ibi_sec = (peak_indices[i + 1] - peak_indices[i]) / fs
             hr_bpm = 60.0 / ibi_sec if ibi_sec > 0 else 0.0
-            timestamp_sec = float(peaks[i]) / fs
+            timestamp_sec = float(peak_indices[i]) / fs
             results.append({"hr_bpm": hr_bpm, "timestamp_sec": timestamp_sec})
         return results

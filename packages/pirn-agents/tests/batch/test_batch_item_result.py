@@ -175,7 +175,7 @@ def _timeout() -> BatchItemResult:
     record = ExceptionRecord(
         run_id="<unbound>",
         knot_id="k7",
-        exc_type="ToolTimeoutError",
+        exc_type="KnotTimeoutError",
         message="deadline exceeded",
         traceback_text="",
     )
@@ -205,7 +205,7 @@ class TestBatchItemResultToResult:
     def test_timeout_becomes_err(self) -> None:
         result = _timeout().to_result()
         assert isinstance(result, Err)
-        assert result.record.exc_type == "ToolTimeoutError"
+        assert result.record.exc_type == "KnotTimeoutError"
 
     def test_skipped_becomes_skipped(self) -> None:
         result = _skipped().to_result()
@@ -241,7 +241,7 @@ class TestBatchItemResultFromResult:
         record = ExceptionRecord(
             run_id="<unbound>",
             knot_id="k7",
-            exc_type="ToolTimeoutError",
+            exc_type="KnotTimeoutError",
             message="deadline exceeded",
             traceback_text="",
         )

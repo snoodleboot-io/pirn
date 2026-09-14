@@ -17,7 +17,6 @@ Knots here decompose a signal into components that are simultaneously localized 
 ├── swt_decomposer.py              SWTDecomposer             — stationary (undecimated) wavelet transform
 ├── vmd_decomposer.py              VMDDecomposer             — variational mode decomposition
 ├── wavelet_denoiser.py            WaveletDenoiser           — thresholds DWT coefficients for denoising
-├── wavelet_packet_decomposer.py   WaveletPacketDecomposer   — alias for DWPTDecomposer with richer node API
 └── (IDWTReconstructor pairs with DWTDecomposer/SWTDecomposer)
 ```
 

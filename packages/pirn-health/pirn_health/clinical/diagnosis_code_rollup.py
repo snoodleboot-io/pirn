@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DiagnosisCodeRollup`` — roll ICD-10 codes up to a higher-level prefix.
 
 E.g. ``E11.9`` (type-2 diabetes without complications) rolls up to

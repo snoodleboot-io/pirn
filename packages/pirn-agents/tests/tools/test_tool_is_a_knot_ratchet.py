@@ -27,19 +27,15 @@ Regenerate all three constants with::
 
 from the package root (``packages/pirn-agents``).
 
-Two families the ``invoke`` inventory used to hold were not tools at all.  The
-run-recorder ``invoke(key=, thunk=)`` seam (``CassetteRecorder``,
-``RunRecorder``, ``NullRunRecorder``, ``CassetteRunRecorder``) is deleted
-(PIR-872): an eval item is a knot, so core ``RunHistory``/``ReplaySession``
-record and replay it, and ``ToolTestHarness`` drives a tool through the engine
-instead of an ``invoke`` method, so ``INVOKE_CLASSES`` is empty.  The
-``CascadeTier.invoke`` provider callable remains.  PIR-867 (a different ratchet,
-``tests/specializations/base/test_no_engine_bypass.py``'s ``AWAITS_INVOKE``)
-moved the ``CascadeTier.invoke`` call site from ``_AttemptTier.process``
-into a dedicated ``_TierInvocation`` knot so the call runs through the
-engine; the site this inventory sees moved with it, one line for one line —
-``CascadeTier.invoke`` itself is still not a ``Tool`` and still not WS1's to
-migrate.
+Two families the ``invoke`` inventory used to hold were not tools at all, and
+both are gone (PIR-872).  The run-recorder ``invoke(key=, thunk=)`` seam
+(``CassetteRecorder``, ``RunRecorder``, ``NullRunRecorder``,
+``CassetteRunRecorder``) is deleted: an eval item is a knot, so core
+``RunHistory``/``ReplaySession`` record and replay it, and ``ToolTestHarness``
+drives a tool through the engine instead of an ``invoke`` method, so
+``INVOKE_CLASSES`` is empty.  ``CascadeTier.invoke`` is gone too: a cascade tier
+is a model call run as an ``LLMChatCall`` knot, so its ``_TierInvocation`` call
+site left this inventory, and ``AWAITED_INVOKE_CALL_SITES`` is empty.
 """
 
 from __future__ import annotations
@@ -85,11 +81,7 @@ PARALLEL_VOCABULARY_IMPORTERS = frozenset(
     }
 )
 
-AWAITED_INVOKE_CALL_SITES = frozenset(
-    {
-        "specializations/routing/_tier_invocation.py::_TierInvocation.process",
-    }
-)
+AWAITED_INVOKE_CALL_SITES: frozenset[str] = frozenset()
 
 
 class TestToolKnotInventoryIsFrozen(unittest.TestCase):

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AudioFeatureExtractor`` — standard audio feature extraction.
 
 Algorithm:
@@ -130,7 +132,7 @@ class AudioFeatureExtractor(Knot):
     def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> np.ndarray:
         """Compute the five feature curves for a single channel, stacked as (5, n_frames)."""
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "AudioFeatureExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"

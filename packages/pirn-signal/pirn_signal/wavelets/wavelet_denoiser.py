@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WaveletDenoiser`` — threshold-based wavelet denoising.
 
 Algorithm:
@@ -34,9 +36,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.py_wavelets_binding import PyWaveletsBinding
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -105,17 +109,12 @@ class WaveletDenoiser(Knot):
     @staticmethod
     def _run_denoising(
         data: np.ndarray, wavelet: str, level: int, threshold_mode: str
-    ) -> np.ndarray:
-        try:
-            import pywt  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "WaveletDenoiser requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    ) -> NDArray[np.floating[Any]]:
+        pywt = PyWaveletsBinding.load()
         coeffs = pywt.wavedec(data, wavelet, level=level, axis=-1)
         finest_detail = coeffs[-1]
         sigma = np.median(np.abs(finest_detail)) / 0.6745
         sample_count = data.shape[-1]
-        threshold = sigma * np.sqrt(2 * np.log(sample_count))
+        threshold = float(sigma * np.sqrt(2 * np.log(sample_count)))
         coeffs_thresh = [pywt.threshold(c, threshold, mode=threshold_mode) for c in coeffs]
         return pywt.waverec(coeffs_thresh, wavelet, axis=-1)

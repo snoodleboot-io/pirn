@@ -54,9 +54,7 @@ class BatchItemResult(PirnOpaqueValue):
     #: not a structural guarantee. A caller that already knows which one
     #: applies should construct :class:`BatchItemResult` directly instead of
     #: routing through this bridge.
-    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset(
-        {"ToolTimeoutError", "TimeoutError", "KnotTimeoutError"}
-    )
+    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset({"TimeoutError", "KnotTimeoutError"})
 
     index: int
     key: str

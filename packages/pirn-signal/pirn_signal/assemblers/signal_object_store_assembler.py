@@ -87,7 +87,7 @@ class SignalObjectStoreAssembler(Assembler):
     @staticmethod
     def _decode(body: bytes, signal_id: str) -> SignalPayload:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "SignalObjectStoreAssembler requires 'librosa'. Install via pip install pirn-signal[signal]"

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NMFDecomposer`` — non-negative matrix factorisation.
 
 Algorithm:
@@ -30,9 +32,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.sklearn_decomposition_binding import SklearnDecompositionBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
@@ -94,17 +98,13 @@ class NMFDecomposer(Knot):
                 source_count=component_count,
                 mixing_matrix_shape=(signal.frame.channel_count, component_count),
             ),
-            data=np.asarray(components),
+            data=components,
         )
 
     @staticmethod
-    def _run_nmf(data: np.ndarray, component_count: int, max_iterations: int) -> np.ndarray:
-        try:
-            from sklearn.decomposition import NMF  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "NMFDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-            ) from exc
+    def _run_nmf(
+        data: NDArray[np.floating[Any]], component_count: int, max_iterations: int
+    ) -> NDArray[np.float64]:
+        decomposition = SklearnDecompositionBinding.load()
         abs_data = np.abs(data.T)
-        nmf = NMF(n_components=component_count, max_iter=max_iterations)  # type: ignore[call-overload]
-        return nmf.fit_transform(abs_data).T
+        return decomposition.nmf(abs_data, component_count, max_iterations).T

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VADDetector`` — voice activity detection.
 
 Algorithm:
@@ -40,13 +42,12 @@ from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
-_default_frame_size = 512
-
 
 class VADDetector(Knot):
     """Voice activity detector based on energy and zero-crossing heuristics."""
 
     _valid_frame_durations: ClassVar[frozenset[int]] = frozenset({10, 20, 30})
+    _default_frame_size: ClassVar[int] = 512
 
     def __init__(
         self,
@@ -118,11 +119,16 @@ class VADDetector(Knot):
 
     @staticmethod
     def _energy_vad(
-        x: np.ndarray, threshold_db: float, frame_size: int = _default_frame_size
+        x: np.ndarray, threshold_db: float, frame_size: int | None = None
     ) -> list[bool]:
-        """Classify frames as voiced (True) or unvoiced (False) by RMS energy."""
+        """Classify frames as voiced (True) or unvoiced (False) by RMS energy.
+
+        ``frame_size`` defaults to ``VADDetector._default_frame_size`` when omitted.
+        """
+        if frame_size is None:
+            frame_size = VADDetector._default_frame_size
         signal_length = len(x)
-        voiced = []
+        voiced: list[bool] = []
         threshold_linear = 10.0 ** (threshold_db / 20.0)
         for start in range(0, signal_length, frame_size):
             frame = x[start : start + frame_size]

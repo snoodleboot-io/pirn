@@ -12,7 +12,6 @@ from typing import Any
 
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tools.agent_tool import AgentTool
@@ -30,7 +29,7 @@ class AsTool:
         input_schema: Mapping[str, Any] | None = None,
         provider: LLMProvider | None = None,
         budget: RunBudget | None = None,
-        max_depth: int = AgentNestingConfig.max_depth,
+        max_depth: int = 8,
     ) -> AgentTool:
         """Wrap ``agent`` as an :class:`AgentTool` with no hand-written adapter.
 
@@ -42,9 +41,8 @@ class AsTool:
                 omitted.
             provider: A pooled provider nested agents should reuse.
             budget: A budget enforced across the (possibly nested) run.
-            max_depth: Maximum agent-as-tool nesting depth; defaults to the shared
-                :class:`~pirn_agents.agent.agent_nesting_config.AgentNestingConfig`
-                cap.
+            max_depth: Maximum agent-as-tool nesting depth (8 by default);
+                enforced by core's ``RunNesting`` guard.
 
         Returns:
             An :class:`AgentTool` ready to drop into any ``Tool`` slot.
@@ -68,7 +66,7 @@ def as_tool(
     input_schema: Mapping[str, Any] | None = None,
     provider: LLMProvider | None = None,
     budget: RunBudget | None = None,
-    max_depth: int = AgentNestingConfig.max_depth,
+    max_depth: int = 8,
 ) -> AgentTool:
     """Wrap ``agent`` as an :class:`AgentTool` with no hand-written adapter.
 
