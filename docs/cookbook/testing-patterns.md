@@ -252,7 +252,7 @@ async def test_same_input_same_hash_across_runs():
 ## Pattern 8: Test YAML pipelines
 
 ```python
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
 YAML = """
 name: test_yaml
@@ -271,7 +271,7 @@ nodes:
 
 @pytest.mark.asyncio
 async def test_yaml_pipeline_integration():
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         YAML,
         known_callables={"compute_discount": compute_discount},
     )

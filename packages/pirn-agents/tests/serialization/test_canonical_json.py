@@ -207,7 +207,7 @@ class TestCanonicalJsonEncoding:
 class TestCanonicalJsonDeprecation:
     """ADR agents-speaks-core WS2: the class is a one-cycle shim, not deleted.
 
-    The actual cut-over of ``digest`` to ``pirn.core.hashing.content_hash`` is
+    The actual cut-over of ``digest`` to ``pirn.core.content_hasher.ContentHasher.hash`` is
     deferred (see the module docstring and the WS2 report) because three
     existing callers persist/transmit this exact bare-hex digest as a durable
     key. Until that migration lands, both methods keep their current bytes

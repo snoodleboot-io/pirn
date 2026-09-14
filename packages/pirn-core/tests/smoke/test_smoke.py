@@ -68,10 +68,10 @@ def test_dispatcher_public_surface():
 
 
 def test_yaml_public_surface():
-    from pirn.yaml_loader.pipeline_loader import load_pipeline
+    from pirn.yaml_loader.pipeline_loader import PipelineLoader
     from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
-    assert callable(load_pipeline)
+    assert callable(PipelineLoader.load_yaml)
     assert isinstance(PipelineSpec, type)
 
 

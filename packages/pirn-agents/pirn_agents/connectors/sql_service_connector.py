@@ -96,7 +96,7 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
     async def _create_client(self) -> ColumnAwarePool:
         """Build the core-backed column-aware pool for the configured driver."""
         # pyright can't see the config fields as __init__ params: core's
-        # @connection_config decorator wraps dataclasses.dataclass but is not
+        # @ConnectionConfigDecorator.apply decorator wraps dataclasses.dataclass but is not
         # annotated @dataclass_transform, so the synthesised __init__ is invisible.
         # The construction is runtime-correct (core's own tests build these the same
         # way). Tracked upstream as PIR-749.

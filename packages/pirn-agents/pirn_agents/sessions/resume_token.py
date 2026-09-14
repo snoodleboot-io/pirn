@@ -26,7 +26,7 @@ class ResumeToken(PirnOpaqueValue):
     run_id:
         The ``run_id`` of the run that suspended. Non-empty.
     output_hash:
-        Content hash (``pirn.core.hashing.content_hash``) of the value that
+        Content hash (``pirn.core.content_hasher.ContentHasher.hash``) of the value that
         was pending approval when the run suspended. Non-empty.
     """
 

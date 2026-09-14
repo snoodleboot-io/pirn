@@ -4,8 +4,8 @@ import unittest
 
 from pydantic import ValidationError
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.error_policy import ErrorPolicy
-from pirn.core.hashing import content_hash
 from pirn.core.knot_config import KnotConfig
 
 
@@ -105,15 +105,15 @@ class TestKnotConfigConcurrencyGroup(unittest.TestCase):
         )
 
         # Act / Assert
-        self.assertEqual(content_hash(minimal.model_dump(mode="json")), self.golden_minimal)
-        self.assertEqual(content_hash(full.model_dump(mode="json")), self.golden_full)
+        self.assertEqual(ContentHasher.hash(minimal.model_dump(mode="json")), self.golden_minimal)
+        self.assertEqual(ContentHasher.hash(full.model_dump(mode="json")), self.golden_full)
 
     def test_same_knot_hashes_identically_with_and_without_a_group(self) -> None:
         # Arrange
         grouped = KnotConfig(id="k", concurrency_group="api")
 
         # Act
-        digest = content_hash(grouped.model_dump(mode="json"))
+        digest = ContentHasher.hash(grouped.model_dump(mode="json"))
 
         # Assert
         self.assertEqual(digest, self.golden_minimal)

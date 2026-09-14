@@ -800,7 +800,7 @@ class Tapestry:
         supported name; see
         :meth:`pirn.engine.emitter_fanout.EmitterFanout.emit_status` for
         the sanctioned way to deliver an event to it. Also available as
-        the bare :func:`pirn.tapestry.current_emitters` function.
+        the bare :meth:`pirn.tapestry.Tapestry.current_emitters` function.
 
         An empty list is returned both outside a run and when the
         enclosing run was itself given ``emitters=[]`` — an explicit
@@ -816,9 +816,9 @@ class Tapestry:
         Defaults to
         :attr:`~pirn.emitters.emitter_error_policy.EmitterErrorPolicy.WARN`
         outside a run, matching :class:`Tapestry`'s own default, so a
-        caller of :meth:`current_emitters` always has a sensible policy to
+        caller of :meth:`Tapestry.current_emitters` always has a sensible policy to
         pair it with. Also available as the bare
-        :func:`pirn.tapestry.current_emitter_error_policy` function.
+        :meth:`pirn.tapestry.Tapestry.current_emitter_error_policy` function.
         """
         from pirn.emitters.emitter_error_policy import EmitterErrorPolicy as _EmitterErrorPolicy
 
@@ -952,15 +952,3 @@ def current_run_id() -> str | None:
     knots must be told which knot they belong to.
     """
     return _current_run_id.get(None)
-
-
-#: Bare-function aliases for :meth:`Tapestry.current_emitters` /
-#: :meth:`Tapestry.current_emitter_error_policy`, so
-#: ``pirn.tapestry.current_emitters()`` calls exactly like
-#: :func:`current_run_id`. The house convention allows a bare module-level
-#: ``def`` only for the documented public entry points enumerated in
-#: ``scripts/check_conventions.py`` (``current_run_id``/``current_tapestry``/
-#: ``get_current_store`` are on that list, PIR-869); anything else is a
-#: ``@staticmethod``, optionally re-exported under a bare alias like these.
-current_emitters = Tapestry.current_emitters
-current_emitter_error_policy = Tapestry.current_emitter_error_policy

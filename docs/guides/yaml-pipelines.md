@@ -1,6 +1,6 @@
 # YAML Pipelines
 
-pirn pipelines can be declared entirely in YAML and loaded at runtime with `load_pipeline()`. The YAML loader is a strict-by-default tool that translates a pipeline definition file into a live `Tapestry`.
+pirn pipelines can be declared entirely in YAML and loaded at runtime with `PipelineLoader.load_yaml()`. The YAML loader is a strict-by-default tool that translates a pipeline definition file into a live `Tapestry`.
 
 ---
 
@@ -8,9 +8,9 @@ pirn pipelines can be declared entirely in YAML and loaded at runtime with `load
 
 ```python
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
-tapestry = load_pipeline(
+tapestry = PipelineLoader.load_yaml(
     yaml_text,                              # str or Path
     known_callables={"my_fn": my_fn},      # name → callable
     tapestry=existing_tapestry,            # optional; new Tapestry() if omitted
@@ -19,7 +19,7 @@ tapestry = load_pipeline(
 result = await tapestry.run(RunRequest(parameters={"x": 5}))
 ```
 
-`load_pipeline` returns a fully-constructed `Tapestry` with all knots registered. You can run it immediately or attach emitters before running.
+`PipelineLoader.load_yaml` returns a fully-constructed `Tapestry` with all knots registered. You can run it immediately or attach emitters before running.
 
 ---
 
@@ -186,7 +186,7 @@ Combines multiple parents via a merge function.
 
 ## `known_callables`
 
-A `Mapping[str, Any]` passed to `load_pipeline`. Values can be:
+A `Mapping[str, Any]` passed to `PipelineLoader.load_yaml`. Values can be:
 
 - Plain callables (sync or async functions)
 - `KnotFactory` instances (from `@knot` decorator)
@@ -267,7 +267,7 @@ nodes:
 ```
 
 ```python
-tapestry = load_pipeline(yaml_text, known_callables={
+tapestry = PipelineLoader.load_yaml(yaml_text, known_callables={
     "fetch_user": fetch_user,
     "score_engagement": score_engagement,
     "high_value_predicate": lambda s: s > 0.8,
@@ -330,11 +330,11 @@ A pattern's runtime seed (the parameter the high-level builder's `.input(...)` f
 A pattern's other required components are usually live objects — an `LLMProvider`, a `MemoryStore`, a `Tool` — that cannot be written into YAML text. `AgentReferences.as_known_callables()` adapts a caller-owned label → object table into this loader's `known_callables`, so a `source` node can name the label as its `callable:`:
 
 ```python
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 from pirn_agents.builder.agent_references import AgentReferences
 
 references = AgentReferences().register("llm", my_llm_provider)
-tapestry = load_pipeline(yaml_text, known_callables=references.as_known_callables())
+tapestry = PipelineLoader.load_yaml(yaml_text, known_callables=references.as_known_callables())
 ```
 
 ```yaml

@@ -87,7 +87,7 @@ class LLMProvider(PirnOpaqueValue):
 | `RunNesting` | value-object | — | `core/run_nesting.py` — where a run sits in the nested-run tree (`depth`, enclosing `run_ids`, container `path`, tightest `max_depth`); `RunNesting.current()` inside a knot. `Tapestry(max_nesting_depth=n)` turns the guard on: `NestingDepthExceededError` / `NestedRunCycleError` as the container knot's `Err`. **Do not carry a recursion counter through agent code.** |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
 | `IdentityResolver` | interface-base | — | `core/identity/` — `resolve()` who's running; `chained/env/os/static/null` implementations |
-| `content_hash(value, *, strict=False)` | function | — | `core/hashing.py`, backed by `_ContentHasher` — the one content-addressing seam (`sha256:`-prefixed). Default is best-effort: an opaque leaf degrades to a `sha256:unhashable:<type>` sentinel. `strict=True` raises `UnhashableValueError` (`PirnError, TypeError`) naming the innermost offending type instead — for a caller (a cache key, a dedup key) where the sentinel's silent collision risk is unacceptable, not just an inconvenience. (ADR agents-speaks-core WS2 part 2) |
+| `ContentHasher.hash(value, *, strict=False)` | static method | — | `core/content_hasher.py` — the one content-addressing seam (`sha256:`-prefixed). Default is best-effort: an opaque leaf degrades to a `sha256:unhashable:<type>` sentinel. `strict=True` raises `UnhashableValueError` (`PirnError, TypeError`) naming the innermost offending type instead — for a caller (a cache key, a dedup key) where the sentinel's silent collision risk is unacceptable, not just an inconvenience. (ADR agents-speaks-core WS2 part 2) |
 
 ### 3.2 Nodes — `nodes/`
 All subclass `Knot`. These are the graph-shape primitives.
@@ -146,7 +146,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Emitter` (`emitters/emitter.py`) | interface-base | receives status/lineage events; `log`/`otel`/`kafka`/`valkey`/`webhook` impls; `emitter_error_policy` governs failures. **`on_knot_result(knot_id, result, lineage)`** (ADR WS0b) is the live per-knot stream: awaited by the engine the moment a knot settles, with the full `Ok`/`Err`/`Skipped` (the `Err`'s rebound `ExceptionRecord` included) and its lineage row, before the knot's children start — the hook a fan-out consumer streams per-item outcomes from before the join completes. No-op default; same error policy as `on_lineage` |
 | `StatusManager` / `StatusEvent` (`managers/`) | engine/value | per-knot lifecycle state + event stream |
 | `ExceptionRecord` (`managers/exception_record.py`) | value-object | `ExceptionRecord.for_knot(id, exc)` — the payload inside `Err` |
-| `redact` (`managers/redact.py`) | helper | scrubs secrets from emitted records |
+| `TracebackRedactor` (`managers/traceback_redactor.py`) | helper | scrubs secrets from emitted records |
 
 **Idiom:** observability is a subscription — implement `Emitter` and attach it; don't thread logging through knot code.
 
@@ -282,10 +282,10 @@ exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.Pirn
 (`ToolInvocationError`, `AgentRecursionError`, `SandboxDisabledError`,
 `UnsupportedModalityError`, `MissingCassetteEntryError`, `InjectionDetectedError`,
 `McpTrustError`, `UntrustedDirectiveError`); the other 10 are frozen in
-`tests/test_core_vocabulary_ratchet.py`. `content_hash` (§4.4) is the one
+`tests/test_core_vocabulary_ratchet.py`. `ContentHasher.hash` (§4.4) is the one
 hashing path for new code; `ContentAddress`/`content_address()` were a
 one-cycle deprecated wrapper around it, deleted by PIR-864 — every caller now
-calls `content_hash(value, strict=True)` directly.
+calls `ContentHasher.hash(value, strict=True)` directly.
 
 **Still open:** `BatchItemStatus` is not deleted (`MapAgent` scheduling still
 owns it). `CanonicalJson`/`OpaquePolicy` are **not** deleted: PIR-864 checked
@@ -636,17 +636,17 @@ to `ExceptionRecord`.
   `current_run_id`, `discover_installed_domains`, `run_forever`, `run_stream`,
   `knot`); the conventions gate counts every other one, and the core baseline
   is 0. Every former wrapper is now a static/class method with the old public
-  name kept as a bare alias: `content_hash = _ContentHasher.hash`,
+  name kept as a bare alias: `content_hash = ContentHasher.hash`,
   `detect_cycle = CycleDetector.detect`, `load_pipeline = PipelineLoader.load_yaml`,
-  `validate_tapestry = _TapestryValidator.validate`,
-  `redact_common_secrets = _TracebackRedactor.redact_common_secrets`,
+  `validate_tapestry = TapestryValidator.validate`,
+  `redact_common_secrets = TracebackRedactor.redact_common_secrets`,
   `continues = WithContinuation.attach`, `connection_config =
   ConnectionConfigDecorator.apply`, `is_async_callable = AsyncCallable.is_async_callable`,
   `extract_knot_source = KnotSourceRecord.from_knot`,
-  `replay_run`/`compare_runs = KnotDiff.replay_run`/`.compare_runs`,
+  `KnotDiff.replay_run`/`compare_runs = KnotDiff.replay_run`/`.compare_runs`,
   `register_celery_worker_task = CeleryDispatcher.register_worker_task`, the
   viz aliases (`mermaid_for_*`, `html_for_*`, `scan_folder`,
-  `generate_explorer_html`). The console scripts point at
+  `ExplorerHtmlGenerator.generate`). The console scripts point at
   `TapestryCheckCli.main` and `ExploreCli.main`.
 - **`_CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
   `GCSDataStore` and `AzureBlobDataStore` no longer open an SDK client per

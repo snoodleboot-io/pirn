@@ -7,7 +7,7 @@ lookups only, by design). This mirrors how a vector-store backend
 (``VectorBackendClient`` and friends) is a vended
 :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue` resource rather than
 being force-fit through a ``Knot`` or a ``DataStore``: it holds *only* what a
-scan needs (the embeddings, keyed by the same ``content_hash`` string the
+scan needs (the embeddings, keyed by the same ``ContentHasher.hash`` string the
 matched value is stored under elsewhere), never the value itself. "index =
 resource, values = DataStore" — see
 :class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache` and
@@ -26,7 +26,7 @@ from pirn_agents.evaluation.cosine_similarity import CosineSimilarity
 
 
 class SimilarityIndex(PirnOpaqueValue):
-    """An in-process ``content_hash`` key -> embedding index for a similarity scan."""
+    """An in-process ``ContentHasher.hash`` key -> embedding index for a similarity scan."""
 
     _cosine: ClassVar[CosineSimilarity] = CosineSimilarity()
 
@@ -38,7 +38,7 @@ class SimilarityIndex(PirnOpaqueValue):
         return len(self._vectors)
 
     def put(self, key: str, embedding: Sequence[float]) -> None:
-        """Index ``embedding`` under ``key`` (the value's ``content_hash``)."""
+        """Index ``embedding`` under ``key`` (the value's ``ContentHasher.hash``)."""
         self._vectors[key] = tuple(float(x) for x in embedding)
 
     def discard(self, key: str) -> None:

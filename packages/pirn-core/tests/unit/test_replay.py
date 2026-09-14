@@ -1,6 +1,6 @@
 import unittest
 
-"""Tests for pirn.knot_diff — replay_run and compare_runs."""
+"""Tests for pirn.knot_diff — KnotDiff.replay_run and KnotDiff.compare_runs."""
 
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
@@ -8,7 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.knot_diff import KnotDiff, compare_runs, replay_run
+from pirn.knot_diff import KnotDiff
 from pirn.tapestry import Tapestry
 
 
@@ -39,7 +39,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         params = {"x": 5, "b": 3}
         original = await t.run(RunRequest(parameters=params))
 
-        replayed = await replay_run(
+        replayed = await KnotDiff.replay_run(
             history=history,
             run_id=original.run_id,
             tapestry=t,
@@ -56,7 +56,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         params = {"x": 5, "b": 3}
         original = await t.run(RunRequest(parameters=params))
 
-        replayed = await replay_run(
+        replayed = await KnotDiff.replay_run(
             history=history,
             run_id=original.run_id,
             tapestry=t,
@@ -72,7 +72,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         t = build_tapestry(history=history)
 
         with self.assertRaisesRegex(KeyError, "not found"):
-            await replay_run(
+            await KnotDiff.replay_run(
                 history=history,
                 run_id="run-nonexistent",
                 tapestry=t,
@@ -86,7 +86,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         params = {"x": 2, "b": 1}
         original = await t.run(RunRequest(parameters=params))
 
-        replayed = await replay_run(
+        replayed = await KnotDiff.replay_run(
             history=history,
             run_id=original.run_id,
             tapestry=t,
@@ -96,7 +96,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
 
         assert replayed.run_id == "run-custom-id"
 
-    # ----------------------------------------------------------------- compare_runs
+    # --------------------------------------------------------- KnotDiff.compare_runs
 
     async def test_compare_runs_identical_shows_no_changes(self):
         history = SQLiteHistory(path=":memory:")
@@ -106,7 +106,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         r1 = await t.run(RunRequest(parameters=params))
         r2 = await t.run(RunRequest(parameters=params))
 
-        diffs = compare_runs(r1, r2)
+        diffs = KnotDiff.compare_runs(r1, r2)
         assert all(not d.changed for d in diffs)
 
     async def test_compare_runs_detects_changed_output(self):
@@ -116,7 +116,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         r1 = await t.run(RunRequest(parameters={"x": 3, "b": 1}))
         r2 = await t.run(RunRequest(parameters={"x": 5, "b": 1}))
 
-        diffs = compare_runs(r1, r2)
+        diffs = KnotDiff.compare_runs(r1, r2)
         by_id = {d.knot_id: d for d in diffs}
 
         assert by_id["double"].changed
@@ -131,7 +131,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         r1 = await t.run(RunRequest(parameters={"x": 4, "b": 1}))
         r2 = await t.run(RunRequest(parameters={"x": 4, "b": 9}))
 
-        diffs = compare_runs(r1, r2)
+        diffs = KnotDiff.compare_runs(r1, r2)
         by_id = {d.knot_id: d for d in diffs}
 
         assert not by_id["double"].changed

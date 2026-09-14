@@ -38,7 +38,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.security.credential_ref import CredentialRef
 
@@ -181,11 +181,11 @@ class TestContentIdentifiedProvidersAccountForEveryConstructorArgument(unittest.
 
                 assert first.content_identity() is not None
                 assert isinstance(first.__pirn_canonical__(), dict)
-                assert content_hash(first) == content_hash(second)
+                assert ContentHasher.hash(first) == ContentHasher.hash(second)
 
     def test_varying_each_constructor_argument_has_its_declared_outcome(self) -> None:
         for provider_type, variants in self.cases().items():
-            reference = content_hash(provider_type(**baseline_kwargs()))
+            reference = ContentHasher.hash(provider_type(**baseline_kwargs()))
             for parameter, variant in variants.items():
                 with self.subTest(provider=provider_type.__name__, parameter=parameter):
                     kwargs = {**baseline_kwargs(), parameter: variant.value}
@@ -194,16 +194,16 @@ class TestContentIdentifiedProvidersAccountForEveryConstructorArgument(unittest.
 
                     if variant.outcome == CHANGES:
                         assert varied.content_identity() is not None
-                        assert content_hash(varied) != reference
+                        assert ContentHasher.hash(varied) != reference
                     elif variant.outcome == FALLS_BACK:
                         assert varied.content_identity() is None
                         assert varied.__pirn_canonical__() == PirnOpaqueValue._pirn_audit_dict(
                             varied
                         )
-                        assert content_hash(varied) != content_hash(twin)
+                        assert ContentHasher.hash(varied) != ContentHasher.hash(twin)
                     else:
                         assert variant.outcome == EQUAL
-                        assert content_hash(varied) == reference
+                        assert ContentHasher.hash(varied) == reference
 
     def test_every_content_identified_provider_in_the_workspace_has_a_case(self) -> None:
         declaring, _ = self._scan(self._workspace_root())

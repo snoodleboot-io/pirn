@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.viz.mermaid_renderer import MermaidRenderer, mermaid_for_tapestry
+from pirn.viz.mermaid_renderer import MermaidRenderer
 
 
 def _make_tapestry(*knots):
@@ -85,5 +85,5 @@ class TestMermaidForTapestry(unittest.TestCase):
 
     def test_wrapper_function(self) -> None:
         tapestry = _make_tapestry()
-        result = mermaid_for_tapestry(tapestry)
+        result = MermaidRenderer.for_tapestry(tapestry)
         self.assertIn("graph TD", result)

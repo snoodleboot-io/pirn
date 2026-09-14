@@ -6,7 +6,7 @@ retires three agents-local parallels to a core primitive:
 (a) an agents exception hierarchy that does not root on
     :class:`pirn.exceptions.pirn_error.PirnError`;
 (b) :class:`~pirn_agents.serialization.canonical_json.CanonicalJson` as a
-    parallel canonicaliser to :func:`pirn.core.hashing.content_hash`;
+    parallel canonicaliser to :meth:`pirn.core.content_hasher.ContentHasher.hash`;
 (c) an outcome enum modelling success/failure/skip beside core's
     ``Ok | Err | Skipped`` ``Result``.
 
@@ -74,12 +74,12 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
 #
 # ADR agents-speaks-core WS2 part 2 sanctioned the digest cutover: the
 # `sha256:` prefix core emits IS the format version.
-# `builder/agent_knot_id_factory.py` now calls `pirn.core.hashing.content_hash`
+# `builder/agent_knot_id_factory.py` now calls `pirn.core.content_hasher.ContentHasher.hash`
 # directly and is off this list; `caching/content_address.py` migrated too
-# (part 2 added `content_hash`'s `strict=True` mode, which closes the PIR-785
+# (part 2 added `ContentHasher.hash`'s `strict=True` mode, which closes the PIR-785
 # gap that blocked it in part 1) and its `ContentAddress`/`content_address`
 # one-cycle wrapper is deleted (PIR-864). `resilience/idempotency_key_assigner.py`
-# ALSO switched its `assign()` derivation to `content_hash`; its `legacy_key()`
+# ALSO switched its `assign()` derivation to `ContentHasher.hash`; its `legacy_key()`
 # bridge (the last thing that imported `CanonicalJson` there) is deleted
 # (PIR-864), taking it off this list. `sessions/run_checkpoint.py` -- WS3 part
 # 2's versioned-checkpoint-migration importer -- is itself a deleted (PIR-864)

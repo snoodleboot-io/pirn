@@ -65,7 +65,7 @@ Submits each knot through Celery for distributed execution.
 ```python
 # Worker side — in Celery worker init module
 from celery import Celery
-from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
+from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
 app = Celery("pirn", broker="redis://localhost:6379/0")
 app.conf.update(
@@ -73,7 +73,7 @@ app.conf.update(
     accept_content=["pickle"],
     result_serializer="pickle",
 )
-register_celery_worker_task(app)
+CeleryDispatcher.register_worker_task(app)
 
 # Driver side
 from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher

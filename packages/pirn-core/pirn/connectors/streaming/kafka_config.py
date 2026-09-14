@@ -6,10 +6,10 @@ from dataclasses import field
 from typing import Any, ClassVar
 
 from pirn.connectors.connection_config import ConnectionConfig
-from pirn.connectors.connection_config_decorator import connection_config
+from pirn.connectors.connection_config_decorator import ConnectionConfigDecorator
 
 
-@connection_config(frozen=True)
+@ConnectionConfigDecorator.apply(frozen=True)
 class KafkaConfig(ConnectionConfig):
     """Configuration for an aiokafka producer / consumer pair."""
 

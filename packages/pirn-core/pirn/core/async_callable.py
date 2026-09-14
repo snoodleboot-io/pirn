@@ -35,7 +35,3 @@ class AsyncCallable:
         # would answer a different question and give nothing to inspect.
         call = inspect.getattr_static(type(candidate), "__call__", None)
         return call is not None and inspect.iscoroutinefunction(call)
-
-
-#: Public name for :meth:`AsyncCallable.is_async_callable` (bare alias, not a ``def``).
-is_async_callable = AsyncCallable.is_async_callable

@@ -27,7 +27,7 @@ pirn builds typed, async, observable computation pipelines. You declare *knots* 
 
 <div class="pirn-feature-card">
 <h3>YAML Pipelines</h3>
-<p>Declare pipelines in YAML and load with <code>load_pipeline()</code>. Strict mode keeps callable resolution safe. Loose mode enables dynamic imports for trusted YAML.</p>
+<p>Declare pipelines in YAML and load with <code>PipelineLoader.load_yaml()</code>. Strict mode keeps callable resolution safe. Loose mode enables dynamic imports for trusted YAML.</p>
 </div>
 
 <div class="pirn-feature-card">

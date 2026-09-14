@@ -10,7 +10,7 @@ pipeline (see ``packages/pirn-core/tests/unit/test_check.py``'s own
 This is the ADR agents-speaks-core WS6a headline demonstration: an agent
 pipeline written as a core YAML file (``tapestry.yaml``, using core's 9 node
 types, no agents-only schema), loaded with
-``pirn.yaml_loader.pipeline_loader.load_pipeline`` exactly like any other
+``pirn.yaml_loader.pipeline_loader.PipelineLoader.load_yaml`` exactly like any other
 domain's pipeline, and checkable with the same tool every other domain uses.
 
 ``ExampleEchoLLMProvider`` lives here rather than in its own file (unlike
@@ -27,8 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn.tapestry import Tapestry
-from pirn.yaml_loader.pipeline_loader import load_pipeline
-
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 from pirn_agents.builder.agent_references import AgentReferences
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.llm.stream_delta import StreamDelta
@@ -84,7 +83,7 @@ def build_tapestry() -> Tapestry:
     live object it cannot write into YAML text directly.
     """
     references = AgentReferences().register("llm", ExampleEchoLLMProvider("Paris"))
-    return load_pipeline(
+    return PipelineLoader.load_yaml(
         YAML_PATH.read_text(encoding="utf-8"),
         known_callables=references.as_known_callables(),
     )

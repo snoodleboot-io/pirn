@@ -18,7 +18,7 @@ the move was byte-identical rather than merely plausible.
 
 ADR agents-speaks-core WS2 part 2 (2026-09-13) intentionally moved the
 :class:`~pirn_agents.resilience.idempotency_key_assigner.IdempotencyKeyAssigner`
-pins: it now derives keys via :func:`pirn.core.hashing.content_hash` instead
+pins: it now derives keys via :meth:`pirn.core.content_hasher.ContentHasher.hash` instead
 of ``CanonicalJson``, a sanctioned, breaking format change (the ``sha256:``
 prefix core emits IS the new format version — see that module's docstring
 and "Idempotency keys" in ``docs/domains/agents.md`` for the operational
@@ -105,11 +105,11 @@ class TestIdempotencyKeyPins:
         # content_hash directly for JSON-native arguments; spelling that out
         # here is what makes the ADR WS2 part 2 migration verifiable rather
         # than asserted.
-        from pirn.core.hashing import content_hash
+        from pirn.core.content_hasher import ContentHasher
 
         operation, arguments = _idempotency_calls()["nested"]
         assert IdempotencyKeyAssigner().assign(operation=operation, arguments=arguments) == (
-            content_hash({"operation": operation, "arguments": arguments}, strict=True)
+            ContentHasher.hash({"operation": operation, "arguments": arguments}, strict=True)
         )
 
 
@@ -117,7 +117,7 @@ class TestAgentKnotIdPins:
     """A generated knot id keys lineage records and engine cache entries."""
 
     # ADR agents-speaks-core WS2 part 2 (2026-09-13) intentionally moved these
-    # pins: AgentKnotIdFactory now digests via pirn.core.hashing.content_hash
+    # pins: AgentKnotIdFactory now digests via pirn.core.content_hasher.ContentHasher.hash
     # instead of CanonicalJson (see that module's docstring and the
     # CHANGELOG). Re-recorded from the new algorithm.
     _pins: ClassVar[dict[str, str]] = {
@@ -139,7 +139,7 @@ class TestAgentKnotIdPins:
         # Pins the truncation as well as the canonicalisation: the factory
         # takes content_hash's digest (minus its sha256: prefix) and slices
         # it, rather than hashing differently.
-        from pirn.core.hashing import content_hash
+        from pirn.core.content_hasher import ContentHasher
 
         signature: dict[str, Any] = {
             "pattern": "react",
@@ -148,7 +148,7 @@ class TestAgentKnotIdPins:
             "tools": [],
             "options": {},
         }
-        expected_suffix = content_hash(signature, strict=True).removeprefix("sha256:")[:12]
+        expected_suffix = ContentHasher.hash(signature, strict=True).removeprefix("sha256:")[:12]
         assert self._pins["minimal"].endswith(expected_suffix)
 
     def test_components_key_is_absent_when_empty(self) -> None:

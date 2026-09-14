@@ -18,7 +18,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 class VectorMemoIndex(PirnOpaqueValue):
-    """An in-process ``content_hash`` key -> vector memoisation table."""
+    """An in-process ``ContentHasher.hash`` key -> vector memoisation table."""
 
     def __init__(self, *, max_entries: int | None = None) -> None:
         """Create an empty, optionally FIFO-bounded index.

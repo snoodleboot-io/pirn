@@ -112,7 +112,7 @@ Each Celery worker process is a separate Python interpreter. Ensure:
 
 ```python
 from celery import Celery
-from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
+from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
 app = Celery("pirn", broker="redis://localhost:6379/0")
 app.conf.update(
@@ -120,7 +120,7 @@ app.conf.update(
     accept_content=["pickle"],
     result_serializer="pickle",
 )
-register_celery_worker_task(app)
+CeleryDispatcher.register_worker_task(app)
 ```
 
 Worker count: start with `(CPU cores × 2) + 1` for IO-bound pipelines. For CPU-bound knots, use `prefork` concurrency equal to core count.

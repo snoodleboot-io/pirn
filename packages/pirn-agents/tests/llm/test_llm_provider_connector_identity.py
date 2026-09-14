@@ -16,7 +16,7 @@ import json
 from typing import Any, ClassVar
 
 import pytest
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -57,8 +57,8 @@ def test_live_providers_with_different_model_and_endpoint_hash_differently(
     provider_b = provider_cls(model="m-b", base_url="https://b.example/v1")
 
     # Act
-    hash_a = content_hash({"llm": provider_a})
-    hash_b = content_hash({"llm": provider_b})
+    hash_a = ContentHasher.hash({"llm": provider_a})
+    hash_b = ContentHasher.hash({"llm": provider_b})
 
     # Assert
     assert hash_a != hash_b
@@ -70,7 +70,7 @@ def test_identically_configured_separate_providers_hash_equal() -> None:
     second = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1")
 
     # Act
-    hashes = {content_hash({"llm": first}), content_hash({"llm": second})}
+    hashes = {ContentHasher.hash({"llm": first}), ContentHasher.hash({"llm": second})}
 
     # Assert
     assert len(hashes) == 1
@@ -82,7 +82,7 @@ def test_identically_configured_providers_that_cannot_be_named_hash_differently(
     second = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1", client=object())
 
     # Act
-    hashes = {content_hash({"llm": first}), content_hash({"llm": second})}
+    hashes = {ContentHasher.hash({"llm": first}), ContentHasher.hash({"llm": second})}
 
     # Assert
     assert len(hashes) == 2
@@ -93,7 +93,7 @@ def test_provider_hash_is_stable_across_calls() -> None:
     provider = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1")
 
     # Act
-    hashes = {content_hash(provider) for _ in range(5)}
+    hashes = {ContentHasher.hash(provider) for _ in range(5)}
 
     # Assert
     assert len(hashes) == 1

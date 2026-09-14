@@ -310,7 +310,7 @@ with closing(urlopen("https://example.com")) as response:
   a method). Private helpers, CLI `main`s and thin wrappers over a class method are never
   allowlisted — they become static methods.
 - A public name that predates the rule stays importable as a bare alias to the static method
-  (`content_hash = _ContentHasher.hash`, `load_pipeline = PipelineLoader.load_yaml`). An alias
+  (`content_hash = ContentHasher.hash`, `load_pipeline = PipelineLoader.load_yaml`). An alias
   is an assignment, not a `def`, so it is not counted — but do not add new bare aliases for new
   code; expose the class method.
 

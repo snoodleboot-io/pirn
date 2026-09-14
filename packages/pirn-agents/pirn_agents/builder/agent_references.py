@@ -127,7 +127,7 @@ class AgentReferences:
 
         Every registered label becomes a zero-argument callable that returns
         the live object bound to it — exactly the shape
-        ``pirn.yaml_loader.pipeline_loader.load_pipeline``'s ``known_callables``
+        ``pirn.yaml_loader.pipeline_loader.PipelineLoader.load_yaml``'s ``known_callables``
         expects for a ``source`` node's ``callable:`` reference. This is how a
         core pipeline document supplies a reference (an LLM provider, a memory
         store, a tool) that cannot be written into YAML text: the document
@@ -135,7 +135,7 @@ class AgentReferences:
         object at load time.
 
         Returns:
-            A fresh mapping, safe to pass straight to ``load_pipeline`` or to
+            A fresh mapping, safe to pass straight to ``PipelineLoader.load_yaml`` or to
             merge with other ``known_callables`` entries.
         """
         return {label: _ConstantThunk(value, label=label) for label, value in self._objects.items()}

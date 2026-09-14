@@ -2,14 +2,14 @@
 
 .. deprecated::
     The "agents speaks core" ADR (2026-09-13) retires this class in favour of
-    :func:`pirn.core.hashing.content_hash`, which already produces the
+    :meth:`pirn.core.content_hasher.ContentHasher.hash`, which already produces the
     ``sha256:``-prefixed content hash every other pirn domain agrees on and
     honours a type's own :meth:`~pirn.core.pirn_opaque_value.PirnOpaqueValue._pirn_audit_dict`
     for opaque leaves instead of a caller-supplied fallback policy. **New call
-    sites must call** ``content_hash`` **directly and must not use this
+    sites must call** ``ContentHasher.hash`` **directly and must not use this
     class.**
 
-    The actual cut-over of :meth:`digest` to ``content_hash`` is deliberately
+    The actual cut-over of :meth:`digest` to ``ContentHasher.hash`` is deliberately
     **not** made in this change: three existing callers persist or transmit
     the bare-hex digest this class produces today as a durable key —
     ``pirn_agents.resilience.idempotency_key_assigner.IdempotencyKeyAssigner``
@@ -71,7 +71,7 @@ class CanonicalJson:
 
     _deprecation_note = (
         "is deprecated (ADR agents-speaks-core WS2); prefer "
-        "pirn.core.hashing.content_hash(payload) directly for new code, and "
+        "pirn.core.content_hasher.ContentHasher.hash(payload) directly for new code, and "
         "give an opaque type a _pirn_audit_dict() instead of an OpaquePolicy "
         "fallback. This class is kept, byte-for-byte unchanged, only for "
         "callers whose persisted/transmitted keys (idempotency keys, "

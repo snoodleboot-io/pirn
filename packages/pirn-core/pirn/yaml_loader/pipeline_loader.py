@@ -8,14 +8,14 @@ Steps:
 
 Strict mode (default): any ``callable``, ``selector``, ``predicate``,
 ``combine``, or ``each`` reference must be supplied via the
-``known_callables`` map passed to ``load_pipeline``.
+``known_callables`` map passed to ``PipelineLoader.load_yaml``.
 
 Loose mode (``PipelineSpec.allow_callable_refs=True``): same references
 may be dotted paths that the loader imports at load time.
 
 Import allowlist (``allowed_module_prefixes``): when loose mode is
 enabled, the optional ``allowed_module_prefixes`` parameter (accepted by
-both ``load_pipeline`` and ``PipelineSpec``) restricts which module
+both ``PipelineLoader.load_yaml`` and ``PipelineSpec``) restricts which module
 paths may be imported.  A callable ref is permitted only when its module
 path equals one of the prefixes or starts with ``<prefix>.``.  When the
 list is ``None``, any import is allowed (with a warning).  The spec-
@@ -446,7 +446,3 @@ class PipelineLoader:
         module_path, _, attr = ref.rpartition(".")
         module = importlib.import_module(module_path)
         return getattr(module, attr)
-
-
-#: Public name for :meth:`PipelineLoader.load_yaml` (bare alias, not a ``def``).
-load_pipeline = PipelineLoader.load_yaml

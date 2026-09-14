@@ -1,4 +1,4 @@
-"""Hybrid A+B canonicalisation hooks for ``content_hash``.
+"""Hybrid A+B canonicalisation hooks for ``ContentHasher.hash``.
 
 These tests pin the two extension points that unblock content-hashing of
 rich domain dataclasses (``DataBatch`` / ``DataSchema``):
@@ -24,7 +24,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
@@ -80,20 +80,20 @@ class TestCanonicalHook(unittest.TestCase):
         a = _CanonicalHookFirst(name="alice", weight=3)
         b = _CanonicalHookFirst(name="alice", weight=3)
         c = _CanonicalHookFirst(name="alice", weight=4)
-        assert content_hash(a) == content_hash(b)
-        assert content_hash(a) != content_hash(c)
+        assert ContentHasher.hash(a) == ContentHasher.hash(b)
+        assert ContentHasher.hash(a) != ContentHasher.hash(c)
 
     def test_hash_matches_hooks_primitive_form(self) -> None:
         a = _CanonicalHookFirst(name="alice", weight=3)
-        assert content_hash(a) == content_hash({"n": "alice", "w": 3})
+        assert ContentHasher.hash(a) == ContentHasher.hash({"n": "alice", "w": 3})
 
     def test_hook_takes_precedence_over_pydantic_schema(self) -> None:
         # _BothHooks subclasses PirnOpaqueValue (so it has a pydantic
         # core schema) AND defines __pirn_canonical__. The canonical
         # hook must be consulted first.
         a = _BothHooks(label="hello")
-        assert content_hash(a) == content_hash({"canonical": "hello"})
-        assert content_hash(a) != content_hash({"audit": "hello"})
+        assert ContentHasher.hash(a) == ContentHasher.hash({"canonical": "hello"})
+        assert ContentHasher.hash(a) != ContentHasher.hash({"audit": "hello"})
 
 
 class TestPydanticAwareFallback(unittest.TestCase):
@@ -101,7 +101,7 @@ class TestPydanticAwareFallback(unittest.TestCase):
 
     def test_fallback_avoids_unhashable_marker(self) -> None:
         a = _PydanticAwareOnly(label="x", payload=(1, 2, 3))
-        h = content_hash(a)
+        h = ContentHasher.hash(a)
         assert "unhashable" not in h
         assert h.startswith("sha256:")
         # 7 chars for the "sha256:" prefix + 64 hex chars of digest.
@@ -111,8 +111,8 @@ class TestPydanticAwareFallback(unittest.TestCase):
         a = _PydanticAwareOnly(label="x", payload=(1, 2, 3))
         b = _PydanticAwareOnly(label="x", payload=(1, 2, 3))
         c = _PydanticAwareOnly(label="x", payload=(1, 2, 4))
-        assert content_hash(a) == content_hash(b)
-        assert content_hash(a) != content_hash(c)
+        assert ContentHasher.hash(a) == ContentHasher.hash(b)
+        assert ContentHasher.hash(a) != ContentHasher.hash(c)
 
 
 class TestDataBatchEndToEnd(unittest.TestCase):
@@ -132,6 +132,6 @@ class TestDataBatchEndToEnd(unittest.TestCase):
         # must produce the same digest as hashing that primitive dict
         # directly.
         canonical_form = batch.__pirn_canonical__()
-        assert content_hash(batch) == content_hash(canonical_form)
+        assert ContentHasher.hash(batch) == ContentHasher.hash(canonical_form)
         # And the digest is a proper sha256, not the unhashable marker.
-        assert "unhashable" not in content_hash(batch)
+        assert "unhashable" not in ContentHasher.hash(batch)

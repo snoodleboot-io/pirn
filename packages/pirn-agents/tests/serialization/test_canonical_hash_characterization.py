@@ -20,18 +20,18 @@ Two distinct things are recorded:
 
 * **The convergence, then divergence** — ``content_address`` (the former
   ``pirn_agents.caching.content_address`` one-cycle shim, deleted PIR-864;
-  ``_content_address`` below reproduces its body, ``content_hash(payload,
+  ``_content_address`` below reproduces its body, ``ContentHasher.hash(payload,
   strict=True)``, now that no importable wrapper is left to pin) used to
   diverge on two axes, default separators (``", "`` / ``": "``) *and*
   ``ensure_ascii=False``, so it disagreed with the other hashers on every
   non-trivial payload. PIR-785 moved it onto this file's shared
   ``CanonicalJson``-based seam, and it agreed with ``ContentDigest`` from
   then until ADR agents-speaks-core WS2 part 2 (2026-09-13): that change
-  moved ``content_address`` onto :func:`pirn.core.hashing.content_hash`
+  moved ``content_address`` onto :meth:`pirn.core.content_hasher.ContentHasher.hash`
   instead (``strict=True``, closing the PIR-785 gap a different way — see
   that module's docstring), while ``ContentDigest``/``CanonicalJson`` stay on
   the old seam pending WS3. The two hashers therefore *deliberately*
-  disagree again, on a different axis this time (``content_hash`` tags
+  disagree again, on a different axis this time (``ContentHasher.hash`` tags
   containers with ``__map__``/``__seq__``/``__model__`` markers that
   ``CanonicalJson``'s bare ``json.dumps`` never wrote) — see
   ``TestContentAddressCanonicalForm`` for the new pins and
@@ -49,16 +49,16 @@ import json
 from typing import Any, ClassVar
 
 import pytest
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 from pirn_agents.determinism.content_digest import ContentDigest
 
 
 def _content_address(payload: Any) -> str:
-    """``content_hash(payload, strict=True)`` -- what the deleted (PIR-864)
+    """``ContentHasher.hash(payload, strict=True)`` -- what the deleted (PIR-864)
     ``ContentAddress``/``content_address`` one-cycle shim delegated to."""
-    return content_hash(payload, strict=True)
+    return ContentHasher.hash(payload, strict=True)
 
 
 def _payloads() -> dict[str, Any]:
@@ -209,12 +209,12 @@ class TestContentDigestCanonicalForm:
 
 
 class TestContentAddressCanonicalForm:
-    """``content_address`` now emits ``content_hash``'s canonical form (WS2 part 2).
+    """``content_address`` now emits ``ContentHasher.hash``'s canonical form (WS2 part 2).
 
     Re-pinned from the new algorithm: ADR agents-speaks-core WS2 part 2 moved
     ``content_address`` off the ``CanonicalJson``-based seam
     ``TestContentDigestCanonicalForm`` pins onto
-    :func:`pirn.core.hashing.content_hash` (``strict=True``), so it no longer
+    :meth:`pirn.core.content_hasher.ContentHasher.hash` (``strict=True``), so it no longer
     shares that table — see ``TestCanonicalFormConvergence`` for exactly what
     still holds across the two hashers and what does not.
     """
@@ -266,7 +266,7 @@ class TestCanonicalFormConvergence:
 
     Before ADR agents-speaks-core WS2 part 2 these were the *same* hasher
     (``CanonicalJson``) and every payload produced an identical digest. Now
-    ``content_address`` goes through ``content_hash`` and ``content_digest``
+    ``content_address`` goes through ``ContentHasher.hash`` and ``content_digest``
     does not (see the module docstring), so the digests themselves diverge
     again — deliberately. What still holds is everything that was never about
     byte-for-byte digest equality: both refuse an identity-keyed opaque leaf,

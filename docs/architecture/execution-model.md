@@ -161,7 +161,7 @@ On a clean path (all parents `Ok`), the input dict is `{name: result.value for n
 ### Step 8: `_dispatch_with_timing(knot, inputs)`
 
 ```python
-parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
+parent_hashes = {name: ContentHasher.hash(value) for name, value in inputs.items()}
 started_at = datetime.now(UTC)
 result = await self._dispatcher.dispatch(knot, inputs)
 return result, parent_hashes, started_at
@@ -189,9 +189,9 @@ KnotLineage(
     run_id=ctx.run_id,
     knot_id=knot.knot_id,
     knot_class=f"{type(knot).__module__}.{type(knot).__qualname__}",
-    knot_config_hash=content_hash(knot.config.model_dump(mode="json")),
+    knot_config_hash=ContentHasher.hash(knot.config.model_dump(mode="json")),
     parent_input_hashes=parent_hashes,   # captured before dispatch
-    output_hash=content_hash(result.value) if result.is_ok else None,
+    output_hash=ContentHasher.hash(result.value) if result.is_ok else None,
     outcome="ok" | "err" | "skipped",
     error_record_id=...,                 # if Err
     skip_reason=...,                     # if Skipped
@@ -342,8 +342,9 @@ return order
 ## Content addressing
 
 ```python
-def content_hash(value: Any) -> str:
-    canonical = _canonicalise(value)
+@staticmethod
+def hash(value: Any) -> str:  # ContentHasher.hash
+    canonical = ContentHasher._canonicalise(value)
     raw = json.dumps(canonical, ensure_ascii=False, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(raw.encode()).hexdigest()
 ```

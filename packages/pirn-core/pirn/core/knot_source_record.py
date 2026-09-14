@@ -4,7 +4,7 @@ One ``KnotSourceRecord`` is stored per unique ``(source_text, pirn_version)`` pa
 The same record is shared across every lineage entry that came from identical code,
 so the store never accumulates duplicates regardless of how many times a knot runs.
 
-``KnotSourceRecord.from_knot`` (public alias ``extract_knot_source``) handles
+``KnotSourceRecord.from_knot`` handles
 two knot shapes:
 - ``@knot``-decorated functions: the decorated function is recovered via
   ``process.__wrapped__`` and the ``@knot`` line is prepended so the stored
@@ -86,7 +86,3 @@ class KnotSourceRecord(BaseModel):
             knot_class=knot_class,
             pirn_version=pirn_version,
         )
-
-
-#: Public name for :meth:`KnotSourceRecord.from_knot` (bare alias, not a ``def``).
-extract_knot_source = KnotSourceRecord.from_knot

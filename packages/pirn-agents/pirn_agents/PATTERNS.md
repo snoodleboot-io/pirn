@@ -1227,7 +1227,7 @@ per backend) were one-cycle shims over this pattern and are deleted (PIR-864).
 ### Caching — content-addressed result cache + semantic + prompt-cache passthrough
 
 `ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
-and embedding lookups keyed off a `content_hash` of the inputs (mirrors the
+and embedding lookups keyed off a `ContentHasher.hash` of the inputs (mirrors the
 DAG's content addressing). `SemanticResultCache.get_or_compute_semantic(text,
 compute)` matches on embedding similarity using a caller-injected embedding fn
 (no backend). `PromptCachePassthrough` defers to a provider's native prompt
@@ -1249,7 +1249,7 @@ window, PIR-864) in favour of one call:
 `AgentCallRecorder.record(...)` emits a core `StatusEvent` — `run_id` sourced
 from `pirn.tapestry.current_run_id`, `knot_id` supplied by the caller (never
 ambient) — through the run's own emitters
-(`pirn.tapestry.current_emitters`/`EmitterFanout.emit_status`), the same
+(`pirn.tapestry.Tapestry.current_emitters`/`EmitterFanout.emit_status`), the same
 stream the engine's own per-knot lifecycle transitions use. `extra` carries
 whatever span-like fields the call wants to report (`kind`, `model`,
 `tokens`, `cost`, `latency`, …); `OpenTelemetryEmitter` renders a non-empty

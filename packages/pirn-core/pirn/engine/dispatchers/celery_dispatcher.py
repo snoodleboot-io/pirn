@@ -101,19 +101,3 @@ class CeleryDispatcher:
         how to run knots.
         """
         app.task(name=cls._task_name)(cls._run_knot_sync)
-
-
-#: Public name for :meth:`CeleryDispatcher.register_worker_task`, kept as a
-#: top-level entry for external worker bootstraps (bare alias, not a ``def``)::
-#:
-#:     from celery import Celery
-#:     from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
-#:
-#:     app = Celery(...)
-#:     app.conf.update(
-#:         task_serializer="pickle",
-#:         accept_content=["pickle"],
-#:         result_serializer="pickle",
-#:     )
-#:     register_celery_worker_task(app)
-register_celery_worker_task = CeleryDispatcher.register_worker_task

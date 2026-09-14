@@ -387,15 +387,15 @@ persistent stores do not yet support mid-run extension.
 ## Visualization
 
 ```python
-from pirn.viz.tapestry_html_renderer import html_for_run
-from pirn.viz.mermaid_renderer import mermaid_for_tapestry, mermaid_for_run
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
+from pirn.viz.mermaid_renderer import MermaidRenderer
 
 # Mermaid for embedding in docs.
-print(mermaid_for_tapestry(t))           # structure only
-print(mermaid_for_run(result))           # structure + outcome colors
+print(MermaidRenderer.for_tapestry(t))           # structure only
+print(MermaidRenderer.for_run(result))           # structure + outcome colors
 
 # Standalone HTML/SVG for browsing.
-Path("run.html").write_text(html_for_run(result))
+Path("run.html").write_text(TapestryHtmlRenderer.for_run(result))
 ```
 
 The HTML renderer produces a single self-contained file with hover
@@ -404,7 +404,7 @@ by outcome, and a longest-path layout — no server, no external assets.
 
 ## YAML pipelines
 
-Pipelines can be declared in YAML and loaded with `load_pipeline`.
+Pipelines can be declared in YAML and loaded with `PipelineLoader.load_yaml`.
 
 ```yaml
 name: simple
@@ -429,9 +429,9 @@ nodes:
 
 ```python
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
-t = load_pipeline(
+t = PipelineLoader.load_yaml(
     yaml_text,
     known_callables={"double": double, "add": add},
 )

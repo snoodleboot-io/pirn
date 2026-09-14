@@ -246,9 +246,7 @@ async def test_celery_dispatcher_uses_correct_task_name():
     knot = _build_knot()
     # Register the task handler on the fake app so we get a real result
     # back.  We use the standard registration helper from production.
-    from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
-
-    register_celery_worker_task(app)
+    CeleryDispatcher.register_worker_task(app)
     result = await d.dispatch(knot, {})
 
     assert len(app.tasks_sent) == 1
@@ -259,15 +257,13 @@ async def test_celery_dispatcher_uses_correct_task_name():
 
 
 async def test_celery_worker_task_runs_knot():
-    """The register_celery_worker_task helper registers a task that,
+    """The CeleryDispatcher.register_worker_task helper registers a task that,
     when called with (knot, inputs), runs the knot and returns its
     Result."""
     import concurrent.futures
 
     app = _FakeCeleryApp()
-    from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
-
-    register_celery_worker_task(app)
+    CeleryDispatcher.register_worker_task(app)
     handler = app.task_handlers[PIRN_CELERY_TASK_NAME]
     knot = _build_knot()
     # Real Celery workers have no event loop; mimic by running in a

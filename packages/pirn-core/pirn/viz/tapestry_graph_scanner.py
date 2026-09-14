@@ -417,7 +417,3 @@ class TapestryGraphScanner:
                 exc_info=True,
             )
         return results
-
-
-#: Public name for :meth:`TapestryGraphScanner.scan` (bare alias, not a ``def``).
-scan_folder = TapestryGraphScanner.scan

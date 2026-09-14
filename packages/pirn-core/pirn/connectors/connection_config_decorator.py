@@ -1,4 +1,4 @@
-"""``@connection_config`` decorator — safe-default replacement for ``@dataclass``.
+"""``@ConnectionConfigDecorator.apply`` decorator — safe-default replacement for ``@dataclass``.
 
 Equivalent to ``@dataclass(frozen=True, repr=False)`` plus preservation of
 the redacting ``__repr__`` defined on
@@ -35,7 +35,7 @@ _T = TypeVar("_T")
 
 
 class ConnectionConfigDecorator:
-    """Holder for the ``@connection_config`` decorator (see module docstring)."""
+    """Holder for the ``@ConnectionConfigDecorator.apply`` decorator (see module docstring)."""
 
     @overload
     @staticmethod
@@ -73,7 +73,3 @@ class ConnectionConfigDecorator:
         if target is None:
             return wrap
         return wrap(target)
-
-
-#: The decorator under its documented name (bare alias, not a ``def``).
-connection_config = ConnectionConfigDecorator.apply

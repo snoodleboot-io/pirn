@@ -25,7 +25,7 @@ pirn/connectors/
 ├── file_format.py               FileFormat                — base: encode()/decode() for a single format
 ├── dsn_scrubber.py              dsn_scrubber()            — strips credentials from DSN strings before logging
 ├── api_client.py                ApiClient                 — base for REST API clients (SaaS connectors)
-├── connection_config_decorator.py  @connection_config     — decorator: register a config class for auto-discovery
+├── connection_config_decorator.py  @ConnectionConfigDecorator.apply     — decorator: register a config class for auto-discovery
 ├── knots/                       source/sink knots         — → see AGENTIC_USE.md
 ├── capabilities/                capability interfaces     — → see AGENTIC_USE.md
 ├── databases/                   DB configs + pools        — → see AGENTIC_USE.md

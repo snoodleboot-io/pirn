@@ -138,14 +138,14 @@ nodes:
 # run_moderation.py
 import asyncio
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 from knots import score_text, route_selector, handle_clean, handle_toxic, AuditLog
 
 YAML = open("content_moderation.yaml").read()
 
 
 async def main():
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         YAML,
         known_callables={
             "score_text": score_text,
@@ -218,7 +218,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-tapestry = load_pipeline(YAML, known_callables={...})
+tapestry = PipelineLoader.load_yaml(YAML, known_callables={...})
 tapestry.add_emitter(LogEmitter())
 
 result = await tapestry.run(RunRequest(parameters={"text": "..."}))
@@ -237,16 +237,16 @@ Each knot transition produces a JSON log line:
 Generate a Mermaid diagram or a self-contained HTML explorer:
 
 ```python
-from pirn.viz.tapestry_html_renderer import html_for_run
-from pirn.viz.mermaid_renderer import mermaid_for_tapestry
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
+from pirn.viz.mermaid_renderer import MermaidRenderer
 from pathlib import Path
 
 # Embed in docs
-print(mermaid_for_tapestry(tapestry))
+print(MermaidRenderer.for_tapestry(tapestry))
 
 # Standalone HTML file — open in a browser
 result = await tapestry.run(RunRequest(parameters={"text": "hello"}))
-Path("run.html").write_text(html_for_run(result))
+Path("run.html").write_text(TapestryHtmlRenderer.for_run(result))
 ```
 
 Or explore all pipelines in a directory with the CLI:

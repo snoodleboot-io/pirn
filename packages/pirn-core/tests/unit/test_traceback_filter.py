@@ -9,42 +9,42 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.managers.exception_manager import ExceptionManager
-from pirn.managers.redact import redact_common_secrets
+from pirn.managers.traceback_redactor import TracebackRedactor
 from pirn.tapestry import Tapestry
 
 # ---------------------------------------------------------------------------
-# redact_common_secrets
+# TracebackRedactor.redact_common_secrets
 # ---------------------------------------------------------------------------
 
 
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     def test_redact_dsn_credentials(self) -> None:
         text = "connecting to postgresql://user:s3cr3t@db.host:5432/mydb"
-        result = redact_common_secrets(text)
+        result = TracebackRedactor.redact_common_secrets(text)
         assert "s3cr3t" not in result
         assert "postgresql://<redacted>@db.host:5432/mydb" in result
 
     def test_redact_password_assignment(self) -> None:
         text = "RuntimeError: password=s3cr3t was wrong"
-        result = redact_common_secrets(text)
+        result = TracebackRedactor.redact_common_secrets(text)
         assert "s3cr3t" not in result
         assert "password=<redacted>" in result
 
     def test_redact_authorization_bearer(self) -> None:
         text = "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig"
-        result = redact_common_secrets(text)
+        result = TracebackRedactor.redact_common_secrets(text)
         assert "eyJhbGciOiJIUzI1NiJ9" not in result
         assert "<redacted>" in result
 
     def test_redact_api_key_assignment(self) -> None:
         text = "api_key=abc123secret was rejected"
-        result = redact_common_secrets(text)
+        result = TracebackRedactor.redact_common_secrets(text)
         assert "abc123secret" not in result
         assert "<redacted>" in result
 
     def test_redact_leaves_safe_text_unchanged(self) -> None:
         text = "ValueError: expected 42 but got 43"
-        assert redact_common_secrets(text) == text
+        assert TracebackRedactor.redact_common_secrets(text) == text
 
     # ---------------------------------------------------------------------------
     # ExceptionManager with traceback_filter

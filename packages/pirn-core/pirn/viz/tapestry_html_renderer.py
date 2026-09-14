@@ -415,9 +415,3 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
     @staticmethod
     def _truncate(text: str, max_len: int) -> str:
         return text if len(text) <= max_len else text[: max_len - 1] + "…"
-
-
-#: Public names for :meth:`TapestryHtmlRenderer.for_tapestry` / :meth:`TapestryHtmlRenderer.for_run`
-#: (bare aliases, not ``def``\\s).
-html_for_tapestry = TapestryHtmlRenderer.for_tapestry
-html_for_run = TapestryHtmlRenderer.for_run

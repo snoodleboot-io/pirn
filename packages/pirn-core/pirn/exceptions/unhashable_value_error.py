@@ -1,4 +1,4 @@
-"""Raised by ``content_hash(value, strict=True)`` when a leaf has no canonical form."""
+"""Raised by ``ContentHasher.hash(value, strict=True)`` when a leaf has no canonical form."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pirn.exceptions.pirn_error import PirnError
 class UnhashableValueError(PirnError, TypeError):
     """A value could not be reduced to a canonical, content-addressable form.
 
-    :func:`~pirn.core.hashing.content_hash` is best-effort by default: an
+    :meth:`~pirn.core.content_hasher.ContentHasher.hash` is best-effort by default: an
     opaque leaf (no ``__pirn_canonical__``, no pydantic core schema, not a
     container the canonicaliser recurses into) degrades to a
     ``sha256:unhashable:<type>`` sentinel rather than raising, because most

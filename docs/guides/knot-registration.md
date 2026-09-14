@@ -42,7 +42,7 @@ nodes:
 ```
 
 ```python
-tapestry = load_pipeline(yaml_text)        # no known_callables= needed
+tapestry = PipelineLoader.load_yaml(yaml_text)        # no known_callables= needed
 ```
 
 ---

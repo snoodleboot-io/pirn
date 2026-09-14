@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer, html_for_tapestry
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 
 
 def _make_tapestry(*knots):
@@ -104,10 +104,10 @@ class TestTapestryHtmlRendererRenderSvg(unittest.TestCase):
 class TestHtmlForTapestryWrapper(unittest.TestCase):
     def test_produces_html_document(self) -> None:
         tapestry = _make_tapestry()
-        result = html_for_tapestry(tapestry)
+        result = TapestryHtmlRenderer.for_tapestry(tapestry)
         self.assertIn("<!doctype html", result.lower())
 
     def test_custom_title_in_output(self) -> None:
         tapestry = _make_tapestry()
-        result = html_for_tapestry(tapestry, title="My Custom Title")
+        result = TapestryHtmlRenderer.for_tapestry(tapestry, title="My Custom Title")
         self.assertIn("My Custom Title", result)

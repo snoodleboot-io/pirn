@@ -14,7 +14,7 @@ and whose ``extra`` mapping carries the span-like fields (kind, model, tokens,
 cost, latency, ...) an LLM/tool/retrieval call wants to report, then hand it to
 :meth:`~pirn.engine.emitter_fanout.EmitterFanout.emit_status`, which delivers it
 to the *same* emitter subscription the engine's own per-knot lifecycle
-transitions already use (:func:`pirn.tapestry.current_emitters`). One run, one
+transitions already use (:meth:`pirn.tapestry.Tapestry.current_emitters`). One run, one
 event stream, one place (``OpenTelemetryEmitter``/``LogEmitter``) that knows how
 to render it — see their ``on_status`` for the span/log shape ``extra``
 produces.

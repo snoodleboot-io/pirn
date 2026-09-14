@@ -407,7 +407,7 @@ stable key for a retried mutating call from its operation name and arguments, so
 backend can dedupe a retry instead of applying it twice.
 
 **ADR "agents speaks core" WS2 part 2 (2026-09-13) changed the key format.**
-Keys are now `pirn.core.hashing.content_hash`'s `sha256:`-prefixed digest instead
+Keys are now `pirn.core.content_hasher.ContentHasher.hash`'s `sha256:`-prefixed digest instead
 of the previous bare 64-hex `CanonicalJson.digest` form. **This is a breaking
 upgrade for any backend keyed by a previously-issued idempotency key**: a request
 already in flight when the upgrade deploys computes a *different* key on retry

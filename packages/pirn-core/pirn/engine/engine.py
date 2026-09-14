@@ -44,9 +44,9 @@ from pirn.core.concurrency.undefined_concurrency_group_error import (
     UndefinedConcurrencyGroupError,
 )
 from pirn.core.concurrency.unused_concurrency_group_warning import UnusedConcurrencyGroupWarning
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
-from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
@@ -414,7 +414,7 @@ class Engine:
                     if isinstance(result, Ok):
                         ctx.status.transition(kid, KnotState.SUCCEEDED)
                         # Persist value to data store keyed by hash.
-                        out_hash = content_hash(result.value)
+                        out_hash = ContentHasher.hash(result.value)
                         await data_store.put(out_hash, result.value)
                         # Write through transport.  Per-knot override takes
                         # priority; lazy begin_run for newly-seen transports.
@@ -1041,11 +1041,11 @@ class Engine:
             if isinstance(result, Ok):
                 replay.verify_executed(
                     knot_id=knot.knot_id,
-                    output_hash=content_hash(result.value),
+                    output_hash=ContentHasher.hash(result.value),
                 )
             return result, parent_hashes, started_at, False
 
-        parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
+        parent_hashes = {name: ContentHasher.hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
         result = await replay.resolve(
             knot=knot,
@@ -1079,7 +1079,7 @@ class Engine:
         # For RECEIVE_ERRORS knots the inputs may be Result objects; we
         # hash them as they are (they're already canonicalisable).  For
         # other policies inputs are raw values.
-        parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
+        parent_hashes = {name: ContentHasher.hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
         result, attempts = await self._governed.dispatch(
             knot, inputs, gate=gate, ticket_holder=ticket_holder

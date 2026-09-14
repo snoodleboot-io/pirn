@@ -1,4 +1,4 @@
-"""``_ContentHasher`` — content-addressed hashing of values.
+"""``ContentHasher`` — content-addressed hashing of values.
 
 Lineage records reference values by hash, not by content.  Two runs that
 produce the same value should produce the same hash, regardless of which
@@ -33,7 +33,7 @@ from pirn.exceptions.unhashable_value_error import UnhashableValueError
 _logger = logging.getLogger(__name__)
 
 
-class _ContentHasher:
+class ContentHasher:
     """Stateless utility computing stable content hashes for lineage joins.
 
     Exposed as static methods so call sites do not need to instantiate the
@@ -99,7 +99,7 @@ class _ContentHasher:
                 contains a leaf with no canonical form.
         """
         try:
-            canonical = _ContentHasher._canonicalise(value, strict=strict)
+            canonical = ContentHasher._canonicalise(value, strict=strict)
         except _UnhashableError as exc:
             if strict:
                 raise UnhashableValueError(type_name=exc.type_name) from exc
@@ -114,7 +114,7 @@ class _ContentHasher:
 
         Prefers the established ``_pirn_audit_dict()`` contract; falls back
         to ``repr`` for values that don't declare it — the same last-resort
-        ``_ContentHasher._canonicalise`` itself uses for truly opaque values.
+        ``ContentHasher._canonicalise`` itself uses for truly opaque values.
         """
         if hasattr(opaque_value, "_pirn_audit_dict"):
             return opaque_value._pirn_audit_dict()
@@ -166,7 +166,7 @@ class _ContentHasher:
         # Sanctioned hook — types control their canonical form explicitly
         # when this is defined.
         if hasattr(value, "__pirn_canonical__"):
-            return _ContentHasher._canonicalise(value.__pirn_canonical__(), strict=strict)
+            return ContentHasher._canonicalise(value.__pirn_canonical__(), strict=strict)
         if isinstance(value, BaseModel):
             # Model JSON, then re-canonicalise the resulting dict so nested
             # non-Pydantic values are handled consistently.
@@ -179,8 +179,8 @@ class _ContentHasher:
             # values.
             return {
                 "__model__": value.__class__.__name__,
-                "data": _ContentHasher._canonicalise(
-                    value.model_dump(mode="json", fallback=_ContentHasher._opaque_fallback),
+                "data": ContentHasher._canonicalise(
+                    value.model_dump(mode="json", fallback=ContentHasher._opaque_fallback),
                     strict=strict,
                 ),
             }
@@ -193,18 +193,18 @@ class _ContentHasher:
         ):
             value_type = type(value)
             try:
-                adapter = _ContentHasher._type_adapter_cache.get(value_type)
+                adapter = ContentHasher._type_adapter_cache.get(value_type)
                 if adapter is None:
                     adapter = TypeAdapter(value_type)
-                    _ContentHasher._type_adapter_cache[value_type] = adapter
-                return _ContentHasher._canonicalise(
+                    ContentHasher._type_adapter_cache[value_type] = adapter
+                return ContentHasher._canonicalise(
                     adapter.dump_python(value, mode="json"), strict=strict
                 )
             except Exception:
                 # Fall through to the container/Mapping/Sequence branches
                 # below; if those also fail we end up at ``_UnhashableError``.
                 _logger.warning(
-                    "_ContentHasher: TypeAdapter.dump_python failed for %s; "
+                    "ContentHasher: TypeAdapter.dump_python failed for %s; "
                     "falling back to container/repr canonicalisation",
                     value_type,
                     exc_info=True,
@@ -215,8 +215,8 @@ class _ContentHasher:
             return {
                 "__map__": [
                     [
-                        _ContentHasher._canonicalise(k, strict=strict),
-                        _ContentHasher._canonicalise(value[k], strict=strict),
+                        ContentHasher._canonicalise(k, strict=strict),
+                        ContentHasher._canonicalise(value[k], strict=strict),
                     ]
                     for k in sorted(value.keys(), key=str)
                 ]
@@ -228,10 +228,10 @@ class _ContentHasher:
             # this is the one place a nested failure would otherwise be
             # silently absorbed into a per-element sentinel rather than
             # reaching the outer ``hash()`` call's ``except``.
-            element_hashes = sorted(_ContentHasher.hash(e, strict=strict) for e in value)
+            element_hashes = sorted(ContentHasher.hash(e, strict=strict) for e in value)
             return {"__set__": element_hashes}
         if isinstance(value, (list, tuple, Sequence)) and not isinstance(value, (str, bytes)):
-            return {"__seq__": [_ContentHasher._canonicalise(e, strict=strict) for e in value]}
+            return {"__seq__": [ContentHasher._canonicalise(e, strict=strict) for e in value]}
         # Opaque type — bail.  Caller produces the UNHASHABLE marker (or, in
         # strict mode, UnhashableValueError naming this exact type).
         raise _UnhashableError(type_name=type(value).__name__)

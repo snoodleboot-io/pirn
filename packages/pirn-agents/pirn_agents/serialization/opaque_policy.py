@@ -13,14 +13,14 @@ class OpaquePolicy(Enum):
 
     .. deprecated::
         This enum is a **parallel policy** to the contract
-        :mod:`pirn.core.hashing` already has for the same problem: a type
+        :class:`pirn.core.content_hasher.ContentHasher` already has for the same problem: a type
         that wants control over how it hashes/serialises when it is not
         itself JSON-representable implements
         :meth:`~pirn.core.pirn_opaque_value.PirnOpaqueValue._pirn_audit_dict`
         (or, for a non-``PirnOpaqueValue`` type, gives ``pydantic`` a
         ``__get_pydantic_core_schema__``) — a **type-level, always-on**
         decision — rather than asking every *caller* to pick a fallback at
-        each hash site. :func:`~pirn.core.hashing.content_hash` honours
+        each hash site. :meth:`~pirn.core.content_hasher.ContentHasher.hash` honours
         ``_pirn_audit_dict`` automatically; it never needs an
         ``OpaquePolicy`` argument.
 

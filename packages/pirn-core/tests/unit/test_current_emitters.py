@@ -1,4 +1,4 @@
-"""Tests for the public ``current_emitters()`` / ``current_emitter_error_policy()``
+"""Tests for the public ``Tapestry.current_emitters()`` / ``Tapestry.current_emitter_error_policy()``
 accessors, and for ``EmitterFanout.emit_status`` — the sanctioned way to deliver
 an ad hoc ``StatusEvent`` to a run's emitters from inside a knot's ``process()``.
 
@@ -22,7 +22,7 @@ from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine.emitter_fanout import EmitterFanout
 from pirn.managers.knot_state import KnotState
 from pirn.managers.status_event import StatusEvent
-from pirn.tapestry import Tapestry, current_emitter_error_policy, current_emitters
+from pirn.tapestry import Tapestry
 
 
 class _CapturingEmitter(Emitter):
@@ -40,10 +40,10 @@ class _BrokenEmitter(Emitter):
 
 class CurrentEmittersTests(unittest.IsolatedAsyncioTestCase):
     def test_returns_empty_list_outside_a_run(self) -> None:
-        assert current_emitters() == []
+        assert Tapestry.current_emitters() == []
 
     def test_returns_warn_policy_outside_a_run(self) -> None:
-        assert current_emitter_error_policy() is EmitterErrorPolicy.WARN
+        assert Tapestry.current_emitter_error_policy() is EmitterErrorPolicy.WARN
 
     async def test_returns_the_runs_emitters_during_a_run(self) -> None:
         seen: list[list[Emitter]] = []
@@ -51,7 +51,7 @@ class CurrentEmittersTests(unittest.IsolatedAsyncioTestCase):
 
         @knot
         async def _capture(x: int) -> int:
-            seen.append(current_emitters())
+            seen.append(Tapestry.current_emitters())
             return x
 
         with Tapestry(emitters=[emitter]) as t:
@@ -75,7 +75,7 @@ class CurrentEmittersTests(unittest.IsolatedAsyncioTestCase):
 
         await t.run(RunRequest(parameters={"x": 1}), terminals=a)
 
-        assert current_emitters() == []
+        assert Tapestry.current_emitters() == []
 
 
 class EmitStatusTests(unittest.IsolatedAsyncioTestCase):

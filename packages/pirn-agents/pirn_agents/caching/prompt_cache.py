@@ -3,7 +3,7 @@
 Two hit paths over one store:
 
 * **Exact** — the prompt and its call parameters are content-addressed via
-  :func:`pirn.core.hashing.content_hash`, so an identical ``prompt + params``
+  :meth:`pirn.core.content_hasher.ContentHasher.hash`, so an identical ``prompt + params``
   call short-circuits the model entirely.
 * **Semantic** — when a caller-injected embedding function is supplied, a near
   duplicate prompt whose cosine similarity clears ``threshold`` also hits, so
@@ -57,7 +57,7 @@ from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
 from typing import Any, TypeVar
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.caching.cache_entry import CacheEntry
@@ -132,7 +132,7 @@ class PromptCache:
     @staticmethod
     def key_for(prompt: str, params: Mapping[str, Any] | None = None) -> str:
         """Return the content-hash key for a ``prompt`` and its ``params``."""
-        return content_hash(
+        return ContentHasher.hash(
             {"prompt": prompt, "params": dict(params) if params else {}}, strict=True
         )
 

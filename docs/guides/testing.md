@@ -317,7 +317,7 @@ nodes:
       x: x
 """
 
-    tapestry = load_pipeline(yaml_text, known_callables={"double": double})
+    tapestry = PipelineLoader.load_yaml(yaml_text, known_callables={"double": double})
     result = await tapestry.run(RunRequest(parameters={"x": 4}))
 
     assert result.outputs["doubled"] == 8
