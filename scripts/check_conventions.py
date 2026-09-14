@@ -11,18 +11,12 @@ Rules
 -----
 1. ``multi_class_file`` — a file defines more than one top-level class.
 2. ``module_level_function`` — a module-level ``def``, excluding
-   ``__dunder__``-named functions (PEP 562 ``__getattr__`` shims and similar),
+   ``__dunder__``-named functions (PEP 562 ``__getattr__`` and similar) and
    functions decorated with ``@KnotFactory.knot`` (``pirn.core.knot_factory.KnotFactory.knot``
    turns a plain function into a Knot factory — it is not "a function", it is
-   a Knot definition written in function syntax), and the documented public
-   entry points enumerated in ``_MODULE_LEVEL_FUNCTION_ALLOWLIST`` below
-   (PIR-869). The allowlist is keyed ``<package>:<dotted.module>:<function>``
-   and every entry carries a one-line reason; a module-level function that is
-   not on the list counts, whatever its name. Everything else is a
-   ``@staticmethod`` on a class; a replaced public name is deleted outright,
-   never kept as a bare alias (``name = Class.method``). An allowlist entry that the
-   scan did not encounter is printed as a "stale allowlist entry" note so the
-   list cannot silently outlive the function it exempts.
+   a Knot definition written in function syntax). Every other function is a
+   ``@staticmethod`` on a class, whatever its name; a replaced public name is
+   deleted outright, never kept as a bare alias (``name = Class.method``).
 3. ``nested_def_missing_override`` — a ``def``/``class`` nested inside another
    function (a closure or a function-local class) with no
    ``# design-decision-override`` comment (with or without the space) on one of the three lines immediately
@@ -91,32 +85,22 @@ add to it only for another framework-internal class with a similar,
 documented reason. Rule 8 (process ``**kwargs`` naming) still applies to
 these files.
 
-Ratchet semantics
-------------------
-Counts are compared against ``scripts/conventions_baseline.json``
-(``{package: {rule: count}}``, package keyed by the distribution directory
-name under ``packages/``, e.g. ``"pirn-core"``). The gate FAILS only when a
-package/rule count *exceeds* its baseline value; a count at or below baseline
-passes, and a count strictly below baseline prints a "baseline can be
-lowered" note (so a fix is visible without requiring one). ``--write-baseline``
-regenerates the file from the current tree unconditionally and always exits 0.
-
-The baseline in this repository was generated from the PIR-856 docs-ci
-lane's own branch. Other lanes are concurrently lowering several of these
-counts in the same remediation effort; the integrator is expected to run
-``--write-baseline`` again after every lane merges so the ratchet reflects
-the post-merge state rather than freezing this lane's snapshot.
+Failure semantics
+-----------------
+There is no baseline: any finding of any rule fails the gate. Every
+violation is printed with its file, line and rule, followed by a per-package
+count of each rule that fired.
 
 CLI contract
 ------------
 Positional arguments are Knot **import root directories**
 (``packages/<dist>/<import_pkg>``, e.g. ``packages/pirn-core/pirn`` —
 typically supplied via the shell glob ``packages/*/pirn*``). The package name
-used in the baseline is the *parent* directory's name (``pirn-core`` for
+a finding is reported under is the *parent* directory's name (``pirn-core`` for
 ``packages/pirn-core/pirn``).
 
-* ``0`` — no count exceeds its baseline.
-* ``1`` — at least one count exceeds its baseline; violations are listed.
+* ``0`` — no finding.
+* ``1`` — at least one finding; every violation is listed.
 * ``2`` — the invocation itself was unusable: a path that does not exist, is
   not a directory, or no arguments were given.
 """
@@ -126,28 +110,15 @@ from __future__ import annotations
 import argparse
 import ast
 import re
-import json
 import sys
 from pathlib import Path
 
 # Scoped to the PIR-856 core lane's own framework primitives (see module
-# docstring "Core-lane allowlist"). Keys are package names as used in the
-# baseline; values are path prefixes/files relative to the package's import
+# docstring "Core-lane allowlist"). Keys are package names (the distribution
+# directory under ``packages/``); values are path prefixes/files relative to the package's import
 # root's parent (i.e. relative to ``packages/<dist>/``).
 _KNOT_PURITY_ALLOWLIST: dict[str, tuple[str, ...]] = {
     "pirn-core": ("pirn/nodes/", "pirn/core/parameter.py"),
-}
-
-# Documented public module-level entry points (PIR-869). Key format is
-# ``<package>:<dotted.module>:<function>`` where ``<package>`` is the
-# distribution directory name under ``packages/`` and ``<dotted.module>`` is the
-# import path of the module (``pirn.tapestry``, not ``pirn/tapestry.py``). The
-# value is the one-line reason the function is a bare ``def`` rather than a
-# ``@staticmethod``. Add an entry only for a documented public entry point;
-# private helpers, CLI mains and thin wrappers over a class method are never
-# allowlisted — they become static methods, and a replaced public name is deleted
-# (no bare alias) with every caller moved to the class form.
-_MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
 }
 
 _KNOT_BASE_NAMES = frozenset(
@@ -472,25 +443,7 @@ def _check_nested_defs(
     return violations
 
 
-def _module_name(relative_posix: str) -> str:
-    """``pirn/viz/_explore_cli.py`` -> ``pirn.viz._explore_cli``; ``pkg/__init__.py`` -> ``pkg``."""
-    parts = relative_posix.removesuffix(".py").split("/")
-    if parts and parts[-1] == "__init__":
-        parts = parts[:-1]
-    return ".".join(parts)
-
-
-def _allowlist_key(package: str, relative_posix: str, function_name: str) -> str:
-    return f"{package}:{_module_name(relative_posix)}:{function_name}"
-
-
-def _check_module_level_functions(
-    tree: ast.Module,
-    path: Path,
-    package: str = "",
-    relative_posix: str = "",
-    seen_allowlist_keys: set[str] | None = None,
-) -> list[_Violation]:
+def _check_module_level_functions(tree: ast.Module, path: Path) -> list[_Violation]:
     violations: list[_Violation] = []
     for stmt in tree.body:
         if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -498,11 +451,6 @@ def _check_module_level_functions(
         if _is_dunder(stmt.name):
             continue
         if "knot" in _decorator_names(stmt.decorator_list):
-            continue
-        key = _allowlist_key(package, relative_posix, stmt.name)
-        if key in _MODULE_LEVEL_FUNCTION_ALLOWLIST:
-            if seen_allowlist_keys is not None:
-                seen_allowlist_keys.add(key)
             continue
         violations.append(
             _Violation(
@@ -616,12 +564,7 @@ def _check_knot_purity_rules(
     return violations
 
 
-def check_file(
-    path: Path,
-    package: str,
-    relative_posix: str,
-    seen_allowlist_keys: set[str] | None = None,
-) -> list[_Violation]:
+def check_file(path: Path, package: str, relative_posix: str) -> list[_Violation]:
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
@@ -631,11 +574,7 @@ def check_file(
     source_lines = source.splitlines()
     violations: list[_Violation] = []
     violations.extend(_check_multi_class_file(tree, path))
-    violations.extend(
-        _check_module_level_functions(
-            tree, path, package, relative_posix, seen_allowlist_keys
-        )
-    )
+    violations.extend(_check_module_level_functions(tree, path))
     violations.extend(_check_nested_defs(tree, source_lines, path))
     violations.extend(_check_gate_naming(tree, path))
     violations.extend(_check_knot_purity_rules(tree, path, package, relative_posix))
@@ -656,14 +595,8 @@ def _iter_source_files(import_root: Path) -> list[Path]:
 
 def collect_counts(
     import_roots: list[Path],
-    seen_allowlist_keys: set[str] | None = None,
 ) -> tuple[dict[str, dict[str, int]], list[_Violation]]:
-    """Scan every package's import root; return (counts, all violations).
-
-    ``seen_allowlist_keys``, when given, collects every
-    ``_MODULE_LEVEL_FUNCTION_ALLOWLIST`` key the scan actually matched so the
-    caller can report entries that no longer correspond to a function.
-    """
+    """Scan every package's import root; return (counts, all violations)."""
     counts: dict[str, dict[str, int]] = {}
     all_violations: list[_Violation] = []
     for import_root in import_roots:
@@ -672,38 +605,12 @@ def collect_counts(
         rule_counts = counts.setdefault(package, dict.fromkeys(_RULES, 0))
         for file_path in _iter_source_files(import_root):
             relative_posix = file_path.relative_to(package_root).as_posix()
-            violations = check_file(
-                file_path, package, relative_posix, seen_allowlist_keys
-            )
+            violations = check_file(file_path, package, relative_posix)
             for violation in violations:
                 if violation.rule in rule_counts:
                     rule_counts[violation.rule] += 1
                 all_violations.append(violation)
     return counts, all_violations
-
-
-def stale_allowlist_entries(
-    scanned_packages: set[str], seen_allowlist_keys: set[str]
-) -> list[str]:
-    """Allowlist keys for a scanned package that no module-level ``def`` matched."""
-    return sorted(
-        key
-        for key in _MODULE_LEVEL_FUNCTION_ALLOWLIST
-        if key.split(":", 1)[0] in scanned_packages and key not in seen_allowlist_keys
-    )
-
-
-def _load_baseline(baseline_path: Path) -> dict[str, dict[str, int]]:
-    if not baseline_path.exists():
-        return {}
-    with baseline_path.open(encoding="utf-8") as fh:
-        return json.load(fh)
-
-
-def _write_baseline(baseline_path: Path, counts: dict[str, dict[str, int]]) -> None:
-    with baseline_path.open("w", encoding="utf-8") as fh:
-        json.dump(counts, fh, indent=2, sort_keys=True)
-        fh.write("\n")
 
 
 def resolve_import_roots(args: list[str]) -> tuple[list[Path], list[str]]:
@@ -729,23 +636,10 @@ def main(argv: list[str] | None = None) -> int:
         nargs="*",
         help="Knot import root directories, e.g. packages/*/pirn*",
     )
-    parser.add_argument(
-        "--baseline",
-        default="scripts/conventions_baseline.json",
-        help="Path to the ratchet baseline JSON (default: scripts/conventions_baseline.json)",
-    )
-    parser.add_argument(
-        "--write-baseline",
-        action="store_true",
-        help="Regenerate the baseline file from the current tree and exit 0.",
-    )
     args = parser.parse_args(argv)
 
     if not args.import_roots:
-        print(
-            "usage: check_conventions.py <import-root>... [--baseline PATH] [--write-baseline]",
-            file=sys.stderr,
-        )
+        print("usage: check_conventions.py <import-root>...", file=sys.stderr)
         return 2
 
     import_roots, errors = resolve_import_roots(args.import_roots)
@@ -754,43 +648,15 @@ def main(argv: list[str] | None = None) -> int:
     if errors:
         return 2
 
-    seen_allowlist_keys: set[str] = set()
-    counts, violations = collect_counts(import_roots, seen_allowlist_keys)
-    baseline_path = Path(args.baseline)
-
-    if args.write_baseline:
-        _write_baseline(baseline_path, counts)
-        print(f"wrote baseline for {len(counts)} package(s) to {baseline_path}")
-        return 0
-
-    baseline = _load_baseline(baseline_path)
-    failed = False
-    notes: list[str] = []
-    for package, rule_counts in sorted(counts.items()):
-        baseline_for_package = baseline.get(package, {})
-        for rule, count in rule_counts.items():
-            baseline_count = baseline_for_package.get(rule, 0)
-            if count > baseline_count:
-                failed = True
-                notes.append(
-                    f"{package}: {rule} count {count} exceeds baseline {baseline_count}"
-                )
-            elif count < baseline_count:
-                notes.append(
-                    f"baseline can be lowered: {package}: {rule} is {count}, baseline says {baseline_count}"
-                )
-
-    for key in stale_allowlist_entries(set(counts), seen_allowlist_keys):
-        notes.append(
-            f"stale allowlist entry: {key} matched no module-level function — remove it"
-        )
-
+    counts, violations = collect_counts(import_roots)
     for violation in violations:
         print(violation)
-    for note in notes:
-        print(note)
+    for package, rule_counts in sorted(counts.items()):
+        for rule, count in rule_counts.items():
+            if count:
+                print(f"{package}: {rule} {count}")
 
-    return 1 if failed else 0
+    return 1 if violations else 0
 
 
 if __name__ == "__main__":

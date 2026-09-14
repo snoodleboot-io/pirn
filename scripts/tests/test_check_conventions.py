@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -76,43 +75,6 @@ def test_knot_decorated_function_is_exempt(tmp_path: Path) -> None:
     assert "module_level_function" not in _rules(check_file(f, "acme", "factory.py"))
 
 
-def test_allowlisted_public_entry_point_is_exempt(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "driver.py"
-    f.write_text("def run_all() -> None:\n    pass\n\n\ndef helper() -> None:\n    pass\n")
-    monkeypatch.setitem(
-        check_conventions._MODULE_LEVEL_FUNCTION_ALLOWLIST,
-        "acme:acme.driver:run_all",
-        "documented driver",
-    )
-    violations = check_file(f, "acme", "acme/driver.py")
-    flagged = [v.detail for v in violations if v.rule == "module_level_function"]
-    assert flagged == ["module-level function 'helper' — use a @staticmethod inside a class"]
-
-
-def test_allowlist_key_is_package_scoped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The same module:function in another package is still a violation."""
-    root = _import_root(tmp_path, "other", "acme")
-    f = root / "driver.py"
-    f.write_text("def run_all() -> None:\n    pass\n")
-    monkeypatch.setitem(
-        check_conventions._MODULE_LEVEL_FUNCTION_ALLOWLIST,
-        "acme:acme.driver:run_all",
-        "documented driver",
-    )
-    assert "module_level_function" in _rules(check_file(f, "other", "acme/driver.py"))
-
-
-def test_module_name_derivation() -> None:
-    assert check_conventions._module_name("pirn/viz/_explore_cli.py") == "pirn.viz._explore_cli"
-    assert check_conventions._module_name("pirn/tapestry.py") == "pirn.tapestry"
-    assert check_conventions._module_name("pirn_agents/tools/__init__.py") == "pirn_agents.tools"
-
-
 def test_bare_alias_assignment_is_not_a_module_level_function(tmp_path: Path) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     f = root / "renderer.py"
@@ -124,40 +86,6 @@ def test_bare_alias_assignment_is_not_a_module_level_function(tmp_path: Path) ->
         "render = Renderer.render\n"
     )
     assert "module_level_function" not in _rules(check_file(f, "acme", "acme/renderer.py"))
-
-
-def test_stale_allowlist_entry_is_reported(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
-) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    (root / "driver.py").write_text("class Driver:\n    pass\n")
-    monkeypatch.setitem(
-        check_conventions._MODULE_LEVEL_FUNCTION_ALLOWLIST,
-        "acme:acme.driver:gone",
-        "no longer exists",
-    )
-    baseline = tmp_path / "baseline.json"
-    baseline.write_text(json.dumps({"acme": {"module_level_function": 0}}))
-    exit_code = _run(monkeypatch, str(root), "--baseline", str(baseline))
-    out = capsys.readouterr().out
-    assert exit_code == 0
-    assert "stale allowlist entry: acme:acme.driver:gone" in out
-
-
-def test_stale_allowlist_only_reports_scanned_packages() -> None:
-    seen: set[str] = set()
-    stale = check_conventions.stale_allowlist_entries({"nonexistent-package"}, seen)
-    assert stale == []
-
-
-def test_real_allowlist_entries_all_match_a_function() -> None:
-    """Every real allowlist entry must still name an existing module-level def."""
-    repo = Path(__file__).resolve().parents[2]
-    roots = sorted(repo.glob("packages/*/pirn*"))
-    roots = [r for r in roots if r.is_dir() and (r / "__init__.py").exists()]
-    seen: set[str] = set()
-    counts, _ = collect_counts(roots, seen)
-    assert check_conventions.stale_allowlist_entries(set(counts), seen) == []
 
 
 # --- rule 3: nested_def_missing_override ------------------------------------
@@ -555,7 +483,7 @@ def test_collect_counts_skips_tests_dir_and_conftest(tmp_path: Path) -> None:
     assert counts["acme"]["module_level_function"] == 1
 
 
-# --- ratchet semantics -------------------------------------------------------
+# --- failure semantics: no baseline, any finding fails ------------------------
 
 
 def _run(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
@@ -563,48 +491,41 @@ def _run(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
     return main()
 
 
-def test_write_baseline_then_clean_run_passes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_any_finding_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     (root / "leak.py").write_text("def helper() -> None:\n    pass\n")
-    baseline = tmp_path / "baseline.json"
 
-    assert (
-        _run(monkeypatch, str(root), "--baseline", str(baseline), "--write-baseline")
-        == 0
-    )
-    data = json.loads(baseline.read_text())
-    assert data["acme"]["module_level_function"] == 1
+    exit_code = _run(monkeypatch, str(root))
 
-    assert _run(monkeypatch, str(root), "--baseline", str(baseline)) == 0
-
-
-def test_exceeding_baseline_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
-) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    baseline = tmp_path / "baseline.json"
-    baseline.write_text(json.dumps({"acme": {"module_level_function": 0}}))
-
-    (root / "leak.py").write_text("def helper() -> None:\n    pass\n")
-    exit_code = _run(monkeypatch, str(root), "--baseline", str(baseline))
     out = capsys.readouterr().out
     assert exit_code == 1
-    assert "exceeds baseline" in out
+    assert "[module_level_function]" in out
+    assert "acme: module_level_function 1" in out
 
 
-def test_count_below_baseline_prints_lowering_note_but_passes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
-) -> None:
+def test_clean_tree_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _import_root(tmp_path, "acme", "acme")
-    baseline = tmp_path / "baseline.json"
-    baseline.write_text(json.dumps({"acme": {"module_level_function": 5}}))
+    (root / "clean.py").write_text('"""Clean."""\n\n\nclass Clean:\n    pass\n')
 
-    exit_code = _run(monkeypatch, str(root), "--baseline", str(baseline))
-    out = capsys.readouterr().out
-    assert exit_code == 0
-    assert "baseline can be lowered" in out
+    assert _run(monkeypatch, str(root)) == 0
+
+
+def test_baseline_options_no_longer_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _import_root(tmp_path, "acme", "acme")
+    for option in (["--baseline", str(tmp_path / "b.json")], ["--write-baseline"]):
+        with pytest.raises(SystemExit) as excinfo:
+            _run(monkeypatch, str(root), *option)
+        assert excinfo.value.code == 2
+
+
+def test_real_packages_have_no_findings() -> None:
+    """The workspace itself is clean under every rule."""
+    repo = Path(__file__).resolve().parents[2]
+    roots = [r for r in sorted(repo.glob("packages/*/pirn*")) if (r / "__init__.py").exists()]
+    _counts, violations = collect_counts(roots)
+    assert [str(v) for v in violations] == []
 
 
 # --- CLI contract -------------------------------------------------------

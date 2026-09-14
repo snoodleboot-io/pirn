@@ -46,7 +46,7 @@ repos:
         files: ^packages/[^/]+/pirn
 
       - id: check-conventions
-        name: house-convention AST gate (ratcheted)
+        name: house-convention AST gate
         entry: >
           python scripts/check_conventions.py
           packages/pirn-core/pirn packages/pirn-agents/pirn_agents
@@ -59,14 +59,13 @@ repos:
         files: ^packages/[^/]+/pirn
 
       - id: no-caps-constants
-        name: no UPPER_SNAKE constants (ratcheted)
+        name: no UPPER_SNAKE constants
         entry: >
           python scripts/check_no_caps_constants.py
           packages/pirn-core/pirn packages/pirn-agents/pirn_agents
           packages/pirn-data/pirn_data packages/pirn-health/pirn_health
           packages/pirn-ml/pirn_ml packages/pirn-oilgas/pirn_oilgas
           packages/pirn-signal/pirn_signal
-          --baseline scripts/caps_constants_baseline.json
         language: system
         types: [python]
         pass_filenames: false

@@ -1,8 +1,7 @@
-"""Tests for the no-UPPER_SNAKE-constants gate, including the PIR-856 baseline ratchet."""
+"""Tests for the no-UPPER_SNAKE-constants gate (PIR-856): any finding fails."""
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -33,7 +32,7 @@ def _run(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
     return main()
 
 
-def test_precommit_mode_fails_without_baseline(
+def test_file_argument_with_a_constant_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     f = tmp_path / "mod.py"
@@ -41,7 +40,7 @@ def test_precommit_mode_fails_without_baseline(
     assert _run(monkeypatch, str(f)) == 1
 
 
-def test_precommit_mode_passes_on_clean_file(
+def test_file_argument_without_a_constant_passes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     f = tmp_path / "mod.py"
@@ -62,56 +61,32 @@ def test_directory_argument_is_walked_skipping_tests_and_conftest(tmp_path: Path
     assert files == [pkg / "real.py"]
 
 
-def test_package_of_extracts_dist_segment(tmp_path: Path) -> None:
-    path = tmp_path / "packages" / "pirn-agents" / "pirn_agents" / "mod.py"
-    assert check_no_caps_constants._package_of(path) == "pirn-agents"
-
-
-def test_package_of_returns_empty_outside_packages_tree(tmp_path: Path) -> None:
-    path = tmp_path / "scratch" / "mod.py"
-    assert check_no_caps_constants._package_of(path) == ""
-
-
-def test_write_baseline_then_clean_run_passes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_directory_argument_with_one_constant_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     pkg = tmp_path / "packages" / "acme" / "acme"
     pkg.mkdir(parents=True)
     (pkg / "leak.py").write_text("LEAKED = 1\n")
-    baseline = tmp_path / "baseline.json"
 
-    assert _run(monkeypatch, str(pkg), "--baseline", str(baseline), "--write-baseline") == 0
-    data = json.loads(baseline.read_text())
-    assert data["acme"] == 1
+    exit_code = _run(monkeypatch, str(pkg))
 
-    assert _run(monkeypatch, str(pkg), "--baseline", str(baseline)) == 0
-
-
-def test_baseline_mode_fails_when_count_exceeds(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
-) -> None:
-    pkg = tmp_path / "packages" / "acme" / "acme"
-    pkg.mkdir(parents=True)
-    baseline = tmp_path / "baseline.json"
-    baseline.write_text(json.dumps({"acme": 0}))
-
-    (pkg / "leak.py").write_text("LEAKED = 1\n")
-    exit_code = _run(monkeypatch, str(pkg), "--baseline", str(baseline))
-    out = capsys.readouterr().out
     assert exit_code == 1
-    assert "exceeds baseline" in out
+    assert "LEAKED" in capsys.readouterr().out
 
 
-def test_baseline_mode_notes_when_count_is_lower(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
-) -> None:
+def test_clean_directory_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pkg = tmp_path / "packages" / "acme" / "acme"
     pkg.mkdir(parents=True)
-    baseline = tmp_path / "baseline.json"
-    baseline.write_text(json.dumps({"acme": 5}))
     (pkg / "clean.py").write_text("clean = 1\n")
 
-    exit_code = _run(monkeypatch, str(pkg), "--baseline", str(baseline))
-    out = capsys.readouterr().out
-    assert exit_code == 0
-    assert "baseline can be lowered" in out
+    assert _run(monkeypatch, str(pkg)) == 0
+
+
+def test_baseline_option_no_longer_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text("{}")
+
+    with pytest.raises(SystemExit) as excinfo:
+        _run(monkeypatch, str(tmp_path), "--baseline", str(baseline))
+
+    assert excinfo.value.code == 2

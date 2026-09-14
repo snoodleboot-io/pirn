@@ -287,17 +287,12 @@ with closing(urlopen("https://example.com")) as response:
     data = response.read()
 ```
 
-#### No Module-Level Functions (enumerated exemption)
-- **Methods belong to classes.** Module-level functions are allowed only as documented public
-  entry points listed in `scripts/check_conventions.py`'s `_MODULE_LEVEL_FUNCTION_ALLOWLIST`
-  (keyed `<package>:<dotted.module>:<function>`, one-line reason each — PIR-869); everything
-  else is a `@staticmethod` on a class. The gate (`module_level_function`) counts every
-  module-level `def` not on the list, whatever its name; `__dunder__` functions and `@KnotFactory.knot`
-  factories are the only structural exemptions.
-- Adding to the allowlist is a reviewed decision, not a convenience: the function must be a
-  documented public entry point (an ambient accessor, a driver, or a decorator that cannot be
-  a method). Private helpers, CLI `main`s and thin wrappers over a class method are never
-  allowlisted — they become static methods.
+#### No Module-Level Functions
+- **Methods belong to classes.** Every function is a `@staticmethod`/`@classmethod` on a class.
+  The gate (`scripts/check_conventions.py`, rule `module_level_function`) fails on every
+  module-level `def`, whatever its name; `__dunder__` functions and `@KnotFactory.knot`
+  factories are the only structural exemptions. There is no allowlist and no baseline: the
+  house-convention gates fail on any finding.
 - Never keep a bare module-level alias to a method (`content_hash = ContentHasher.hash`). When a
   function becomes a method its old name is deleted and every caller moves to the class form
   (`ContentHasher.hash`, `PipelineLoader.load_yaml`, `Tapestry.current_run_id()`,

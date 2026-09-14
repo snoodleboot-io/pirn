@@ -226,7 +226,7 @@ Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Nev
 - **Is it event-driven?** → implement `Trigger` and use `Trigger.run_forever`, don't hand-roll a consume loop.
 - **Is it parallel execution?** → compose a `Dispatcher`, don't re-implement concurrency.
 - **Does something succeed/fail/skip?** → `Ok \| Err \| Skipped`, not a new enum.
-- **Is it pure logic with no state?** → a plain class with methods; a module-level function only when it is a documented public entry point on the `scripts/check_conventions.py` allowlist (PIR-869) — a genuine decorator, an ambient accessor or a driver. Anything else is a `@staticmethod`; a replaced name is deleted, never kept as a bare alias (alpha policy, `docs/guides/versioning.md`).
+- **Is it pure logic with no state?** → a plain class with `@staticmethod`s; there are no module-level functions (`scripts/check_conventions.py` fails on any). A replaced name is deleted, never kept as a bare alias (alpha policy, `docs/guides/versioning.md`).
 
 ---
 
@@ -681,10 +681,9 @@ to `ExceptionRecord`.
   `KnotDiff.replay_run` / `KnotDiff.compare_runs`,
   `CeleryDispatcher.register_worker_task`, `MermaidRenderer.for_tapestry` /
   `.for_run`, `TapestryHtmlRenderer.for_tapestry` / `.for_run`,
-  `TapestryGraphScanner.scan`, `ExplorerHtmlGenerator.generate`. The core
-  entries of `scripts/check_conventions.py`'s module-level-function allowlist
-  are gone, and the core conventions baseline is 0 in every category. The
-  console scripts point at `TapestryCheckCli.main` and `ExploreCli.main`.
+  `TapestryGraphScanner.scan`, `ExplorerHtmlGenerator.generate`. Core has no
+  module-level functions and no house-convention findings. The console scripts
+  point at `TapestryCheckCli.main` and `ExploreCli.main`.
 - **Names and constants (PIR-872).** `*Gate` is reserved for `Gate`
   subclasses: the admission interface is `Admission`
   (`engine/admission/admission.py`) with `LimitedAdmission` and
@@ -749,14 +748,13 @@ constructor is unchanged.
 
 ### Agents vocabulary and house conventions (PIR-872)
 
-- **No agents module-level functions remain.** The 19 agents entries of
-  `_MODULE_LEVEL_FUNCTION_ALLOWLIST` are gone: each former wrapper is its
-  owning class's static method, with no alias (`ApprovalHook.authorize`,
+- **Agents has no module-level functions.** Each entry point is its
+  owning class's static method (`ApprovalHook.authorize`,
   `ConnectorLifespan.manage`, `AsTool.wrap`,
   `ToolDecorator.decorate`, `ReciprocalRankFusion.fuse`, `DecayFunction.score`,
   `ToolTestHarness.assert_tool_schema`/`assert_tool_schema_shape`/`run_tool`/
-  `collect_tool_stream`, `Bundles.*_toolset`). The agents conventions baseline is
-  0 in every category: `EvalGate` (not a `Gate`) is `EvalRegressionCheck`; every
+  `collect_tool_stream`, `Bundles.*_toolset`). Agents has no house-convention
+  findings: `EvalGate` (not a `Gate`) is `EvalRegressionCheck`; every
   `process()` catch-all is `**_`; the six unmarked closures are static methods.
 - **Knot Rules 1 and 4 hold without exceptions.** `MapAgent` wires every setting
   as a declared input and validates in `process()`; a delegated specialist
