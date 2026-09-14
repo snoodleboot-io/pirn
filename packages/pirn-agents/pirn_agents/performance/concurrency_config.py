@@ -8,7 +8,7 @@ value backed a private ``asyncio.Semaphore`` (see the pre-migration
 engine run would consume for the same posture -- the ``max_queue_depth``/
 ``acquire_timeout`` knobs core's ``AdmissionGate`` has no equivalent for
 outside a running ``Tapestry`` stay here, layered on top by
-:class:`~pirn_agents.performance._backpressure_gate._BackpressureGate`, the
+:class:`~pirn_agents.performance._backpressure_admission._BackpressureAdmission`, the
 seam this value feeds.
 
 Kept a plain frozen dataclass rather than a ``ConcurrencyLimits`` subclass on

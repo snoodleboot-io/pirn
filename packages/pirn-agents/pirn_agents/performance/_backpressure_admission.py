@@ -1,4 +1,4 @@
-"""``_BackpressureGate`` — one engine-backed pool: an ``AdmissionGate`` plus shedding.
+"""``_BackpressureAdmission`` — one engine-backed pool: an ``AdmissionGate`` plus shedding.
 
 The shared building block behind the deprecated
 :class:`~pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from pirn.engine.admission.admission_ticket import AdmissionTicket
 
 
-class _BackpressureGate(AdmissionGate):
+class _BackpressureAdmission(AdmissionGate):
     """A ``ConcurrencyConfig``-sized ``LimitedAdmissionGate`` with queue-depth shedding."""
 
     def __init__(self, config: ConcurrencyConfig, *, group: str | None = None) -> None:
@@ -73,7 +73,7 @@ class _BackpressureGate(AdmissionGate):
         """
         if not isinstance(config, ConcurrencyConfig):
             raise TypeError(
-                f"_BackpressureGate: config must be a ConcurrencyConfig, "
+                f"_BackpressureAdmission: config must be a ConcurrencyConfig, "
                 f"got {type(config).__name__}"
             )
         self._config = config
@@ -118,7 +118,9 @@ class _BackpressureGate(AdmissionGate):
         """
         depth = self._config.max_queue_depth
         if depth is not None and self._waiting >= depth:
-            raise asyncio.QueueFull(f"_BackpressureGate: wait queue full (max_queue_depth={depth})")
+            raise asyncio.QueueFull(
+                f"_BackpressureAdmission: wait queue full (max_queue_depth={depth})"
+            )
         self._waiting += 1
         try:
             timeout = self._config.acquire_timeout
@@ -157,7 +159,7 @@ class _BackpressureGate(AdmissionGate):
         """
         if ticket is None:
             if not self._live_tickets:
-                raise AdmissionReleaseError("_BackpressureGate: no held slot to release")
+                raise AdmissionReleaseError("_BackpressureAdmission: no held slot to release")
             _, ticket = self._live_tickets.popitem()
         else:
             # Discard only if tracked here: a ticket obtained through

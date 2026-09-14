@@ -13,7 +13,7 @@ the old checkpoint shape) with zero external callers left in this tree.
 PIR-866 migrated the two primitives WS4b did not own the blast radius for
 (``BackpressureSemaphore``, ``Bulkhead``) onto a real
 ``pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate`` per
-pool (``pirn_agents.performance._backpressure_gate._BackpressureGate``), so
+pool (``pirn_agents.performance._backpressure_admission._BackpressureAdmission``), so
 ``OWN_CONCURRENCY_LIMIT`` below is empty.
 
 The allowlists are asserted by **exact equality**, deliberately:
@@ -41,7 +41,7 @@ ASYNCIO_LOOP = frozenset({"batch/batch_scheduler.py::BatchScheduler"})
 # PIR-866 migrated both off their own asyncio.Semaphore: BackpressureSemaphore
 # and Bulkhead now delegate every admission decision to a real
 # pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate through
-# the shared pirn_agents.performance._backpressure_gate._BackpressureGate --
+# the shared pirn_agents.performance._backpressure_admission._BackpressureAdmission --
 # see its module docstring. Empty, not deleted: a re-introduced private
 # semaphore anywhere in these three directories still fails loudly here.
 OWN_CONCURRENCY_LIMIT: frozenset[str] = frozenset()

@@ -4,7 +4,7 @@ Algorithm:
     ``AdmissionGate.try_admit``/``release`` (``pirn.engine.admission``) read
     only ``knot.config.concurrency_group`` and ``knot.knot_id`` from the
     knot they are given; they never dispatch it. One instance is built per
-    pool (:class:`~pirn_agents.performance._backpressure_gate._BackpressureGate`)
+    pool (:class:`~pirn_agents.performance._backpressure_admission._BackpressureAdmission`)
     and reused for every ``try_admit`` call: ticket identity comes from the
     ``AdmissionTicket`` object the gate constructs and returns fresh each
     time, not from the knot passed in, so reusing one token is safe even

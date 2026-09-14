@@ -1,10 +1,10 @@
-"""``Bulkhead`` — deprecated: one ``_BackpressureGate`` per backend, created on first use.
+"""``Bulkhead`` — deprecated: one ``_BackpressureAdmission`` per backend, created on first use.
 
 Deprecated (ADR agents-speaks-core, WS4b/PIR-866). Before this migration each
 backend key got its own private
 :class:`~pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`
 holding an ``asyncio.Semaphore`` the engine could not see. Each backend now
-gets its own :class:`~pirn_agents.performance._backpressure_gate._BackpressureGate`
+gets its own :class:`~pirn_agents.performance._backpressure_admission._BackpressureAdmission`
 -- a real :class:`~pirn.engine.admission.admission_gate.AdmissionGate` built
 from ``ConcurrencyLimits(groups={backend: n})`` -- so "one bounded pool per
 backend" is literally "one concurrency group per backend" now: the backend
@@ -46,7 +46,7 @@ from pirn.engine.admission.admission_gate import AdmissionGate
 from pirn.engine.admission.admission_limit_error import AdmissionLimitError
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
 
-from pirn_agents.performance._backpressure_gate import _BackpressureGate
+from pirn_agents.performance._backpressure_admission import _BackpressureAdmission
 from pirn_agents.resilience.bulkhead_config import BulkheadConfig
 
 if TYPE_CHECKING:
@@ -80,12 +80,12 @@ class Bulkhead(AdmissionGate):
             stacklevel=2,
         )
         self._config = resolved
-        self._pools: dict[str, _BackpressureGate] = {}
+        self._pools: dict[str, _BackpressureAdmission] = {}
 
-    def _pool(self, backend: str) -> _BackpressureGate:
+    def _pool(self, backend: str) -> _BackpressureAdmission:
         pool = self._pools.get(backend)
         if pool is None:
-            pool = _BackpressureGate(self._config.for_backend(backend), group=backend)
+            pool = _BackpressureAdmission(self._config.for_backend(backend), group=backend)
             self._pools[backend] = pool
         return pool
 
@@ -108,7 +108,7 @@ class Bulkhead(AdmissionGate):
         """Hold one slot in ``backend``'s isolated pool for the block's duration.
 
         Delegates to that backend's
-        :class:`~pirn_agents.performance._backpressure_gate._BackpressureGate`,
+        :class:`~pirn_agents.performance._backpressure_admission._BackpressureAdmission`,
         so its bound, queue-depth backpressure, and acquire timeout all apply
         -- independently of every other backend's pool.
 

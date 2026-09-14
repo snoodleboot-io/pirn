@@ -57,7 +57,7 @@ INPUT_SCHEMA = frozenset(
 
 # PIR-866 removed BackpressureSemaphore/Bulkhead: each now subclasses this
 # seam's AdmissionGate base directly, delegating every admission decision to
-# a real LimitedAdmissionGate (pirn_agents.performance._backpressure_gate).
+# a real LimitedAdmissionGate (pirn_agents.performance._backpressure_admission).
 # ConcurrencyConfig/BulkheadConfig stay: they gained a to_concurrency_limits()
 # bridge but deliberately did NOT become ConcurrencyLimits subclasses --
 # several callers (agent/parallel_tool_executor.py and three specializations/

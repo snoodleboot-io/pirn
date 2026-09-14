@@ -1,9 +1,9 @@
-"""``BackpressureSemaphore`` — deprecated: a single ``_BackpressureGate``, by its old name.
+"""``BackpressureSemaphore`` — deprecated: a single ``_BackpressureAdmission``, by its old name.
 
 Deprecated (ADR agents-speaks-core, WS4b/PIR-866). Before this migration this
 class held a private ``asyncio.Semaphore`` the engine's own ``AdmissionGate``
 could not see or steer. It is now a thin wrapper over one
-:class:`~pirn_agents.performance._backpressure_gate._BackpressureGate` --
+:class:`~pirn_agents.performance._backpressure_admission._BackpressureAdmission` --
 itself a real :class:`~pirn.engine.admission.admission_gate.AdmissionGate`,
 built from the ``ConcurrencyConfig``'s equivalent
 :class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` -- so
@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 
 from pirn.engine.admission.admission_gate import AdmissionGate
 
-from pirn_agents.performance._backpressure_gate import _BackpressureGate
+from pirn_agents.performance._backpressure_admission import _BackpressureAdmission
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ class BackpressureSemaphore(AdmissionGate):
             DeprecationWarning,
             stacklevel=2,
         )
-        self._pool = _BackpressureGate(config)
+        self._pool = _BackpressureAdmission(config)
 
     @property
     def config(self) -> ConcurrencyConfig:
