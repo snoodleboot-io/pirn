@@ -49,21 +49,6 @@ from sweet_tea.registry import Registry
 
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
 
-#: The ``library`` every pattern class is auto-registered under by
-#: ``Registry.fill_registry(module="pirn_agents", library="pirn")``
-#: (``pirn_agents/__init__.py``). Scopes a bare-class-name lookup to this
-#: package's own classes so it can never resolve to another library's
-#: same-named class sharing the one process-wide sweet_tea registry.
-_AUTO_FILL_LIBRARY = "pirn"
-
-#: ``Registry.fill_registry`` calls ``Registry.register`` with no ``label``,
-#: so every auto-discovered class carries the empty label. Distinguishes an
-#: auto-discovered entry from one ``AgentPatternRegistry.register_with_core_registry``
-#: adds later under ``label="pattern"`` for the *pattern name* (not the class
-#: name), which would otherwise also match a lookup keyed by class name for a
-#: pattern whose name happens to lowercase to its own class's key.
-_AUTO_FILL_LABEL = ""
-
 
 @dataclass(frozen=True)
 class PatternDescriptor:
@@ -83,6 +68,21 @@ class PatternDescriptor:
     seed_kind:
         How that seed is coerced before binding.
     """
+
+    #: The ``library`` every pattern class is auto-registered under by
+    #: ``Registry.fill_registry(module="pirn_agents", library="pirn")``
+    #: (``pirn_agents/__init__.py``). Scopes a bare-class-name lookup to this
+    #: package's own classes so it can never resolve to another library's
+    #: same-named class sharing the one process-wide sweet_tea registry.
+    _auto_fill_library: ClassVar[str] = "pirn"
+
+    #: ``Registry.fill_registry`` calls ``Registry.register`` with no ``label``,
+    #: so every auto-discovered class carries the empty label. Distinguishes an
+    #: auto-discovered entry from one ``AgentPatternRegistry.register_with_core_registry``
+    #: adds later under ``label="pattern"`` for the *pattern name* (not the class
+    #: name), which would otherwise also match a lookup keyed by class name for a
+    #: pattern whose name happens to lowercase to its own class's key.
+    _auto_fill_label: ClassVar[str] = ""
 
     #: Constructor parameters the registry supplies itself, never the caller.
     #: ``ClassVar`` excludes it from the dataclass's own fields.
@@ -173,19 +173,19 @@ class PatternDescriptor:
             entry.class_def
             for entry in Registry.entries()
             if entry.key == self.class_name.lower()
-            and entry.library == _AUTO_FILL_LIBRARY
-            and entry.label == _AUTO_FILL_LABEL
+            and entry.library == self._auto_fill_library
+            and entry.label == self._auto_fill_label
         ]
         if not matches:
             raise ImportError(
                 f"PatternDescriptor {self.name!r}: no class named {self.class_name!r} is "
-                f"registered under the {_AUTO_FILL_LIBRARY!r} library; is it defined under "
+                f"registered under the {self._auto_fill_library!r} library; is it defined under "
                 "pirn_agents and has Registry.fill_registry() run yet?"
             )
         if len(matches) > 1:
             raise ImportError(
                 f"PatternDescriptor {self.name!r}: {len(matches)} classes named "
-                f"{self.class_name!r} are registered under the {_AUTO_FILL_LIBRARY!r} "
+                f"{self.class_name!r} are registered under the {self._auto_fill_library!r} "
                 "library; class names must be globally unique"
             )
         return matches[0]
