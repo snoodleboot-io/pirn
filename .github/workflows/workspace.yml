@@ -337,7 +337,7 @@ jobs:
 
   # ===========================================================================
   # Unified cross-domain suite (SCD-24 AC#3): install every package from the
-  # wheelhouse, run the `cross_domain` registry-parity / shim / extras-isolation
+  # wheelhouse, run the `cross_domain` registry-parity / extras-isolation
   # tests under core's config.
   # ===========================================================================
   unified:
@@ -367,7 +367,7 @@ jobs:
             dist/pirn_ml-*.whl dist/pirn_agents-*.whl dist/pirn_health-*.whl \
             dist/pirn_oilgas-*.whl \
             pytest pytest-asyncio pytest-timeout anyio
-      - name: Cross-domain registry-parity / shim / extras-isolation
+      - name: Cross-domain registry-parity / extras-isolation
         run: |
           uv run --no-sync python -m pytest packages/pirn-core/tests \
             -c packages/pirn-core/pyproject.toml --rootdir packages/pirn-core \

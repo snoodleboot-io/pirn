@@ -237,12 +237,10 @@ parallel KV stores reinventing `DataStore`, a second observability plane with
 no `run_id`/`knot_id`). The ADR "agents speaks core" (2026-09-13, workstreams
 WS0…WS6b) is what actually closed nearly all of it, seam by seam; this
 section is organized by subsystem rather than by workstream so a reader can
-find "what changed" without reconstructing which PR did it. Deprecated names
-were one-cycle shims (`DeprecationWarning` on construction); **PIR-864
-closed that cycle** — every name marked "Deprecated" below has been deleted
-outright (its entry now reads "Deleted"), except the handful explicitly
-marked "kept" or "deferred" with a reason. `CHANGELOG.md`'s "Removed"
-section for this release is the authoritative name → replacement table.
+find "what changed" without reconstructing which PR did it. A replaced name
+is deleted outright — pirn is alpha, so nothing is deprecated first
+(`docs/guides/versioning.md`) — and `CHANGELOG.md`'s "Removed" / "Renamed"
+sections are the authoritative name → replacement table.
 
 ### Retry, timeout, and nesting (core seams, WS0)
 
@@ -256,10 +254,8 @@ inherited and only tightened by inner tapestries). Agents' `llm/retry_policy.py:
 `tests/core_seams/test_core_seam_shadows.py` pending migration
 (`AgentToolContext` already composes core's `RunNesting` frame — see its
 module docstring — but is not yet collapsed onto it entirely). `AgentInvoker`
-was a one-cycle shim, not a shadow pending migration, and PIR-864 deleted it
-outright (§7, Tool section, and `CHANGELOG.md`); `AgentNestingConfig` was
-checked against the "delete" list and kept — it is not a shim, it is
-`AgentToolContext`'s own live nesting-depth configuration, with no core seam
+is deleted (PIR-864; §7, Tool section, and `CHANGELOG.md`). `AgentNestingConfig`
+is `AgentToolContext`'s own live nesting-depth configuration, with no core seam
 yet to fold onto.
 
 ### Tool — RESOLVED (WS1)
@@ -283,20 +279,16 @@ exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.Pirn
 `UnsupportedModalityError`, `MissingCassetteEntryError`, `InjectionDetectedError`,
 `McpTrustError`, `UntrustedDirectiveError`); the other 10 are frozen in
 `tests/test_core_vocabulary_ratchet.py`. `ContentHasher.hash` (§4.4) is the one
-hashing path for new code; `ContentAddress`/`content_address()` were a
-one-cycle deprecated wrapper around it, deleted by PIR-864 — every caller now
-calls `ContentHasher.hash(value, strict=True)` directly.
+hashing path; `ContentAddress`/`content_address()` are deleted (PIR-864) and
+every caller calls `ContentHasher.hash(value, strict=True)` directly.
 
 **Still open:** `BatchItemStatus` is not deleted (`MapAgent` scheduling still
 owns it). `CanonicalJson`/`OpaquePolicy` are **not** deleted: PIR-864 checked
 their remaining callers (`resilience/idempotency_key_assigner.py`'s now-only
 derivation path, `determinism/content_digest.py`, `evaluation/trajectory_call_key.py`)
 and found each is a non-durable, in-memory-only key per its own module
-docstring, so retiring `CanonicalJson` itself is a decision for whichever
-lane owns that retirement, not made unilaterally by a shim-deletion lane;
-`IdempotencyKeyAssigner.legacy_key()`, the one caller that *was* this lane's
-call to make (a durable/dedup key with an unmigrated bare-hex form), is
-deleted.
+docstring. `IdempotencyKeyAssigner.legacy_key()` (a durable/dedup key with an
+unmigrated bare-hex form) is deleted.
 
 ### Memory, sessions, and determinism (WS3, parts 1-4)
 
@@ -333,8 +325,8 @@ own `RunResumer`/`ApprovalResumer` are the first to declare them directly.
 Deleted (PIR-864): `RunCheckpoint`/`RunCheckpointer`/`SessionStore`/
 `InMemorySessionStore`/`PersistedSessionStore`/`ThreadRepository`/
 `MemoryStoreKeyIndex`, `CassetteStore`/`InMemoryCassetteStore`/
-`FileCassetteStore`/`TrajectoryRecorder`. `TraceDiffer` was never a shim (no
-`DeprecationWarning`, no listed replacement) and is unaffected.
+`FileCassetteStore`/`TrajectoryRecorder`. `TraceDiffer` is a live class and
+stays.
 
 ### Observability (WS4a)
 
@@ -440,9 +432,7 @@ to read the class-level default now default to a plain literal `8`.
 attach a concurrency group to — bounds its per-item concurrency with a plain
 `asyncio.Semaphore(concurrency)` instead (`concurrency: int = 8`); wiring
 `RunEval` onto the engine itself (a knot per eval item under an `Aggregator`)
-remains open, deliberately out of this shim-deletion lane's scope — it is an
-architecture change to the evaluation harness, not a shim removal, and is
-flagged here for whichever lane picks it up next.
+is an architecture change to the evaluation harness and remains open.
 `caching/prompt_cache.py::PromptCache` stays outside this migration
 entirely: its `get`/`set`/`__len__` are deliberately synchronous, and
 `DataStore` is async-only, so routing values through it would force a
@@ -473,9 +463,8 @@ work above WS0b landed:**
 directly. `LoopSubTapestry.astep`/`afold` give an awaitable loop step.
 `ResolvedValueKnot`/`MessagesPassthrough`'s constant-seed use moved onto
 `core/parameter.py`'s `Parameter` (16 call sites across 12 files); both
-classes stayed importable for one deprecation cycle and PIR-864 deleted them
-outright. `ConsensusAggregator` → `ConsensusPipeline`, likewise deleted after
-its one cycle. All 12 inventoried imperative
+classes are deleted (PIR-864). `ConsensusAggregator` is deleted in favour of
+`ConsensusPipeline`. All 12 inventoried imperative
 loops are now `LoopSubTapestry`s: `RoundRobinReview`/`RetryOnParseFailure`
 (WS5a); `SelfAskPipeline`, `PromptChainPipeline`, `ReflexionPipeline` (its LLM
 call gated by a `Check`→`Gate` pair so a successful attempt never pays for
@@ -586,9 +575,9 @@ reads; every name is now aliased into that same registry at `pirn_agents`
 import time (`AgentPatternRegistry.register_with_core_registry`), so a core
 YAML document's `callable: react` resolves exactly like `.pattern("react")`
 does. `AgentSpec` is now a projection of core's `PipelineSpec`
-(`to_pipeline_spec`/`from_pipeline_spec`); `AgentSpecLoader` accepts a core
-pipeline document directly, deprecating the old flat-dict-only dialect one
-cycle. `AgentBuilder.build()`'s runtime seed is bound as a named core
+(`to_pipeline_spec`/`from_pipeline_spec`); `AgentSpecLoader` reads a core
+pipeline document directly; the old flat-dict-only dialect is deleted
+(PIR-864). `AgentBuilder.build()`'s runtime seed is bound as a named core
 `Parameter` instead of a baked constructor kwarg. See
 `examples/agents_core_pipeline/` for `tapestry-check` validating an agent
 pipeline written entirely in core's YAML vocabulary (WS6a).
@@ -613,8 +602,7 @@ reply text, `frame` carries `finish_reason`/`usage`/`cost`/`tool_calls`/
 `model`/`provider`; the pre-ADR field names stay readable as properties.
 `AgentContext` (a flat frozen dataclass with no frame/lineage descriptor) is
 replaced by `ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage, ...]]`;
-`AgentContext` stayed importable for one cycle as a deprecated subclass and
-PIR-864 deleted it outright.
+`AgentContext` is deleted (PIR-864).
 `docs/domains/agents.md`, `docs/guides/agentic-loops.md`, and every
 `pirn_agents` authoring doc (`AGENTIC_USE.md` ×2, `PATTERNS.md`, `TOOLS.md`,
 `BUILDER.md`) are rewritten in this vocabulary — core's own nouns first
@@ -718,8 +706,8 @@ constructor is unchanged.
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
 - `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@KnotFactory.knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting`.
-- Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` are **not** a deprecation shim — PIR-865 gave them a live role rendering a gated/approval outcome back to the model (`ToolResult.from_result(call_id, result, lineage, gated=)`, `ToolStatus.SKIPPED`), so the codec still builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
-- **Deleted (PIR-864), one deprecation cycle closed:** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
+- Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` have a live role — PIR-865 gave them one rendering a gated/approval outcome back to the model (`ToolResult.from_result(call_id, result, lineage, gated=)`, `ToolStatus.SKIPPED`), so the codec still builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
+- **Deleted (PIR-864):** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
 - Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`. A denied approval reports no `"tool"` event for the tool's own identity at all — `process()`, and the `Tool.__call__` recorder inside it, never run; a *container* (`ToolInvocation`) that reports its own view regardless of outcome still fires, unchanged, attributed to its own knot id.
 - **Approval — RESOLVED (PIR-865).** `pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`; named `ToolApprovalCheck` rather than `ApprovalCheck` because `specializations/human_in_the_loop/approval_check.py::ApprovalCheck` already holds that name for an unrelated seam) evaluates the same policy `ApprovalHook.authorize` always implemented. `ToolFactory.for_call` wires it behind a core `Gate` — the gate's `input` is a `Parameter` carrying the call's resolved arguments, and the gate itself is passed as an extra, undeclared `Knot`-valued kwarg (an *implicit parent*, `Knot._validate_kwargs_against_signature`'s existing seam for exactly this) to the constructed tool knot — whenever `ToolPermissions.approval_required` is set; an unrestricted capability is never gated. A denial closes the gate, so the engine's default `SKIP_IF_PARENT_FAILED` policy skips the tool knot without ever calling `process()`, and the call's own outcome is `Skipped(reason="parent_failed_or_skipped")` — core's `Gate`/engine propagation have no per-check custom skip-reason seam, so that generic reason (not the literal string `"approval_denied"`) is what a raw lineage row shows; `ToolResult.from_result(..., gated=True)` (every call site passes `gated=factory.requires_approval()`) is where the accurate `"call skipped: approval denied"` message comes from instead, since a gated call's own knot has no possible `Skipped` cause besides that gate. `ToolResult` gained a `SKIPPED` `ToolStatus` member and `to_result()` round-trips it back to a core `Skipped`, instead of the old behaviour of fabricating an `Err`/`ERROR` view for every `Skipped`. All six call sites that construct a tool knot for a call (`ToolFactory.for_call`/`run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`) gained an `approval_hook` input threaded to `for_call`. `ToolFactory.run_call` also stopped being a bare `await knot({})` for a gated call specifically: that pattern never resolves a genuine `Knot` parent (only `Aggregator`/engine dispatch does), which would have silently run the tool regardless of the gate's decision — a gated call now runs through a real `Tapestry.run(terminals=knot)` pass instead, reusing `ToolCallCodec.outcomes_of` to read the outcome back out; an ungated call keeps the original fast bare-call path unchanged. `ToolCallRejection` is unchanged and keeps its narrower job (unregistered tool, refused arguments) — that is a rejection, not an approval decision.
 - Core seams this needed (all in `SubTapestry`): `_make_inner_tapestry()` (a container chooses its inner `Tapestry(...)` — traceback filter, `max_nesting_depth`, `ConcurrencyLimits`), `_inner_failures_reach_sink` (a container whose sink *consumes* inner `Err`s does not raise `SubTapestryError`), a `Skipped` sink passes through as `Skipped`, and `_nesting_key` is qualified by the knot id (two instances of one agent class may nest; the same instance may not). `SubTapestryError`'s message now names the inner failures.
@@ -733,8 +721,7 @@ Payload[ConversationFrame, tuple[AgentMessage, ...]]`. `GenerationFrame` and
 `ConversationFrame` are the legitimate agents-layer nouns (LLM-turn and
 conversation-window metadata core has no name for); `Payload` itself,
 `derive()`, and `_pirn_audit_dict()`-based content addressing are core's,
-unchanged. `AgentContext` (the pre-ADR name) was a one-cycle deprecated
-subclass; PIR-864 deleted it.
+unchanged. `AgentContext` (the pre-ADR name) is deleted (PIR-864).
 
 **Rule of thumb.** A new agents abstraction is legitimate when it *names an LLM-interaction concept core lacks*. It is a smell when it *re-implements execution, outcomes, schema, persistence, or concurrency* core already provides — model those the way core does (a `NotImplementedError` base whose execution is a `Knot`). Ratifying this boundary is WS0's core deliverable.
 

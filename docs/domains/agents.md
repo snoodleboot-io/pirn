@@ -260,10 +260,10 @@ content.
 | Type | Description |
 |------|-------------|
 | `AgentMessage` | A single conversational turn: `role`, `content`, optional `name`, `tool_call_id`, `created_at`, and typed multimodal `blocks`. Frozen dataclass. |
-| `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` was the pre-ADR name, kept importable for one cycle and now deleted (PIR-864). |
+| `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` was the pre-ADR name and is deleted (PIR-864). |
 | `AgentResponse` | Outcome of one agent turn: `Payload[GenerationFrame, str]` — `data` is the reply text, `frame` carries `tool_calls`, `finish_reason`, `usage`, `cost`, `model`, `provider`. The pre-ADR field names (`content`, `tool_calls`, `finish_reason`, `usage`, `cost`) stay available as properties. |
 | `ToolCall` | A single tool invocation requested by the LLM: `tool_name`, `arguments` mapping, `call_id`. |
-| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. Not a one-cycle shim — PIR-865 gave it and `ToolStatus.SKIPPED` a live role rendering gated/approval outcomes. |
+| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. PIR-865 gave it and `ToolStatus.SKIPPED` a live role rendering gated/approval outcomes. |
 | `Plan` | An ordered `tuple` of plan step strings plus an optional `rationale` string. |
 
 ---
@@ -377,8 +377,7 @@ Before ADR "agents speaks core" WS4b/PIR-866, per-backend concurrency
 isolation was three private classes holding their own `asyncio.Semaphore`:
 `ConcurrencyConfig` (sizing), `BackpressureSemaphore` (one bounded pool), and
 `Bulkhead` (one pool per backend, keyed lazily) — none of it visible to the
-core engine's own `Admission`. PIR-866 made all three thin, engine-backed
-shims for one deprecation cycle; PIR-864 deletes them outright.
+core engine's own `Admission`. PIR-864 deleted all three.
 
 **A pipeline wired through the engine does not reach for a concurrency class
 at all.** Declare `KnotConfig(concurrency_group=<backend>)` on the knots that
@@ -395,10 +394,10 @@ One caller has no `Tapestry` to attach a group to:
 engine run, so it now bounds its per-item concurrency with a plain
 `asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8)
 instead of the deleted `BackpressureSemaphore`/`ConcurrencyConfig` pair —
-the `max_queue_depth`/`acquire_timeout` backpressure knobs those shims
+the `max_queue_depth`/`acquire_timeout` backpressure knobs those classes
 carried (meaningful only outside a running `Tapestry`) have no replacement
 here; wiring this runner onto the engine itself would restore an equivalent,
-core-native backpressure story, and is a larger change than PIR-864's scope.
+core-native backpressure story.
 
 ## Idempotency keys (resilience)
 
@@ -416,11 +415,9 @@ operation and applies the mutation again.
 
 Operators upgrading must drain in-flight idempotent requests (let outstanding
 retries exhaust their window, or hold new mutating traffic) before or during the
-deploy, rather than rolling it out under live retry traffic. `IdempotencyKeyAssigner.legacy_key(...)`
-reproduced the pre-upgrade key for a given `(operation, arguments, namespace)`
-for one deprecation cycle, so an operator reconciling a backend's dedupe table
-across the upgrade window could compute what a pre-upgrade retry would have
-used; that one-cycle bridge is now deleted (PIR-864).
+deploy, rather than rolling it out under live retry traffic. There is no API
+that reproduces a pre-upgrade key (`IdempotencyKeyAssigner.legacy_key` is
+deleted, PIR-864).
 
 ---
 

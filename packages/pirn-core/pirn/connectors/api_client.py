@@ -15,10 +15,9 @@ connector is via:
    ``MetricQuery``). Knots accept capability types — any connector
    that satisfies the capability is interchangeable.
 
-The legacy :meth:`request` method is a generic, string-typed escape
-hatch retained for backward compatibility. New code should prefer
-vendor methods or capability calls; ``request`` will be deprecated
-in a future release once every existing call site has migrated.
+:meth:`request` is the generic, string-typed escape hatch for an
+operation the typed surface does not cover. Prefer vendor methods or
+capability calls wherever one exists.
 """
 
 from __future__ import annotations
@@ -55,12 +54,9 @@ class ApiClient(PirnOpaqueValue):
     ) -> Any:
         """Send an authenticated HTTP request and return the parsed body.
 
-        .. deprecated::
-            Use vendor-typed methods or
-            :mod:`pirn.connectors.capabilities` mixins instead.
-            ``request`` is retained as a generic escape hatch for cases
-            the typed surface does not yet cover; new code should
-            avoid it.
+        The generic escape hatch for an operation the vendor-typed methods
+        and :mod:`pirn.connectors.capabilities` mixins do not cover; prefer
+        those wherever one exists.
         """
         raise NotImplementedError(f"{type(self).__name__} must implement request()")
 
