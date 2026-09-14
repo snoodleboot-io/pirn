@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VMDDecomposer`` — variational mode decomposition.
 
 Algorithm:
@@ -50,6 +52,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.vmdpy_binding import VmdpyBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
@@ -139,15 +142,8 @@ class VMDDecomposer(Knot):
 
     @staticmethod
     def _run_vmd_vmdpy(signal_array: np.ndarray, alpha: float, mode_count: int) -> np.ndarray:
-        try:
-            from vmdpy import VMD  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "VMDDecomposer requires 'vmdpy' for backend='vmdpy'. "
-                "Install via pip install pirn-signal[signal]"
-            ) from exc
-        u, _u_hat, _omega = VMD(signal_array, alpha, tau=0, K=mode_count, DC=0, init=1, tol=1e-7)
-        return u
+        vmdpy = VmdpyBinding.load()
+        return vmdpy.vmd(signal_array, alpha, mode_count)
 
     @staticmethod
     def _vmd_numpy(

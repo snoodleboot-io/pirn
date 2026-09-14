@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IIRFilter`` — generic infinite impulse response filter.
 
 Algorithm:
@@ -32,6 +34,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -42,8 +45,8 @@ class IIRFilter(Knot):
         self,
         *,
         signal: Knot,
-        numerator: Knot | tuple,
-        denominator: Knot | tuple,
+        numerator: Knot | tuple[float, ...],
+        denominator: Knot | tuple[float, ...],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -77,12 +80,7 @@ class IIRFilter(Knot):
             ValueError: If numerator or denominator are invalid.
             TypeError: If any coefficient is not a real number.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "IIRFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         numerator_coeffs = tuple(numerator)
         denominator_coeffs = tuple(denominator)
         if not numerator_coeffs:
@@ -99,7 +97,4 @@ class IIRFilter(Knot):
         a_arr = np.array(denominator_coeffs)
         sos = await asyncio.to_thread(ss.tf2sos, b_arr, a_arr)
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
-        return signal.derive(
-            "iir",
-            np.asarray(filtered),
-        )
+        return signal.derive("iir", filtered)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SpeakerDiarizationPipeline`` — segment audio by speaker identity.
 
 Algorithm:
@@ -31,22 +33,24 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.sklearn_cluster_binding import SklearnClusterBinding
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
-_mfcc_hop = 512
-_mfcc_n = 20
-
 
 class SpeakerDiarizationPipeline(Knot):
     """Segment audio by speaker identity using MFCC + KMeans clustering."""
+
+    _mfcc_hop: ClassVar[int] = 512
+    _mfcc_n: ClassVar[int] = 20
 
     def __init__(
         self,
@@ -126,24 +130,24 @@ class SpeakerDiarizationPipeline(Knot):
     ) -> np.ndarray:
         """Diarize a single channel, returning per-frame speaker labels."""
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "SpeakerDiarizationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
             ) from exc
-        try:
-            from sklearn.cluster import KMeans  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "SpeakerDiarizationPipeline requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-            ) from exc
-        mfcc = librosa.feature.mfcc(y=channel, sr=sr, n_mfcc=_mfcc_n, hop_length=_mfcc_hop)
+        cluster = SklearnClusterBinding.load()
+        mfcc = librosa.feature.mfcc(
+            y=channel,
+            sr=sr,
+            n_mfcc=SpeakerDiarizationPipeline._mfcc_n,
+            hop_length=SpeakerDiarizationPipeline._mfcc_hop,
+        )
         features = mfcc.T
         n_frames = features.shape[0]
         cluster_count = min(num_speakers, n_frames)
+        labels: NDArray[np.int_]
         if cluster_count < 2 or n_frames < 2:
-            labels = np.zeros(n_frames, dtype=int)
+            labels = np.zeros(n_frames, dtype=np.int_)
         else:
-            kmeans = KMeans(n_clusters=cluster_count, random_state=0, n_init="auto")
-            labels = kmeans.fit_predict(features)
-        return np.asarray(labels, dtype=int)
+            labels = cluster.kmeans_labels(features, cluster_count)
+        return labels

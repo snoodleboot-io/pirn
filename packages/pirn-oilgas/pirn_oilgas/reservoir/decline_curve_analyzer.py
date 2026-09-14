@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DeclineCurveAnalyzer`` — fit an Arps-style decline curve to a series.
 
 Algorithm:
@@ -38,6 +40,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
 # Nominal decline initial guess: 15 %/year converted to per-day.
@@ -141,23 +144,22 @@ class DeclineCurveAnalyzer(Knot):
 
     @staticmethod
     def _fit_hyperbolic(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
-        try:
-            from scipy.optimize import curve_fit
-        except ImportError as exc:
-            raise ImportError(
-                "DeclineCurveAnalyzer: hyperbolic fitting requires scipy — "
-                "install pirn-oilgas[oilgas]"
-            ) from exc
+        optimize = OilgasOptionalImport.require(
+            "scipy.optimize", "DeclineCurveAnalyzer: hyperbolic fitting"
+        )
 
         qi0 = float(rate_array[0]) if rate_array[0] > 0 else 1.0
         try:
-            popt, _ = curve_fit(
-                DeclineCurveAnalyzer._hyperbolic_model,
-                time_days,
-                rate_array,
-                p0=[qi0, _di_init_day, _b_init],
-                bounds=([0.0, 1e-9, 1e-6], [np.inf, np.inf, 0.9999]),
-                maxfev=5000,
+            popt = np.asarray(
+                optimize.curve_fit(
+                    DeclineCurveAnalyzer._hyperbolic_model,
+                    time_days,
+                    rate_array,
+                    p0=[qi0, _di_init_day, _b_init],
+                    bounds=([0.0, 1e-9, 1e-6], [np.inf, np.inf, 0.9999]),
+                    maxfev=5000,
+                )[0],
+                dtype=np.float64,
             )
             qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
             return {"qi": qi, "di_per_year": di_day * 365.0, "b": arps_b}

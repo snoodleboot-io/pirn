@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SignalObjectStoreDisassembler`` — serialize a :class:`SignalPayload` to raw WAV bytes.
 
 Sits between upstream domain knots that produce
@@ -22,11 +24,11 @@ import io
 from typing import Any
 
 import numpy as np
-import soundfile as sf  # pyright: ignore[reportMissingTypeStubs]  # soundfile ships no type stubs
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.soundfile_binding import SoundfileBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -64,7 +66,7 @@ class SignalObjectStoreDisassembler(Disassembler):
             TypeError: If ``payload`` is not a :class:`SignalPayload`.
             ValueError: If ``payload.data`` is empty.
         """
-        if not isinstance(payload, SignalPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, SignalPayload):
             raise TypeError(
                 f"SignalObjectStoreDisassembler: payload must be SignalPayload, got {type(payload).__name__}"
             )
@@ -80,11 +82,5 @@ class SignalObjectStoreDisassembler(Disassembler):
         else:
             audio = data.T
         buf = io.BytesIO()
-        sf.write(
-            buf,
-            audio,
-            samplerate=int(payload.metadata.sample_rate_hz),
-            format="WAV",
-            subtype="FLOAT",
-        )
+        SoundfileBinding.load().write_float_wav(buf, audio, int(payload.metadata.sample_rate_hz))
         return buf.getvalue()

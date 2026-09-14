@@ -104,10 +104,14 @@ include = ["pirn_oilgas"]
 # regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
 # docs/architecture/ci-pipelines.md.
 strict = [
+    "pirn_oilgas/assemblers",
     "pirn_oilgas/disassemblers",
     "pirn_oilgas/geospatial",
     "pirn_oilgas/integrity",
+    "pirn_oilgas/production",
     "pirn_oilgas/protocols",
+    "pirn_oilgas/reservoir",
+    "pirn_oilgas/seismic",
     "pirn_oilgas/types",
     "pirn_oilgas/well",
     "pirn_oilgas/workflows",

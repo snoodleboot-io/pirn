@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EllipticFilter`` — sharpest IIR transition with ripple in both bands.
 
 Algorithm:
@@ -28,10 +30,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -83,12 +85,7 @@ class EllipticFilter(Knot):
         Raises:
             ValueError: If any parameter is invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "EllipticFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(order, int) or order <= 0:
             raise ValueError("EllipticFilter: order must be a positive integer")
         if not isinstance(passband_ripple_db, (int, float)) or passband_ripple_db <= 0:
@@ -100,17 +97,16 @@ class EllipticFilter(Knot):
 
         fs = signal.frame.sample_rate_hz
         sos = await asyncio.to_thread(
-            ss.ellip,
+            ss.ellip_sos,
             order,
             passband_ripple_db,
             stopband_attenuation_db,
             cutoff_hz,
-            btype="low",
-            fs=fs,
-            output="sos",
+            "low",
+            fs,
         )
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return signal.derive(
             "ellip",
-            np.asarray(filtered),
+            filtered,
         )

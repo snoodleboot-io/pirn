@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BispectrumAnalyzer`` — third-order spectral analysis via FFT outer product.
 
 Algorithm:

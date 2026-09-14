@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ChirpletDecomposer`` — chirplet-transform decomposition.
 
 Algorithm:
@@ -24,9 +26,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
@@ -89,30 +93,27 @@ class ChirpletDecomposer(Knot):
 
     @staticmethod
     def _compute_chirplets(
-        data: np.ndarray,
+        data: NDArray[np.floating[Any]],
         sample_rate: float,
         chirplet_count: int,
-    ) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ChirpletDecomposer requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    ) -> NDArray[np.complexfloating[Any, Any]]:
+        ss = ScipySignalBinding.load()
         sample_count = data.shape[-1]
-        time_axis = (
-            np.arange(sample_count) / sample_rate
+        time_axis: NDArray[np.float64] = (
+            np.arange(sample_count, dtype=np.float64) / sample_rate
             if sample_rate > 0
             else np.arange(sample_count, dtype=float)
         )
         nyquist = sample_rate / 2.0 if sample_rate > 0 else 0.5
         freqs = np.linspace(0.0, nyquist, chirplet_count, endpoint=False)
-        window = ss.windows.hann(sample_count)
-        results = []
+        window = ss.hann(sample_count)
+        results: list[NDArray[np.complexfloating[Any, Any]]] = []
         for f0 in freqs:
-            f1 = min(f0 + nyquist / chirplet_count, nyquist)
-            t_end = time_axis[-1] if len(time_axis) > 1 else 1.0
-            chirp_atom = ss.chirp(time_axis, f0=f0, t1=t_end, f1=f1) * window
+            f1 = min(float(f0) + nyquist / chirplet_count, nyquist)
+            t_end = float(time_axis[-1]) if len(time_axis) > 1 else 1.0
+            chirp_atom: NDArray[np.float64] = (
+                ss.chirp(time_axis, f0=float(f0), t1=t_end, f1=f1) * window
+            )
             modulated = data * chirp_atom
             spectrum = np.fft.rfft(modulated, axis=-1)
             results.append(spectrum[..., 0])

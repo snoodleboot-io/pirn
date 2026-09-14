@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BandpassFilterBank`` — apply N parallel bandpass filters.
 
 Algorithm:
@@ -28,9 +30,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -41,7 +45,7 @@ class BandpassFilterBank(Knot):
         self,
         *,
         signal: Knot,
-        bands: Knot | tuple,
+        bands: Knot | tuple[tuple[float, float], ...],
         order: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
@@ -110,16 +114,9 @@ class BandpassFilterBank(Knot):
 
     @staticmethod
     async def _filter_band(
-        data: np.ndarray, low_hz: float, high_hz: float, order: int, fs: float
-    ) -> np.ndarray:
+        data: NDArray[np.floating[Any]], low_hz: float, high_hz: float, order: int, fs: float
+    ) -> NDArray[np.floating[Any]]:
         """Design and apply a single bandpass filter, returning the filtered data."""
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "BandpassFilterBank requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
-        sos = await asyncio.to_thread(
-            ss.butter, order, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos"
-        )
-        return np.asarray(await asyncio.to_thread(ss.sosfilt, sos, data, axis=-1))
+        ss = ScipySignalBinding.load()
+        sos = await asyncio.to_thread(ss.butter_sos, order, [low_hz, high_hz], "bandpass", fs)
+        return await asyncio.to_thread(ss.sosfilt, sos, data, axis=-1)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``STFTDecomposer`` — short-time Fourier transform.
 
 Algorithm:
@@ -27,6 +29,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
@@ -74,12 +77,7 @@ class STFTDecomposer(Knot):
         Raises:
             ValueError: If window_length or hop_length are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "STFTDecomposer requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(window_length, int) or window_length <= 0:
             raise ValueError("STFTDecomposer: window_length must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
@@ -90,7 +88,7 @@ class STFTDecomposer(Knot):
         overlap = window_length - hop_length
         sample_rate = signal.frame.sample_rate_hz
 
-        _, _, stft_data = await asyncio.to_thread(
+        _freqs, _times, stft_data = await asyncio.to_thread(
             ss.stft,
             signal.data,
             fs=sample_rate,

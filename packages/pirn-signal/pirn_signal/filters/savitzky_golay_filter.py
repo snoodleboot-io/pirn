@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SavitzkyGolayFilter`` — local polynomial smoothing.
 
 Algorithm:
@@ -27,10 +29,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -75,12 +77,7 @@ class SavitzkyGolayFilter(Knot):
         Raises:
             ValueError: If window_length or polynomial_order are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "SavitzkyGolayFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(window_length, int) or window_length <= 0:
             raise ValueError("SavitzkyGolayFilter: window_length must be a positive integer")
         if window_length % 2 == 0:
@@ -95,5 +92,5 @@ class SavitzkyGolayFilter(Knot):
         )
         return signal.derive(
             "savgol",
-            np.asarray(filtered),
+            filtered,
         )

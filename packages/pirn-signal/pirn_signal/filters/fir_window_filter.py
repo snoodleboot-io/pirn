@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FIRWindowFilter`` — FIR filter designed via the window method.
 
 Algorithm:
@@ -31,6 +33,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -83,12 +86,7 @@ class FIRWindowFilter(Knot):
         Raises:
             ValueError: If num_taps, cutoff_hz, or window are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "FIRWindowFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(num_taps, int) or num_taps <= 0 or num_taps % 2 == 0:
             raise ValueError("FIRWindowFilter: num_taps must be a positive odd integer")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
@@ -99,7 +97,7 @@ class FIRWindowFilter(Knot):
             )
 
         tap_weights = await asyncio.to_thread(
-            ss.firwin, num_taps, cutoff_hz, window=window, fs=signal.frame.sample_rate_hz
+            ss.firwin, num_taps, cutoff_hz, window, signal.frame.sample_rate_hz
         )
         filtered = await asyncio.to_thread(
             ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
@@ -107,5 +105,5 @@ class FIRWindowFilter(Knot):
 
         return signal.derive(
             "fir-window",
-            np.asarray(filtered),
+            filtered,
         )
