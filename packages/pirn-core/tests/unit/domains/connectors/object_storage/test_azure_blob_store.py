@@ -18,6 +18,7 @@ from pirn.connectors.object_storage.azure_blob_store import (
     AzureBlobStore,
 )
 from pirn.connectors.object_store import ObjectStore
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 # ─────────────────────────────────────────────────────────── stub client
 
@@ -63,8 +64,17 @@ class _StubBlobClient:
             raise FileExistsError(self._blob)
         self._store.objects[(self._container, self._blob)] = data
 
-    async def delete_blob(self) -> None:
-        self._store.calls.append(("delete", {"container": self._container, "blob": self._blob}))
+    async def delete_blob(self, *, delete_snapshots: str | None = None) -> None:
+        self._store.calls.append(
+            (
+                "delete",
+                {
+                    "container": self._container,
+                    "blob": self._blob,
+                    "delete_snapshots": delete_snapshots,
+                },
+            )
+        )
         self._store.objects.pop((self._container, self._blob), None)
 
 
@@ -317,6 +327,12 @@ class _ExistsStubBlobClient(_StubBlobClient):
     async def exists(self) -> bool:
         return (self._container, self._blob) in self._store.objects
 
+    async def delete_blob(self, *, delete_snapshots: str | None = None) -> None:
+        # The real SDK raises ResourceNotFoundError (BlobNotFound) for a missing blob.
+        if (self._container, self._blob) not in self._store.objects:
+            raise SdkErrors.azure_not_found()
+        await super().delete_blob(delete_snapshots=delete_snapshots)
+
 
 class _ExistsStubServiceClient(_StubServiceClient):
     def get_blob_client(self, *, container: str, blob: str) -> _ExistsStubBlobClient:
@@ -324,6 +340,9 @@ class _ExistsStubServiceClient(_StubServiceClient):
 
 
 class TestExists(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.enterContext(SdkErrors.installed())
+
     async def test_true_after_put_false_after_delete(self) -> None:
         store = AzureBlobStore(AzureBlobConfig(container="c"), client=_ExistsStubServiceClient())
         self.assertFalse(await store.exists("k"))
@@ -335,11 +354,27 @@ class TestExists(unittest.IsolatedAsyncioTestCase):
     def test_is_not_found_classifies_blob_not_found(self) -> None:
         store = AzureBlobStore(AzureBlobConfig(container="c"), client=_StubServiceClient())
 
-        class BlobNotFound(Exception):
-            pass
-
-        self.assertTrue(store.is_not_found(BlobNotFound("gone")))
+        self.assertTrue(store.is_not_found(SdkErrors.azure_not_found()))
+        self.assertFalse(store.is_not_found(SdkErrors.azure_http("AuthorizationFailure")))
         self.assertFalse(store.is_not_found(PermissionError("denied")))
+
+    def test_is_not_found_ignores_message_text(self) -> None:
+        # A content-hash blob name contains "404" about 1.5% of the time.
+        store = AzureBlobStore(AzureBlobConfig(container="c"), client=_StubServiceClient())
+        self.assertFalse(store.is_not_found(Exception("timeout on pirn/data/ab404cd")))
+        self.assertFalse(store.is_not_found(SdkErrors.azure_http("ServerBusy on ab404cd")))
+
+    async def test_delete_includes_snapshots(self) -> None:
+        stub = _ExistsStubServiceClient()
+        store = AzureBlobStore(AzureBlobConfig(container="c"), client=stub)
+        await store.put("k", b"x")
+        await store.delete("k")
+        deletes = [args for name, args in stub.calls if name == "delete"]
+        self.assertEqual(deletes[0]["delete_snapshots"], "include")
+
+    async def test_delete_of_missing_blob_does_not_raise(self) -> None:
+        store = AzureBlobStore(AzureBlobConfig(container="c"), client=_ExistsStubServiceClient())
+        await store.delete("never-written")
 
 
 class TestAccountUrlAndCredential(unittest.TestCase):

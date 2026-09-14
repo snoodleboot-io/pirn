@@ -31,6 +31,7 @@ from pirn.connectors.capabilities.metadata_catalog import (
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
@@ -130,10 +131,14 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
             f"/api/v1/{entity_type}",
             params=params or None,
         )
-        payload: Mapping[str, object] = response
-        rows = PayloadShape.entities(payload.get("data"))
+        if not ShapeGuard.is_str_keyed_mapping(response):
+            raise ValueError(
+                f"OpenMetadataClient: expected a JSON object page; got {type(response).__name__}"
+            )
+        rows = PayloadShape.rows(response.get("data"), source="OpenMetadataClient")
+        payload = response
         paging = payload.get("paging")
-        if not PayloadShape.is_str_mapping(paging):
+        if not ShapeGuard.is_str_keyed_mapping(paging):
             return rows, None
         next_cursor = paging.get("after")
         return rows, str(next_cursor) if next_cursor else None

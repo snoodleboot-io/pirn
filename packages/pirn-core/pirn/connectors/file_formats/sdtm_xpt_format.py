@@ -27,8 +27,8 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class SdtmXptFormat(BatchFileFormat):
@@ -102,9 +102,9 @@ class SdtmXptFormat(BatchFileFormat):
         file_label: str = ""
         if materialised and "_metadata" in materialised[0]:
             meta: object = materialised[0]["_metadata"]
-            if PayloadShape.is_str_dict(meta):
+            if ShapeGuard.is_str_keyed_dict(meta):
                 labels_value = meta.get("column_labels")
-                if PayloadShape.is_mapping(labels_value):
+                if ShapeGuard.is_mapping(labels_value):
                     column_labels = {str(name): str(label) for name, label in labels_value.items()}
                 label_value = meta.get("file_label")
                 file_label = str(label_value) if label_value else ""

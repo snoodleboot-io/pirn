@@ -29,7 +29,7 @@ from pirn.connectors.capabilities.metric_query import MetricQuery
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.observability.grafana_config import GrafanaConfig
-from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class GrafanaClient(ApiClient, TableSource, MetricQuery):
@@ -179,7 +179,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         if end is not None:
             body["to"] = str(int(end.timestamp() * 1000))
         response = await self.request("POST", "/api/ds/query", body=body)
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             return response
         return {"data": response}
 

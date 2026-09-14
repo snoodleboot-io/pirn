@@ -32,6 +32,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.shopify_config import ShopifyConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class ShopifyClient(ApiClient, TableSource):
@@ -108,7 +109,7 @@ class ShopifyClient(ApiClient, TableSource):
         response = await self._raw_request("GET", full_path)
         body = self._extract_body(response)
         rows: list[Mapping[str, Any]] = []
-        if PayloadShape.is_str_mapping(body):
+        if ShapeGuard.is_str_keyed_mapping(body):
             rows = PayloadShape.rows(body.get(resource), source="ShopifyClient")
         next_cursor = self._extract_next_cursor(response, body)
         return rows, next_cursor
@@ -136,7 +137,7 @@ class ShopifyClient(ApiClient, TableSource):
 
     @staticmethod
     def _extract_body(response: object) -> object:
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             return response
         body_attr = getattr(response, "body", None)
         if body_attr is not None:
@@ -150,7 +151,7 @@ class ShopifyClient(ApiClient, TableSource):
             cursor = cls._parse_link_header_cursor(link_header)
             if cursor is not None:
                 return cursor
-        if PayloadShape.is_str_mapping(body):
+        if ShapeGuard.is_str_keyed_mapping(body):
             page_info = body.get("page_info")
             if page_info:
                 return str(page_info)
@@ -159,15 +160,15 @@ class ShopifyClient(ApiClient, TableSource):
     @staticmethod
     def _extract_link_header(response: object, body: object) -> str | None:
         headers: object = getattr(response, "headers", None)
-        if PayloadShape.is_str_mapping(headers):
+        if ShapeGuard.is_str_keyed_mapping(headers):
             link = headers.get("Link") or headers.get("link")
             if link:
                 return str(link)
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             link = response.get("Link") or response.get("link")
             if link:
                 return str(link)
-        if PayloadShape.is_str_mapping(body):
+        if ShapeGuard.is_str_keyed_mapping(body):
             link = body.get("Link") or body.get("link")
             if link:
                 return str(link)

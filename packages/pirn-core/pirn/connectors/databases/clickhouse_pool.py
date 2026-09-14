@@ -15,8 +15,8 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.clickhouse_config import ClickhouseConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class ClickhousePool(DatabaseConnectionPool):
@@ -141,7 +141,7 @@ class ClickhousePool(DatabaseConnectionPool):
     ) -> Mapping[str, object] | list[Any] | None:
         if parameters is None:
             return None
-        if PayloadShape.is_str_dict(parameters):
+        if ShapeGuard.is_str_keyed_dict(parameters):
             return parameters
         # Sequences — forward as a list. The driver converts as needed.
         return list(parameters)

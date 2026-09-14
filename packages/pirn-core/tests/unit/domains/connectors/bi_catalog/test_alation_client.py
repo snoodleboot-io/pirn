@@ -249,3 +249,23 @@ class _FakeJson:
 
     def json(self) -> Any:
         return self._payload
+
+
+class TestMalformedPage(unittest.IsolatedAsyncioTestCase):
+    """A malformed page raises; it is never read as a shorter or empty page."""
+
+    def _client(self, payload: object) -> AlationClient:
+        fake = FakeHttpx()
+        cfg = AlationConfig(base_url="https://alation.acme.com", refresh_token="rt", user_id=1)
+        fake.responses[("GET", "https://alation.acme.com/integration/v1/data")] = payload
+        return AlationClient(cfg, client=fake)
+
+    async def test_non_mapping_row_raises_instead_of_being_dropped(self) -> None:
+        client = self._client([{"id": 1}, "junk", {"id": 2}])
+        with self.assertRaisesRegex(ValueError, "AlationClient: expected every record"):
+            await client.fetch_page(page_size=3)
+
+    async def test_unrecognised_page_shape_raises_instead_of_empty(self) -> None:
+        client = self._client({"unexpected": True})
+        with self.assertRaisesRegex(ValueError, "AlationClient: expected a JSON array"):
+            await client.fetch_page(page_size=3)

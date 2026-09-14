@@ -32,6 +32,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.salesforce_config import SalesforceConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class SalesforceClient(ApiClient, TableSource, RecordWriter):
@@ -142,7 +143,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
     def _extract_page(
         response: object,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
-        if not PayloadShape.is_str_mapping(response):
+        if not ShapeGuard.is_str_keyed_mapping(response):
             return [], None
         rows = PayloadShape.rows(response.get("records"), source="SalesforceClient")
         done = bool(response.get("done", True))

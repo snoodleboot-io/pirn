@@ -30,7 +30,7 @@ from pirn.connectors.bi_catalog.dbt_artifacts_config import (
 from pirn.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
-from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class DbtArtifactsReader(MetadataCatalog):
@@ -169,12 +169,12 @@ class DbtArtifactsReader(MetadataCatalog):
     def _section(manifest: Mapping[str, object], key: str) -> dict[str, Mapping[str, Any]]:
         """Return the mapping entries of ``manifest[key]`` (``{}`` when absent or malformed)."""
         section = manifest.get(key)
-        if not PayloadShape.is_str_mapping(section):
+        if not ShapeGuard.is_str_keyed_mapping(section):
             return {}
         return {
             entry_key: entry
             for entry_key, entry in section.items()
-            if PayloadShape.is_str_mapping(entry)
+            if ShapeGuard.is_str_keyed_mapping(entry)
         }
 
     @staticmethod
@@ -195,6 +195,6 @@ class DbtArtifactsReader(MetadataCatalog):
     def _read_json_file(path: str) -> dict[str, object]:
         with open(path, encoding="utf-8") as handle:
             payload: object = json.load(handle)
-        if not PayloadShape.is_str_mapping(payload):
+        if not ShapeGuard.is_str_keyed_mapping(payload):
             raise ValueError(f"DbtArtifactsReader: {path} does not contain a JSON object")
         return dict(payload)

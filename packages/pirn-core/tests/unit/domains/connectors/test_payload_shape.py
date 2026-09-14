@@ -3,63 +3,13 @@
 from __future__ import annotations
 
 import unittest
-from types import MappingProxyType
 
 import numpy as np
 
 from pirn.connectors.payload_shape import PayloadShape
 
 
-class TestMappingGuards(unittest.TestCase):
-    def test_is_mapping_accepts_any_mapping(self) -> None:
-        # Arrange
-        values: list[object] = [{"a": 1}, {1: "a"}, MappingProxyType({"a": 1})]
-
-        # Act / Assert
-        for value in values:
-            with self.subTest(value=value):
-                self.assertTrue(PayloadShape.is_mapping(value))
-
-    def test_is_mapping_rejects_non_mapping(self) -> None:
-        for value in ([("a", 1)], None, "a"):
-            with self.subTest(value=value):
-                self.assertFalse(PayloadShape.is_mapping(value))
-
-    def test_is_str_mapping_accepts_any_mapping(self) -> None:
-        self.assertTrue(PayloadShape.is_str_mapping({"a": 1}))
-        self.assertTrue(PayloadShape.is_str_mapping(MappingProxyType({"a": 1})))
-
-    def test_is_str_mapping_rejects_non_mapping(self) -> None:
-        self.assertFalse(PayloadShape.is_str_mapping([("a", 1)]))
-        self.assertFalse(PayloadShape.is_str_mapping(None))
-
-
-class TestDictGuards(unittest.TestCase):
-    def test_is_dict_accepts_only_dict(self) -> None:
-        self.assertTrue(PayloadShape.is_dict({1: 2}))
-        self.assertFalse(PayloadShape.is_dict(MappingProxyType({"a": 1})))
-
-    def test_is_str_dict_accepts_only_dict(self) -> None:
-        self.assertTrue(PayloadShape.is_str_dict({"a": 1}))
-        self.assertFalse(PayloadShape.is_str_dict(MappingProxyType({"a": 1})))
-        self.assertFalse(PayloadShape.is_str_dict([("a", 1)]))
-
-
-class TestSequenceGuards(unittest.TestCase):
-    def test_is_list_distinguishes_list_from_tuple(self) -> None:
-        self.assertTrue(PayloadShape.is_list([1]))
-        self.assertFalse(PayloadShape.is_list((1,)))
-
-    def test_is_tuple_distinguishes_tuple_from_list(self) -> None:
-        self.assertTrue(PayloadShape.is_tuple((1, 2)))
-        self.assertFalse(PayloadShape.is_tuple([1, 2]))
-
-    def test_is_sequence_accepts_list_and_tuple_only(self) -> None:
-        self.assertTrue(PayloadShape.is_sequence([1]))
-        self.assertTrue(PayloadShape.is_sequence((1,)))
-        self.assertFalse(PayloadShape.is_sequence("ab"))
-        self.assertFalse(PayloadShape.is_sequence({1}))
-
+class TestIterableGuard(unittest.TestCase):
     def test_is_iterable_accepts_any_iterable(self) -> None:
         for value in ([1], (1,), {1}, "ab", iter([1])):
             with self.subTest(value=value):
@@ -103,25 +53,16 @@ class TestRows(unittest.TestCase):
 
     def test_non_mapping_element_raises(self) -> None:
         with self.assertRaisesRegex(
-            ValueError, "X: expected every record to be a mapping; got int"
+            ValueError, "X: expected every record to be a mapping with only string keys; got int"
         ):
             PayloadShape.rows([{"id": 1}, 2], source="X")
 
+    def test_mapping_with_a_non_string_key_raises(self) -> None:
+        # The old guard never inspected keys, so {1: "a"} passed as Mapping[str, ...].
+        with self.assertRaisesRegex(ValueError, "only string keys; got dict"):
+            PayloadShape.rows([{"id": 1}, {1: "a"}], source="X")
 
-class TestEntities(unittest.TestCase):
-    def test_returns_mapping_elements_in_order(self) -> None:
-        # Act
-        rows = PayloadShape.entities([{"id": 1}, {"id": 2}])
-
-        # Assert
-        self.assertEqual(rows, [{"id": 1}, {"id": 2}])
-
-    def test_skips_non_mapping_elements(self) -> None:
-        rows = PayloadShape.entities([{"id": 1}, "junk", 3, None])
-
-        self.assertEqual(rows, [{"id": 1}])
-
-    def test_non_list_yields_no_rows(self) -> None:
-        for value in (None, {"id": 1}, ({"id": 1},)):
-            with self.subTest(value=value):
-                self.assertEqual(PayloadShape.entities(value), [])
+    def test_malformed_row_is_never_dropped(self) -> None:
+        # The deleted lenient extractor skipped non-mapping rows and returned the rest.
+        with self.assertRaises(ValueError):
+            PayloadShape.rows([{"id": 1}, "junk", None], source="X")

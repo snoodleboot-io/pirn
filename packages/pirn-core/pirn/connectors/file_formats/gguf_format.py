@@ -29,6 +29,7 @@ from pirn.connectors.file_formats.batch_file_format import (
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class GgufFormat(BatchFileFormat):
@@ -99,7 +100,7 @@ class GgufFormat(BatchFileFormat):
                 f"GgufFormat: 'architecture' must be a non-empty string, got {architecture!r}"
             )
         metadata: object = record["metadata"]
-        if not PayloadShape.is_mapping(metadata):
+        if not ShapeGuard.is_mapping(metadata):
             raise TypeError(
                 f"GgufFormat: 'metadata' must be a Mapping, got {type(metadata).__name__}"
             )
@@ -121,7 +122,7 @@ class GgufFormat(BatchFileFormat):
                         )
                     self._write_metadata_value(writer, key, value)
                 for tensor in tensors:
-                    if not PayloadShape.is_mapping(tensor):
+                    if not ShapeGuard.is_mapping(tensor):
                         raise TypeError(
                             "GgufFormat: each tensor must be a Mapping with 'name' and 'data' keys"
                         )
