@@ -22,7 +22,7 @@ import io
 from typing import Any
 
 import numpy as np
-import soundfile as sf
+import soundfile as sf  # pyright: ignore[reportMissingTypeStubs]  # soundfile ships no type stubs
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -64,7 +64,7 @@ class SignalObjectStoreDisassembler(Disassembler):
             TypeError: If ``payload`` is not a :class:`SignalPayload`.
             ValueError: If ``payload.data`` is empty.
         """
-        if not isinstance(payload, SignalPayload):
+        if not isinstance(payload, SignalPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"SignalObjectStoreDisassembler: payload must be SignalPayload, got {type(payload).__name__}"
             )

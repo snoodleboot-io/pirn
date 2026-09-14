@@ -78,7 +78,7 @@ class PronyEstimator(Knot):
         Raises:
             ValueError: If component_count is not a positive integer.
         """
-        if not isinstance(component_count, int) or component_count <= 0:
+        if not isinstance(component_count, int) or component_count <= 0:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("PronyEstimator: component_count must be a positive integer")
         channels = np.atleast_2d(signal.data).astype(float)
         results = await asyncio.gather(
@@ -88,7 +88,7 @@ class PronyEstimator(Knot):
             )
         )
         pad_value = complex(float("nan"), float("nan"))
-        rows = []
+        rows: list[list[tuple[complex, complex]]] = []
         for poles, residues in results:
             padded_poles = poles + [pad_value] * (component_count - len(poles))
             padded_residues = residues + [pad_value] * (component_count - len(residues))

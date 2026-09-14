@@ -83,7 +83,7 @@ class ARModelEstimator(Knot):
         Raises:
             ValueError: If order or method are invalid.
         """
-        if not isinstance(order, int) or order <= 0:
+        if not isinstance(order, int) or order <= 0:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("ARModelEstimator: order must be a positive integer")
         if method not in self._valid_methods:
             raise ValueError("ARModelEstimator: method must be one of 'burg', 'yule_walker', 'ols'")
@@ -140,21 +140,46 @@ class ARModelEstimator(Knot):
         return ar_coeffs, float(variance)
 
     @staticmethod
+    def _levinson_durbin(signal_array: np.ndarray, order: int) -> np.ndarray:
+        """Solve the Yule-Walker equations by the Levinson-Durbin recursion.
+
+        Returns the prediction polynomial ``[1, a_1, ..., a_order]`` in the
+        ``x(n) + sum_k a_k x(n-k) = e(n)`` convention (the same layout
+        ``librosa.lpc`` uses). Uses the biased sample autocorrelation.
+        """
+        samples = signal_array.astype(float)
+        signal_length = len(samples)
+        autocorr = np.array(
+            [
+                float(np.dot(samples[: signal_length - lag], samples[lag:]))
+                for lag in range(order + 1)
+            ]
+        )
+        poly = np.zeros(order + 1)
+        poly[0] = 1.0
+        error = float(autocorr[0])
+        for stage in range(1, order + 1):
+            if error <= 0.0:
+                break
+            # sum_{j=0}^{stage-1} a_j r(stage - j)
+            acc = float(np.dot(poly[:stage], autocorr[stage:0:-1]))
+            reflection = -acc / error
+            previous = poly.copy()
+            for lag_idx in range(1, stage + 1):
+                poly[lag_idx] = previous[lag_idx] + reflection * previous[stage - lag_idx]
+            error *= 1.0 - reflection * reflection
+        return poly
+
+    @staticmethod
     def _compute_ar(signal_array: np.ndarray, order: int, method: str) -> tuple[list[float], float]:
         """Dispatch AR estimation to the selected method and return (coefficients, variance)."""
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ARModelEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
         if method == "burg":
             coeffs, var = ARModelEstimator._burg(signal_array, order)
             return list(float(c) for c in coeffs), var
 
         if method == "yule_walker":
-            lpc_coeffs = ss.lpc(signal_array, order)
-            # ss.lpc returns [1, a1, a2, ...]; negate to get AR coefficients
+            lpc_coeffs = ARModelEstimator._levinson_durbin(signal_array, order)
+            # The prediction polynomial is [1, a1, a2, ...]; negate to get AR coefficients
             ar_coeffs = [-float(c) for c in lpc_coeffs[1:]]
             residual = signal_array.copy()
             for sample_idx in range(order, len(signal_array)):

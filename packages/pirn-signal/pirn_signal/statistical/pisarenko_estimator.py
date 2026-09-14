@@ -76,7 +76,7 @@ class PisarenkoEstimator(Knot):
         Raises:
             ValueError: If sinusoid_count is not a positive integer.
         """
-        if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:
+        if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("PisarenkoEstimator: sinusoid_count must be a positive integer")
         rate = signal.frame.sample_rate_hz
         channels = np.atleast_2d(signal.data)
