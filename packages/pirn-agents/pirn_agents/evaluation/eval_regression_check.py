@@ -1,39 +1,41 @@
-"""``EvalGate`` — fail a build when eval quality regresses below thresholds."""
+"""``EvalRegressionCheck`` — fail a build when eval quality regresses below thresholds."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from pirn_agents.evaluation.eval_regression_verdict import EvalRegressionVerdict
 from pirn_agents.evaluation.eval_report import EvalReport
-from pirn_agents.evaluation.gate_result import GateResult
 from pirn_agents.evaluation.threshold_config import ThresholdConfig
 
 
-class EvalGate:
+class EvalRegressionCheck:
     """Compare an :class:`EvalReport` against thresholds (and an optional baseline).
 
-    The CI regression gate: a PR's eval run must meet every configured
+    The CI regression check: a PR's eval run must meet every configured
     :class:`~pirn_agents.evaluation.metric_threshold.MetricThreshold` floor and,
     when a stored ``baseline`` report is supplied, must not drop below the
     baseline on any gated metric. Any violation yields a failing
-    :class:`GateResult` carrying a per-metric diff the CI job can print and use to
+    :class:`EvalRegressionVerdict` carrying a per-metric diff the CI job can print and use to
     fail the build.
     """
 
     def __init__(self, *, thresholds: ThresholdConfig) -> None:
-        """Store the threshold config the gate enforces.
+        """Store the threshold config the check enforces.
 
         Raises:
             TypeError: If ``thresholds`` is not a :class:`ThresholdConfig`.
         """
         if not isinstance(thresholds, ThresholdConfig):
             raise TypeError(
-                f"EvalGate: thresholds must be a ThresholdConfig, got {type(thresholds).__name__}"
+                f"EvalRegressionCheck: thresholds must be a ThresholdConfig, got {type(thresholds).__name__}"
             )
         self._thresholds = thresholds
 
-    def check(self, report: EvalReport, *, baseline: EvalReport | None = None) -> GateResult:
-        """Return a :class:`GateResult` for ``report`` against the thresholds.
+    def check(
+        self, report: EvalReport, *, baseline: EvalReport | None = None
+    ) -> EvalRegressionVerdict:
+        """Return a :class:`EvalRegressionVerdict` for ``report`` against the thresholds.
 
         A metric breaches when it is missing from the report (``missing``), falls
         below its configured floor (``threshold``), or — when ``baseline`` is
@@ -45,11 +47,11 @@ class EvalGate:
         """
         if not isinstance(report, EvalReport):
             raise TypeError(
-                f"EvalGate.check: report must be an EvalReport, got {type(report).__name__}"
+                f"EvalRegressionCheck.check: report must be an EvalReport, got {type(report).__name__}"
             )
         if baseline is not None and not isinstance(baseline, EvalReport):
             raise TypeError(
-                f"EvalGate.check: baseline must be an EvalReport or None, "
+                f"EvalRegressionCheck.check: baseline must be an EvalReport or None, "
                 f"got {type(baseline).__name__}"
             )
         aggregate = report.aggregate()
@@ -86,7 +88,7 @@ class EvalGate:
                         "limit": base_value,
                     }
                 )
-        return GateResult(
+        return EvalRegressionVerdict(
             passed=len(breaches) == 0,
             breaches=tuple(breaches),
             detail={"aggregate": aggregate, "baseline": baseline_aggregate},
