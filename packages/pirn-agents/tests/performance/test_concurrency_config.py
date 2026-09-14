@@ -1,8 +1,18 @@
-"""Unit tests for :class:`ConcurrencyConfig` defaults and validation."""
+"""Unit tests for :class:`ConcurrencyConfig` defaults and validation.
+
+ADR agents-speaks-core, WS4b/PIR-866: ``ConcurrencyConfig`` is now a
+:class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`
+subclass and a one-cycle deprecation shim; see
+``TestDeprecationAndCoreSeam`` for the parts of this file that pin the
+migration itself.
+"""
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 
@@ -43,3 +53,25 @@ class TestConcurrencyConfig:
 
     def test_frozen_and_equal(self) -> None:
         assert ConcurrencyConfig(max_concurrency=4) == ConcurrencyConfig(max_concurrency=4)
+
+
+class TestDeprecationAndCoreSeam:
+    def test_warns_on_construction(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            ConcurrencyConfig()
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    def test_is_a_concurrency_limits(self) -> None:
+        config = ConcurrencyConfig(max_concurrency=5)
+        assert isinstance(config, ConcurrencyLimits)
+
+    def test_to_concurrency_limits_bare(self) -> None:
+        config = ConcurrencyConfig(max_concurrency=5)
+        limits = config.to_concurrency_limits()
+        assert limits == ConcurrencyLimits(max_in_flight=5)
+
+    def test_to_concurrency_limits_grouped(self) -> None:
+        config = ConcurrencyConfig(max_concurrency=5)
+        limits = config.to_concurrency_limits(group="openai")
+        assert limits == ConcurrencyLimits(groups={"openai": 5})

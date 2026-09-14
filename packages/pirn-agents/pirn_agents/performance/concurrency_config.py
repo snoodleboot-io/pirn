@@ -1,70 +1,136 @@
-"""``ConcurrencyConfig`` — shared bounded-concurrency + backpressure settings."""
+"""``ConcurrencyConfig`` — deprecated: one bounded pool's settings, as a ``ConcurrencyLimits``.
+
+Deprecated (ADR agents-speaks-core, WS4b/PIR-866). Before this migration a
+``ConcurrencyConfig`` was a free-standing value backing a private
+``asyncio.Semaphore`` (see the pre-migration
+:class:`~pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`);
+it is now literally a subclass of core's
+:class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`, so
+``isinstance(config, ConcurrencyLimits)`` holds and
+:meth:`to_concurrency_limits` gives the exact object a real engine run
+consumes. ``max_concurrency`` is kept as the pre-migration keyword and
+attribute name (a plain ``ConcurrencyLimits.max_in_flight`` under the hood);
+``max_queue_depth``/``acquire_timeout`` are the two knobs core's
+``AdmissionGate`` has no equivalent for outside a running ``Tapestry`` --
+see :class:`~pirn_agents.performance._backpressure_gate._BackpressureGate`,
+the seam this value feeds.
+
+A pipeline wired through the engine should reach for
+``KnotConfig(concurrency_group=...)`` on its knots and
+``ConcurrencyLimits(groups={...})`` on the run directly, rather than this
+value.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import warnings
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pydantic import PrivateAttr
 
 
-@dataclass(frozen=True)
-class ConcurrencyConfig(PirnOpaqueValue):
-    """One place to declare how many things may run at once and how they queue.
+class ConcurrencyConfig(ConcurrencyLimits):
+    """Deprecated: bounded-concurrency + backpressure settings for one pool."""
 
-    A frozen value (not a module constant) so tool executors, provider call
-    sites, and dispatchers all consume the *same* knob object rather than
-    re-inventing an ``asyncio.Semaphore(8)`` each. The field defaults are the
-    sensible out-of-the-box backpressure posture; override per knot config.
+    # Private attrs, not pydantic fields: neither has a core ``ConcurrencyLimits``
+    # equivalent, so they ride alongside it as plain runtime state rather than
+    # widening the model's own schema. ``PrivateAttr`` is the pydantic-v2
+    # sanctioned way to hold such state on an otherwise-frozen model.
+    _max_queue_depth: int | None = PrivateAttr(default=None)
+    _acquire_timeout: float | None = PrivateAttr(default=None)
 
-    Attributes
-    ----------
-    max_concurrency:
-        Maximum simultaneously in-flight operations (semaphore bound). Must be
-        >= 1. Defaults to 8, matching the executor's historical default.
-    max_queue_depth:
-        Maximum number of callers allowed to *wait* for a slot at once. ``None``
-        (the default) means an unbounded wait queue — excess callers queue and
-        back off rather than fail. A concrete bound turns overflow into a typed
-        :class:`asyncio.QueueFull` for hard backpressure.
-    acquire_timeout:
-        Seconds a caller may wait for a slot before giving up, or ``None`` for
-        no timeout.
-    """
+    def __init__(
+        self,
+        *,
+        max_concurrency: int = 8,
+        max_queue_depth: int | None = None,
+        acquire_timeout: float | None = None,
+    ) -> None:
+        """Build the config.
 
-    max_concurrency: int = 8
-    max_queue_depth: int | None = None
-    acquire_timeout: float | None = None
+        Args:
+            max_concurrency: Maximum simultaneously in-flight operations
+                (``ConcurrencyLimits.max_in_flight`` under the hood). Must
+                be >= 1. Defaults to 8, matching the pre-migration default.
+            max_queue_depth: Maximum number of callers allowed to *wait* for
+                a slot at once. ``None`` (the default) means an unbounded
+                wait queue. A concrete bound turns overflow into a typed
+                ``asyncio.QueueFull``.
+            acquire_timeout: Seconds a caller may wait for a slot before
+                giving up, or ``None`` for no timeout.
 
-    def __post_init__(self) -> None:
-        """Validate the bound and optional backpressure knobs."""
+        Raises:
+            ValueError: If any argument is out of range.
+        """
         if (
-            isinstance(self.max_concurrency, bool)
-            or not isinstance(self.max_concurrency, int)
-            or self.max_concurrency < 1
+            isinstance(max_concurrency, bool)
+            or not isinstance(max_concurrency, int)
+            or max_concurrency < 1
         ):
             raise ValueError(
-                f"ConcurrencyConfig: max_concurrency must be an int >= 1, "
-                f"got {self.max_concurrency!r}"
+                f"ConcurrencyConfig: max_concurrency must be an int >= 1, got {max_concurrency!r}"
             )
-        depth = self.max_queue_depth
-        if depth is not None and (
-            isinstance(depth, bool) or not isinstance(depth, int) or depth < 0
+        if max_queue_depth is not None and (
+            isinstance(max_queue_depth, bool)
+            or not isinstance(max_queue_depth, int)
+            or max_queue_depth < 0
         ):
             raise ValueError(
                 f"ConcurrencyConfig: max_queue_depth must be a non-negative int or None, "
-                f"got {depth!r}"
+                f"got {max_queue_depth!r}"
             )
-        timeout = self.acquire_timeout
-        if timeout is not None and (
-            isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0
+        if acquire_timeout is not None and (
+            isinstance(acquire_timeout, bool)
+            or not isinstance(acquire_timeout, (int, float))
+            or acquire_timeout <= 0
         ):
             raise ValueError(
                 f"ConcurrencyConfig: acquire_timeout must be a positive number or None, "
-                f"got {timeout!r}"
+                f"got {acquire_timeout!r}"
             )
+        warnings.warn(
+            "ConcurrencyConfig is deprecated (ADR agents-speaks-core WS4b/PIR-866): "
+            "use ConcurrencyLimits directly, or KnotConfig(concurrency_group=...) on "
+            "the knots that do the work",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(max_in_flight=max_concurrency)
+        self._max_queue_depth = max_queue_depth
+        self._acquire_timeout = acquire_timeout
+
+    @property
+    def max_concurrency(self) -> int:
+        """The bound, under its pre-deprecation name (``max_in_flight`` under the hood)."""
+        assert self.max_in_flight is not None
+        return self.max_in_flight
+
+    @property
+    def max_queue_depth(self) -> int | None:
+        """Maximum callers allowed to wait for a slot at once, or ``None`` for unbounded."""
+        return self._max_queue_depth
+
+    @property
+    def acquire_timeout(self) -> float | None:
+        """Seconds a caller may wait for a slot, or ``None`` for no timeout."""
+        return self._acquire_timeout
+
+    def to_concurrency_limits(self, *, group: str | None = None) -> ConcurrencyLimits:
+        """The equivalent core :class:`ConcurrencyLimits` for a real engine run.
+
+        Args:
+            group: When given, the returned limits cap that one named group
+                at :attr:`max_concurrency` instead of the run-wide budget --
+                the shape :class:`~pirn_agents.resilience.bulkhead.Bulkhead`
+                needs, one call per backend.
+        """
+        if group is None:
+            return ConcurrencyLimits(max_in_flight=self.max_concurrency)
+        return ConcurrencyLimits(groups={group: self.max_concurrency})
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
+        """Deprecated compat: the pre-migration audit projection."""
         return {
             "max_concurrency": self.max_concurrency,
             "max_queue_depth": self.max_queue_depth,
