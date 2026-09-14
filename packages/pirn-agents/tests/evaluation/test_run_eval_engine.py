@@ -39,20 +39,47 @@ def _dataset(count: int = 2) -> EvalDataset:
 
 
 class _CountingTarget:
-    """Echoes the question as the answer; counts live calls and peak concurrency."""
+    """Echoes the question as the answer; counts live calls and peak concurrency.
 
-    def __init__(self, *, delays: Mapping[str, float] | None = None) -> None:
+    With ``hold`` set, each call waits inside its critical section until
+    ``hold`` calls are in flight with it (or every expected call has started),
+    so a cap that admits too few times out and one that admits too many shows
+    in ``peak`` -- the measurement does not depend on scheduling luck.
+    """
+
+    def __init__(
+        self,
+        *,
+        delays: Mapping[str, float] | None = None,
+        hold: int | None = None,
+        total: int = 0,
+    ) -> None:
         self.calls = 0
         self.in_flight = 0
         self.peak = 0
         self._delays = dict(delays or {})
+        self._hold = hold
+        self._total = total
+        self._cond: asyncio.Condition | None = None
+
+    def _may_leave(self) -> bool:
+        assert self._hold is not None
+        return self.in_flight >= self._hold or self.calls >= self._total
 
     async def __call__(self, item_input: Mapping[str, Any]) -> Mapping[str, Any]:
-        self.calls += 1
-        self.in_flight += 1
-        self.peak = max(self.peak, self.in_flight)
-        await asyncio.sleep(self._delays.get(str(item_input["q"]), 0.01))
-        self.in_flight -= 1
+        if self._cond is None:
+            self._cond = asyncio.Condition()
+        async with self._cond:
+            self.calls += 1
+            self.in_flight += 1
+            self.peak = max(self.peak, self.in_flight)
+            self._cond.notify_all()
+            if self._hold is not None:
+                await asyncio.wait_for(self._cond.wait_for(self._may_leave), timeout=10)
+        await asyncio.sleep(self._delays.get(str(item_input["q"]), 0))
+        async with self._cond:
+            self.in_flight -= 1
+            self._cond.notify_all()
         return {"answer": item_input["q"]}
 
 
@@ -73,7 +100,7 @@ class _FailingTarget:
 
 class TestItemsRunOnTheEngine(unittest.IsolatedAsyncioTestCase):
     async def test_the_concurrency_cap_bounds_in_flight_items(self) -> None:
-        target = _CountingTarget()
+        target = _CountingTarget(hold=2, total=6)
         report = await RunEval.run(
             dataset=_dataset(6), target=target, metrics={"em": _Metrics.exact}, concurrency=2
         )
