@@ -41,7 +41,9 @@ import warnings
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal._require import (
+    _require,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_agents.observability.observability_sink import ObservabilitySink
 from pirn_agents.observability.span import Span
 from pirn_agents.observability.span_status import SpanStatus
@@ -92,7 +94,7 @@ class OtelSink(ObservabilitySink):
             DeprecationWarning,
             stacklevel=2,
         )
-        if redactor is not None and not isinstance(redactor, SecretRedactor):
+        if redactor is not None and not isinstance(redactor, SecretRedactor):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("OtelSink: redactor must be a SecretRedactor")
         otel_trace = _require("otel", "opentelemetry.trace")
         self._otel_trace = otel_trace

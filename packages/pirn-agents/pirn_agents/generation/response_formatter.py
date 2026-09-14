@@ -75,7 +75,7 @@ class ResponseFormatter(Knot):
             return response.content
         if format == "markdown":
             return self._render_markdown(response)
-        return json.dumps(response._pirn_audit_dict(), sort_keys=True)
+        return json.dumps(response._pirn_audit_dict(), sort_keys=True)  # pyright: ignore[reportPrivateUsage]  # PirnOpaqueValue audit hook is the contract
 
     def _render_markdown(self, response: AgentResponse) -> str:
         sections: list[str] = [response.content] if response.content else []

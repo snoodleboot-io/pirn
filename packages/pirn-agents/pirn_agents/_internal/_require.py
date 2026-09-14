@@ -39,7 +39,7 @@ class _OptionalImport:
             ) from exc
 
 
-def _require(extra: str, module: str) -> ModuleType:
+def _require(extra: str, module: str) -> ModuleType:  # pyright: ignore[reportUnusedFunction]  # imported by the optional-SDK loaders (otel_sink, mcp, retrieval, ...)
     """Import ``module``, raising a friendly error if its backend is missing.
 
     Thin wrapper kept for the pinned public import path (see

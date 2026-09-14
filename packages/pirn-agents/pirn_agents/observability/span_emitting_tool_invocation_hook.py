@@ -72,7 +72,7 @@ class SpanEmittingToolInvocationHook(ToolInvocationHook):
             DeprecationWarning,
             stacklevel=2,
         )
-        if knot_id is not None and not isinstance(knot_id, str):
+        if knot_id is not None and not isinstance(knot_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"SpanEmittingToolInvocationHook: knot_id must be a str or None, "
                 f"got {type(knot_id).__name__}"

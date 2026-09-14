@@ -17,7 +17,7 @@ fail" backpressure default.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
@@ -32,7 +32,7 @@ class BackpressureSemaphore:
         Raises:
             TypeError: If ``config`` is not a :class:`ConcurrencyConfig`.
         """
-        if not isinstance(config, ConcurrencyConfig):
+        if not isinstance(config, ConcurrencyConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"BackpressureSemaphore: config must be a ConcurrencyConfig, "
                 f"got {type(config).__name__}"
@@ -88,7 +88,7 @@ class BackpressureSemaphore:
         self._semaphore.release()
 
     @asynccontextmanager
-    async def slot(self) -> AsyncIterator[None]:
+    async def slot(self) -> AsyncGenerator[None, None]:
         """Acquire a slot for the duration of the ``async with`` block.
 
         The slot is always released, even if the body raises, so a failing

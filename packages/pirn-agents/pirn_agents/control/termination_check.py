@@ -70,7 +70,7 @@ class TerminationCheck(Knot):
         Raises:
             ValueError: If max_iterations is not a positive int.
         """
-        if not isinstance(max_iterations, int) or max_iterations <= 0:
+        if not isinstance(max_iterations, int) or max_iterations <= 0:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError(
                 f"TerminationCheck: max_iterations must be a positive int, got {max_iterations!r}"
             )

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ConcurrencyConfig`` — shared bounded-concurrency + backpressure settings."""
 
 from __future__ import annotations

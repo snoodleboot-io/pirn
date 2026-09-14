@@ -56,14 +56,14 @@ class ToolResultAggregator(Knot):
         Raises:
             TypeError: If results is not a sequence or any element is not a ToolResult.
         """
-        if not isinstance(results, Sequence) or isinstance(results, (str, bytes)):
+        if not isinstance(results, Sequence) or isinstance(results, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 "ToolResultAggregator: results must be a sequence of "
                 f"ToolResult, got {type(results).__name__}"
             )
         aggregated: dict[str, Any] = {}
         for index, result in enumerate(results):
-            if not isinstance(result, ToolResult):
+            if not isinstance(result, ToolResult):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
                 raise TypeError(
                     f"ToolResultAggregator: results[{index}] must be a "
                     f"ToolResult, got {type(result).__name__}"

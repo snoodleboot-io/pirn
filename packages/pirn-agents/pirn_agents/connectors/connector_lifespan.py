@@ -11,7 +11,7 @@ the same helper covers HTTP, SQL, search, and storage connectors uniformly.
 from __future__ import annotations
 
 import inspect
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any
 
@@ -21,7 +21,7 @@ class ConnectorLifespan:
 
     @staticmethod
     @asynccontextmanager
-    async def manage(*connectors: Any) -> AsyncIterator[tuple[Any, ...]]:
+    async def manage(*connectors: Any) -> AsyncGenerator[tuple[Any, ...], None]:
         """Yield ``connectors`` and deterministically close them all on exit.
 
         Args:

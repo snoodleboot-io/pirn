@@ -44,7 +44,7 @@ class AgentNestingConfig(RunNesting, PirnOpaqueValue):
         """
         if (
             isinstance(self.max_depth, bool)
-            or not isinstance(self.max_depth, int)
+            or not isinstance(self.max_depth, int)  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             or self.max_depth < 1
         ):
             raise ValueError(

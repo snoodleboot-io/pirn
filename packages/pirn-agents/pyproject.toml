@@ -184,6 +184,28 @@ runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 venvPath = "../.."
 venv = ".venv"
 include = ["pirn_agents"]
+# Per-subpackage strict ratchet (PIR-869): every path here passes strict with 0 errors,
+# new subpackages start strict, a subpackage joins when its count hits 0 and may never
+# regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
+# docs/architecture/ci-pipelines.md.
+strict = [
+    "pirn_agents/_internal",
+    "pirn_agents/agent",
+    "pirn_agents/benchmarks",
+    "pirn_agents/caching",
+    "pirn_agents/connectors",
+    "pirn_agents/control",
+    "pirn_agents/exceptions",
+    "pirn_agents/generation",
+    "pirn_agents/interfaces",
+    "pirn_agents/observability",
+    "pirn_agents/performance",
+    "pirn_agents/planning",
+    "pirn_agents/serialization",
+    "pirn_agents/testing",
+    "pirn_agents/validation",
+    "pirn_agents/*.py",
+]
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"

@@ -138,7 +138,7 @@ class SqlTableSource(TableSource):
             ValueError: If ``page_size`` is out of range, or ``table`` or any
                 ``order_by`` column is not a portable SQL identifier.
         """
-        if not isinstance(connector, SqlConnector):
+        if not isinstance(connector, SqlConnector):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"SqlTableSource: connector must be a SqlConnector, got {type(connector).__name__}"
             )
@@ -257,7 +257,7 @@ class SqlTableSource(TableSource):
         """
         if cursor is None:
             return 0
-        if not isinstance(cursor, str):
+        if not isinstance(cursor, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"SqlTableSource: cursor must be a str or None, got {type(cursor).__name__}"
             )

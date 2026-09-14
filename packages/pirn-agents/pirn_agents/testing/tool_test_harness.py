@@ -208,7 +208,7 @@ def make_stub_tool(**kwargs: Any) -> StubTool:
     Thin wrapper kept for the documented public import path (see
     ``pirn_agents/testing/__init__.py``); see :meth:`ToolTestHarness._make_stub_tool`.
     """
-    return ToolTestHarness._make_stub_tool(**kwargs)
+    return ToolTestHarness._make_stub_tool(**kwargs)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
 
 
 def assert_tool_schema(tool: Any, expected: Mapping[str, Any]) -> None:
@@ -217,7 +217,7 @@ def assert_tool_schema(tool: Any, expected: Mapping[str, Any]) -> None:
     Thin wrapper kept for the documented public import path; see
     :meth:`ToolTestHarness._assert_tool_schema`.
     """
-    ToolTestHarness._assert_tool_schema(tool, expected)
+    ToolTestHarness._assert_tool_schema(tool, expected)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
 
 
 def assert_schema_shape(
@@ -231,7 +231,7 @@ def assert_schema_shape(
     Thin wrapper kept for the documented public import path; see
     :meth:`ToolTestHarness._assert_schema_shape`.
     """
-    ToolTestHarness._assert_schema_shape(tool, required=required, properties=properties)
+    ToolTestHarness._assert_schema_shape(tool, required=required, properties=properties)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
 
 
 async def invoke_tool(tool: Any, arguments: Mapping[str, Any]) -> Any:
@@ -240,7 +240,7 @@ async def invoke_tool(tool: Any, arguments: Mapping[str, Any]) -> Any:
     Thin wrapper kept for the documented public import path; see
     :meth:`ToolTestHarness._invoke_tool`.
     """
-    return await ToolTestHarness._invoke_tool(tool, arguments)
+    return await ToolTestHarness._invoke_tool(tool, arguments)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
 
 
 async def collect_tool_stream(tool: Any, arguments: Mapping[str, Any]) -> list[Any]:
@@ -254,4 +254,4 @@ async def collect_tool_stream(tool: Any, arguments: Mapping[str, Any]) -> list[A
     TypeError
         If ``tool`` is not a streaming tool.
     """
-    return await ToolTestHarness._collect_tool_stream(tool, arguments)
+    return await ToolTestHarness._collect_tool_stream(tool, arguments)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
