@@ -193,8 +193,6 @@ typeCheckingMode = "strict"
 # .claude/conventions/languages/python.md ("Type Checking Enforcement").
 reportUnnecessaryIsInstance = "none"
 pythonVersion = "3.12"
-reportMissingImports = "none"
-reportMissingModuleSource = "none"
 # reportIncompatibleMethodOverride is ON (PIR-833). It was "none" here and in the
 # other six packages, which hid real substitutability breaks among ~730 framework
 # false positives — including the one PIR-742 recorded as "a core-owned contract
@@ -207,4 +205,3 @@ reportMissingModuleSource = "none"
 # form (*args, **kwargs), which drops the parameter half of the check for
 # dynamically-bound named inputs and keeps the return half.
 reportIncompatibleMethodOverride = "error"
-reportAttributeAccessIssue = "none"
