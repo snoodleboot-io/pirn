@@ -9,7 +9,7 @@ Algorithm:
     1. Receive a sequence of drug name strings and a drug-name-to-RxCUI mapping.
     2. Validate that drug_names is a list/tuple of strings and mapping is a Mapping.
     3. Normalise each drug name to an RxCUI via RxNormNormalizer.
-    4. Deduplicate the RxCUI codes via _DedupRxCUIs.
+    4. Deduplicate the RxCUI codes via RxCuiDeduplicator.
     5. Return the inner RunResult.
 
 
@@ -27,7 +27,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_health.clinical._dedup_rx_cuis import _DedupRxCUIs
+from pirn_health.clinical.rx_cui_deduplicator import RxCuiDeduplicator
 from pirn_health.clinical.rxnorm_normalizer import RxNormNormalizer
 
 
@@ -76,7 +76,7 @@ class MedicationReconciliationPipeline(SubTapestry):
             mapping=mapping,
             _config=KnotConfig(id="rxnorm-normalize"),
         )
-        return _DedupRxCUIs(
+        return RxCuiDeduplicator(
             rxcuis=normalised,
             _config=KnotConfig(id="rxnorm-dedup"),
         )

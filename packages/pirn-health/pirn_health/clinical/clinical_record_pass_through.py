@@ -16,7 +16,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.clinical_record import ClinicalRecord
 
 
-class _PassThrough(Knot):
+class ClinicalRecordPassThrough(Knot):
     """Identity knot used to thread a tuple through subsequent filters."""
 
     def __init__(

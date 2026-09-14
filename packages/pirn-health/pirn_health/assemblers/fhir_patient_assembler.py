@@ -9,7 +9,7 @@ Algorithm:
     2. Validate that ``records`` is a non-empty ``list`` and ``salt`` is a non-empty string.
     3. Parse each dict into field values, extracting known FHIR fields.
     4. Hash ``patient_id`` and ``encounter_id`` with the same salted SHA-256 scheme as
-       :class:`~pirn_health.clinical.phi_redactor.PHIRedactor` (via ``_PhiHasher``) so no
+       :class:`~pirn_health.clinical.phi_redactor.PHIRedactor` (via ``PhiHasher``) so no
        raw identifier ever reaches a :class:`ClinicalRecord`.
     5. Return the records as a ``tuple[ClinicalRecord, ...]``.
 
@@ -28,7 +28,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.clinical.phi_hasher import (
-    _PhiHasher,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+    PhiHasher,
 )
 from pirn_health.types.clinical_record import ClinicalRecord
 
@@ -98,8 +98,8 @@ class FhirPatientAssembler(Assembler):
         raw_patient_id = str(raw.get("patient_id", raw.get("id", "")))
         raw_encounter_id = str(raw.get("encounter_id", raw.get("encounterId", "")))
         return ClinicalRecord(
-            patient_id=_PhiHasher.hash_identifier(salt, raw_patient_id),
-            encounter_id=_PhiHasher.hash_identifier(salt, raw_encounter_id),
+            patient_id=PhiHasher.hash_identifier(salt, raw_patient_id),
+            encounter_id=PhiHasher.hash_identifier(salt, raw_encounter_id),
             observation_codes=observation_codes,
             observed_at=observed_at,
             source_system=str(raw.get("source_system", "fhir")),
