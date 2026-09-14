@@ -106,6 +106,19 @@ runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 venvPath = "../.."
 venv = ".venv"
 include = ["pirn_signal"]
+# Per-subpackage strict ratchet (PIR-869): every path here passes strict with 0 errors,
+# new subpackages start strict, a subpackage joins when its count hits 0 and may never
+# regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
+# docs/architecture/ci-pipelines.md.
+strict = [
+    "pirn_signal/adaptive",
+    "pirn_signal/assemblers",
+    "pirn_signal/beamforming",
+    "pirn_signal/disassemblers",
+    "pirn_signal/statistical",
+    "pirn_signal/types",
+    "pirn_signal/*.py",
+]
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"

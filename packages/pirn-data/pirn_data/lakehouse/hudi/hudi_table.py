@@ -47,7 +47,7 @@ class HudiTable(LakehouseTable):
     ) -> None:
         if config is None and table is None:
             raise TypeError("HudiTable requires either config= or table= (injected stub)")
-        if config is not None and not isinstance(config, HudiTableConfig):
+        if config is not None and not isinstance(config, HudiTableConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("HudiTable: config must be a HudiTableConfig instance")
         if config is not None and not config.table_path:
             raise ValueError("HudiTable: config.table_path must be a non-empty string")
@@ -154,7 +154,7 @@ class HudiTable(LakehouseTable):
         scan_fn = getattr(table, "scan_pylist", None)
         if not callable(scan_fn):
             raise TypeError("HudiTable: injected table must define scan_pylist() -> list[dict]")
-        rows = list(scan_fn())  # type: ignore[arg-type]
+        rows: list[Any] = list(scan_fn())  # type: ignore[arg-type]
         if columns is None:
             return [dict(row) for row in rows]
         cols = tuple(columns)
@@ -178,11 +178,10 @@ class HudiTable(LakehouseTable):
             ) from exc
         if self._config is None or not self._config.table_path:
             raise RuntimeError("HudiTable: missing config.table_path and no injected table")
-        dataset = ds.dataset(self._config.table_path, format="parquet")
         kwargs: dict[str, Any] = {}
         if columns is not None:
             kwargs["columns"] = list(columns)
-        return dataset.to_table(**kwargs).to_pylist()
+        return ds.dataset(self._config.table_path, format="parquet").to_table(**kwargs).to_pylist()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # pyarrow ships no stubs
 
     def _read_commit_timeline(self) -> list[Mapping[str, Any]]:
         # Production-quality timeline parsing is a Hudi-native

@@ -267,3 +267,28 @@ class TestConstruction(unittest.TestCase):
         root = tmp_path / "missing"
         with self.assertRaises(FileNotFoundError):
             LocalFilesystemStore(LocalFilesystemConfig(root=root, create_root=False))
+
+
+class TestExists(unittest.IsolatedAsyncioTestCase):
+    """``exists`` is a ``stat``, never a read (PIR-869)."""
+
+    async def test_true_after_put_false_after_delete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalFilesystemStore(LocalFilesystemConfig(root=Path(tmp)))
+            self.assertFalse(await store.exists("k.bin"))
+            await store.put("k.bin", b"x")
+            self.assertTrue(await store.exists("k.bin"))
+            await store.delete("k.bin")
+            self.assertFalse(await store.exists("k.bin"))
+
+    async def test_directory_is_not_an_object(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalFilesystemStore(LocalFilesystemConfig(root=Path(tmp)))
+            await store.put("dir/k.bin", b"x")
+            self.assertFalse(await store.exists("dir"))
+
+    def test_is_not_found_recognises_file_not_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalFilesystemStore(LocalFilesystemConfig(root=Path(tmp)))
+            self.assertTrue(store.is_not_found(FileNotFoundError("k")))
+            self.assertFalse(store.is_not_found(PermissionError("k")))

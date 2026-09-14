@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``MegObjectStoreAssembler`` — assemble a :class:`HealthSignalPayload` from raw MEG bytes.
 
 Sits between an object store connector (which produces ``bytes``) and downstream

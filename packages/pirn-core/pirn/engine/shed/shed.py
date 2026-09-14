@@ -11,15 +11,6 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-def detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
-    """Return True if the graph contains a cycle.
-
-    Thin wrapper kept for external callers; delegates to
-    ``CycleDetector.detect``.
-    """
-    return CycleDetector.detect(knot_ids, children_by_parent)
-
-
 class Shed:
     """An immutable-after-construction view of a knot subgraph.
 
@@ -125,3 +116,7 @@ class Shed:
         if len(order) != len(self.knots):
             raise ShedError("cycle detected during topological sort")
         return order
+
+
+#: Public name for :meth:`CycleDetector.detect` (bare alias, not a ``def``).
+detect_cycle = CycleDetector.detect

@@ -57,16 +57,21 @@ class KafkaStreamingSource(StreamingSource):
     def parameter_name(self) -> str:
         return self._parameter_name
 
+    @staticmethod
+    def _consumer_class() -> Any:
+        """Import ``aiokafka.AIOKafkaConsumer`` lazily; the optional SDK is untyped."""
+        try:
+            from aiokafka import AIOKafkaConsumer  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "KafkaStreamingSource requires aiokafka; install via `pip install pirn[kafka]`"
+            ) from exc
+        return AIOKafkaConsumer  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
+
     async def _ensure_consumer(self) -> Any:
         if self._consumer is None:
-            try:
-                from aiokafka import AIOKafkaConsumer
-            except ImportError as exc:
-                raise ImportError(
-                    "KafkaStreamingSource requires aiokafka; install via `pip install pirn[kafka]`"
-                ) from exc
             assert self._bootstrap is not None, "bootstrap_servers required when no consumer"
-            self._consumer = AIOKafkaConsumer(
+            self._consumer = self._consumer_class()(
                 self._topic,
                 bootstrap_servers=self._bootstrap,
                 group_id=self._group_id,

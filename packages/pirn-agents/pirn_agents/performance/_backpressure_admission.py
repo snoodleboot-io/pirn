@@ -38,7 +38,7 @@ Algorithm:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -47,7 +47,9 @@ from pirn.engine.admission.admission_gate import AdmissionGate
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
 from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
 
-from pirn_agents.performance._admission_slot_knot import _AdmissionSlotKnot
+from pirn_agents.performance._admission_slot_knot import (
+    _AdmissionSlotKnot,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 
 if TYPE_CHECKING:
@@ -55,7 +57,7 @@ if TYPE_CHECKING:
     from pirn.engine.admission.admission_ticket import AdmissionTicket
 
 
-class _BackpressureAdmission(AdmissionGate):
+class _BackpressureAdmission(AdmissionGate):  # pyright: ignore[reportUnusedClass]  # backs the BackpressureSemaphore shim
     """A ``ConcurrencyConfig``-sized ``LimitedAdmissionGate`` with queue-depth shedding."""
 
     def __init__(self, config: ConcurrencyConfig, *, group: str | None = None) -> None:
@@ -71,7 +73,7 @@ class _BackpressureAdmission(AdmissionGate):
         Raises:
             TypeError: If ``config`` is not a :class:`ConcurrencyConfig`.
         """
-        if not isinstance(config, ConcurrencyConfig):
+        if not isinstance(config, ConcurrencyConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"_BackpressureAdmission: config must be a ConcurrencyConfig, "
                 f"got {type(config).__name__}"
@@ -170,7 +172,7 @@ class _BackpressureAdmission(AdmissionGate):
         self._gate.release(ticket)
 
     @asynccontextmanager
-    async def slot(self) -> AsyncIterator[None]:
+    async def slot(self) -> AsyncGenerator[None, None]:
         """Acquire a slot for the duration of the ``async with`` block.
 
         The slot is always released, even if the body raises, so a failing

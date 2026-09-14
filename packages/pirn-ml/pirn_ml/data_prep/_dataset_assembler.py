@@ -1,3 +1,5 @@
+# pirn_data (the one retained domain-to-domain edge, ADR-3) ships no py.typed.
+# pyright: reportMissingTypeStubs=false
 """``_DatasetAssembler`` — convert a raw :class:`DataBatch` into a :class:`DatasetPayload`.
 
 Terminal knot of the :class:`~pirn_ml.data_prep.dataset_loader.DatasetLoader`
@@ -35,7 +37,7 @@ from pirn_ml.types.dataset_payload import DatasetPayload
 from pirn_ml.types.ml_features import MLFeatures
 
 
-class _DatasetAssembler(Assembler):
+class _DatasetAssembler(Assembler):  # pyright: ignore[reportUnusedClass]  # imported by dataset_loader
     """Convert a raw :class:`DataBatch` into a typed :class:`DatasetPayload`.
 
     Terminal knot of the :class:`DatasetLoader` inner tapestry. Extracts

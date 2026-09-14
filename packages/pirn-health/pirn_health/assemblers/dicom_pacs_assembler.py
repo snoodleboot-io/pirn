@@ -65,9 +65,9 @@ class DicomPacsAssembler(Assembler):
             ValueError: If ``series_id`` is empty.
             ImportError: If ``pydicom`` is not installed.
         """
-        if not isinstance(body, bytes):
+        if not isinstance(body, bytes):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(f"DicomPacsAssembler: body must be bytes, got {type(body).__name__}")
-        if not isinstance(series_id, str):
+        if not isinstance(series_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"DicomPacsAssembler: series_id must be str, got {type(series_id).__name__}"
             )
@@ -88,4 +88,5 @@ class DicomPacsAssembler(Assembler):
             raise ImportError(
                 "DicomPacsAssembler requires 'pydicom'. Install via `pip install pirn-health[health]`."
             ) from exc
-        return pydicom.dcmread(io.BytesIO(body))
+        sdk: Any = pydicom  # optional SDK: lazily imported, used untyped
+        return sdk.dcmread(io.BytesIO(body))

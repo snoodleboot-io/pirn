@@ -6,7 +6,7 @@ import json
 from contextlib import AbstractContextManager
 from typing import Any
 
-from pirn.tapestry import _run_id_scope, current_run_id
+from pirn.tapestry import Tapestry, current_run_id
 
 
 class KnotRegistrationNotice:
@@ -122,4 +122,4 @@ class KnotRegistrationNotice:
             A context manager binding ``current_run_id()`` to
             :attr:`run_id` for the duration of the block.
         """
-        return _run_id_scope(self._run_id)
+        return Tapestry._run_id_scope(self._run_id)

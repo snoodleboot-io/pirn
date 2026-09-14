@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ConcurrencyConfig`` — deprecated: one bounded pool's settings.
 
 Deprecated (ADR agents-speaks-core, WS4b/PIR-866). Before this migration this

@@ -11,10 +11,19 @@ Rules
 -----
 1. ``multi_class_file`` — a file defines more than one top-level class.
 2. ``module_level_function`` — a module-level ``def``, excluding
-   ``__dunder__``-named functions (PEP 562 ``__getattr__`` shims and similar)
-   and functions decorated with ``@knot`` (``pirn.core.knot_factory.knot``
+   ``__dunder__``-named functions (PEP 562 ``__getattr__`` shims and similar),
+   functions decorated with ``@knot`` (``pirn.core.knot_factory.knot``
    turns a plain function into a Knot factory — it is not "a function", it is
-   a Knot definition written in function syntax).
+   a Knot definition written in function syntax), and the documented public
+   entry points enumerated in ``_MODULE_LEVEL_FUNCTION_ALLOWLIST`` below
+   (PIR-869). The allowlist is keyed ``<package>:<dotted.module>:<function>``
+   and every entry carries a one-line reason; a module-level function that is
+   not on the list counts, whatever its name. Everything else is a
+   ``@staticmethod`` on a class — a public name that predates the rule may be
+   kept importable as a bare alias (``name = Class.method``), which is an
+   assignment, not a ``def``, and is not counted. An allowlist entry that the
+   scan did not encounter is printed as a "stale allowlist entry" note so the
+   list cannot silently outlive the function it exempts.
 3. ``nested_def_missing_override`` — a ``def``/``class`` nested inside another
    function (a closure or a function-local class) with no
    ``# design-decision-override`` comment (with or without the space) on one of the three lines immediately
@@ -110,6 +119,106 @@ from pathlib import Path
 # root's parent (i.e. relative to ``packages/<dist>/``).
 _KNOT_PURITY_ALLOWLIST: dict[str, tuple[str, ...]] = {
     "pirn-core": ("pirn/nodes/", "pirn/core/parameter.py"),
+}
+
+# Documented public module-level entry points (PIR-869). Key format is
+# ``<package>:<dotted.module>:<function>`` where ``<package>`` is the
+# distribution directory name under ``packages/`` and ``<dotted.module>`` is the
+# import path of the module (``pirn.tapestry``, not ``pirn/tapestry.py``). The
+# value is the one-line reason the function is a bare ``def`` rather than a
+# ``@staticmethod``. Add an entry only for a documented public entry point;
+# private helpers, CLI mains and thin wrappers over a class method are never
+# allowlisted — they become static methods (plus a bare alias when the public
+# name has to stay importable).
+_MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
+    # ---- pirn-core -----------------------------------------------------------
+    "pirn-core:pirn.tapestry:get_current_store": (
+        "ambient accessor for the running extensible tapestry's store, called from process()"
+    ),
+    "pirn-core:pirn.tapestry:current_tapestry": (
+        "ambient accessor for the tapestry active in the current with-block"
+    ),
+    "pirn-core:pirn.tapestry:current_run_id": (
+        "ambient accessor for the executing run id; the supported cross-package name"
+    ),
+    "pirn-core:pirn.domain_discovery:discover_installed_domains": (
+        "entry-point discovery of installed pirn_<domain> distributions"
+    ),
+    "pirn-core:pirn.triggers.trigger:run_forever": (
+        "trigger driver: pulls requests and runs the tapestry per event"
+    ),
+    "pirn-core:pirn.streaming.streaming_source:run_stream": (
+        "streaming driver: one run per value the source yields"
+    ),
+    "pirn-core:pirn.core.knot_factory:knot": (
+        "the @knot decorator that turns a function into a Knot factory"
+    ),
+    # ---- pirn-agents ---------------------------------------------------------
+    # Pinned by tests/test_ws5_s1_import_surface.py (WS5/S1 import contract).
+    "pirn-agents:pirn_agents._internal._require:_require": (
+        "optional-extra import guard pinned by the S1 import-surface contract"
+    ),
+    "pirn-agents:pirn_agents.agent.agent_tool_context:current_agent_tool_context": (
+        "ambient accessor for the agent tool context; S1 import-surface contract"
+    ),
+    "pirn-agents:pirn_agents.agent.agent_tool_context:bind_agent_tool_context": (
+        "context binder paired with current_agent_tool_context; S1 import-surface contract"
+    ),
+    "pirn-agents:pirn_agents.agent.approval_hook:authorize_tool_call": (
+        "async authorization helper; S1 import-surface contract"
+    ),
+    "pirn-agents:pirn_agents.connectors.connector_lifespan:connector_lifespan": (
+        "async context manager for connector lifetime; S1 import-surface contract"
+    ),
+    "pirn-agents:pirn_agents.tools.as_tool:as_tool": (
+        "agent-to-tool adapter documented in TOOLS.md/PATTERNS.md; S1 import-surface contract"
+    ),
+    "pirn-agents:pirn_agents.tools.tool_decorator:tool": (
+        "the @tool decorator documented in TOOLS.md/PATTERNS.md; S1 import-surface contract"
+    ),
+    # Pinned by tests/retrieval/test_retrieval_import_surface.py (WS5/S4).
+    "pirn-agents:pirn_agents.retrieval.reciprocal_rank_fusion:reciprocal_rank_fusion": (
+        "RRF fusion documented in PATTERNS.md; S4 retrieval import-surface contract"
+    ),
+    # Documented in pirn_agents/PATTERNS.md.
+    "pirn-agents:pirn_agents.caching.content_address:content_address": (
+        "content-address helper documented in PATTERNS.md"
+    ),
+    # Documented in pirn_agents/memory/management/MEMORY_MANAGEMENT.md.
+    "pirn-agents:pirn_agents.memory.management.decay_function:decay_score": (
+        "memory decay scoring documented in MEMORY_MANAGEMENT.md"
+    ),
+    # Public surface declared by pirn_agents/testing/__init__.py.
+    "pirn-agents:pirn_agents.testing.tool_test_harness:make_stub_tool": (
+        "tool testing kit factory declared public by pirn_agents.testing"
+    ),
+    "pirn-agents:pirn_agents.testing.tool_test_harness:assert_tool_schema": (
+        "tool testing kit assertion declared public by pirn_agents.testing"
+    ),
+    "pirn-agents:pirn_agents.testing.tool_test_harness:assert_schema_shape": (
+        "tool testing kit assertion declared public by pirn_agents.testing"
+    ),
+    "pirn-agents:pirn_agents.testing.tool_test_harness:invoke_tool": (
+        "tool testing kit invocation driver declared public by pirn_agents.testing"
+    ),
+    "pirn-agents:pirn_agents.testing.tool_test_harness:collect_tool_stream": (
+        "tool testing kit stream driver declared public by pirn_agents.testing"
+    ),
+    # Toolset bundles documented in pirn_agents/TOOLS.md.
+    "pirn-agents:pirn_agents.tools.bundles:calculator_toolset": (
+        "bundle factory documented in TOOLS.md"
+    ),
+    "pirn-agents:pirn_agents.tools.bundles:web_toolset": "bundle factory documented in TOOLS.md",
+    "pirn-agents:pirn_agents.tools.bundles:filesystem_toolset": (
+        "bundle factory documented in TOOLS.md"
+    ),
+    "pirn-agents:pirn_agents.tools.bundles:data_toolset": "bundle factory documented in TOOLS.md",
+    "pirn-agents:pirn_agents.tools.bundles:retrieval_toolset": (
+        "bundle factory documented in TOOLS.md"
+    ),
+    "pirn-agents:pirn_agents.tools.bundles:sandbox_toolset": (
+        "bundle factory documented in TOOLS.md"
+    ),
 }
 
 _KNOT_BASE_NAMES = frozenset(
@@ -433,7 +542,25 @@ def _check_nested_defs(
     return violations
 
 
-def _check_module_level_functions(tree: ast.Module, path: Path) -> list[_Violation]:
+def _module_name(relative_posix: str) -> str:
+    """``pirn/viz/_explore_cli.py`` -> ``pirn.viz._explore_cli``; ``pkg/__init__.py`` -> ``pkg``."""
+    parts = relative_posix.removesuffix(".py").split("/")
+    if parts and parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def _allowlist_key(package: str, relative_posix: str, function_name: str) -> str:
+    return f"{package}:{_module_name(relative_posix)}:{function_name}"
+
+
+def _check_module_level_functions(
+    tree: ast.Module,
+    path: Path,
+    package: str = "",
+    relative_posix: str = "",
+    seen_allowlist_keys: set[str] | None = None,
+) -> list[_Violation]:
     violations: list[_Violation] = []
     for stmt in tree.body:
         if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -441,6 +568,11 @@ def _check_module_level_functions(tree: ast.Module, path: Path) -> list[_Violati
         if _is_dunder(stmt.name):
             continue
         if "knot" in _decorator_names(stmt.decorator_list):
+            continue
+        key = _allowlist_key(package, relative_posix, stmt.name)
+        if key in _MODULE_LEVEL_FUNCTION_ALLOWLIST:
+            if seen_allowlist_keys is not None:
+                seen_allowlist_keys.add(key)
             continue
         violations.append(
             _Violation(
@@ -529,7 +661,12 @@ def _check_knot_purity_rules(
     return violations
 
 
-def check_file(path: Path, package: str, relative_posix: str) -> list[_Violation]:
+def check_file(
+    path: Path,
+    package: str,
+    relative_posix: str,
+    seen_allowlist_keys: set[str] | None = None,
+) -> list[_Violation]:
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
@@ -539,7 +676,11 @@ def check_file(path: Path, package: str, relative_posix: str) -> list[_Violation
     source_lines = source.splitlines()
     violations: list[_Violation] = []
     violations.extend(_check_multi_class_file(tree, path))
-    violations.extend(_check_module_level_functions(tree, path))
+    violations.extend(
+        _check_module_level_functions(
+            tree, path, package, relative_posix, seen_allowlist_keys
+        )
+    )
     violations.extend(_check_nested_defs(tree, source_lines, path))
     violations.extend(_check_gate_naming(tree, path))
     violations.extend(_check_knot_purity_rules(tree, path, package, relative_posix))
@@ -560,8 +701,14 @@ def _iter_source_files(import_root: Path) -> list[Path]:
 
 def collect_counts(
     import_roots: list[Path],
+    seen_allowlist_keys: set[str] | None = None,
 ) -> tuple[dict[str, dict[str, int]], list[_Violation]]:
-    """Scan every package's import root; return (counts, all violations)."""
+    """Scan every package's import root; return (counts, all violations).
+
+    ``seen_allowlist_keys``, when given, collects every
+    ``_MODULE_LEVEL_FUNCTION_ALLOWLIST`` key the scan actually matched so the
+    caller can report entries that no longer correspond to a function.
+    """
     counts: dict[str, dict[str, int]] = {}
     all_violations: list[_Violation] = []
     for import_root in import_roots:
@@ -570,12 +717,25 @@ def collect_counts(
         rule_counts = counts.setdefault(package, dict.fromkeys(_RULES, 0))
         for file_path in _iter_source_files(import_root):
             relative_posix = file_path.relative_to(package_root).as_posix()
-            violations = check_file(file_path, package, relative_posix)
+            violations = check_file(
+                file_path, package, relative_posix, seen_allowlist_keys
+            )
             for violation in violations:
                 if violation.rule in rule_counts:
                     rule_counts[violation.rule] += 1
                 all_violations.append(violation)
     return counts, all_violations
+
+
+def stale_allowlist_entries(
+    scanned_packages: set[str], seen_allowlist_keys: set[str]
+) -> list[str]:
+    """Allowlist keys for a scanned package that no module-level ``def`` matched."""
+    return sorted(
+        key
+        for key in _MODULE_LEVEL_FUNCTION_ALLOWLIST
+        if key.split(":", 1)[0] in scanned_packages and key not in seen_allowlist_keys
+    )
 
 
 def _load_baseline(baseline_path: Path) -> dict[str, dict[str, int]]:
@@ -639,7 +799,8 @@ def main(argv: list[str] | None = None) -> int:
     if errors:
         return 2
 
-    counts, violations = collect_counts(import_roots)
+    seen_allowlist_keys: set[str] = set()
+    counts, violations = collect_counts(import_roots, seen_allowlist_keys)
     baseline_path = Path(args.baseline)
 
     if args.write_baseline:
@@ -663,6 +824,11 @@ def main(argv: list[str] | None = None) -> int:
                 notes.append(
                     f"baseline can be lowered: {package}: {rule} is {count}, baseline says {baseline_count}"
                 )
+
+    for key in stale_allowlist_entries(set(counts), seen_allowlist_keys):
+        notes.append(
+            f"stale allowlist entry: {key} matched no module-level function — remove it"
+        )
 
     for violation in violations:
         print(violation)

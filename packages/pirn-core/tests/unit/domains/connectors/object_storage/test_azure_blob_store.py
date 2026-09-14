@@ -308,3 +308,47 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(TypeError, "must yield bytes"):
             await store.put("k", bad())
+
+
+# ──────────────────────────────────────────────────────── exists (PIR-869)
+
+
+class _ExistsStubBlobClient(_StubBlobClient):
+    async def exists(self) -> bool:
+        return (self._container, self._blob) in self._store.objects
+
+
+class _ExistsStubServiceClient(_StubServiceClient):
+    def get_blob_client(self, *, container: str, blob: str) -> _ExistsStubBlobClient:
+        return _ExistsStubBlobClient(self, container, blob)
+
+
+class TestExists(unittest.IsolatedAsyncioTestCase):
+    async def test_true_after_put_false_after_delete(self) -> None:
+        store = AzureBlobStore(AzureBlobConfig(container="c"), client=_ExistsStubServiceClient())
+        self.assertFalse(await store.exists("k"))
+        await store.put("k", b"x")
+        self.assertTrue(await store.exists("k"))
+        await store.delete("k")
+        self.assertFalse(await store.exists("k"))
+
+    def test_is_not_found_classifies_blob_not_found(self) -> None:
+        store = AzureBlobStore(AzureBlobConfig(container="c"), client=_StubServiceClient())
+
+        class BlobNotFound(Exception):
+            pass
+
+        self.assertTrue(store.is_not_found(BlobNotFound("gone")))
+        self.assertFalse(store.is_not_found(PermissionError("denied")))
+
+
+class TestAccountUrlAndCredential(unittest.TestCase):
+    def test_account_url_alone_satisfies_construction(self) -> None:
+        AzureBlobStore(AzureBlobConfig(container="c", account_url="https://acct.blob.local"))
+
+    def test_credential_object_is_accepted(self) -> None:
+        store = AzureBlobStore(
+            AzureBlobConfig(container="c", account_url="https://acct.blob.local"),
+            credential=object(),
+        )
+        self.assertIsInstance(store, ObjectStore)

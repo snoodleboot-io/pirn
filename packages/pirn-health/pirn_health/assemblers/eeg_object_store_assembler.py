@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``EegObjectStoreAssembler`` — assemble a :class:`HealthSignalPayload` from raw EEG bytes.
 
 Sits between an object store connector (which produces ``bytes``) and downstream

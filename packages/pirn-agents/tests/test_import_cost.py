@@ -76,7 +76,10 @@ from functools import lru_cache
 # comfortably inside every other ceiling; only specializations needed room.
 _MAX_PIRN_AGENTS_MODULES = 975
 _MAX_SPECIALIZATION_MODULES = 430
-_MAX_REGISTRY_ENTRIES = 1375
+# PIR-869 moved every core module-level function onto a holder class (CLI
+# classes, ConnectionConfigDecorator, AsyncCallable, _SqliteMigrations, ...);
+# each is one more registry entry. Measured 1379 after that change.
+_MAX_REGISTRY_ENTRIES = 1379
 
 # Linear in the entry ceiling, not quadratic. sweet_tea >= 0.2.65 keys the
 # duplicate check off a set, so a bare import performs *zero* Entry comparisons;

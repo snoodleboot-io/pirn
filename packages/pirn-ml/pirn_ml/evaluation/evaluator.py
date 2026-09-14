@@ -72,7 +72,7 @@ class Evaluator(Knot):
         if not metric_tuple:
             raise ValueError("Evaluator: metrics must be non-empty")
         for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:
+            if not isinstance(metric, str) or not metric:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
                 raise ValueError("Evaluator: every metric name must be a non-empty string")
         scored = MappingProxyType(
             {metric: self._score(model, split, metric) for metric in metric_tuple}

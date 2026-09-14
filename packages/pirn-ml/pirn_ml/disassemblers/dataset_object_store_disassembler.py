@@ -66,7 +66,7 @@ class DatasetObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`DatasetPayload`.
         """
-        if not isinstance(payload, DatasetPayload):
+        if not isinstance(payload, DatasetPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"DatasetObjectStoreDisassembler: payload must be DatasetPayload, "
                 f"got {type(payload).__name__}"

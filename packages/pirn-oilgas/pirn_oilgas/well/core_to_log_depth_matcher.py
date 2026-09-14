@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CoreToLogDepthMatcher`` — match core sample depths to wireline log depths accounting for depth shift.
 
 Algorithm:

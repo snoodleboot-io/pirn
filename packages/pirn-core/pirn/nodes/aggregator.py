@@ -30,7 +30,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from pirn.core.async_callable import is_async_callable
+from pirn.core.async_callable import AsyncCallable
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -87,7 +87,7 @@ class Aggregator(Knot):
         # cannot be declared as a process() parameter (Rule 2's usual fix)
         # because parent names are dynamic and could collide with it.
         self._mutable_combine = combine
-        self._mutable_combine_is_async = is_async_callable(combine)
+        self._mutable_combine_is_async = AsyncCallable.is_async_callable(combine)
 
         if _config is None:
             raise TypeError("Aggregator requires _config=KnotConfig(id=...)")

@@ -75,11 +75,11 @@ class TrainedModelObjectStoreAssembler(Assembler):
             TypeError: If ``body`` is not ``bytes`` or ``algorithm`` is not a ``str``.
             ValueError: If ``algorithm`` is empty or ``body`` is empty.
         """
-        if not isinstance(body, bytes):
+        if not isinstance(body, bytes):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"TrainedModelObjectStoreAssembler: body must be bytes, got {type(body).__name__}"
             )
-        if not isinstance(algorithm, str):
+        if not isinstance(algorithm, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"TrainedModelObjectStoreAssembler: algorithm must be str, got {type(algorithm).__name__}"
             )
@@ -94,7 +94,7 @@ class TrainedModelObjectStoreAssembler(Assembler):
     @staticmethod
     def _load_joblib() -> Any:
         try:
-            import joblib
+            import joblib  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
                 "TrainedModelObjectStoreAssembler requires joblib. "

@@ -84,7 +84,7 @@ class FairnessAudit(Knot):
         if not column_tuple:
             raise ValueError("FairnessAudit: sensitive_columns must be non-empty")
         for column in column_tuple:
-            if not isinstance(column, str) or not column:
+            if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
                 raise ValueError(
                     "FairnessAudit: every sensitive column name must be a non-empty string"
                 )

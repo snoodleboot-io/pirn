@@ -12,8 +12,8 @@ class TapestryGraph:
 
     name: str
     source: str
-    nodes: list[dict[str, Any]] = field(default_factory=list)
-    edges: list[dict[str, Any]] = field(default_factory=list)
+    nodes: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
+    edges: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:

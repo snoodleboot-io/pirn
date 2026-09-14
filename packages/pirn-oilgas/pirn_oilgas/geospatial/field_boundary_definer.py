@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FieldBoundaryDefiner`` — define a field boundary from a vertex list.
 
 Algorithm:

@@ -1,8 +1,16 @@
-"""Tests for AzureBlobDataStore (SDK mocked)."""
+"""Tests for AzureBlobDataStore (SDK mocked).
+
+The store composes over
+:class:`pirn.connectors.object_storage.azure_blob_store.AzureBlobStore`
+(PIR-869); the mock below is the ``BlobServiceClient`` slice that store
+reaches — ``get_blob_client`` → ``upload_blob`` / ``download_blob`` /
+``exists`` / ``delete_blob``.
+"""
 
 from __future__ import annotations
 
 import unittest
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends._signer import _Signer
@@ -26,8 +34,14 @@ def _make_azure_mock(stored: dict[str, bytes]) -> MagicMock:
         async def _download() -> AsyncMock:
             if blob not in stored:
                 raise _BlobNotFound("BlobNotFound: blob does not exist")
+            data = stored[blob]
             stream = AsyncMock()
-            stream.readall = AsyncMock(return_value=stored[blob])
+
+            async def _chunks(chunk_size: int) -> AsyncIterator[bytes]:
+                for start in range(0, len(data), chunk_size):
+                    yield data[start : start + chunk_size]
+
+            stream.chunks = _chunks
             return stream
 
         async def _exists() -> bool:
@@ -44,12 +58,10 @@ def _make_azure_mock(stored: dict[str, bytes]) -> MagicMock:
 
     svc = MagicMock()
     svc.get_blob_client = _make_blob_client
-    svc.__aenter__ = AsyncMock(return_value=svc)
-    svc.__aexit__ = AsyncMock(return_value=False)
     return svc
 
 
-class TestAzureBlobDataStoreConstruction(unittest.TestCase):
+class TestAzureBlobDataStoreConstruction(unittest.IsolatedAsyncioTestCase):
     def test_refuses_unsigned_without_opt_in(self) -> None:
         with self.assertRaisesRegex(ValueError, "refusing to construct an unsigned"):
             AzureBlobDataStore(container="c")
@@ -62,10 +74,10 @@ class TestAzureBlobDataStoreConstruction(unittest.TestCase):
         store = AzureBlobDataStore(container="c", signer=_Signer.test_signer())
         self.assertIsNotNone(store)
 
-    def test_raises_without_connection_string_or_account_url(self) -> None:
+    async def test_first_use_raises_without_connection_string_or_account_url(self) -> None:
         store = AzureBlobDataStore(container="c", allow_unsigned=True)
-        with self.assertRaises((ValueError, ImportError)):
-            store._AzureBlobDataStore__service_client()
+        with self.assertRaisesRegex(ValueError, "connection_string or account_url"):
+            await store.has("sha256:x")
 
 
 class TestAzureBlobDataStoreObjectKey(unittest.TestCase):
@@ -111,3 +123,7 @@ class TestAzureBlobDataStoreCRUD(unittest.IsolatedAsyncioTestCase):
     async def test_get_missing_raises_key_error(self) -> None:
         with self.assertRaises(KeyError):
             await self.store.get("sha256:missing")
+
+    async def test_blobs_land_under_prefix(self) -> None:
+        await self.store.put("sha256:abc", 1)
+        self.assertIn("pirn/data/abc", self.stored)

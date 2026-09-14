@@ -32,7 +32,7 @@ class DeltaTable(LakehouseTable):
     ) -> None:
         if config is None and dt is None:
             raise TypeError("DeltaTable requires either config= or dt= (injected vendor table)")
-        if config is not None and not isinstance(config, DeltaTableConfig):
+        if config is not None and not isinstance(config, DeltaTableConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("DeltaTable: config must be a DeltaTableConfig instance")
         if config is not None and not config.table_uri:
             raise ValueError("DeltaTable: config.table_uri must be a non-empty string")
@@ -244,12 +244,12 @@ class DeltaTable(LakehouseTable):
                 "DeltaTable requires the 'deltalake' package. Install via "
                 "`pip install pirn[delta]`."
             ) from exc
-        return write_deltalake
+        return write_deltalake  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
 
     @staticmethod
     def _import_pyarrow() -> Any:
         try:
-            import pyarrow as pa
+            import pyarrow as pa  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
                 "DeltaTable requires pyarrow. Install via "

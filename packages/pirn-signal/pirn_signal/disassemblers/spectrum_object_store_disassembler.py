@@ -63,7 +63,7 @@ class SpectrumObjectStoreDisassembler(Disassembler):
             TypeError: If ``payload`` is not a :class:`SpectrumPayload`.
             ValueError: If ``payload.data`` is empty.
         """
-        if not isinstance(payload, SpectrumPayload):
+        if not isinstance(payload, SpectrumPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"SpectrumObjectStoreDisassembler: payload must be SpectrumPayload, got {type(payload).__name__}"
             )

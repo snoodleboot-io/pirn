@@ -63,7 +63,7 @@ class WaveletObjectStoreDisassembler(Disassembler):
             TypeError: If ``payload`` is not a :class:`WaveletPayload`.
             ValueError: If ``payload.data`` contains no decomposition levels.
         """
-        if not isinstance(payload, WaveletPayload):
+        if not isinstance(payload, WaveletPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"WaveletObjectStoreDisassembler: payload must be WaveletPayload, got {type(payload).__name__}"
             )

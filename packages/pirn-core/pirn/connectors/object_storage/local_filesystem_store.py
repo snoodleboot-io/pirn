@@ -81,6 +81,13 @@ class LocalFilesystemStore(ObjectStore):
             return
         self._logger.debug("local.delete", extra={"key": key})
 
+    async def exists(self, key: str) -> bool:
+        path = self._resolve_safe(key)
+        return await asyncio.to_thread(path.is_file)
+
+    def is_not_found(self, exc: BaseException) -> bool:
+        return isinstance(exc, FileNotFoundError)
+
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         if prefix:
             base = self._resolve_safe(prefix.rstrip("/") if prefix.endswith("/") else prefix)

@@ -62,7 +62,7 @@ class EvalReportDatabaseDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not an :class:`EvalReportPayload`.
         """
-        if not isinstance(payload, EvalReportPayload):
+        if not isinstance(payload, EvalReportPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"EvalReportDatabaseDisassembler: payload must be EvalReportPayload, "
                 f"got {type(payload).__name__}"

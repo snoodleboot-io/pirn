@@ -199,6 +199,39 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         assert failing.closed
         assert healthy.closed
 
+    async def test_close_closes_the_data_store(self):
+        from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+
+        class _ClosableDataStore(InMemoryDataStore):
+            def __init__(self) -> None:
+                super().__init__()
+                self.closed = 0
+
+            async def close(self) -> None:
+                self.closed += 1
+
+        store = _ClosableDataStore()
+        t = Tapestry(data_store=store)
+
+        await t.close()
+
+        assert store.closed == 1
+
+    async def test_close_isolates_a_data_store_failure(self):
+        from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+
+        class _FailingDataStore(InMemoryDataStore):
+            async def close(self) -> None:
+                raise RuntimeError("boom")
+
+        t = Tapestry(data_store=_FailingDataStore())
+        e = _ClosableEmitter()
+        t.add_emitter(e)
+
+        await t.close()  # must not raise
+
+        assert e.closed
+
     async def test_async_with_closes_emitters_on_exit(self):
         e = _ClosableEmitter()
         async with Tapestry() as t:

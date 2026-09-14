@@ -21,13 +21,15 @@ one of these.
 from __future__ import annotations
 
 import warnings
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from pirn.engine.admission.admission_gate import AdmissionGate
 
-from pirn_agents.performance._backpressure_admission import _BackpressureAdmission
+from pirn_agents.performance._backpressure_admission import (
+    _BackpressureAdmission,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 
 if TYPE_CHECKING:
@@ -44,7 +46,7 @@ class BackpressureSemaphore(AdmissionGate):
         Raises:
             TypeError: If ``config`` is not a :class:`ConcurrencyConfig`.
         """
-        if not isinstance(config, ConcurrencyConfig):
+        if not isinstance(config, ConcurrencyConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"BackpressureSemaphore: config must be a ConcurrencyConfig, "
                 f"got {type(config).__name__}"
@@ -95,7 +97,7 @@ class BackpressureSemaphore(AdmissionGate):
         self._pool.release(ticket)
 
     @asynccontextmanager
-    async def slot(self) -> AsyncIterator[None]:
+    async def slot(self) -> AsyncGenerator[None, None]:
         """Acquire a slot for the duration of the ``async with`` block.
 
         The slot is always released, even if the body raises, so a failing

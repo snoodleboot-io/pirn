@@ -23,6 +23,9 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._internal._json_shape import (
+    _JsonShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
@@ -106,17 +109,27 @@ class Planner(Knot):
     def _extract_text(self, response: Any) -> str:
         if isinstance(response, str):
             return response
-        if isinstance(response, dict):
-            content = response.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict) and isinstance(first.get("text"), str):
-                    return first["text"]
+        text = self._text_from_mapping(response)
+        if text is not None:
+            return text
         raise TypeError(
             f"Planner: cannot extract text from LLM response of type {type(response).__name__}"
         )
+
+    def _text_from_mapping(self, response: Any) -> str | None:
+        """Return the text carried by a chat-completion mapping, or ``None``."""
+        if not _JsonShape.is_dict(response):
+            return None
+        content = response.get("content")
+        if isinstance(content, str):
+            return content
+        if _JsonShape.is_list(content) and content:
+            first = content[0]
+            if _JsonShape.is_dict(first):
+                text = first.get("text")
+                if isinstance(text, str):
+                    return text
+        return None
 
     def _parse_plan(self, text: str) -> Plan:
         rationale_lines: list[str] = []

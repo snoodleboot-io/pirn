@@ -30,7 +30,7 @@ class IdentifierValidator:
         (e.g. ``"by"``, ``"left_on"``, ``"output column"``). The label
         is interpolated into the raised :class:`ValueError`.
         """
-        if not isinstance(name, str) or not name:
+        if not isinstance(name, str) or not name:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(f"{label}: must be a non-empty string")
         if not cls._pattern.match(name):
             raise ValueError(
@@ -45,7 +45,7 @@ class IdentifierValidator:
         callers can identify which element of a multi-column parameter
         was rejected.
         """
-        if not isinstance(names, Sequence) or isinstance(names, (str, bytes)):
+        if not isinstance(names, Sequence) or isinstance(names, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(f"{label}: must be a sequence of column names")
         if not names:
             raise ValueError(f"{label}: must be non-empty")

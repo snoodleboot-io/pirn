@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import time
 import warnings
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from functools import partial
@@ -244,7 +244,7 @@ class Tracer:
         name: str,
         kind: SpanKind = SpanKind.GENERIC,
         attributes: Mapping[str, Any] | None = None,
-    ) -> AsyncIterator[Span]:
+    ) -> AsyncGenerator[Span, None]:
         """Scope a span to an ``async with`` block, auto-finishing on exit.
 
         Finishes :attr:`SpanStatus.ERROR` and re-raises if the body raises,

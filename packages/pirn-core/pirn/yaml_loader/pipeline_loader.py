@@ -67,6 +67,23 @@ class PipelineLoader:
     a YAML pipeline.
     """
 
+    @classmethod
+    def load_yaml(
+        cls,
+        yaml_text: str,
+        *,
+        tapestry: Tapestry | None = None,
+        known_callables: Mapping[str, Any] | None = None,
+        allowed_module_prefixes: list[str] | None = None,
+    ) -> Tapestry:
+        """Load ``yaml_text`` with a fresh loader; see :meth:`load` for the arguments."""
+        return cls().load(
+            yaml_text,
+            tapestry=tapestry,
+            known_callables=known_callables,
+            allowed_module_prefixes=allowed_module_prefixes,
+        )
+
     def load(
         self,
         yaml_text: str,
@@ -217,7 +234,7 @@ class PipelineLoader:
             elif isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
                 return callable_obj(_config=cfg, tapestry=tapestry)
             else:
-                factory = knot(callable_obj)
+                factory = knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
             return factory(_config=cfg, tapestry=tapestry)
 
         if isinstance(node_spec, (KnotSpec, SinkSpec)):
@@ -244,7 +261,7 @@ class PipelineLoader:
             # Plain function — wrap with @knot.
             from pirn.core.knot_factory import knot as _knot_decorator
 
-            factory = _knot_decorator(callable_obj)
+            factory = _knot_decorator(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
             return factory(**kwargs)
 
         if isinstance(node_spec, AggregatorSpec):
@@ -397,7 +414,7 @@ class PipelineLoader:
     def _resolve_type(ref: str) -> Any:
         """Resolve a type reference (e.g. 'int', 'str', 'list[dict]') to
         a Python type usable by Pydantic TypeAdapter."""
-        builtins_map = {
+        builtins_map: dict[str, Any] = {
             "int": int,
             "str": str,
             "float": float,
@@ -431,17 +448,5 @@ class PipelineLoader:
         return getattr(module, attr)
 
 
-def load_pipeline(
-    yaml_text: str,
-    *,
-    tapestry: Tapestry | None = None,
-    known_callables: Mapping[str, Any] | None = None,
-    allowed_module_prefixes: list[str] | None = None,
-) -> Tapestry:
-    """Backwards-compatible wrapper around :meth:`PipelineLoader.load`."""
-    return PipelineLoader().load(
-        yaml_text,
-        tapestry=tapestry,
-        known_callables=known_callables,
-        allowed_module_prefixes=allowed_module_prefixes,
-    )
+#: Public name for :meth:`PipelineLoader.load_yaml` (bare alias, not a ``def``).
+load_pipeline = PipelineLoader.load_yaml

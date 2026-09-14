@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 

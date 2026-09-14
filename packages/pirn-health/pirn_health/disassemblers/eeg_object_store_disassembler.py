@@ -10,7 +10,7 @@ messages.
 from __future__ import annotations
 
 from pirn_health.disassemblers._mne_signal_object_store_disassembler import (
-    _MneSignalObjectStoreDisassembler,
+    _MneSignalObjectStoreDisassembler,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
 )
 
 

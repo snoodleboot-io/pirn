@@ -104,8 +104,8 @@ pirn-migrate-imports --check src/ tests/
 You can also invoke it as a module if the script is not on your `PATH`:
 
 ```bash
-python -m pirn._migrate.main src/ tests/
-python -m pirn._migrate.main --check src/ tests/
+python -m pirn._migrate.import_migration_cli src/ tests/
+python -m pirn._migrate.import_migration_cli --check src/ tests/
 ```
 
 What it does:

@@ -29,7 +29,9 @@ class TestExplorerHtmlGeneratorGenerate(unittest.TestCase):
 
     def test_tapestry_data_injected(self) -> None:
         graphs = [TapestryGraph(name="my_pipe", source="pipe.yaml")]
-        with patch("pirn.viz.tapestry_graph_scanner.scan_folder", return_value=(graphs, [])):
+        with patch(
+            "pirn.viz.tapestry_graph_scanner.TapestryGraphScanner.scan", return_value=(graphs, [])
+        ):
             with tempfile.TemporaryDirectory() as tmp:
                 html = ExplorerHtmlGenerator.generate(tmp)
         self.assertIn("my_pipe", html)

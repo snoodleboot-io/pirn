@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SegyObjectStoreDisassembler`` — serialize a :class:`SegyPayload` to raw SEG-Y bytes.
 
 Sits between upstream domain knots that produce
@@ -53,7 +55,10 @@ class SegyObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _encode(payload: SegyPayload) -> bytes:
-        import segyio  # optional dependency
+        import segyio as _segyio  # type: ignore[import-not-found]  # optional dependency
+
+        # Lazily imported optional SDK ships no stubs: the client is typed Any at the import.
+        segyio: Any = _segyio
 
         traces: np.ndarray = payload.traces
         if traces.ndim == 1:

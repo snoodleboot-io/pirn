@@ -72,18 +72,21 @@ class KafkaEmitter(Emitter):
         self._topic_lineage = topic_lineage or topic
         self._topic_result = topic_result or topic
 
+    @staticmethod
+    def _producer_class() -> Any:
+        """Import ``aiokafka.AIOKafkaProducer`` lazily; the optional SDK is untyped."""
+        try:
+            from aiokafka import AIOKafkaProducer  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "KafkaEmitter requires aiokafka; install via `pip install pirn[kafka]`"
+            ) from exc
+        return AIOKafkaProducer  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
+
     async def _ensure_producer(self) -> Any:
         if self._producer is None:
-            try:
-                from aiokafka import AIOKafkaProducer
-            except ImportError as exc:
-                raise ImportError(
-                    "KafkaEmitter requires aiokafka; install via `pip install pirn[kafka]`"
-                ) from exc
             assert self._bootstrap is not None, "bootstrap_servers required when no producer"
-            self._producer = AIOKafkaProducer(
-                bootstrap_servers=self._bootstrap,
-            )
+            self._producer = self._producer_class()(bootstrap_servers=self._bootstrap)
             await self._producer.start()
         return self._producer
 

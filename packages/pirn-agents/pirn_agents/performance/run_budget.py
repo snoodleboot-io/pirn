@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``RunBudget`` — an immutable iteration/token/wall-clock budget for a run."""
 
 from __future__ import annotations

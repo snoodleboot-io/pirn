@@ -45,7 +45,7 @@ class IcebergTable(LakehouseTable):
             raise TypeError(
                 "IcebergTable requires either config= or table= (injected pyiceberg.table.Table)"
             )
-        if config is not None and not isinstance(config, IcebergTableConfig):
+        if config is not None and not isinstance(config, IcebergTableConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("IcebergTable: config must be an IcebergTableConfig instance")
         if config is not None and not config.table_identifier:
             raise ValueError("IcebergTable: config.table_identifier must be a non-empty string")
@@ -182,10 +182,7 @@ class IcebergTable(LakehouseTable):
             return None
         # Build a pyiceberg expression: AND of EqualTo predicates.
         try:
-            from pyiceberg.expressions import (  # type: ignore[import-not-found]
-                And,
-                EqualTo,
-            )
+            from pyiceberg.expressions import And, EqualTo  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
                 "IcebergTable filter pushdown requires pyiceberg. Install via "
@@ -195,7 +192,7 @@ class IcebergTable(LakehouseTable):
         expr = EqualTo(items[0][0], items[0][1])  # type: ignore[call-arg]
         for key, value in items[1:]:
             expr = And(expr, EqualTo(key, value))  # type: ignore[call-arg]
-        return expr
+        return expr  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
 
     @staticmethod
     def _current_snapshot_id(table: Any) -> str:
@@ -242,12 +239,12 @@ class IcebergTable(LakehouseTable):
                 "IcebergTable requires the 'pyiceberg' package. Install via "
                 "`pip install pirn[iceberg]`."
             ) from exc
-        return catalog
+        return catalog  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
 
     @staticmethod
     def _import_pyarrow() -> Any:
         try:
-            import pyarrow as pa
+            import pyarrow as pa  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
                 "IcebergTable requires pyarrow. Install via "

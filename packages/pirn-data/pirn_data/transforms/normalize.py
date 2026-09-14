@@ -49,6 +49,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data._value_shape import (
+    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_data.data_batch import DataBatch
 from pirn_data.transforms.normalize_column_rule import NormalizeColumnRule
 
@@ -81,7 +84,7 @@ class Normalize(Knot):
         Returns:
             A new DataBatch with normalization rules applied to the configured columns.
         """
-        if not isinstance(rules, Mapping) or not rules:
+        if not _ValueShape.is_mapping(rules) or not rules:
             raise TypeError(
                 "Normalize: rules must be a non-empty Mapping[column, NormalizeColumnRule]"
             )

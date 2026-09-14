@@ -1,3 +1,5 @@
+# Runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md).
+# pyright: reportUnnecessaryIsInstance=false
 """``Sampler`` — subsample an :class:`DatasetManifest` reference.
 
 Like the other data-prep knots, this one operates on the

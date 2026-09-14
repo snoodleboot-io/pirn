@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ParticleFilter`` — sequential Monte Carlo state estimator.
 
 Algorithm:
@@ -143,7 +145,7 @@ class ParticleFilter(Knot):
         """
         obs_count = len(observations)
         particles = np.random.randn(num_particles)
-        weights = np.ones(num_particles) / num_particles
+        weights: np.ndarray = np.ones(num_particles) / num_particles
         estimates = np.zeros(obs_count)
         for obs_index in range(obs_count):
             # Propagate

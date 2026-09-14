@@ -25,7 +25,7 @@ from typing import Any
 from pirn.core.knot import Knot
 
 
-class _AdmissionSlotKnot(Knot):
+class _AdmissionSlotKnot(Knot):  # pyright: ignore[reportUnusedClass]  # wired by _BackpressureAdmission
     """A knot built only for its identity; never dispatched by an engine."""
 
     async def process(self, **_: Any) -> None:

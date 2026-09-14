@@ -16,7 +16,7 @@ is an internal collaborator, not something users construct directly.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
@@ -826,7 +826,7 @@ class Tapestry:
         return policy if policy is not None else _EmitterErrorPolicy.WARN
 
     async def close(self) -> None:
-        """Close every registered emitter, releasing held resources.
+        """Close every registered emitter and the data store, releasing held resources.
 
         Called by the runtime when using ``async with Tapestry() as t:``
         (see :meth:`__aexit__`); callers of the plain synchronous
@@ -836,7 +836,11 @@ class Tapestry:
         Each emitter is closed independently: one emitter raising does not
         stop the others from being closed, and every failure is logged at
         WARNING rather than propagated — mirroring the "must not raise"
-        contract already documented on :meth:`Emitter.close`.
+        contract already documented on :meth:`Emitter.close`. The data store
+        is closed last under the same isolation (:meth:`DataStore.close`);
+        a store that holds a cloud client releases it here and reopens it
+        lazily if the tapestry — or another one sharing the store — runs
+        again (PIR-869).
         """
         for emitter in self._emitters:
             try:
@@ -845,6 +849,46 @@ class Tapestry:
                 _logger.warning(
                     "Tapestry.close: emitter %r raised while closing", emitter.name, exc_info=True
                 )
+        try:
+            await self._data_store.close()
+        except Exception:
+            _logger.warning(
+                "Tapestry.close: data store %r raised while closing",
+                type(self._data_store).__name__,
+                exc_info=True,
+            )
+
+    @staticmethod
+    @contextmanager
+    def _run_id_scope(run_id: str | None) -> Generator[None, None, None]:
+        """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.
+
+        Internal.  ``Tapestry.run()`` owns run identity for real runs; this
+        exists for the one case where a run's identity has to be *restored*
+        rather than established — a durable store delivering a knot
+        registration from a background LISTEN/pub-sub task that never
+        inherited the registering task's context.  The store reads the
+        registering run off the notification payload and rebinds it here so
+        that everything downstream of ``subscribe()`` reads ambient run
+        identity exactly as it does under ``InMemoryStore``, which delivers
+        synchronously in the registering context (PIR-815).
+
+        ``None`` is a legitimate value: it restores "no run in scope", which
+        is what an unowned registration means.
+
+        The block also runs with no dispatching knot in scope.  The
+        notification does not say which knot registered, and the listener
+        task's own context holds whatever knot happened to be executing when
+        ``subscribe()`` started it -- for an inner run, a knot of the outer
+        run -- which would otherwise be reported as the registrar (PIR-841).
+        """
+        token = _current_run_id.set(run_id)
+        knot_token = _current_dispatching_knot_id.set(None)
+        try:
+            yield
+        finally:
+            _current_dispatching_knot_id.reset(knot_token)
+            _current_run_id.reset(token)
 
     # ----------------------------------------------------------- with-block
 
@@ -913,43 +957,10 @@ def current_run_id() -> str | None:
 #: Bare-function aliases for :meth:`Tapestry.current_emitters` /
 #: :meth:`Tapestry.current_emitter_error_policy`, so
 #: ``pirn.tapestry.current_emitters()`` calls exactly like
-#: :func:`current_run_id` (house convention reserves a bare module-level
-#: ``def`` for a genuine decorator or "only-way" adapter; `current_run_id`/
-#: `current_tapestry`/`get_current_store` predate that convention taking
-#: hold here, and are grandfathered by the conventions-gate baseline rather
-#: than a pattern to keep extending — see the two methods' docstrings for
-#: the accessors themselves).
+#: :func:`current_run_id`. The house convention allows a bare module-level
+#: ``def`` only for the documented public entry points enumerated in
+#: ``scripts/check_conventions.py`` (``current_run_id``/``current_tapestry``/
+#: ``get_current_store`` are on that list, PIR-869); anything else is a
+#: ``@staticmethod``, optionally re-exported under a bare alias like these.
 current_emitters = Tapestry.current_emitters
 current_emitter_error_policy = Tapestry.current_emitter_error_policy
-
-
-@contextmanager
-def _run_id_scope(run_id: str | None) -> Iterator[None]:
-    """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.
-
-    Internal.  ``Tapestry.run()`` owns run identity for real runs; this
-    exists for the one case where a run's identity has to be *restored*
-    rather than established — a durable store delivering a knot
-    registration from a background LISTEN/pub-sub task that never
-    inherited the registering task's context.  The store reads the
-    registering run off the notification payload and rebinds it here so
-    that everything downstream of ``subscribe()`` reads ambient run
-    identity exactly as it does under ``InMemoryStore``, which delivers
-    synchronously in the registering context (PIR-815).
-
-    ``None`` is a legitimate value: it restores "no run in scope", which
-    is what an unowned registration means.
-
-    The block also runs with no dispatching knot in scope.  The notification
-    does not say which knot registered, and the listener task's own context
-    holds whatever knot happened to be executing when ``subscribe()`` started
-    it -- for an inner run, a knot of the outer run -- which would otherwise
-    be reported as the registrar (PIR-841).
-    """
-    token = _current_run_id.set(run_id)
-    knot_token = _current_dispatching_knot_id.set(None)
-    try:
-        yield
-    finally:
-        _current_dispatching_knot_id.reset(knot_token)
-        _current_run_id.reset(token)

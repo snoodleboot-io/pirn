@@ -140,7 +140,7 @@ class CanonicalJson:
         Shared by :meth:`encode` and :meth:`digest` so a single call into
         either public method emits exactly one warning, not two.
         """
-        if not isinstance(policy, OpaquePolicy):
+        if not isinstance(policy, OpaquePolicy):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"CanonicalJson.{caller}: policy must be an OpaquePolicy, got {type(policy).__name__}"
             )

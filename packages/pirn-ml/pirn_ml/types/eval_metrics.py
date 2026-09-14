@@ -17,7 +17,7 @@ class EvalMetrics(PirnOpaqueValue):
     scores: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
     details: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
-    def _pirn_audit_dict(self) -> dict:
+    def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "scores": {k: float(v) for k, v in self.scores.items()},
             "details": dict(self.details),

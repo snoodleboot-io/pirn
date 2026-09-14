@@ -158,34 +158,37 @@ class WithContinuation(Knot):
 
         return result
 
+    @staticmethod
+    def attach(
+        knot: Knot,
+        *,
+        fn: ContinuationFn,
+        pool: Pool,
+    ) -> WithContinuation:
+        """Attach a continuation to *knot* (public alias: ``continues``).
+
+        Returns a ``WithContinuation`` node wired to run immediately after
+        *knot* completes.  The continuation id is ``"{knot.knot_id}__cont"``.
+
+        Must be used inside an extensible tapestry run.  In a non-extensible
+        run the continuation fires but spawned knots are silently dropped (the
+        store is not available).
+
+        Args:
+            knot:  The knot whose output drives the continuation.
+            fn:    Continuation function ``(output) -> list[Next]``.  Must
+                   always return a non-empty list.
+            pool:  Mapping of action name → knot class.  ``"end"`` is built-in.
+        """
+        return WithContinuation(
+            result=knot,
+            fn=fn,
+            pool=pool,
+            _config=KnotConfig(id=f"{knot.knot_id}__cont"),
+        )
+
 
 # ── continues() ───────────────────────────────────────────────────────────────
 
-
-def continues(
-    knot: Knot,
-    *,
-    fn: ContinuationFn,
-    pool: Pool,
-) -> WithContinuation:
-    """Attach a continuation to *knot*.
-
-    Returns a ``WithContinuation`` node wired to run immediately after *knot*
-    completes.  The continuation id is ``"{knot.knot_id}$cont"``.
-
-    Must be used inside an extensible tapestry run.  In a non-extensible run
-    the continuation fires but spawned knots are silently dropped (the store
-    is not available).
-
-    Args:
-        knot:  The knot whose output drives the continuation.
-        fn:    Continuation function ``(output) -> list[Next]``.  Must always
-               return a non-empty list.
-        pool:  Mapping of action name → knot class.  ``"end"`` is built-in.
-    """
-    return WithContinuation(
-        result=knot,
-        fn=fn,
-        pool=pool,
-        _config=KnotConfig(id=f"{knot.knot_id}__cont"),
-    )
+#: Public name for :meth:`WithContinuation.attach` (bare alias, not a ``def``).
+continues = WithContinuation.attach

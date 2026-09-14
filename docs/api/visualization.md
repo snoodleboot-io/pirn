@@ -89,7 +89,7 @@ Generate a self-contained HTML file showing the tapestry structure without run o
 
 The `pirn-explore` command generates an interactive multi-tapestry explorer.
 
-::: pirn.viz._explore_cli.main
+::: pirn.viz._explore_cli.ExploreCli
     options:
       show_source: false
       heading_level: 3

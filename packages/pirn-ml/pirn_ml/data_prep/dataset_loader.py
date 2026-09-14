@@ -1,3 +1,5 @@
+# pirn_data (the one retained domain-to-domain edge, ADR-3) ships no py.typed.
+# pyright: reportMissingTypeStubs=false
 """``DatasetLoader`` — load a :class:`DatasetPayload` from any configured source.
 
 Tries all configured sources concurrently inside an inner tapestry.  Each
@@ -45,7 +47,9 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
-from pirn_ml.data_prep._dataset_assembler import _DatasetAssembler
+from pirn_ml.data_prep._dataset_assembler import (
+    _DatasetAssembler,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 
 
 class DatasetLoader(SubTapestry):

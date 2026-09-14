@@ -18,7 +18,7 @@ via :meth:`child`, so state never leaks across unrelated calls.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -121,7 +121,7 @@ class AgentToolContext(RunNesting):
 
     @staticmethod
     @contextmanager
-    def bind(context: AgentToolContext) -> Iterator[None]:
+    def bind(context: AgentToolContext) -> Generator[None, None, None]:
         """Bind ``context`` as the active context for the duration of the block.
 
         Restores the prior context on exit so nesting state never leaks past

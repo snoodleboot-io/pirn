@@ -80,7 +80,7 @@ class Predictor(Knot):
         Raises:
             ValueError: If model_id resolves to an empty string.
         """
-        if not isinstance(model_id, str) or not model_id:
+        if not isinstance(model_id, str) or not model_id:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("Predictor: model_id must resolve to a non-empty string")
         # Touch the lineage store so misconfigured connectors fail loudly at
         # run time. The fetch results aren't required for deterministic scoring.

@@ -78,7 +78,7 @@ class FeatureSelector(Knot):
             TypeError: If k is not an int.
             ValueError: If k < 1 or method is invalid.
         """
-        if not isinstance(k, int):
+        if not isinstance(k, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("FeatureSelector: k must be an int")
         if k < 1:
             raise ValueError("FeatureSelector: k must be >= 1")

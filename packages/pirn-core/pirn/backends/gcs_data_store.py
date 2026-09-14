@@ -7,16 +7,23 @@ Requires the ``gcloud-aio-storage`` package::
 
     pip install pirn[gcs]
 
-Construction accepts an optional pre-built ``aiohttp.ClientSession`` for
-testing.  In production the session is created lazily on first use.
+Construction accepts an optional pre-built ``aiohttp.ClientSession``
+(``session=``) or a ready ``gcloud.aio.storage.Storage``-like client
+(``client=``, for tests).  The store composes over
+:class:`~pirn.connectors.object_storage.gcs_store.GCSStore`, which opens
+one storage client on first use and holds it until
+:meth:`~pirn.backends.base.data_store.DataStore.close` (PIR-869).
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends._signer import _Signer
 from pirn.backends.base._cloud_object_store import _CloudObjectStore
+
+if TYPE_CHECKING:
+    from pirn.connectors.object_store import ObjectStore
 
 
 class GCSDataStore(_CloudObjectStore):
@@ -34,56 +41,38 @@ class GCSDataStore(_CloudObjectStore):
         prefix: str = "pirn/data/",
         service_file: str | None = None,
         session: Any = None,
+        client: Any = None,
         signer: _Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
-        super().__init__(signer=signer, allow_unsigned=allow_unsigned)
+        """Initialise the store.
+
+        Args:
+            bucket: Name of the GCS bucket to use.
+            prefix: Key prefix for all objects written by this store.
+            service_file: Path to a service-account JSON key file.  ``None``
+                falls back to Application Default Credentials.
+            session: An existing ``aiohttp.ClientSession`` for the storage
+                client to reuse.
+            client: A ready ``gcloud.aio.storage.Storage``-like client
+                (tests).  When given, ``service_file``/``session`` are unused.
+            signer: An ``_Signer`` for HMAC payload signing.  Required unless
+                ``allow_unsigned=True`` is set.
+            allow_unsigned: If ``True``, the store operates without signing.
+                Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.
+
+        Raises:
+            ValueError: If signing is not configured correctly.
+        """
+        super().__init__(signer=signer, allow_unsigned=allow_unsigned, prefix=prefix)
         self._bucket = bucket
-        self._prefix = prefix
         self._service_file = service_file
         self._session = session
+        self._client = client
 
-    def _object_key(self, content_hash: str) -> str:
-        clean = content_hash.removeprefix("sha256:")
-        return f"{self._prefix}{clean}"
+    def _build_object_store(self) -> ObjectStore:
+        from pirn.connectors.object_storage.gcs_config import GCSConfig
+        from pirn.connectors.object_storage.gcs_store import GCSStore
 
-    def __storage(self) -> Any:
-        try:
-            from gcloud.aio.storage import Storage
-        except ImportError as exc:
-            raise ImportError(
-                "GCSDataStore requires gcloud-aio-storage; install via `pip install pirn[gcs]`"
-            ) from exc
-        kwargs: dict[str, Any] = {}
-        if self._service_file is not None:
-            kwargs["service_file"] = self._service_file
-        if self._session is not None:
-            kwargs["session"] = self._session
-        return Storage(**kwargs)
-
-    async def _put_bytes(self, key: str, payload: bytes) -> None:
-        async with self.__storage() as storage:
-            await storage.upload(self._bucket, key, payload)
-
-    async def _get_bytes(self, key: str) -> bytes:
-        async with self.__storage() as storage:
-            try:
-                return await storage.download(self._bucket, key)
-            except Exception as exc:
-                if "404" in str(exc) or "Not Found" in str(exc):
-                    raise KeyError(key) from exc
-                raise
-
-    async def _has_key(self, key: str) -> bool:
-        async with self.__storage() as storage:
-            try:
-                await storage.download_metadata(self._bucket, key)
-                return True
-            except Exception as exc:
-                if "404" in str(exc) or "Not Found" in str(exc):
-                    return False
-                raise
-
-    async def _delete_key(self, key: str) -> None:
-        async with self.__storage() as storage:
-            await storage.delete(self._bucket, key)
+        config = GCSConfig(bucket=self._bucket, service_account_json=self._service_file)
+        return GCSStore(config, client=self._client, session=self._session)

@@ -161,7 +161,7 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
         color with no outcome data.  Useful for inspecting topology.
         """
         title = title or "pirn pipeline"
-        knots = tapestry._store.all()
+        knots = tapestry.store.all()
 
         from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -417,11 +417,7 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
         return text if len(text) <= max_len else text[: max_len - 1] + "…"
 
 
-def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
-    """Public wrapper around :meth:`TapestryHtmlRenderer.for_tapestry`."""
-    return TapestryHtmlRenderer.for_tapestry(tapestry, title)
-
-
-def html_for_run(result: RunResult, title: str | None = None) -> str:
-    """Public wrapper around :meth:`TapestryHtmlRenderer.for_run`."""
-    return TapestryHtmlRenderer.for_run(result, title)
+#: Public names for :meth:`TapestryHtmlRenderer.for_tapestry` / :meth:`TapestryHtmlRenderer.for_run`
+#: (bare aliases, not ``def``\\s).
+html_for_tapestry = TapestryHtmlRenderer.for_tapestry
+html_for_run = TapestryHtmlRenderer.for_run

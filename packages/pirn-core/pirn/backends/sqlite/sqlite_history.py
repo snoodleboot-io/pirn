@@ -5,27 +5,9 @@ import json
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
-from pirn.backends.sqlite._migrations import apply_migrations
+from pirn.backends.sqlite._migrations import _SqliteMigrations
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
-
-
-def _json_default(obj: Any) -> Any:
-    """Fallback serializer: handle types pydantic model_dump leaves as Python objects."""
-    if isinstance(obj, bytes):
-        return {"__bytes_b64__": base64.b64encode(obj).decode()}
-    if hasattr(obj, "isoformat"):
-        return obj.isoformat()
-    if hasattr(obj, "__dataclass_fields__"):
-        import dataclasses
-
-        return dataclasses.asdict(obj)
-    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
-
-def _model_to_json(model: Any) -> str:
-    """Serialize a pydantic model to JSON, handling bytes fields gracefully."""
-    return json.dumps(model.model_dump(mode="python"), default=_json_default)
 
 
 class SQLiteHistory(RunHistory):
@@ -165,6 +147,24 @@ class SQLiteHistory(RunHistory):
             )"""
         )
 
+    @staticmethod
+    def _json_default(obj: Any) -> Any:
+        """Fallback serializer: handle types pydantic model_dump leaves as Python objects."""
+        if isinstance(obj, bytes):
+            return {"__bytes_b64__": base64.b64encode(obj).decode()}
+        if hasattr(obj, "isoformat"):
+            return obj.isoformat()
+        if hasattr(obj, "__dataclass_fields__"):
+            import dataclasses
+
+            return dataclasses.asdict(obj)
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    @staticmethod
+    def _model_to_json(model: Any) -> str:
+        """Serialize a pydantic model to JSON, handling bytes fields gracefully."""
+        return json.dumps(model.model_dump(mode="python"), default=SQLiteHistory._json_default)
+
     def __init__(self, *, path: str = "pirn.db", connection: Any = None) -> None:
         """Initialise the history store.
 
@@ -191,7 +191,7 @@ class SQLiteHistory(RunHistory):
         if self._initialized:
             return
         self._conn.executescript(self._schema_version_ddl + self._history_ddl)
-        apply_migrations(
+        _SqliteMigrations.apply(
             self._conn,
             "history",
             self._schema_version,
@@ -247,7 +247,7 @@ class SQLiteHistory(RunHistory):
                 json.dumps(result.runtime_info),
                 result.parent_run_id,
                 result.parent_knot_id,
-                _model_to_json(result),
+                self._model_to_json(result),
             ),
         )
         if result.lineage:
@@ -270,7 +270,7 @@ class SQLiteHistory(RunHistory):
                         rec.dispatcher,
                         rec.started_at.isoformat(),
                         rec.finished_at.isoformat(),
-                        _model_to_json(rec),
+                        self._model_to_json(rec),
                     )
                     for rec in result.lineage
                 ],

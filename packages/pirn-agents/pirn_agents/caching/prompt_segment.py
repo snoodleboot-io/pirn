@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``PromptSegment`` — one labelled piece of a prompt, marked stable or variable."""
 
 from __future__ import annotations

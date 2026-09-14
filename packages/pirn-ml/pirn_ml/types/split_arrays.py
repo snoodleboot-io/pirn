@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -17,7 +18,7 @@ class SplitArrays(PirnOpaqueValue):
     y_train: np.ndarray | None = None
     y_test: np.ndarray | None = None
 
-    def _pirn_audit_dict(self) -> dict:
+    def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "train_rows": int(self.X_train.shape[0]),
             "test_rows": int(self.X_test.shape[0]),

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 from pirn.core.err import Err
 from pirn.core.hashing import content_hash
 from pirn.core.knot_lineage import KnotLineage
-from pirn.core.knot_source_record import extract_knot_source
+from pirn.core.knot_source_record import KnotSourceRecord
 from pirn.core.ok import Ok
 from pirn.core.skipped import Skipped
 from pirn.recording.invocation_identity import InvocationIdentity
@@ -94,7 +94,7 @@ class LineageRecorder:
         parent_knot_ids = {name: pk.knot_id for name, pk in knot.parents.items()}
 
         pirn_version = ctx.runtime_info.get("pirn_version", "unknown")
-        source_record = extract_knot_source(knot, pirn_version)
+        source_record = KnotSourceRecord.from_knot(knot, pirn_version)
         if source_record is not None:
             ctx.add_knot_source(source_record)
 

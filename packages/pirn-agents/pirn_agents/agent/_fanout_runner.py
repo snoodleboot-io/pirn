@@ -18,7 +18,7 @@ from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.tools.tool_result import ToolResult
 
 
-class _FanoutRunner(AsyncFanoutEngine[ToolResult]):
+class _FanoutRunner(AsyncFanoutEngine[ToolResult]):  # pyright: ignore[reportUnusedClass]  # imported by tests/test_async_fanout_engine.py
     """Deprecated composed per-call retry/timeout mechanics (unused since WS1)."""
 
     def __init__(

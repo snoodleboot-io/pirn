@@ -101,7 +101,7 @@ class ToolExecutor(SubTapestry):
             TypeError: If tools is not a sequence of tool capabilities.
             ValueError: If tools is empty.
         """
-        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
+        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("ToolExecutor: tools must be a sequence of tool capabilities")
         if not tools:
             raise ValueError("ToolExecutor: tools must be non-empty")

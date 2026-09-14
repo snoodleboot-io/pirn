@@ -20,6 +20,9 @@ from typing import Any
 
 from pirn.connectors.http_connector import HttpConnector
 
+from pirn_agents._internal._json_shape import (
+    _JsonShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_agents.tools.web.search_backend import SearchBackend
 
 
@@ -64,7 +67,7 @@ class HttpSearchConnector(SearchBackend):
         # on HttpConnector's pooling, auth-header and retry behaviour, none of
         # which a bare structural type would promise. Revisit under PIR-792,
         # which is where a core HTTP abstraction would come from.
-        if not isinstance(http, HttpConnector):
+        if not isinstance(http, HttpConnector):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"HttpSearchConnector: http must be an HttpConnector, got {type(http).__name__}"
             )
@@ -87,11 +90,13 @@ class HttpSearchConnector(SearchBackend):
         """
         params: dict[str, Any] = {self._query_param: query, **self._extra_params}
         response = await self._http.request("GET", self._endpoint, params=params)
-        payload = response.json()
-        items = payload.get(self._results_key, []) if isinstance(payload, Mapping) else payload
+        payload: Any = response.json()
+        items: Any = (
+            payload.get(self._results_key, []) if _JsonShape.is_mapping(payload) else payload
+        )
         results: list[dict[str, str]] = []
         for item in list(items)[:max_results]:
-            mapping = item if isinstance(item, Mapping) else {}
+            mapping: Mapping[str, Any] = item if _JsonShape.is_mapping(item) else {}
             results.append(
                 {
                     "title": str(mapping.get(self._title_key, "")),

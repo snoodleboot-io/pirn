@@ -17,7 +17,8 @@ class S3Config(ConnectionConfig):
     bucket:
         Target bucket name (required).
     region:
-        AWS region (or S3-compatible region).
+        AWS region (or S3-compatible region). ``None`` defers to the
+        region configured in the environment / AWS config chain.
     endpoint_url:
         Override for S3-compatible endpoints (MinIO, R2, …). ``None`` →
         public AWS.
@@ -31,7 +32,7 @@ class S3Config(ConnectionConfig):
     """
 
     bucket: str = ""
-    region: str = "us-east-1"
+    region: str | None = "us-east-1"
     endpoint_url: str | None = None
     access_key_id: str | None = None
     secret_access_key: str | None = None

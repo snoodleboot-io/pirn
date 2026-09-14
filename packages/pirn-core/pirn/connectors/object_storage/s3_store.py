@@ -15,8 +15,9 @@ class S3Store(ObjectStore):
 
     Tests inject ``client=`` exposing the slice of the boto3 S3 client we
     touch (``get_object`` / ``put_object`` / ``delete_object`` /
-    ``list_objects_v2``); production code constructs a real aioboto3 client
-    lazily.
+    ``head_object`` / ``list_objects_v2``); production code constructs a
+    real aioboto3 client lazily from ``session`` (an ``aioboto3.Session``,
+    built on first use when not supplied) and holds it until :meth:`close`.
     """
 
     def __init__(
@@ -24,11 +25,13 @@ class S3Store(ObjectStore):
         config: S3Config,
         *,
         client: Any | None = None,
+        session: Any | None = None,
     ) -> None:
         if not config.bucket:
             raise ValueError("S3Config.bucket is required")
         self._config = config
         self._client = client
+        self._session = session
         self._owned_session: Any = None
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -92,6 +95,23 @@ class S3Store(ObjectStore):
         await client.delete_object(Bucket=self._config.bucket, Key=key)
         self._logger.debug("s3.delete", extra={"bucket": self._config.bucket, "key": key})
 
+    async def exists(self, key: str) -> bool:
+        """``head_object`` presence check; ``False`` only on a not-found error."""
+        self._validate_key(key)
+        client = await self._ensure_client()
+        try:
+            await client.head_object(Bucket=self._config.bucket, Key=key)
+        except Exception as exc:
+            if self.is_not_found(exc):
+                return False
+            raise
+        return True
+
+    def is_not_found(self, exc: BaseException) -> bool:
+        name = type(exc).__name__
+        text = str(exc)
+        return "NoSuchKey" in name or "NoSuchKey" in text or "NotFound" in name or "404" in text
+
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         client = await self._ensure_client()
         bucket = self._config.bucket
@@ -115,20 +135,33 @@ class S3Store(ObjectStore):
     async def _ensure_client(self) -> Any:
         if self._client is not None:
             return self._client
-        try:
-            import aioboto3  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "S3Store requires aioboto3; install via `pip install pirn[s3]`"
-            ) from exc
-        session = aioboto3.Session()
+        session = self._session
+        if session is None:
+            try:
+                import aioboto3  # type: ignore[import-untyped]
+            except ImportError as exc:
+                raise ImportError(
+                    "S3Store requires aioboto3; install via `pip install pirn[s3]`"
+                ) from exc
+            session = aioboto3.Session()
+            self._session = session
+        # Explicit credentials only when configured: ``None`` and "absent"
+        # both mean "use the AWS credential chain", and omitting them keeps an
+        # injected session's ``client()`` signature minimal.
+        credentials: dict[str, Any] = {
+            key: value
+            for key, value in (
+                ("aws_access_key_id", self._config.access_key_id),
+                ("aws_secret_access_key", self._config.secret_access_key),
+                ("aws_session_token", self._config.session_token),
+            )
+            if value is not None
+        }
         self._owned_session = session.client(
             "s3",
             region_name=self._config.region,
             endpoint_url=self._config.endpoint_url,
-            aws_access_key_id=self._config.access_key_id,
-            aws_secret_access_key=self._config.secret_access_key,
-            aws_session_token=self._config.session_token,
+            **credentials,
         )
         self._client = await self._owned_session.__aenter__()
         return self._client

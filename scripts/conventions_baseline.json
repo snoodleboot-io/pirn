@@ -6,7 +6,7 @@
     "knot_process_kwargs_name": 5,
     "knot_property": 0,
     "knot_self_assignment": 2,
-    "module_level_function": 23,
+    "module_level_function": 2,
     "multi_class_file": 0,
     "nested_def_missing_override": 6
   },
@@ -17,7 +17,7 @@
     "knot_process_kwargs_name": 3,
     "knot_property": 5,
     "knot_self_assignment": 1,
-    "module_level_function": 37,
+    "module_level_function": 0,
     "multi_class_file": 0,
     "nested_def_missing_override": 0
   },
