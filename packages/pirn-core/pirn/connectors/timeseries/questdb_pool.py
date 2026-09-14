@@ -9,6 +9,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.timeseries.questdb_config import QuestDBConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class QuestDBPool(DatabaseConnectionPool):
@@ -49,18 +50,18 @@ class QuestDBPool(DatabaseConnectionPool):
         self._logger.debug("questdb.close")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         return await pool.execute(query, *tuple(parameters or ()))
 
     async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         rows = await pool.fetch(query, *tuple(parameters or ()))
         return list(rows)
 
     async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         await pool.executemany(query, [tuple(a) for a in parameter_seq])
 
@@ -72,12 +73,7 @@ class QuestDBPool(DatabaseConnectionPool):
         return self._pool
 
     async def _create_pool(self) -> Any:
-        try:
-            import asyncpg
-        except ImportError as exc:
-            raise ImportError(
-                "QuestDBPool requires asyncpg; install via `pip install pirn[questdb]`"
-            ) from exc
+        asyncpg = OptionalDependency.require("asyncpg", extra="postgres")
         if self._config is None:
             raise self._missing_config_error("QuestDBPool", "pool")
         try:

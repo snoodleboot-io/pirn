@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``Chunk`` — one text span emitted by a chunking strategy (F25-S2 / PIR-575).
 
 The neutral output unit of the chunking library: a frozen, opaque span carrying
@@ -32,7 +34,7 @@ class Chunk(PirnOpaqueValue):
 
     text: str
     index: int
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def __post_init__(self) -> None:
         if not isinstance(self.text, str):

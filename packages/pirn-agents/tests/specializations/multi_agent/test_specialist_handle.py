@@ -76,3 +76,32 @@ class TestSpecialistInvocationError(unittest.TestCase):
     def test_a_non_sub_tapestry_is_refused(self) -> None:
         with self.assertRaises(TypeError):
             SpecialistHandle(object())  # type: ignore[arg-type]
+
+
+class TestSpecialistRegistryByName(unittest.TestCase):
+    """``SpecialistHandle.by_name`` — the typed ``{name: specialist}`` registry."""
+
+    def test_returns_the_registry_in_order(self) -> None:
+        with Tapestry():
+            first = _EchoSpecialist(_config=KnotConfig(id="first"))
+            second = _EchoSpecialist(_config=KnotConfig(id="second"))
+        registry = SpecialistHandle.by_name({"b": first, "a": second}, owner="Owner")
+        assert list(registry) == ["b", "a"]
+        assert registry["b"] is first
+
+    def test_rejects_a_non_mapping_or_empty_registry(self) -> None:
+        for bad in (None, [], {}):
+            with self.assertRaisesRegex(
+                ValueError, "Owner: specialists must be a non-empty mapping"
+            ):
+                SpecialistHandle.by_name(bad, owner="Owner")
+
+    def test_rejects_a_non_string_name(self) -> None:
+        with Tapestry():
+            spec = _EchoSpecialist(_config=KnotConfig(id="named"))
+        with self.assertRaisesRegex(TypeError, "Owner: specialist names must be strings"):
+            SpecialistHandle.by_name({1: spec}, owner="Owner")
+
+    def test_rejects_a_non_sub_tapestry_specialist(self) -> None:
+        with self.assertRaisesRegex(TypeError, "Owner: specialist 'x' must be a SubTapestry"):
+            SpecialistHandle.by_name({"x": object()}, owner="Owner")

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """RabbitMQ :class:`MessageBroker` backed by :mod:`aio_pika`."""
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from pirn.connectors.streaming.rabbitmq_config import RabbitMQConfig
 from pirn.connectors.streaming.rabbitmq_plain_message import (
     RabbitMQPlainMessage,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class RabbitMQBroker(MessageBroker):
@@ -118,7 +121,7 @@ class RabbitMQBroker(MessageBroker):
         headers: dict[str, bytes] | None,
     ) -> Any:
         try:
-            import aio_pika  # type: ignore[import-untyped]
+            aio_pika = OptionalDependency.require("aio_pika", extra="rabbitmq")
         except ImportError:
             return RabbitMQPlainMessage(
                 body=bytes(value),
@@ -146,12 +149,7 @@ class RabbitMQBroker(MessageBroker):
         return self._channel
 
     async def _build_connection(self) -> Any:
-        try:
-            import aio_pika  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "RabbitMQBroker requires aio-pika; install via `pip install pirn[rabbitmq]`"
-            ) from exc
+        aio_pika = OptionalDependency.require("aio_pika", extra="rabbitmq")
         connection = await aio_pika.connect_robust(
             host=self._config.host,
             port=self._config.port,

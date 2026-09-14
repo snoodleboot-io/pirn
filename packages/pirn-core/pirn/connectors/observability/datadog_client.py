@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the synchronous ``datadog-api-client`` SDK.
 
 The Datadog SDK is synchronous; calls run in a worker thread via
@@ -25,6 +27,7 @@ import asyncio
 import logging
 from collections.abc import Mapping
 from datetime import datetime
+from types import ModuleType
 from typing import Any
 
 from pirn.connectors.api_client import ApiClient
@@ -33,6 +36,8 @@ from pirn.connectors.capabilities.metric_query import MetricQuery
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.observability.datadog_config import DatadogConfig
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
@@ -87,17 +92,15 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
             params["page[size]"] = page_size
         path = f"/api/v1/{self._resource}"
         response = await self.request("GET", path, params=params)
-        rows_obj = response.get("data") if isinstance(response, Mapping) else None
-        rows: list[Mapping[str, Any]] = list(rows_obj or [])
+        rows: list[Mapping[str, Any]] = []
         next_cursor: str | None = None
-        if isinstance(response, Mapping):
+        if PayloadShape.is_str_mapping(response):
+            rows = PayloadShape.entities(response.get("data"))
             meta = response.get("meta")
-            if isinstance(meta, Mapping):
+            if PayloadShape.is_str_mapping(meta):
                 page_meta = meta.get("page")
-                if isinstance(page_meta, Mapping):
-                    has_more = bool(page_meta.get("has_more"))
-                    if has_more:
-                        next_cursor = str(page_number + 1)
+                if PayloadShape.is_str_mapping(page_meta) and page_meta.get("has_more"):
+                    next_cursor = str(page_number + 1)
         if next_cursor is None and rows and page_size is not None:
             # Fallback: continue paging while a full page was returned.
             if len(rows) >= page_size:
@@ -172,9 +175,9 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
             "query": query,
         }
         response = await self.request("GET", "/api/v1/query", params=params)
-        if not isinstance(response, Mapping):
-            return {"data": response}
-        return response
+        if PayloadShape.is_str_mapping(response):
+            return response
+        return {"data": response}
 
     async def request(
         self,
@@ -210,9 +213,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
 
     async def close(self) -> None:
         if self._client is not None:
-            close_fn = getattr(self._client, "close", None)
-            if callable(close_fn):
-                await asyncio.to_thread(close_fn)
+            await asyncio.to_thread(self._client.close)
             self._client = None
         self._clear_credentials()
         self._closed = True
@@ -226,25 +227,13 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from datadog_api_client import (  # type: ignore[import-not-found]
-                ApiClient as DatadogApiClient,
-            )
-            from datadog_api_client import (
-                Configuration,
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "DatadogClient requires datadog-api-client; install via `pip install pirn[datadog]`"
-            ) from exc
+        datadog_api_client = OptionalDependency.require("datadog_api_client", extra="datadog")
         if self._config is None:
             raise self._missing_config_error("DatadogClient", "client")
 
-        assert self._config is not None  # guarded by RuntimeError above
-
         try:
             client = await asyncio.to_thread(
-                self._sync_build_client, Configuration, DatadogApiClient, self._config
+                self._sync_build_client, datadog_api_client, self._config
             )
         except Exception as exc:
             safe_message = self._scrubber.scrub(str(exc))
@@ -253,11 +242,11 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         return client
 
     @staticmethod
-    def _sync_build_client(configuration_cls: Any, api_client_cls: Any, config: Any) -> Any:
-        configuration = configuration_cls()
+    def _sync_build_client(datadog_api_client: ModuleType, config: DatadogConfig) -> Any:
+        configuration = datadog_api_client.Configuration()
         if config.api_key is not None:
             configuration.api_key["apiKeyAuth"] = config.api_key
         if config.app_key is not None:
             configuration.api_key["appKeyAuth"] = config.app_key
         configuration.server_variables["site"] = config.site
-        return api_client_cls(configuration)
+        return datadog_api_client.ApiClient(configuration)

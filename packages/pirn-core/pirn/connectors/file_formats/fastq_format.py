@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FastqFormat`` — FASTQ sequence + quality encoder/decoder.
 
 FASTQ is a simple text format used in bioinformatics. Each record is
@@ -10,7 +12,7 @@ exactly four lines:
 
 Stdlib parsing is sufficient here. ``pyfaidx`` is an *optional*
 dependency for indexed random-access reads (declared via
-``pirn[genomics]``); it is not required by this format's streaming
+``pirn-health[genomics]``); it is not required by this format's streaming
 encode/decode path.
 """
 

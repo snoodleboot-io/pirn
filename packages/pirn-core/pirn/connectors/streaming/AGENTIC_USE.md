@@ -79,7 +79,7 @@ with Tapestry() as t:
 
 ## Constraints and gotchas
 
-- **Each broker requires its own extra:** `pirn[kafka]`, `pirn[kinesis]`, `pirn[rabbitmq]`, `pirn[pubsub]`, `pirn[valkey]`, `pirn[azure-servicebus]`.
+- **Each broker requires its own extra:** `pip install "pirn-core[kafka]"`, `"pirn-core[kinesis]"`, `"pirn-core[rabbitmq]"`, `"pirn-core[pubsub]"`, `"pirn-core[valkey]"`, `"pirn-core[azure-servicebus]"`.
 - **`KafkaBroker` with `group_id` enables consumer group offset tracking.** Without it, consume starts at the latest offset.
 - **`ValkeyStreamBroker` uses Redis Streams XADD/XREAD semantics.** The `group` field enables consumer group mode; omit it for simple XREAD without acknowledgement.
 - **`RabbitMQBroker.consume()` returns a single message and acks it.** For batched consumption, call in a loop or use `pirn.streaming`.

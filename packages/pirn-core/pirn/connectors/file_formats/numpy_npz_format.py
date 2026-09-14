@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NumpyNpzFormat`` — NumPy zip-of-arrays ``.npz`` batch encoder/decoder.
 
 The ``.npz`` format is a zip archive of one or more named ``.npy``
@@ -8,18 +10,23 @@ This implementation stores records as a single named structured-array
 entry (default name ``"records"``); decoding looks up that entry and
 yields row dicts.
 
-Install: ``pip install pirn[ml]`` (numpy lives in the ``ml`` extra).
+numpy is a core dependency of ``pirn-core``; no extra is required.
 """
 
 from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+
+if TYPE_CHECKING:
+    import numpy as np
+    import numpy.typing as npt
 
 
 class NumpyNpzFormat(BatchFileFormat):
@@ -69,7 +76,8 @@ class NumpyNpzFormat(BatchFileFormat):
         return self._field_names
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        np = self._load_numpy()
+        import numpy as np
+
         with np.load(io.BytesIO(payload), allow_pickle=False) as archive:
             if self._array_name not in archive.files:
                 raise ValueError(
@@ -85,12 +93,13 @@ class NumpyNpzFormat(BatchFileFormat):
             for row in array:
                 record: dict[str, Any] = {}
                 for field in array.dtype.names:
-                    record[field] = self._unwrap_scalar(row[field], np)
+                    record[field] = self._unwrap_scalar(row[field])
                 records.append(record)
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        np = self._load_numpy()
+        import numpy as np
+
         materialised = [dict(record) for record in records]
         if not materialised:
             raise ValueError(
@@ -98,26 +107,27 @@ class NumpyNpzFormat(BatchFileFormat):
                 "(.npz requires a structured array with at least one "
                 "row)"
             )
-        structured = self._records_to_structured_array(materialised, np)
+        structured = self._records_to_structured_array(materialised)
         buf = io.BytesIO()
-        np.savez(buf, **{self._array_name: structured})
+        np.savez(buf, allow_pickle=True, **{self._array_name: structured})
         return buf.getvalue()
 
-    def _records_to_structured_array(self, records: list[dict[str, Any]], np: Any) -> Any:
+    def _records_to_structured_array(self, records: list[dict[str, Any]]) -> npt.NDArray[np.void]:
+        import numpy as np
+
         field_order = self._derive_field_order(records)
-        dtype_fields: list[tuple[str, Any]] = []
+        dtype_fields: list[tuple[str, type[np.generic] | str]] = []
         for field in field_order:
             sample_value = next((rec[field] for rec in records if field in rec), None)
-            dtype_fields.append((field, self._infer_numpy_dtype(sample_value, records, field, np)))
+            dtype_fields.append((field, self._infer_numpy_dtype(sample_value, records, field)))
+        zero_values = {field: self._zero_for_dtype(np.dtype(spec)) for field, spec in dtype_fields}
         structured = np.zeros(len(records), dtype=dtype_fields)
         for index, record in enumerate(records):
             for field in field_order:
                 if field in record:
                     structured[index][field] = record[field]
                 else:
-                    structured[index][field] = self._zero_for_dtype(
-                        structured.dtype.fields[field][0]
-                    )
+                    structured[index][field] = zero_values[field]
         return structured
 
     def _derive_field_order(self, records: list[dict[str, Any]]) -> list[str]:
@@ -134,11 +144,12 @@ class NumpyNpzFormat(BatchFileFormat):
 
     @staticmethod
     def _infer_numpy_dtype(
-        sample_value: Any,
+        sample_value: object,
         records: list[dict[str, Any]],
         field: str,
-        np: Any,
-    ) -> Any:
+    ) -> type[np.generic] | str:
+        import numpy as np
+
         if isinstance(sample_value, bool):
             return np.bool_
         if isinstance(sample_value, int):
@@ -160,7 +171,7 @@ class NumpyNpzFormat(BatchFileFormat):
         return np.float64
 
     @staticmethod
-    def _zero_for_dtype(dtype: Any) -> Any:
+    def _zero_for_dtype(dtype: np.dtype[Any]) -> str | bool | int | float:
         kind = dtype.kind
         if kind in ("U", "S"):
             return ""
@@ -172,22 +183,15 @@ class NumpyNpzFormat(BatchFileFormat):
             return 0.0
         return 0
 
-    @staticmethod
-    def _unwrap_scalar(value: Any, np: Any) -> Any:
+    @classmethod
+    def _unwrap_scalar(cls, value: Any) -> Any:
         if isinstance(value, bytes):
             return value.decode("utf-8")
-        if isinstance(value, np.ndarray) and value.shape == ():
-            return NumpyNpzFormat._unwrap_scalar(value.item(), np)
+        if PayloadShape.is_ndarray(value):
+            array = value
+            if array.shape == ():
+                return cls._unwrap_scalar(array.item())
+            return array.item()
         if hasattr(value, "item"):
             return value.item()
         return value
-
-    @staticmethod
-    def _load_numpy() -> Any:
-        try:
-            import numpy as np
-        except ImportError as exc:
-            raise ImportError(
-                "NumpyNpzFormat requires numpy. Install with `pip install pirn[ml]`."
-            ) from exc
-        return np

@@ -2,7 +2,7 @@
 
 PIR-867: ``PlanExecutor`` is a ``SubTapestry`` now — each step depends on every
 prior step's result, so ``process`` wires a ``LoopSubTapestry``
-(``_PlanStepLoop``) rather than awaiting ``llm.chat`` in a hand-rolled ``for``
+(``PlanStepLoop``) rather than awaiting ``llm.chat`` in a hand-rolled ``for``
 loop. ``process`` therefore returns the sink of an inner pipeline instead of
 the ``AgentResponse`` directly, so the outcome tests run a real tapestry and
 read the executor's output (the same pattern PIR-856 established for

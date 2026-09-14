@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``RetryOnParseFailure`` — retry LLM structured-output requests on parse error.
 
 A :class:`SubTapestry` that attempts to produce a valid structured
@@ -14,18 +16,18 @@ Algorithm:
        and ``max_retries`` (int).
     2. Validate each argument type; raise ``TypeError`` or ``ValueError``
        on invalid inputs.
-    3. Drive the attempts with a :class:`_RetryOnParseFailureLoop`
+    3. Drive the attempts with a :class:`RetryOnParseFailureLoop`
        (``LoopSubTapestry``): each attempt is one real, individually-traceable
-       ``_LLMCallKnot`` invocation rather than a step inside a hand-rolled
+       ``LLMCallKnot`` invocation rather than a step inside a hand-rolled
        Python ``for`` loop (ADR agents-speaks-core WS5a). ``fold`` calls
        ``parser`` on each attempt's text and, on failure, builds the next
        attempt's retry prompt.
-    4. Extract the parsed value with :class:`_RetryResultExtractor`, which
+    4. Extract the parsed value with :class:`RetryResultExtractor`, which
        raises ``ValueError`` if every attempt was exhausted without parsing.
 
 
 References:
-    - :class:`pirn_agents.specializations.structured_output._llm_call_knot._LLMCallKnot`
+    - :class:`pirn_agents.specializations.structured_output.llm_call_knot.LLMCallKnot`
     - :class:`pirn.nodes.loop_sub_tapestry.LoopSubTapestry`
 """
 
@@ -40,13 +42,13 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._retry_on_parse_failure_loop import (
-    _RetryOnParseFailureLoop,
+from pirn_agents.specializations.structured_output.retry_on_parse_failure_loop import (
+    RetryOnParseFailureLoop,
 )
-from pirn_agents.specializations.structured_output._retry_result_extractor import (
-    _RetryResultExtractor,
+from pirn_agents.specializations.structured_output.retry_result_extractor import (
+    RetryResultExtractor,
 )
-from pirn_agents.specializations.structured_output._retry_state import _RetryState
+from pirn_agents.specializations.structured_output.retry_state import RetryState
 
 
 class RetryOnParseFailure(AgentPipeline):
@@ -114,8 +116,8 @@ class RetryOnParseFailure(AgentPipeline):
 
         initial = Parameter(
             "retry_state",
-            _RetryState,
-            default=_RetryState(
+            RetryState,
+            default=RetryState(
                 prompt=prompt,
                 parsed_value=None,
                 succeeded=False,
@@ -123,7 +125,7 @@ class RetryOnParseFailure(AgentPipeline):
                 attempts=0,
             ),
         )
-        loop = _RetryOnParseFailureLoop(
+        loop = RetryOnParseFailureLoop(
             original_prompt=prompt,
             llm=llm,
             parser=parser,
@@ -131,7 +133,7 @@ class RetryOnParseFailure(AgentPipeline):
             state=initial,
             _config=KnotConfig(id="retry_loop"),
         )
-        return _RetryResultExtractor(
+        return RetryResultExtractor(
             state=loop,
             _config=KnotConfig(id="result"),
         )

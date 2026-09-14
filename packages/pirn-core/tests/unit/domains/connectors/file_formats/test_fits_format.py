@@ -131,12 +131,12 @@ class TestFitsFormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestFitsFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestFitsFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
         import unittest.mock
 
         with unittest.mock.patch.dict(
             "sys.modules", {"astropy": None, "astropy.io": None, "astropy.io.fits": None}
         ):
-            with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
-                FitsFormat._load_fits()
+            with self.assertRaisesRegex(ImportError, "pirn-core\\[fits\\]"):
+                await FitsFormat()._decode_full(b"")

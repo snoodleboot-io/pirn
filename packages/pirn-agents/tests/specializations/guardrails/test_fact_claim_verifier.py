@@ -1,7 +1,7 @@
 """Unit tests for :class:`FactClaimVerifier`.
 
 PIR-867: each claim's search is independent of every other claim's, so
-``FactClaimVerifier`` fans them out (one ``_ClaimVerification`` knot per claim
+``FactClaimVerifier`` fans them out (one ``ClaimVerification`` knot per claim
 wired into an ``Aggregator``) rather than awaiting ``store.search`` in a
 hand-rolled ``for`` loop. ``process`` therefore returns the sink of an inner
 pipeline instead of the annotated ``AgentResponse`` directly, so the outcome

@@ -21,13 +21,13 @@ pirn_agents/specializations/specialized_agents/
 ├── data_analyst_agent.py    DataAnalystAgent    — statistical analysis + chart description over tabular data
 │
 │  ── Internal helpers ──
-├── _analysis_step.py        (internal — single analysis step for DataAnalystAgent)
-├── _code_generator.py       (internal — LLM code generation call)
-├── _code_linter.py          (internal — lint generated code before returning)
-├── _code_response_formatter.py (internal — format code output with language tag)
-├── _sql_generator.py        (internal — text-to-SQL LLM call)
-├── _sql_executor.py         (internal — execute SQL against pool; return rows)
-└── _sql_response_formatter.py  (internal — format SQL result as markdown table)
+├── analysis_step.py        (internal — single analysis step for DataAnalystAgent)
+├── code_generator.py       (internal — LLM code generation call)
+├── code_linter.py          (internal — lint generated code before returning)
+├── code_response_formatter.py (internal — format code output with language tag)
+├── sql_generator.py        (internal — text-to-SQL LLM call)
+├── sql_executor.py         (internal — execute SQL against pool; return rows)
+└── sql_response_formatter.py  (internal — format SQL result as markdown table)
 ```
 
 ---

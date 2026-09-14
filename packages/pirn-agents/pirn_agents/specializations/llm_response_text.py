@@ -8,19 +8,21 @@ module centralises that so each pattern does not re-implement it.
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, TypeGuard
 
 
 class LlmResponseText:
     """Normalise a provider chat-completion value down to plain text."""
 
-    def extract(self, raw: Any) -> str:
+    def extract(self, raw: object) -> str:
         """Return the plain-text body of a chat-completion response.
 
         Args:
             raw: The value returned by ``LLMProvider.chat`` — a plain string, or a
-                mapping whose ``"content"`` is either a string or a list of blocks
-                each carrying a ``"text"`` field.
+                mapping whose ``"content"`` is a string or a list of blocks (each a
+                string or a mapping carrying a ``"text"`` field), or a mapping with a
+                top-level ``"text"`` string.
 
         Returns:
             The extracted text, or ``str(raw)`` as a last resort when no known
@@ -28,14 +30,29 @@ class LlmResponseText:
         """
         if isinstance(raw, str):
             return raw
-        if isinstance(raw, dict):
+        if LlmResponseText._is_mapping(raw):
             content = raw.get("content")
             if isinstance(content, str):
                 return content
-            if isinstance(content, list) and content:
+            if LlmResponseText._is_block_list(content) and content:
                 first = content[0]
-                if isinstance(first, dict):
+                if LlmResponseText._is_mapping(first):
                     text = first.get("text")
                     if isinstance(text, str):
                         return text
+                if isinstance(first, str):
+                    return first
+            text = raw.get("text")
+            if isinstance(text, str):
+                return text
         return str(raw)
+
+    @staticmethod
+    def _is_mapping(value: object) -> TypeGuard[Mapping[str, Any]]:
+        """Narrow a JSON-shaped value to a string-keyed mapping."""
+        return isinstance(value, Mapping)
+
+    @staticmethod
+    def _is_block_list(value: object) -> TypeGuard[list[object]]:
+        """Narrow a JSON-shaped ``content`` value to a list of blocks."""
+        return isinstance(value, list)

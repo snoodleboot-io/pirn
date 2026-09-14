@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DataAnalystAgent`` — SQL agent followed by LLM analysis.
 
 A :class:`SubTapestry` that runs a :class:`SQLAgent` to fetch rows for a
@@ -10,7 +12,7 @@ Algorithm:
        ``schema_description`` as plain values.
     2. Validate that ``question`` is a non-empty string.
     3. Build an inner :class:`Tapestry` containing :class:`SQLAgent` and
-       :class:`_AnalysisStep`.
+       :class:`AnalysisStep`.
     4. Run the inner tapestry and extract the ``AgentResponse`` output.
 
 Math:
@@ -32,8 +34,8 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.specialized_agents._analysis_step import (
-    _AnalysisStep,
+from pirn_agents.specializations.specialized_agents.analysis_step import (
+    AnalysisStep,
 )
 from pirn_agents.specializations.specialized_agents.sql_agent import (
     SQLAgent,
@@ -96,7 +98,7 @@ class DataAnalystAgent(AgentPipeline):
             schema_description=schema_description,
             _config=KnotConfig(id="sql_agent"),
         )
-        return _AnalysisStep(
+        return AnalysisStep(
             question=question,
             sql_response=sql_response,
             llm=llm,

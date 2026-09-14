@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, Any
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.signer import Signer
 from pirn.backends.valkey.lazy_client import LazyClient
+from pirn.core.optional_dependency import OptionalDependency
 
 if TYPE_CHECKING:
-    from glide import GlideClient, GlideClientConfiguration
+    from glide import ExpirySet, GlideClient, GlideClientConfiguration
 
 _logger = logging.getLogger(__name__)
 
@@ -104,9 +105,8 @@ class ValKeyDataStore(DataStore):
         if self.__signer is not None:
             payload = self.__signer.sign(payload)
         if self._ttl is not None:
-            from glide import ExpirySet, ExpiryType
-
-            expiry = ExpirySet(ExpiryType.SEC, self._ttl)
+            glide = OptionalDependency.require("glide", extra="valkey")
+            expiry: ExpirySet = glide.ExpirySet(glide.ExpiryType.SEC, self._ttl)
             await client.set(self._key(content_hash), payload, expiry=expiry)
         else:
             await client.set(self._key(content_hash), payload)

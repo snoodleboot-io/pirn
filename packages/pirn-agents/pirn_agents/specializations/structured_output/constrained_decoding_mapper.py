@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ConstrainedDecodingMapper`` — schema → grammar/regex-constrained request.
 
 The S3 building block for local providers (vLLM/Ollama style) that expose
@@ -9,7 +11,7 @@ skipped cleanly by returning ``None`` (no error).
 
 Constraint *generation* is pure and backend-free. Optionally *compiling* the
 grammar against a real engine is delegated to the lazily-imported
-:mod:`pirn_agents.specializations.structured_output._grammar_backend`, keeping
+:mod:`pirn_agents.specializations.structured_output.grammar_backend`, keeping
 the core import backend-free.
 """
 
@@ -20,7 +22,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from pirn_agents.specializations.structured_output import _grammar_backend
+from pirn_agents.specializations.structured_output.grammar_backend import GrammarBackend
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,
 )
@@ -89,25 +91,26 @@ class ConstrainedDecodingMapper:
             return None
         constraint = self.constraint()
         if self._validate_grammar:
-            _grammar_backend._GrammarBackend.compile(constraint)
+            GrammarBackend.compile(constraint)
         return provider.constrained_decoding_option(constraint)
 
     def json_schema(self) -> Mapping[str, Any]:
         """Return the target's JSON Schema (derived from the model if needed)."""
-        if self._is_model_class(self._schema):
-            model_class: type[BaseModel] = self._schema  # type: ignore[assignment]
-            return model_class.model_json_schema()
-        return self._schema  # type: ignore[return-value]
+        schema = self._schema
+        if isinstance(schema, Mapping):
+            return schema
+        return schema.model_json_schema()
 
     @staticmethod
     def _enum_regex(schema: Mapping[str, Any]) -> str | None:
-        enum = schema.get("enum")
-        if isinstance(enum, list) and enum and all(isinstance(value, str) for value in enum):
-            import re
+        match schema.get("enum"):
+            case [*values] if values and all(isinstance(value, str) for value in values):
+                import re
 
-            alternation = "|".join(re.escape(str(value)) for value in enum)
-            return f"^({alternation})$"
-        return None
+                alternation = "|".join(re.escape(str(value)) for value in values)
+                return f"^({alternation})$"
+            case _:
+                return None
 
     @staticmethod
     def _is_model_class(schema: Any) -> bool:

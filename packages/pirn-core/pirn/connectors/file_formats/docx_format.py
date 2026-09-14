@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DocxFormat`` — Microsoft Word ``.docx`` (Office Open XML) encoder/decoder.
 
 Reads and writes use ``python-docx``. ``.docx`` is a zipped XML bundle:
@@ -11,7 +13,7 @@ one paragraph with the given style (or the default style when omitted).
 Security: pirn does not sandbox ``python-docx``. Malformed archives may
 trigger upstream library bugs. Treat untrusted payloads accordingly.
 
-Install: ``pip install pirn[docx]``.
+Install: ``pip install "pirn-core[docx]"``.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DocxFormat(BatchFileFormat):
@@ -45,7 +48,7 @@ class DocxFormat(BatchFileFormat):
         return self._paragraph_separator
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        docx = self._load_docx()
+        docx = OptionalDependency.require("docx", extra="docx")
         document = docx.Document(io.BytesIO(payload))
         records: list[Mapping[str, Any]] = []
         for index, paragraph in enumerate(document.paragraphs):
@@ -62,7 +65,7 @@ class DocxFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        docx = self._load_docx()
+        docx = OptionalDependency.require("docx", extra="docx")
         document = docx.Document()
         for record in records:
             if "text" not in record:
@@ -86,13 +89,3 @@ class DocxFormat(BatchFileFormat):
         buf = io.BytesIO()
         document.save(buf)
         return buf.getvalue()
-
-    @staticmethod
-    def _load_docx() -> Any:
-        try:
-            import docx
-        except ImportError as exc:
-            raise ImportError(
-                "DocxFormat requires python-docx. Install with `pip install pirn[docx]`."
-            ) from exc
-        return docx

@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from glide import GlideClient, GlideClientConfiguration
 
+from pirn.core.optional_dependency import OptionalDependency
+
 
 class LazyClient:
     """Wraps either an injected client (test / sharing) or a GlideClientConfiguration.
@@ -49,15 +51,11 @@ class LazyClient:
             ImportError: If ``valkey-glide`` is not installed.
         """
         if self._client is None:
-            try:
-                from glide import GlideClient
-            except ImportError as exc:
-                raise ImportError(
-                    "ValKey backends require valkey-glide; install via `pip install pirn[valkey]`"
-                ) from exc
             if self._config is None:
                 raise TypeError("LazyClient: no client was injected and no config was given")
-            self._client = await GlideClient.create(self._config)
+            glide = OptionalDependency.require("glide", extra="valkey")
+            client: GlideClient = await glide.GlideClient.create(self._config)
+            self._client = client
         return self._client
 
     async def close(self) -> None:

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Google Analytics 4 Data API connector wrapping the sync ``BetaAnalyticsDataClient``.
 
 The official ``google-analytics-data`` SDK is synchronous; calls run in a
@@ -14,7 +16,7 @@ The connector exposes:
 2. The :class:`TableSource` capability — :meth:`fetch_page` runs the
    constructor's ``report_request`` and pages via ``offset`` /
    ``limit``.
-3. The legacy :meth:`request` escape hatch.
+3. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -28,9 +30,11 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.google_analytics_config import (
     GoogleAnalyticsConfig,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class GoogleAnalyticsClient(ApiClient, TableSource):
@@ -66,7 +70,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         """Vendor-typed wrapper around ``BetaAnalyticsDataClient.run_report``.
 
         Forwards through :meth:`request` (``POST /runReport``) so the
-        legacy escape hatch and the typed surface share one path.
+        generic escape hatch and the typed surface share one path.
         """
         if not isinstance(request, Mapping):
             raise ValueError("GoogleAnalyticsClient.run_report: request must be a Mapping")
@@ -97,15 +101,14 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         return rows, next_cursor
 
     @staticmethod
-    def _extract_rows(response: Any) -> list[Mapping[str, Any]]:
-        if isinstance(response, Mapping):
-            rows = response.get("rows")
-            if isinstance(rows, list):
-                return [row for row in rows if isinstance(row, Mapping)]
-        rows_attr = getattr(response, "rows", None)
-        if isinstance(rows_attr, list):
-            return [row for row in rows_attr if isinstance(row, Mapping)]
-        return []
+    def _extract_rows(response: object) -> list[Mapping[str, Any]]:
+        if PayloadShape.is_str_mapping(response):
+            rows: object = response.get("rows")
+        else:
+            rows = getattr(response, "rows", None)
+        if not PayloadShape.is_list(rows):
+            return []
+        return [row for row in rows if PayloadShape.is_str_mapping(row)]
 
     async def request(
         self,
@@ -169,33 +172,21 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from google.analytics.data_v1beta import (  # type: ignore[import-not-found]
-                BetaAnalyticsDataClient,
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "GoogleAnalyticsClient requires google-analytics-data; install "
-                "via `pip install pirn[google-analytics]`"
-            ) from exc
+        data_v1beta = OptionalDependency.require(
+            "google.analytics.data_v1beta", extra="google-analytics"
+        )
         if self._config is None:
             raise self._missing_config_error("GoogleAnalyticsClient", "client")
 
         kwargs: dict[str, Any] = {}
         if self._config.service_account_json is not None:
-            try:
-                from google.oauth2 import (  # type: ignore[import-not-found]
-                    service_account,
-                )
-            except ImportError as exc:
-                raise ImportError(
-                    "GoogleAnalyticsClient requires google-auth; install via "
-                    "`pip install pirn[google-analytics]`"
-                ) from exc
+            service_account = OptionalDependency.require(
+                "google.oauth2.service_account", extra="google-analytics"
+            )
             info = json.loads(self._config.service_account_json)
             kwargs["credentials"] = service_account.Credentials.from_service_account_info(info)
         try:
-            client = await asyncio.to_thread(BetaAnalyticsDataClient, **kwargs)
+            client = await asyncio.to_thread(data_v1beta.BetaAnalyticsDataClient, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("google_analytics.connect")

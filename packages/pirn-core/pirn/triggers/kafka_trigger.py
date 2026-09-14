@@ -21,6 +21,7 @@ import logging
 from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.run_request import RunRequest
 from pirn.core.shape_guard import ShapeGuard
 from pirn.triggers.trigger import Trigger
@@ -95,15 +96,10 @@ class KafkaTrigger(Trigger):
                 provided when constructing without a consumer.
         """
         if self._consumer is None:
-            try:
-                from aiokafka import AIOKafkaConsumer
-            except ImportError as exc:
-                raise ImportError(
-                    "KafkaTrigger requires aiokafka; install via `pip install pirn[kafka]`"
-                ) from exc
+            aiokafka = OptionalDependency.require("aiokafka", extra="kafka")
             assert self._bootstrap is not None, "bootstrap_servers required when no consumer"
             assert self._topic is not None, "topic required when no consumer"
-            consumer = AIOKafkaConsumer(
+            consumer: AIOKafkaConsumer = aiokafka.AIOKafkaConsumer(
                 self._topic,
                 bootstrap_servers=self._bootstrap,
                 group_id=self._group_id,

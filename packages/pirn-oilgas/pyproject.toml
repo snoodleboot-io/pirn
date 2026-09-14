@@ -32,7 +32,7 @@ dependencies = ["pirn-core>=0.9.0,<0.10.0"]  # lockstep floor (ADR-6 / constrain
 [project.optional-dependencies]
 # Heavy oil & gas SDKs — the orchestration layer imports without these;
 # concrete knots check via pirn_oilgas.extras_loader.ExtrasLoader.
-oilgas = ["segyio>=1.9.14", "lasio>=0.32", "resfo>=1.3", "scipy>=1.12"]
+oilgas = ["segyio>=1.9.14", "lasio>=0.32", "resfo>=1.3", "scipy>=1.12", "defusedxml>=0.7"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["pirn_oilgas"]

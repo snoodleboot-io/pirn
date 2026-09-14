@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CsvFormat`` — comma-separated values encoder/decoder using stdlib ``csv``.
 
 Streamable both directions: lines are decoded incrementally from the

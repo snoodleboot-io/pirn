@@ -14,22 +14,20 @@ attempted/skipped names, budgets) and ``D`` is the answer/content the
 pipeline actually produced.
 
 ``AgentResult`` itself is a thin, non-abstract generic ``Payload`` subclass —
-not a dataclass, declaring no fields of its own — kept importable so the
-family still shares one substitutable abstraction (DIP/LSP): callers may
-depend on ``AgentResult`` rather than each concrete, and
-``isinstance(x, AgentResult)`` keeps working for every result in the family.
-Each concrete overrides ``_pirn_audit_dict`` exactly as it did before the
-rebase (previously overriding the raising base's hook; now overriding
-``Payload``'s metadata-delegating one) to fold in its own ``data`` field(s).
+not a dataclass, declaring no fields of its own — so the family shares one
+substitutable abstraction (DIP/LSP): callers may depend on ``AgentResult``
+rather than each concrete, and ``isinstance(x, AgentResult)`` holds for every
+result in the family. Each concrete overrides ``Payload``'s metadata-delegating
+``_pirn_audit_dict`` to fold in its own ``data`` field(s), through
+:class:`~pirn_agents.specializations.base.nested_audit_value.NestedAuditValue`
+when that data is itself an opaque value.
 
 ``Payload`` does not define value equality (``AgentResponse`` and
 ``ConversationPayload`` do not either), so ``AgentResult`` adds a structural
 ``__eq__`` — same concrete type, equal ``metadata`` and equal ``data`` — so
-existing equality-based tests and call sites on the result family keep
-working unchanged. Frozen-dataclass equality is not restored generally
-because ``AgentResponse``/``ConversationPayload`` were never restored either;
-this narrows the divergence to exactly this family, where it was observed to
-matter (``SimulationResult`` equality).
+two results of the family compare by value (``SimulationResult`` equality
+depends on it). ``AgentResponse``/``ConversationPayload`` keep identity
+equality.
 
 References:
     - :class:`pirn.core.payload.Payload`
@@ -43,18 +41,19 @@ from typing import TypeVar
 from pirn.core.payload import Payload
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.specializations.base.nested_audit_value import NestedAuditValue
+
 M = TypeVar("M", bound=PirnOpaqueValue)
 D = TypeVar("D")
 
 
-class AgentResult(Payload[M, D]):
+class AgentResult(Payload[M, D], NestedAuditValue):
     """Thin generic ``Payload`` base for the specialization result family.
 
     Declares no fields and no behaviour beyond structural equality; each
     concrete ``Payload[<Frame>, D]`` subclass supplies its own frame type,
-    ``__init__`` (accepting the same flat, pre-ADR field names it always
-    did), read-only properties for those field names, and
-    :meth:`_pirn_audit_dict`.
+    ``__init__`` (accepting the pattern's named fields), read-only properties
+    for those field names, and :meth:`_pirn_audit_dict`.
     """
 
     def __eq__(self, other: object) -> bool:
@@ -66,6 +65,6 @@ class AgentResult(Payload[M, D]):
         dataclass fields keeps this correct across every concrete without
         each one needing to declare its own.
         """
-        if not isinstance(other, AgentResult) or type(other) is not type(self):
+        if not isinstance(other, type(self)) or type(other) is not type(self):
             return NotImplemented
         return self._metadata == other._metadata and self._data == other._data

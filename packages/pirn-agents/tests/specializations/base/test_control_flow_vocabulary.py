@@ -17,9 +17,8 @@ allowlist discipline, for three shapes that ratchet does not cover:
     (``docs/contributing/knot-design-rules.md``) *vending Knot* for an opaque,
     non-serialisable resource (a pooled HTTP client, an LLM provider, a vector
     store handle) has exactly this shape by design, and stays in the frozen
-    list permanently. The rest (``ResolvedValueKnot``, ``_ResponseEcho``) wrap
-    an ordinary, already-known *value* — that is ``Parameter``'s job, not a
-    bespoke pass-through class.
+    list permanently. Any other identity knot wraps an ordinary, already-known
+    *value* — that is ``Parameter``'s job, not a bespoke pass-through class.
 
 (c) ``AgentPipeline.process()`` annotated ``-> Any``. The ``SubTapestry``
     contract (enforced at runtime by ``SubTapestry.__call__``) already
@@ -45,18 +44,18 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 #: that are returned. All twelve are now fixed; they existed to
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
-#: `_RetryResultExtractor`/`_RetryOnParseFailureLoop` (ADR agents-speaks-core
-#: WS5a). `SelfAskPipeline` is fixed — see its `_SelfAskComposer`/
-#: `_SelfAskLoop`; `PromptChainPipeline` is fixed — see its
-#: `_PromptChainResultExtractor`/`_PromptChainLoop`; `OrchestratorAgent` is
-#: fixed — see its `_OrchestratorResultNormalizer`; `JsonExtractorPipeline`/
+#: `RetryResultExtractor`/`RetryOnParseFailureLoop` (ADR agents-speaks-core
+#: WS5a). `SelfAskPipeline` is fixed — see its `SelfAskComposer`/
+#: `SelfAskLoop`; `PromptChainPipeline` is fixed — see its
+#: `PromptChainResultExtractor`/`PromptChainLoop`; `OrchestratorAgent` is
+#: fixed — see its `OrchestratorResultNormalizer`; `JsonExtractorPipeline`/
 #: `YamlExtractorPipeline`/`PydanticValidatorPipeline` are fixed — see their
 #: `*Loop`/`*ResultExtractor` pairs; `ReflexionPipeline` is fixed — see
-#: `_ReflexionLoop`/`_ReflexionResultExtractor`; `PlanReActPipeline` is fixed
-#: — see `_PlanReActResultExtractor`; `FlareActiveRagPipeline` is fixed — see
-#: `_FlareLoop`/`_FlareResultExtractor`; `MultiHopRAGPipeline` is fixed — see
-#: `_MultiHopResultExtractor`; `LatsSearch` is fixed — see
-#: `_LatsResultExtractor` (ADR agents-speaks-core WS5b). Kept as an assertion
+#: `ReflexionLoop`/`ReflexionResultExtractor`; `PlanReActPipeline` is fixed
+#: — see `PlanReActResultExtractor`; `FlareActiveRagPipeline` is fixed — see
+#: `FlareLoop`/`FlareResultExtractor`; `MultiHopRAGPipeline` is fixed — see
+#: `MultiHopResultExtractor`; `LatsSearch` is fixed — see
+#: `LatsResultExtractor` (ADR agents-speaks-core WS5b). Kept as an assertion
 #: (not deleted) so a future inline `Source` regresses loudly.
 DEFINES_INLINE_SOURCE: frozenset[str] = frozenset()
 
@@ -68,14 +67,9 @@ DEFINES_INLINE_SOURCE: frozenset[str] = frozenset()
 #: graph exactly once, which `Parameter` cannot do (`Parameter` validates its
 #: value with a Pydantic `TypeAdapter` and is a graph ROOT — a vending Knot's
 #: `Knot | Resource` input can also be wired to an upstream knot, which
-#: `Parameter` structurally cannot accept). `_ResponseEcho` is pinned
-#: importable and explicitly documented as "not a transform — do not fix, do
-#: not delete" (`_response_echo.py`); it stays for that reason, not because
-#: it is legitimate the way the vending Knots are. `ResolvedValueKnot` was the
-#: burn-down target here — it wrapped an ordinary already-known value, not an
-#: opaque resource — and is now a `Parameter` deprecation shim: its `process()`
-#: is inherited from `Parameter` rather than redefined, so it no longer
-#: appears in this walk at all.
+#: `Parameter` structurally cannot accept). Every other identity knot has
+#: been removed: a wrapper around an ordinary, already-known value is a
+#: `Parameter`, and a pattern's final response is its real sink knot.
 IS_IDENTITY_KNOT = frozenset(
     {
         "connectors/knots/http_connector_knot.py::HttpConnectorKnot",
@@ -85,7 +79,6 @@ IS_IDENTITY_KNOT = frozenset(
         "memory/stores/knots/memory_store_knot.py::MemoryStoreKnot",
         "retrieval/embeddings/knots/embedding_provider_knot.py::EmbeddingProviderKnot",
         "retrieval/vector_stores/knots/vector_store_knot.py::VectorStoreKnot",
-        "specializations/multi_agent/_response_echo.py::_ResponseEcho",
         "tools/knots/tool_client_knot.py::ToolClientKnot",
     }
 )

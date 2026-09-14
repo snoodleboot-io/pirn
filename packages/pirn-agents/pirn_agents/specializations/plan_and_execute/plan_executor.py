@@ -3,15 +3,15 @@
 Each step's prompt includes every prior step's result as context, so the
 loop genuinely depends on its own accumulated state and is wired as a
 :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry` iteration
-(:class:`~pirn_agents.specializations.plan_and_execute._plan_step_loop._PlanStepLoop`)
+(:class:`~pirn_agents.specializations.plan_and_execute.plan_step_loop.PlanStepLoop`)
 rather than a hand-rolled ``for`` loop awaiting ``llm.chat`` directly
 (PIR-867).
 
 Algorithm:
     1. Receive the resolved ``plan`` (:class:`Plan`) and ``llm`` (:class:`LLMProvider`).
-    2. Seed a :class:`~pirn_agents.specializations.plan_and_execute._plan_step_state._PlanStepState`
+    2. Seed a :class:`~pirn_agents.specializations.plan_and_execute.plan_step_state.PlanStepState`
        from ``plan.steps`` and build the iteration loop.
-    3. Wire :class:`~pirn_agents.specializations.plan_and_execute._plan_execution_result._PlanExecutionResult`
+    3. Wire :class:`~pirn_agents.specializations.plan_and_execute.plan_execution_result.PlanExecutionResult`
        over the loop's final state and return it as the sink.
 
 References:
@@ -29,11 +29,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.plan_and_execute._plan_execution_result import (
-    _PlanExecutionResult,
+from pirn_agents.specializations.plan_and_execute.plan_execution_result import (
+    PlanExecutionResult,
 )
-from pirn_agents.specializations.plan_and_execute._plan_step_loop import _PlanStepLoop
-from pirn_agents.specializations.plan_and_execute._plan_step_state import _PlanStepState
+from pirn_agents.specializations.plan_and_execute.plan_step_loop import PlanStepLoop
+from pirn_agents.specializations.plan_and_execute.plan_step_state import PlanStepState
 
 
 class PlanExecutor(AgentPipeline):
@@ -62,14 +62,14 @@ class PlanExecutor(AgentPipeline):
             llm: The LLM provider used to execute each step.
 
         Returns:
-            The sink of the inner pipeline: a :class:`_PlanExecutionResult`
+            The sink of the inner pipeline: a :class:`PlanExecutionResult`
             over the loop's final state, whose output — an ``AgentResponse``
             whose content contains each step result separated by newlines —
             becomes this knot's output.
         """
-        loop = _PlanStepLoop(
+        loop = PlanStepLoop(
             llm=llm,
-            state=_PlanStepState(steps=tuple(plan.steps)),
+            state=PlanStepState(steps=tuple(plan.steps)),
             _config=KnotConfig(id="loop"),
         )
-        return _PlanExecutionResult(state=loop, _config=KnotConfig(id="result"))
+        return PlanExecutionResult(state=loop, _config=KnotConfig(id="result"))

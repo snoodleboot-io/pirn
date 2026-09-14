@@ -15,6 +15,7 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.messaging.slack_config import SlackConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SlackClient(ApiClient):
@@ -43,8 +44,8 @@ class SlackClient(ApiClient):
         channel: str,
         text: str,
         *,
-        blocks: list | None = None,
-    ) -> dict:
+        blocks: list[Mapping[str, object]] | None = None,
+    ) -> dict[str, object]:
         """Post a message to a Slack channel via ``chat_postMessage``.
 
         Parameters
@@ -57,19 +58,20 @@ class SlackClient(ApiClient):
             Optional Block Kit blocks list.
         """
         client = await self._ensure_client()
-        kwargs: dict[str, Any] = {"channel": channel, "text": text}
+        kwargs: dict[str, object] = {"channel": channel, "text": text}
         if blocks is not None:
             kwargs["blocks"] = blocks
         self._logger.debug("slack.send_message channel=%s", channel)
         response = await client.chat_postMessage(**kwargs)
-        return dict(response)
+        result: dict[str, object] = dict(response)
+        return result
 
     async def upload_file(
         self,
         channel: str,
         content: bytes,
         filename: str,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Upload a file to a Slack channel via ``files_upload_v2``.
 
         Parameters
@@ -88,7 +90,8 @@ class SlackClient(ApiClient):
             content=content,
             filename=filename,
         )
-        return dict(response)
+        result: dict[str, object] = dict(response)
+        return result
 
     async def request(
         self,
@@ -122,18 +125,13 @@ class SlackClient(ApiClient):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from slack_sdk.web.async_client import AsyncWebClient  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "SlackClient requires slack-sdk; install via pip install pirn[slack]"
-            ) from exc
+        async_client = OptionalDependency.require("slack_sdk.web.async_client", extra="slack")
         if self._config is None:
             raise self._missing_config_error("SlackClient", "client")
         if not self._config.bot_token:
             raise ValueError("SlackClient: config.bot_token must be non-empty")
         self._logger.debug("slack.connect")
-        return AsyncWebClient(
+        return async_client.AsyncWebClient(
             token=self._config.bot_token,
             timeout=self._config.timeout,
         )

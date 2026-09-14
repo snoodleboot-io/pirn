@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.clickhouse_config import ClickhouseConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ClickhousePool(DatabaseConnectionPool):
@@ -76,13 +78,15 @@ class ClickhousePool(DatabaseConnectionPool):
         accept a mapping or sequence and forward it via the client's
         ``parameters`` keyword argument so the driver handles escaping.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = self._normalise_params(parameters)
         return await asyncio.to_thread(self._sync_execute, client, query, params)
 
     @staticmethod
-    def _sync_execute(client: Any, query: str, params: Any) -> Any:
+    def _sync_execute(
+        client: Any, query: str, params: Mapping[str, object] | list[Any] | None
+    ) -> Any:
         return client.command(query, parameters=params)
 
     async def fetch_all(
@@ -90,13 +94,15 @@ class ClickhousePool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = self._normalise_params(parameters)
         return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
 
     @staticmethod
-    def _sync_fetch_all(client: Any, query: str, params: Any) -> list[tuple[Any, ...]]:
+    def _sync_fetch_all(
+        client: Any, query: str, params: Mapping[str, object] | list[Any] | None
+    ) -> list[tuple[Any, ...]]:
         result = client.query(query, parameters=params)
         rows = getattr(result, "result_rows", None)
         if rows is None:
@@ -115,7 +121,7 @@ class ClickhousePool(DatabaseConnectionPool):
         Callers that want per-row ``execute`` repetition can loop over
         :meth:`execute` themselves.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
         await asyncio.to_thread(self._sync_execute_many, client, query, rows)
@@ -130,10 +136,12 @@ class ClickhousePool(DatabaseConnectionPool):
             client.command(query, parameters=params)
 
     @staticmethod
-    def _normalise_params(parameters: Iterable[Any] | None) -> Any:
+    def _normalise_params(
+        parameters: Iterable[Any] | None,
+    ) -> Mapping[str, object] | list[Any] | None:
         if parameters is None:
             return None
-        if isinstance(parameters, dict):
+        if PayloadShape.is_str_dict(parameters):
             return parameters
         # Sequences — forward as a list. The driver converts as needed.
         return list(parameters)
@@ -146,13 +154,7 @@ class ClickhousePool(DatabaseConnectionPool):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            import clickhouse_connect  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ClickhousePool requires clickhouse_connect; install via "
-                "`pip install pirn[clickhouse]`"
-            ) from exc
+        clickhouse_connect = OptionalDependency.require("clickhouse_connect", extra="clickhouse")
         if self._config is None:
             raise self._missing_config_error("ClickhousePool", "client")
 
@@ -168,7 +170,7 @@ class ClickhousePool(DatabaseConnectionPool):
         if self._config.database is not None:
             kwargs["database"] = self._config.database
         try:
-            client = await asyncio.to_thread(clickhouse_connect.get_client, **kwargs)
+            client: Any = await asyncio.to_thread(clickhouse_connect.get_client, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("clickhouse.connect")

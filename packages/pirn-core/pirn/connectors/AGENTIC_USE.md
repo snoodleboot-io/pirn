@@ -151,7 +151,7 @@ DSNs contain credentials. Always pass DSN strings through `dsn_scrubber(dsn)` be
 ## Constraints and gotchas
 
 - **All pools, stores, and clients are `PirnOpaqueValue`.** They are not inspected by pirn's content-addressing. The same pool object across two runs produces the same cache key regardless of connection state.
-- **Connector extras are fine-grained.** Each database or SaaS system may require its own extra (e.g. `pirn[postgres]`, `pirn[snowflake]`). Check `pyproject.toml` for the exact extra name before installing.
+- **Connector extras are fine-grained.** Each database or SaaS system may require its own extra (e.g. `pip install "pirn-core[postgres]"`, `"pirn-core[snowflake]"`). Check `pyproject.toml` for the exact extra name before installing.
 - **`FileFormat` implementations are stateless.** They encode and decode; they do not hold connections. Pass them as config constants without pooling.
 
 ---

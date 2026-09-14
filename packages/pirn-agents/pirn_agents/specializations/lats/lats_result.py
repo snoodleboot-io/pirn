@@ -15,10 +15,9 @@ class LatsResult(AgentResult[LatsFrame, tuple[str, ...]]):
     following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
     highest-value action trajectory found within budget, and ``metadata``
     is the :class:`LatsFrame` carrying the value/nodes-expanded/budget
-    facts. The pre-ADR field names (``best_trajectory``, ``best_value``,
-    ``nodes_expanded``, ``budget_exhausted``) stay available as read-only
-    properties, so every existing construction and attribute-access call
-    site keeps compiling unchanged.
+    facts. The constructor takes the pattern's named fields (``best_trajectory``,
+    ``best_value``, ``nodes_expanded``, ``budget_exhausted``), and each is also a read-only
+    property.
     """
 
     def __init__(
@@ -52,6 +51,6 @@ class LatsResult(AgentResult[LatsFrame, tuple[str, ...]]):
         return self._metadata.budget_exhausted
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["best_trajectory"] = list(self.best_trajectory)
         return audit

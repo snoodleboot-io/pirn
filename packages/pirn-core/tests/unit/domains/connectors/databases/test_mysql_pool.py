@@ -137,12 +137,12 @@ class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = MySQLPool(pool=FakeAiomysqlPool())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {v}")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = {v}")
 
     def test_accepts_percent_s_placeholder(self) -> None:
         # ``%s`` is the canonical MySQL placeholder, not interpolation.
         pool = MySQLPool(pool=FakeAiomysqlPool())
-        pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
+        pool.reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
 
 class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):

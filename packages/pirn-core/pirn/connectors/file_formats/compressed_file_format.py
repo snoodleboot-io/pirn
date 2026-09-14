@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CompressedFileFormat`` — transparent codec wrapper around any
 :class:`FileFormat`.
 
@@ -20,6 +22,12 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any, ClassVar
 
 from pirn.connectors.file_format import FileFormat
+from pirn.connectors.file_formats.codec import Codec
+from pirn.connectors.file_formats.codecs.bzip2_codec import Bzip2Codec
+from pirn.connectors.file_formats.codecs.gzip_codec import GzipCodec
+from pirn.connectors.file_formats.codecs.lz4_codec import Lz4Codec
+from pirn.connectors.file_formats.codecs.snappy_codec import SnappyCodec
+from pirn.connectors.file_formats.codecs.zstd_codec import ZstdCodec
 
 
 class CompressedFileFormat(FileFormat):
@@ -78,36 +86,16 @@ class CompressedFileFormat(FileFormat):
         async for chunk in codec.decompress_stream(body):
             yield chunk
 
-    def _load_codec(self) -> Any:
-        """Lazy-import the codec module; raises on missing extra."""
+    def _load_codec(self) -> Codec:
+        """Build the codec; its optional backend is imported when it runs."""
         if self._codec == "gzip":
-            from pirn.connectors.file_formats.codecs.gzip_codec import (
-                GzipCodec,
-            )
-
             return GzipCodec()
         if self._codec == "bzip2":
-            from pirn.connectors.file_formats.codecs.bzip2_codec import (
-                Bzip2Codec,
-            )
-
             return Bzip2Codec()
         if self._codec == "zstd":
-            from pirn.connectors.file_formats.codecs.zstd_codec import (
-                ZstdCodec,
-            )
-
             return ZstdCodec()
         if self._codec == "snappy":
-            from pirn.connectors.file_formats.codecs.snappy_codec import (
-                SnappyCodec,
-            )
-
             return SnappyCodec()
         if self._codec == "lz4":
-            from pirn.connectors.file_formats.codecs.lz4_codec import (
-                Lz4Codec,
-            )
-
             return Lz4Codec()
         raise RuntimeError(f"CompressedFileFormat: codec {self._codec!r} not loadable")

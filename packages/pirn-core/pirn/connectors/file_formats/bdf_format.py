@@ -23,19 +23,24 @@ Record shape (one per signal channel)::
         "data":          bytes,  # raw float64 array bytes
     }
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"``.
 """
 
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Iterable, Mapping
+import warnings
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class BdfFormat(BatchFileFormat):
@@ -74,7 +79,7 @@ class BdfFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         import numpy as np
 
-        pyedflib = self._load_pyedflib()
+        pyedflib = OptionalDependency.require("pyedflib", extra="health", package="pirn-health")
         with tempfile.NamedTemporaryFile(suffix=".bdf", delete=False) as tmp:
             tmp_path = tmp.name
             tmp.write(payload)
@@ -101,7 +106,7 @@ class BdfFormat(BatchFileFormat):
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         import numpy as np
 
-        pyedflib = self._load_pyedflib()
+        pyedflib = OptionalDependency.require("pyedflib", extra="health", package="pirn-health")
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError(
@@ -119,8 +124,8 @@ class BdfFormat(BatchFileFormat):
                 tmp_path, len(materialised), file_type=pyedflib.FILETYPE_BDF
             ) as writer:
                 self._apply_phi_redaction(writer)
-                headers = []
-                signal_arrays = []
+                headers: list[dict[str, object]] = []
+                signal_arrays: list[np.ndarray[Any, np.dtype[np.float64]]] = []
                 for i, rec in enumerate(materialised):
                     for field in ("data", "sample_rate"):
                         if field not in rec:
@@ -164,18 +169,16 @@ class BdfFormat(BatchFileFormat):
 
     @staticmethod
     def _apply_phi_redaction(writer: Any) -> None:
-        import warnings
-
-        _setters = [
-            ("setPatientCode", "[REDACTED]"),
-            ("setPatientName", "[REDACTED]"),
-            ("setBirthDate", ""),
-            ("setAdmincode", "[REDACTED]"),
+        setters: list[tuple[str, Callable[[], object]]] = [
+            ("setPatientCode", lambda: writer.setPatientCode("[REDACTED]")),
+            ("setPatientName", lambda: writer.setPatientName("[REDACTED]")),
+            ("setBirthDate", lambda: writer.setBirthDate("")),
+            ("setAdmincode", lambda: writer.setAdmincode("[REDACTED]")),
         ]
         applied = 0
-        for method_name, value in _setters:
+        for method_name, apply_setter in setters:
             try:
-                getattr(writer, method_name)(value)
+                apply_setter()
                 applied += 1
             except AttributeError:
                 warnings.warn(
@@ -191,13 +194,3 @@ class BdfFormat(BatchFileFormat):
                 "this pyedflib version. Cannot safely encode records — install a "
                 "supported pyedflib version (>=1.0)."
             )
-
-    @staticmethod
-    def _load_pyedflib() -> Any:
-        try:
-            import pyedflib
-        except ImportError as exc:
-            raise ImportError(
-                "BdfFormat requires pyedflib. Install with `pip install pirn[health]`."
-            ) from exc
-        return pyedflib

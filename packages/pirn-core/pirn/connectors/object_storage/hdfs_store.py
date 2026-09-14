@@ -1,15 +1,20 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """HDFS :class:`ObjectStore` backed by WebHDFS REST or PyArrow HDFS bindings."""
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
+from urllib.parse import quote
 
-from pirn.connectors.object_storage._pyarrow_hdfs_client import _PyArrowHDFSClient
-from pirn.connectors.object_storage._web_hdfs_client import _WebHDFSClient
 from pirn.connectors.object_storage.hdfs_config import HDFSConfig
+from pirn.connectors.object_storage.pyarrow_hdfs_client import PyarrowHdfsClient
+from pirn.connectors.object_storage.web_hdfs_client import WebHdfsClient
 from pirn.connectors.object_store import ObjectStore
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class HDFSStore(ObjectStore):
@@ -44,8 +49,8 @@ class HDFSStore(ObjectStore):
             close_fn = getattr(self._client, "close", None)
             if callable(close_fn):
                 result = close_fn()
-                if hasattr(result, "__await__"):
-                    await result  # type: ignore[misc]
+                if inspect.isawaitable(result):
+                    await result
             self._client = None
         self._closed = True
         self._logger.debug("hdfs.close")
@@ -120,19 +125,11 @@ class HDFSStore(ObjectStore):
         return await self._create_pyarrow_client()
 
     async def _create_webhdfs_client(self) -> Any:
-        try:
-            import requests  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "HDFSStore (WebHDFS) requires requests; install via `pip install pirn[hdfs]`"
-            ) from exc
-        from urllib.parse import quote as _quote
-
+        requests = OptionalDependency.require("requests", extra="hdfs")
         config = self._config
-        scheme = "https" if getattr(config, "tls", False) else "http"
-        base_url = f"{scheme}://{config.namenode_host}:{config.namenode_port}/webhdfs/v1"
-        user = _quote(config.user or "hadoop", safe="")
-        self._client = _WebHDFSClient(base_url=base_url, user=user, session=requests.Session())
+        base_url = f"http://{config.namenode_host}:{config.namenode_port}/webhdfs/v1"
+        user = quote(config.user or "hadoop", safe="")
+        self._client = WebHdfsClient(base_url=base_url, user=user, session=requests.Session())
         self._logger.debug(
             "hdfs.webhdfs.connect",
             extra={"host": config.namenode_host, "port": config.namenode_port},
@@ -140,19 +137,14 @@ class HDFSStore(ObjectStore):
         return self._client
 
     async def _create_pyarrow_client(self) -> Any:
-        try:
-            import pyarrow.fs as pafs  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "HDFSStore (PyArrow) requires pyarrow; install via `pip install pirn[hdfs-arrow]`"
-            ) from exc
+        pafs = OptionalDependency.require("pyarrow.fs", extra="arrow")
         config = self._config
-        fs = pafs.HadoopFileSystem(  # type: ignore[attr-defined]
+        fs = pafs.HadoopFileSystem(
             host=config.namenode_host,
             port=config.namenode_port,
             user=config.user or None,
         )
-        self._client = _PyArrowHDFSClient(fs=fs)
+        self._client = PyarrowHdfsClient(fs=fs)
         self._logger.debug(
             "hdfs.pyarrow.connect",
             extra={"host": config.namenode_host},

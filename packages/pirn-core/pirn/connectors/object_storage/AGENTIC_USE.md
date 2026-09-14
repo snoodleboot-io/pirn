@@ -19,7 +19,9 @@ pirn/connectors/object_storage/
 ├── azure_blob_config.py          AzureBlobConfig         — account_name, container, sas_token or connection_string
 ├── azure_blob_store.py           AzureBlobStore          — Azure Blob Storage via azure-storage-blob async
 ├── hdfs_config.py                HDFSConfig              — namenode, port, user, krb5_principal
-├── hdfs_store.py                 HDFSStore               — HDFS via hdfs3 / libhdfs
+├── hdfs_store.py                 HDFSStore               — HDFS via WebHDFS REST or PyArrow
+├── web_hdfs_client.py            WebHdfsClient           — WebHDFS REST adapter used by HDFSStore
+├── pyarrow_hdfs_client.py        PyarrowHdfsClient       — PyArrow HadoopFileSystem adapter used by HDFSStore
 ├── local_filesystem_config.py    LocalFilesystemConfig   — root_path, create_dirs
 └── local_filesystem_store.py     LocalFilesystemStore    — local disk (dev/test only)
 ```
@@ -72,7 +74,7 @@ with Tapestry() as t:
 
 ## Constraints and gotchas
 
-- **Each store requires its own extra:** `pirn[s3]`, `pirn[gcs]`, `pirn[azure-blob]`, `pirn[hdfs]`.
+- **Each store requires its own extra:** `pip install "pirn-core[s3]"`, `"pirn-core[gcs]"`, `"pirn-core[azure]"`. `HDFSStore` needs `"pirn-core[hdfs]"` (WebHDFS mode, `requests`) or `"pirn-core[arrow]"` (PyArrow mode).
 - **`S3Store` uses IAM roles if `access_key` and `secret_key` are absent** — the host must have an instance profile or task role attached.
 - **`GCSStore` requires a `credentials_json` path or `GOOGLE_APPLICATION_CREDENTIALS` env var.**
 - **`HDFSStore` with Kerberos requires `krb5_principal` and a valid keytab on the executing host.**

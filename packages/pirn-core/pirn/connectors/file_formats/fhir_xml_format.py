@@ -9,19 +9,22 @@ The same PHI fields stripped by :class:`FhirJsonFormat` are stripped here:
 ``name``, ``birthDate``, ``address``, ``telecom``, ``identifier``.
 ``identifier`` is hashed with SHA-256 and emitted as ``identifier_hash``.
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"`` (fhir.resources, defusedxml) and
+``pip install "pirn-core[html]"`` (lxml, for writes).
 """
 
 from __future__ import annotations
 
 import hashlib
 import io
+import re
 from collections.abc import Iterable, Mapping
 from typing import Any, ClassVar
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class FhirXmlFormat(BatchFileFormat):
@@ -49,9 +52,11 @@ class FhirXmlFormat(BatchFileFormat):
         return "fhir_xml"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        self._load_fhir()
-        defusedxml = self._load_defusedxml()
-        tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
+        OptionalDependency.require("fhir.resources", extra="health", package="pirn-health")
+        element_tree = OptionalDependency.require(
+            "defusedxml.ElementTree", extra="health", package="pirn-health"
+        )
+        tree = element_tree.parse(io.BytesIO(payload))
         root = tree.getroot()
         records: list[dict[str, Any]] = []
         local_tag = self._local(root.tag)
@@ -70,8 +75,8 @@ class FhirXmlFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        self._load_fhir()
-        lxml_etree = self._load_lxml()
+        OptionalDependency.require("fhir.resources", extra="health", package="pirn-health")
+        lxml_etree = OptionalDependency.require("lxml.etree", extra="html")
         materialised = [dict(r) for r in records]
         nsmap = {None: FhirXmlFormat._fhir_ns}
         bundle_el = lxml_etree.Element(f"{{{FhirXmlFormat._fhir_ns}}}Bundle", nsmap=nsmap)
@@ -150,8 +155,6 @@ class FhirXmlFormat(BatchFileFormat):
     @staticmethod
     def _validate_xml_ncname(name: str) -> None:
         """Raise ValueError if *name* is not a valid XML NCName."""
-        import re
-
         if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9._\-]*", name):
             raise ValueError(
                 f"FhirXmlFormat: value {name!r} is not a valid XML element "
@@ -164,33 +167,3 @@ class FhirXmlFormat(BatchFileFormat):
         if "}" in tag:
             return tag.split("}", 1)[1]
         return tag
-
-    @staticmethod
-    def _load_fhir() -> Any:
-        try:
-            import fhir.resources
-        except ImportError as exc:
-            raise ImportError(
-                "FhirXmlFormat requires fhir.resources. Install with `pip install pirn[health]`."
-            ) from exc
-        return fhir.resources
-
-    @staticmethod
-    def _load_defusedxml() -> Any:
-        try:
-            import defusedxml.ElementTree
-        except ImportError as exc:
-            raise ImportError(
-                "FhirXmlFormat requires defusedxml. Install with `pip install pirn[health]`."
-            ) from exc
-        return defusedxml
-
-    @staticmethod
-    def _load_lxml() -> Any:
-        try:
-            from lxml import etree  # type: ignore[attr-defined]
-        except ImportError as exc:
-            raise ImportError(
-                "FhirXmlFormat requires lxml. Install with `pip install pirn[health]`."
-            ) from exc
-        return etree

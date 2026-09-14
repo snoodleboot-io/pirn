@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the OpenMetadata REST API.
 
 Uses ``httpx.AsyncClient`` with a bearer-token ``Authorization`` header
@@ -30,6 +32,7 @@ from pirn.connectors.capabilities.metadata_catalog import (
 )
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
@@ -129,10 +132,13 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
             f"/api/v1/{entity_type}",
             params=params or None,
         )
-        rows: list[Mapping[str, Any]] = list(response.get("data") or [])
-        paging = response.get("paging") or {}
+        payload: Mapping[str, object] = response
+        rows = PayloadShape.entities(payload.get("data"))
+        paging = payload.get("paging")
+        if not PayloadShape.is_str_mapping(paging):
+            return rows, None
         next_cursor = paging.get("after")
-        return rows, next_cursor if next_cursor else None
+        return rows, str(next_cursor) if next_cursor else None
 
     @staticmethod
     def _matches_filter(entity: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:
@@ -170,9 +176,9 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
 
     async def close(self) -> None:
         if self._client is not None:
-            aclose_fn = getattr(self._client, "aclose", None)
-            if callable(aclose_fn):
-                await aclose_fn()  # type: ignore[misc]
+            client: Any = self._client
+            if callable(getattr(client, "aclose", None)):
+                await client.aclose()
             self._client = None
         self._clear_credentials()
         self._closed = True

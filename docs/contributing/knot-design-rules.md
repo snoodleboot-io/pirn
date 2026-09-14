@@ -180,7 +180,7 @@ swappable by wiring in a different upstream Knot at run time (e.g. whether a SQL
 agent may run mutating statements, PIR-817). Such a policy is not a constructor argument at
 all: it is a `ClassVar` on distinct classes, and the pipeline author chooses the policy by
 choosing the class (`SQLAgent` is read-only, `ReadWriteSQLAgent` may write; each runs its
-statement through `_SQLExecutor` or `_ReadWriteSQLExecutor` respectively). Nothing is held on
+statement through `SQLExecutor` or `ReadWriteSQLExecutor` respectively). Nothing is held on
 the instance, and because the class is not an input, no upstream Knot's output can flip it.
 
 ---

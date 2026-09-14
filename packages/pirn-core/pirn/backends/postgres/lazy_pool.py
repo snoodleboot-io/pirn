@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asyncpg import Pool
 
+from pirn.core.optional_dependency import OptionalDependency
+
 
 class LazyPool:
     """Wraps either an injected pool (test / sharing) or a DSN string.
@@ -50,18 +52,13 @@ class LazyPool:
                 redacted.
         """
         if self._pool is None:
+            asyncpg = OptionalDependency.require("asyncpg", extra="postgres")
             try:
-                import asyncpg
-            except ImportError as exc:
-                raise ImportError(
-                    "PostgresStore/PostgresHistory require asyncpg; install "
-                    "via `pip install pirn[postgres]`"
-                ) from exc
-            try:
-                self._pool = await asyncpg.create_pool(self._dsn)
+                pool: Pool = await asyncpg.create_pool(self._dsn)
             except Exception as exc:
                 safe_msg = self.__sanitize_dsn(str(exc))
                 raise type(exc)(safe_msg) from None
+            self._pool = pool
         return self._pool
 
     async def close(self) -> None:

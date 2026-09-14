@@ -18,7 +18,7 @@ class MixpanelConfig(ConnectionConfig):
         Project token used by the ingestion SDK
         (``mixpanel.Mixpanel(token)``).
     api_secret:
-        Legacy API secret (used by the older HTTP API surface).
+        Project API secret for Mixpanel HTTP API calls.
     service_account_username / service_account_secret:
         Project service-account credentials for newer Mixpanel APIs.
     """

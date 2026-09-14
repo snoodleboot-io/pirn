@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Salesforce SaaS connector wrapping the synchronous ``simple-salesforce`` SDK.
 
 ``simple-salesforce`` is synchronous; calls run in a worker thread via
@@ -15,7 +17,7 @@ The connector exposes:
 3. The :class:`RecordWriter` capability — ``write_records`` posts each
    record to ``/sobjects/<sobject_type>``. The ``sobject_type`` defaults
    to ``"Account"`` if not supplied at construction.
-4. The legacy :meth:`request` escape hatch.
+4. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -29,7 +31,9 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.record_writer import RecordWriter
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.salesforce_config import SalesforceConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SalesforceClient(ApiClient, TableSource, RecordWriter):
@@ -138,11 +142,11 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
 
     @staticmethod
     def _extract_page(
-        response: Any,
+        response: object,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
-        if not isinstance(response, Mapping):
+        if not PayloadShape.is_str_mapping(response):
             return [], None
-        rows: list[Mapping[str, Any]] = list(response.get("records") or [])
+        rows = PayloadShape.rows(response.get("records"), source="SalesforceClient")
         done = bool(response.get("done", True))
         next_url = response.get("nextRecordsUrl")
         next_cursor = str(next_url) if (not done and next_url) else None
@@ -219,13 +223,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from simple_salesforce import Salesforce  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "SalesforceClient requires simple-salesforce; install via "
-                "`pip install pirn[salesforce]`"
-            ) from exc
+        simple_salesforce = OptionalDependency.require("simple_salesforce", extra="salesforce")
         if self._config is None:
             raise self._missing_config_error("SalesforceClient", "client")
 
@@ -241,7 +239,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
             if value is not None:
                 kwargs[name] = value
         try:
-            client = await asyncio.to_thread(Salesforce, **kwargs)
+            client = await asyncio.to_thread(simple_salesforce.Salesforce, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("salesforce.connect")

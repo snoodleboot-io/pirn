@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import Iterable
 from typing import Any
@@ -9,6 +10,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.mssql_config import MssqlConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MssqlPool(DatabaseConnectionPool):
@@ -88,13 +90,13 @@ class MssqlPool(DatabaseConnectionPool):
             close_fn = getattr(self._pool, "close", None)
             if callable(close_fn):
                 result = close_fn()
-                if hasattr(result, "__await__"):
-                    await result  # type: ignore[misc]
+                if inspect.isawaitable(result):
+                    await result
             wait_fn = getattr(self._pool, "wait_closed", None)
             if callable(wait_fn):
                 result = wait_fn()
-                if hasattr(result, "__await__"):
-                    await result  # type: ignore[misc]
+                if inspect.isawaitable(result):
+                    await result
             self._pool = None
         self._clear_credentials()
         self._closed = True
@@ -105,7 +107,7 @@ class MssqlPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         params = list(parameters or ())
         connection = await pool.acquire()
@@ -133,7 +135,7 @@ class MssqlPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         params = list(parameters or ())
         connection = await pool.acquire()
@@ -161,7 +163,7 @@ class MssqlPool(DatabaseConnectionPool):
         query: str,
         parameter_seq: Iterable[Iterable[Any]],
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         rows = [list(p) for p in parameter_seq]
         connection = await pool.acquire()
@@ -212,8 +214,8 @@ class MssqlPool(DatabaseConnectionPool):
         if not callable(method):
             return
         result = method()
-        if hasattr(result, "__await__"):
-            await result  # type: ignore[misc]
+        if inspect.isawaitable(result):
+            await result
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
@@ -223,12 +225,7 @@ class MssqlPool(DatabaseConnectionPool):
         return self._pool
 
     async def _create_pool(self) -> Any:
-        try:
-            import aioodbc  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "MssqlPool requires aioodbc; install via `pip install pirn[mssql]`"
-            ) from exc
+        aioodbc = OptionalDependency.require("aioodbc", extra="mssql")
         if self._config is None:
             raise self._missing_config_error("MssqlPool", "pool")
 
@@ -239,7 +236,7 @@ class MssqlPool(DatabaseConnectionPool):
             "autocommit": self._config.autocommit,
         }
         try:
-            pool = await aioodbc.create_pool(**kwargs)
+            pool: Any = await aioodbc.create_pool(**kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("mssql.connect")

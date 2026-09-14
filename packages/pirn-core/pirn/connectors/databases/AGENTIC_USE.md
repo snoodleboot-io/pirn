@@ -76,7 +76,7 @@ await pool.close()
 
 ## Constraints and gotchas
 
-- **Each database requires its own extra.** e.g. `pirn[postgres]`, `pirn[snowflake]`, `pirn[bigquery]`. Check `pyproject.toml`.
+- **Each database requires its own extra.** e.g. `"pirn-core[postgres]"`, `"pirn-core[snowflake]"`, `"pirn-core[bigquery]"`. A missing driver raises `ImportError` naming the `pip install` command. `DremioPool` uses `"pirn-core[arrow]"`.
 - **`DuckdbConfig(path=":memory:")` creates a fresh in-memory DB per pool instance.** Use a file path for persistence.
 - **`BigqueryPool` uses the synchronous BigQuery client wrapped in `asyncio.to_thread`.** Throughput is lower than native async pools.
 

@@ -177,9 +177,9 @@ language, a tool name, a rendered evidence block. Bind the **whole** prompt as a
 `{{ slot }}` template and read it through `resolve`'s sibling, `render`:
 
 ```python
-class _CodeGenerator(Knot):
+class CodeGenerator(Knot):
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.specialized_agents._code_generator.system_prompt",
+        name="specializations.specialized_agents.code_generator.system_prompt",
         default=(
             "You are a senior {{ language }} engineer. Reply with "
             "working {{ language }} code only — no prose, no "
@@ -255,9 +255,10 @@ attribute name with any leading underscore stripped:
 This is mechanically derivable and collision-free (three different classes ship
 a `_revision_system`; their module paths keep them apart). Built-ins resolve in
 the `pirn_agents` namespace, so an operator pack cannot collide with an
-application's own templates. A private module keeps its leading underscore in
-the path (`specializations.structured_output._json_extractor_attempt.system_prompt`)
-— the rule strips the underscore from the *attribute*, not from the module.
+application's own templates. The module path is used as it is spelled; the rule
+strips a leading underscore from the *attribute* only
+(`specializations.structured_output.json_extractor_attempt.system_prompt` for
+`JsonExtractorAttempt._system_prompt`).
 
 ### Prompt packs — the operator side
 

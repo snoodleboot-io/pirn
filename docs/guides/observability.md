@@ -45,10 +45,10 @@ result = await t.run(request, emitters=[])
 | Class | Package | Transport |
 |-------|---------|-----------|
 | `LogEmitter` | core | Python `logging` — structured JSON |
-| `OpenTelemetryEmitter` | `pirn[otel]` | OTLP spans per knot and per run |
-| `ValKeyEmitter` | `pirn[valkey]` | ValKey pub/sub channel |
-| `KafkaEmitter` | `pirn[kafka]` | Kafka topics for status, lineage, results |
-| `WebhookEmitter` | core | HTTP POST JSON payload |
+| `OpenTelemetryEmitter` | `pirn-core[otel]` | OTLP spans per knot and per run |
+| `ValKeyEmitter` | `pirn-core[valkey]` | ValKey pub/sub channel |
+| `KafkaEmitter` | `pirn-core[kafka]` | Kafka topics for status, lineage, results |
+| `WebhookEmitter` | `pirn-core[http]` | HTTP POST JSON payload |
 
 ---
 
@@ -86,7 +86,7 @@ LogEmitter(with_payload=True)
 Install the SDK and an exporter:
 
 ```bash
-pip install pirn[otel]
+pip install "pirn-core[otel]"
 pip install opentelemetry-exporter-otlp
 ```
 
@@ -165,7 +165,7 @@ emitter = KafkaEmitter(
 t = Tapestry(emitters=[emitter])
 ```
 
-Requires `pip install pirn[kafka]`. Each event is a JSON-serialised Pydantic model. Connect downstream consumers (Flink, Spark, OpenSearch) to these topics for real-time observability.
+Requires `pip install "pirn-core[kafka]"`. Each event is a JSON-serialised Pydantic model. Connect downstream consumers (Flink, Spark, OpenSearch) to these topics for real-time observability.
 
 ---
 

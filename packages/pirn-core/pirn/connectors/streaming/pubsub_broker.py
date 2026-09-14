@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Google Pub/Sub :class:`MessageBroker` backed by ``google-cloud-pubsub``."""
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from typing import Any
 
 from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.pubsub_config import PubSubConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PubSubBroker(MessageBroker):
@@ -157,32 +160,24 @@ class PubSubBroker(MessageBroker):
         return self._subscriber
 
     async def _build_publisher(self) -> Any:
-        try:
-            from google.cloud import pubsub_v1  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "PubSubBroker requires google-cloud-pubsub; install via `pip install pirn[pubsub]`"
-            ) from exc
+        pubsub_v1 = OptionalDependency.require("google.cloud.pubsub_v1", extra="pubsub")
         kwargs: dict[str, Any] = {}
         if self._config.service_account_json is not None:
-            from google.oauth2 import service_account  # type: ignore[import-untyped]
-
+            service_account = OptionalDependency.require(
+                "google.oauth2.service_account", extra="pubsub"
+            )
             kwargs["credentials"] = service_account.Credentials.from_service_account_file(
                 self._config.service_account_json
             )
         return pubsub_v1.PublisherClient(**kwargs)
 
     async def _build_subscriber(self) -> Any:
-        try:
-            from google.cloud import pubsub_v1  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "PubSubBroker requires google-cloud-pubsub; install via `pip install pirn[pubsub]`"
-            ) from exc
+        pubsub_v1 = OptionalDependency.require("google.cloud.pubsub_v1", extra="pubsub")
         kwargs: dict[str, Any] = {}
         if self._config.service_account_json is not None:
-            from google.oauth2 import service_account  # type: ignore[import-untyped]
-
+            service_account = OptionalDependency.require(
+                "google.oauth2.service_account", extra="pubsub"
+            )
             kwargs["credentials"] = service_account.Credentials.from_service_account_file(
                 self._config.service_account_json
             )

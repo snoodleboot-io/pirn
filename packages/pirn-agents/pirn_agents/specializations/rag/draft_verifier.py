@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DraftVerifier`` — check a speculative draft against retrieved evidence.
 
 The verification stage of Speculative RAG. It takes the fast draft and the
@@ -110,11 +112,11 @@ class DraftVerifier(Knot):
         return " ".join(parts)
 
     @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
+    def _extract_text(raw: Mapping[str, Any] | str) -> str:
+        match raw:
+            case str():
+                return raw
+            case {"content": str() as content}:
                 return content
-        return str(raw)
+            case _:
+                return str(raw)

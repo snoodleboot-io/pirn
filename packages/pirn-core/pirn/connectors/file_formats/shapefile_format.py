@@ -18,7 +18,7 @@ Round-trip is intrinsically lossy in the shape-type and field-schema
 dimensions because pyshp infers ``.dbf`` field widths from the first
 record. Tests assert structural and value survival, not byte-equality.
 
-Install: ``pip install pirn[shapefile]``.
+Install: ``pip install "pirn-core[shapefile]"``.
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ShapefileFormat(BatchFileFormat):
@@ -41,7 +42,7 @@ class ShapefileFormat(BatchFileFormat):
         return "shapefile"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        shapefile = self._load_pyshp()
+        shapefile = OptionalDependency.require("shapefile", extra="shapefile")
         if not zipfile.is_zipfile(io.BytesIO(payload)):
             raise ValueError("ShapefileFormat: payload is not a valid ZIP archive")
         with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
@@ -74,7 +75,7 @@ class ShapefileFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        shapefile = self._load_pyshp()
+        shapefile = OptionalDependency.require("shapefile", extra="shapefile")
         materialised: list[Mapping[str, Any]] = list(records)
         shp_buf = io.BytesIO()
         shx_buf = io.BytesIO()
@@ -150,13 +151,3 @@ class ShapefileFormat(BatchFileFormat):
         if optional:
             return None
         raise ValueError(f"ShapefileFormat: archive is missing required {suffix!r} member")
-
-    @staticmethod
-    def _load_pyshp() -> Any:
-        try:
-            import shapefile
-        except ImportError as exc:
-            raise ImportError(
-                "ShapefileFormat requires pyshp. Install with `pip install pirn[shapefile]`."
-            ) from exc
-        return shapefile

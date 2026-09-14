@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PytorchFormat`` — PyTorch state-dict / model encoder/decoder.
 
 PyTorch artefacts are whole-model pickles (``torch.save`` / ``torch.load``).
@@ -22,7 +24,7 @@ When a signer is configured the encoder prepends a 32-byte HMAC-SHA256
 signature; the decoder verifies the signature before invoking
 ``torch.load``.
 
-Install: ``pip install pirn[pytorch]``.
+Install: ``pip install "pirn-core[pytorch]"``.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from pirn.backends.signer import Signer
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PytorchFormat(BatchFileFormat):
@@ -105,7 +108,7 @@ class PytorchFormat(BatchFileFormat):
         raw = bytes(payload)
         if self._signer is not None:
             raw = self._signer.verify(raw)
-        torch = self._load_torch()
+        torch = OptionalDependency.require("torch", extra="pytorch")
         try:
             state = torch.load(io.BytesIO(raw), weights_only=self._weights_only)
         except Exception as exc:
@@ -130,7 +133,7 @@ class PytorchFormat(BatchFileFormat):
         if "state_dict" not in record:
             raise ValueError("PytorchFormat: record missing required 'state_dict' key")
         state = record["state_dict"]
-        torch = self._load_torch()
+        torch = OptionalDependency.require("torch", extra="pytorch")
         buffer = io.BytesIO()
         try:
             torch.save(state, buffer)
@@ -140,13 +143,3 @@ class PytorchFormat(BatchFileFormat):
         if self._signer is not None:
             raw = self._signer.sign(raw)
         return raw
-
-    @staticmethod
-    def _load_torch() -> Any:
-        try:
-            import torch
-        except ImportError as exc:
-            raise ImportError(
-                "PytorchFormat requires torch. Install with `pip install pirn[pytorch]`."
-            ) from exc
-        return torch

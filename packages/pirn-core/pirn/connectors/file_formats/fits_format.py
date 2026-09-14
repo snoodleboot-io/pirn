@@ -16,18 +16,23 @@ Records are emitted as ONE record per HDU with shape::
 where ``data`` is ``hdu.data.tobytes()`` if the HDU has data, else
 ``None``.
 
-Install: ``pip install pirn[astronomy]``.
+Install: ``pip install "pirn-core[fits]"``.
 """
 
 from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class FitsFormat(BatchFileFormat):
@@ -42,7 +47,7 @@ class FitsFormat(BatchFileFormat):
         return "fits"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        fits = self._load_fits()
+        fits = OptionalDependency.require("astropy.io.fits", extra="fits")
         records: list[Mapping[str, Any]] = []
         with fits.open(io.BytesIO(payload)) as hdul:
             for index, hdu in enumerate(hdul):
@@ -68,11 +73,17 @@ class FitsFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        fits = self._load_fits()
+        import numpy as np
+
+        fits = OptionalDependency.require("astropy.io.fits", extra="fits")
         materialised = [dict(record) for record in records]
         hdul = fits.HDUList()
         for i, record in enumerate(materialised):
-            header_dict = record.get("header") or {}
+            header_dict: object = record.get("header") or {}
+            if not PayloadShape.is_mapping(header_dict):
+                raise TypeError(
+                    f"FitsFormat: record 'header' must be a mapping, got {type(header_dict).__name__}"
+                )
             data_bytes = record.get("data")
             hdu_header = fits.Header()
             for key, value in header_dict.items():
@@ -87,8 +98,6 @@ class FitsFormat(BatchFileFormat):
                     except (ValueError, KeyError, TypeError):
                         pass
             if data_bytes is not None and isinstance(data_bytes, (bytes, bytearray)):
-                import numpy as np
-
                 arr = np.frombuffer(data_bytes, dtype=np.uint8)
                 if i == 0:
                     hdu = fits.PrimaryHDU(data=arr, header=hdu_header)
@@ -105,13 +114,3 @@ class FitsFormat(BatchFileFormat):
         buf = io.BytesIO()
         hdul.writeto(buf, overwrite=True)
         return buf.getvalue()
-
-    @staticmethod
-    def _load_fits() -> Any:
-        try:
-            from astropy.io import fits
-        except ImportError as exc:
-            raise ImportError(
-                "FitsFormat requires astropy. Install with `pip install pirn[astronomy]`."
-            ) from exc
-        return fits

@@ -239,15 +239,15 @@ class TestSpendCapInteraction:
                 _config=KnotConfig(id="cascade"),
             )
 
-        # BudgetBreachError is now raised inside a nested _AttemptTier knot,
+        # BudgetBreachError is now raised inside a nested AttemptTier knot,
         # so the engine records the failure rather than propagating the
         # original exception out of t.run() -- each level wraps it as a
         # SubTapestryError whose message names the next run to look in. Three
         # levels deep (ADR agents-speaks-core WS5b): ModelCascadeRouter's own
-        # inner run contains the _CascadeLoop knot (itself a SubTapestry);
-        # _CascadeLoop's own inner run contains the failing iteration's
+        # inner run contains the CascadeLoop knot (itself a SubTapestry);
+        # CascadeLoop's own inner run contains the failing iteration's
         # IterationChainKnot (whose SubTapestryError message names the
-        # iteration's own run); that run is where _AttemptTier's raw
+        # iteration's own run); that run is where AttemptTier's raw
         # BudgetBreachError actually lives.
         run = await t.run(RunRequest())
         assert not run.succeeded

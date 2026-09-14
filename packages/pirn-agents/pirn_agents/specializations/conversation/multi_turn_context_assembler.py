@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``MultiTurnContextAssembler`` — assemble a windowed message list for LLM input.
 
 Algorithm:

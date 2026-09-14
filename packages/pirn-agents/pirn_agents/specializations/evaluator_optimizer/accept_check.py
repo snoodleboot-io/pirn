@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``AcceptCheck`` — the scored accept check for the Evaluator-Optimizer loop.
 
 A core :class:`~pirn.nodes.check.Check` that decides whether a :class:`JudgeVerdict`

@@ -54,7 +54,7 @@ Storage backend protocols and all built-in implementations.
 
 ---
 
-## SQLite (`pirn[sqlite]`)
+## SQLite (base install, stdlib `sqlite3`)
 
 ::: pirn.backends.sqlite.sqlite_store.SQLiteStore
     options:
@@ -70,7 +70,7 @@ Storage backend protocols and all built-in implementations.
 
 ---
 
-## Postgres (`pirn[postgres]`)
+## Postgres (`pirn-core[postgres]`)
 
 ::: pirn.backends.postgres.postgres_store.PostgresStore
     options:
@@ -86,7 +86,7 @@ Storage backend protocols and all built-in implementations.
 
 ---
 
-## DuckDB (`pirn[duckdb]`)
+## DuckDB (`pirn-core[duckdb]`)
 
 ::: pirn.backends.duckdb_history.DuckDBHistory
     options:
@@ -106,7 +106,7 @@ Storage backend protocols and all built-in implementations.
 
 ---
 
-## S3 (`pirn[s3]`)
+## S3 (`pirn-core[s3]`)
 
 ::: pirn.backends.s3_data_store.S3DataStore
     options:
@@ -116,7 +116,7 @@ Storage backend protocols and all built-in implementations.
 
 ---
 
-## ValKey (`pirn[valkey]`)
+## ValKey (`pirn-core[valkey]`)
 
 ::: pirn.backends.valkey.valkey_store.ValKeyStore
     options:

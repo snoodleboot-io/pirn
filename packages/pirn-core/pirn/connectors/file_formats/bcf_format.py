@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BcfFormat`` — Binary Variant Call Format encoder/decoder.
 
 BCF is the binary, BGZF-compressed companion of VCF. Decoding requires
@@ -6,7 +8,7 @@ BCF is the binary, BGZF-compressed companion of VCF. Decoding requires
 BCF through :class:`BatchFileFormat`: ``read`` buffers the byte stream,
 spills it to a temp file, and then iterates ``pysam.VariantFile``.
 
-Install: ``pip install pirn[genomics]``.
+Install: ``pip install "pirn-health[genomics]"``.
 """
 
 from __future__ import annotations
@@ -14,11 +16,14 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
+from types import ModuleType
 from typing import Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class BcfFormat(BatchFileFormat):
@@ -62,7 +67,7 @@ class BcfFormat(BatchFileFormat):
         return self._header_lines
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        pysam = self._load_pysam()
+        pysam = OptionalDependency.require("pysam", extra="genomics", package="pirn-health")
         with tempfile.NamedTemporaryFile(suffix=".bcf", delete=False) as tmp:
             tmp.write(payload)
             tmp_path = tmp.name
@@ -82,7 +87,7 @@ class BcfFormat(BatchFileFormat):
                 pass
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        pysam = self._load_pysam()
+        pysam = OptionalDependency.require("pysam", extra="genomics", package="pirn-health")
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised and self._header_lines is None:
             raise ValueError(
@@ -109,7 +114,7 @@ class BcfFormat(BatchFileFormat):
 
     def _build_header(
         self,
-        pysam: Any,
+        pysam: ModuleType,
         records: Sequence[Mapping[str, Any]],
     ) -> Any:
         header = pysam.VariantHeader()
@@ -130,8 +135,8 @@ class BcfFormat(BatchFileFormat):
         # Inferred minimal header.
         info_keys: list[str] = []
         for record in records:
-            info = record.get("info", {})
-            if isinstance(info, Mapping):
+            info: object = record.get("info", {})
+            if PayloadShape.is_mapping(info):
                 for key in info.keys():
                     if isinstance(key, str) and key not in info_keys:
                         info_keys.append(key)
@@ -145,16 +150,6 @@ class BcfFormat(BatchFileFormat):
         return header
 
     @staticmethod
-    def _load_pysam() -> Any:
-        try:
-            import pysam
-        except ImportError as exc:
-            raise ImportError(
-                "BcfFormat requires pysam. Install with `pip install pirn[genomics]`."
-            ) from exc
-        return pysam
-
-    @staticmethod
     def _record_from_variant(variant: Any) -> Mapping[str, Any]:
         qual: float | None
         if variant.qual is None:
@@ -163,7 +158,7 @@ class BcfFormat(BatchFileFormat):
             qual = float(variant.qual)
         info: dict[str, Any] = {}
         for key, value in variant.info.items():
-            if isinstance(value, tuple):
+            if PayloadShape.is_tuple(value):
                 info[key] = ",".join(str(item) for item in value)
             elif value is None:
                 continue
@@ -223,8 +218,8 @@ class BcfFormat(BatchFileFormat):
             for token in filt.split(";"):
                 if token:
                     new_record.filter.add(token)
-        info = record.get("info") or {}
-        if not isinstance(info, Mapping):
+        info: object = record.get("info") or {}
+        if not PayloadShape.is_mapping(info):
             raise TypeError("BcfFormat: 'info' must be a mapping")
         for key, value in info.items():
             if value is None or value is False:

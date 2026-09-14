@@ -51,6 +51,7 @@ import time
 from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.run_request import RunRequest
 from pirn.core.shape_guard import ShapeGuard
 from pirn.triggers.trigger import Trigger
@@ -150,20 +151,15 @@ class WebhookTrigger(Trigger):
             true`` on success, or an error response (401, 429, 400) on
             failure.
         """
-        try:
-            from starlette.responses import JSONResponse
-        except ImportError as exc:
-            raise ImportError(
-                "WebhookTrigger requires starlette; install via `pip install pirn[http]`"
-            ) from exc
+        responses = OptionalDependency.require("starlette.responses", extra="http")
 
         if self._auth_token is not None:
             auth_header = request.headers.get("Authorization", "")
             if not auth_header.startswith("Bearer "):
-                return JSONResponse({"error": "unauthorized"}, status_code=401)
+                return responses.JSONResponse({"error": "unauthorized"}, status_code=401)
             provided = auth_header[len("Bearer ") :]
             if not _hmac.compare_digest(provided, self._auth_token):
-                return JSONResponse({"error": "unauthorized"}, status_code=401)
+                return responses.JSONResponse({"error": "unauthorized"}, status_code=401)
 
         if self._rate_limit_rpm is not None:
             client_ip = request.client.host if request.client else "unknown"
@@ -172,7 +168,7 @@ class WebhookTrigger(Trigger):
             while window and now - window[0] > 60.0:
                 window.popleft()
             if len(window) >= self._rate_limit_rpm:
-                return JSONResponse({"error": "rate limit exceeded"}, status_code=429)
+                return responses.JSONResponse({"error": "rate limit exceeded"}, status_code=429)
             window.append(now)
 
         try:
@@ -180,12 +176,12 @@ class WebhookTrigger(Trigger):
             payload: object = json.loads(body) if body else {}
             run_request = self._builder(payload, request)
         except Exception as exc:
-            return JSONResponse(
+            return responses.JSONResponse(
                 {"error": f"failed to build RunRequest: {exc}"},
                 status_code=400,
             )
         await self._queue.put(run_request)
-        return JSONResponse({"run_id": run_request.run_id, "queued": True})
+        return responses.JSONResponse({"run_id": run_request.run_id, "queued": True})
 
     def _build_app(self) -> Starlette:
         """Build and return the Starlette ASGI application.
@@ -197,15 +193,11 @@ class WebhookTrigger(Trigger):
         Raises:
             ImportError: If ``starlette`` is not installed.
         """
-        try:
-            from starlette.applications import Starlette
-            from starlette.routing import Route
-        except ImportError as exc:
-            raise ImportError(
-                "WebhookTrigger requires starlette; install via `pip install pirn[http]`"
-            ) from exc
-
-        return Starlette(routes=[Route(self._path, self._handle_request, methods=["POST"])])
+        applications = OptionalDependency.require("starlette.applications", extra="http")
+        routing = OptionalDependency.require("starlette.routing", extra="http")
+        return applications.Starlette(
+            routes=[routing.Route(self._path, self._handle_request, methods=["POST"])]
+        )
 
     async def stream(self) -> AsyncIterator[RunRequest]:
         """Yield ``RunRequest`` objects as they arrive from the HTTP queue.

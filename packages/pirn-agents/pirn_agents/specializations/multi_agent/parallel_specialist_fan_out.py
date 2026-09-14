@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ParallelSpecialistFanOut`` — invoke multiple specialists concurrently.
 
 A :class:`SubTapestry` that fans out a single task string to every registered
@@ -73,7 +75,7 @@ class ParallelSpecialistFanOut(AgentPipeline):
         self,
         *,
         task: Knot | str,
-        specialists: Knot | Any,
+        specialists: Knot | Mapping[str, SubTapestry],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -96,9 +98,7 @@ class ParallelSpecialistFanOut(AgentPipeline):
         Raises:
             ValueError: If specialists is empty or not a Mapping.
         """
-        if not isinstance(specialists, Mapping) or not specialists:
-            raise ValueError("ParallelSpecialistFanOut: specialists must be a non-empty mapping")
-        specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
+        specialists_dict = SpecialistHandle.by_name(specialists, owner="ParallelSpecialistFanOut")
         parents: dict[str, Knot] = {}
         order: list[tuple[str, str]] = []
         for index, (name, specialist) in enumerate(specialists_dict.items()):

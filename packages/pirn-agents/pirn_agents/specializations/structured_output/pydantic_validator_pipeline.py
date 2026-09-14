@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``PydanticValidatorPipeline`` — JSON extraction + pydantic validation.
 
 A :class:`SubTapestry` that wraps :class:`JsonExtractorPipeline`, feeds
@@ -10,20 +12,20 @@ Algorithm:
     1. Receive ``prompt``, ``llm``, ``model_class``, and ``max_retries`` in :meth:`process`.
     2. Validate inputs: llm must be LLMProvider, model_class a BaseModel subclass, max_retries positive.
     3. Derive a schema dict from the model class's JSON schema.
-    4. Drive the attempts with a :class:`_PydanticValidatorLoop`
+    4. Drive the attempts with a :class:`PydanticValidatorLoop`
        (``LoopSubTapestry``): each attempt is one real, individually-traceable
-       :class:`_JsonExtractorAttempt` invocation, validated against
+       :class:`JsonExtractorAttempt` invocation, validated against
        ``model_class`` in ``fold``, rather than a step inside a hand-rolled
        Python ``for`` loop (ADR agents-speaks-core WS5b).
     5. Extract the validated instance with
-       :class:`_PydanticValidatorResultExtractor`, which raises
+       :class:`PydanticValidatorResultExtractor`, which raises
        :class:`ValueError` if every attempt was exhausted.
 
 
 References:
     - pydantic :class:`BaseModel`:
       https://docs.pydantic.dev/latest/api/base_model/
-    - :class:`pirn_agents.specializations.structured_output._json_extractor_attempt._JsonExtractorAttempt`
+    - :class:`pirn_agents.specializations.structured_output.json_extractor_attempt.JsonExtractorAttempt`
 """
 
 from __future__ import annotations
@@ -38,14 +40,14 @@ from pydantic import BaseModel
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._pydantic_validator_loop import (
-    _PydanticValidatorLoop,
+from pirn_agents.specializations.structured_output.pydantic_validator_loop import (
+    PydanticValidatorLoop,
 )
-from pirn_agents.specializations.structured_output._pydantic_validator_result_extractor import (
-    _PydanticValidatorResultExtractor,
+from pirn_agents.specializations.structured_output.pydantic_validator_result_extractor import (
+    PydanticValidatorResultExtractor,
 )
-from pirn_agents.specializations.structured_output._pydantic_validator_state import (
-    _PydanticValidatorState,
+from pirn_agents.specializations.structured_output.pydantic_validator_state import (
+    PydanticValidatorState,
 )
 
 
@@ -110,12 +112,12 @@ class PydanticValidatorPipeline(AgentPipeline):
 
         initial = Parameter(
             "pydantic_validator_state",
-            _PydanticValidatorState,
-            default=_PydanticValidatorState(
+            PydanticValidatorState,
+            default=PydanticValidatorState(
                 prior_error="", validated=None, last_error="no attempts were made", attempts=0
             ),
         )
-        loop = _PydanticValidatorLoop(
+        loop = PydanticValidatorLoop(
             prompt=prompt,
             llm=llm,
             schema=schema,
@@ -124,7 +126,7 @@ class PydanticValidatorPipeline(AgentPipeline):
             state=initial,
             _config=KnotConfig(id="pydantic_validator_loop"),
         )
-        return _PydanticValidatorResultExtractor(state=loop, _config=KnotConfig(id="result"))
+        return PydanticValidatorResultExtractor(state=loop, _config=KnotConfig(id="result"))
 
     @staticmethod
     def _derive_schema(model_class: type[BaseModel]) -> Mapping[str, Any]:
@@ -132,12 +134,20 @@ class PydanticValidatorPipeline(AgentPipeline):
             full_schema = model_class.model_json_schema()
         except Exception:
             return {}
-        properties = full_schema.get("properties")
-        if isinstance(properties, dict):
-            return {
-                str(name): {"type": spec.get("type", "any")}
-                if isinstance(spec, dict)
-                else {"type": "any"}
-                for name, spec in properties.items()
-            }
-        return {}
+        match full_schema.get("properties"):
+            case {**properties}:
+                return {
+                    str(name): PydanticValidatorPipeline._field_type(spec)
+                    for name, spec in properties.items()
+                }
+            case _:
+                return {}
+
+    @staticmethod
+    def _field_type(spec: Any) -> dict[str, Any]:
+        """Project one JSON-Schema property onto its ``{"type": ...}`` entry."""
+        match spec:
+            case {"type": field_type}:
+                return {"type": field_type}
+            case _:
+                return {"type": "any"}

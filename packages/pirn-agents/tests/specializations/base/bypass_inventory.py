@@ -246,7 +246,7 @@ class BypassInventory:
         Matches a body whose only non-docstring statement is
         ``return <param>`` where ``<param>`` names one of ``process``'s own
         parameters (excluding ``self`` and the ``**_`` catch-all). This is
-        the ``ResolvedValueKnot`` / ``_ResponseEcho`` shape: a knot that
+        the pass-through shape: a knot that
         computes nothing, existing only to make an already-known value
         visible as a graph node. ``Parameter`` (a value bound at construction
         or run start) is the sanctioned way to do that — see

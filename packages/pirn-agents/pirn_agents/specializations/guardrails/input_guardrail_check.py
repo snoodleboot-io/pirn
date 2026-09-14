@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``InputGuardrailCheck`` — pre-prompt safety check.
 
 A :class:`SubTapestry` wrapping :class:`InputMessageScrubber`. Scans

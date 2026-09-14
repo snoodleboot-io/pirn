@@ -5,7 +5,7 @@ content hash.  Suitable for Azure-hosted deployments.
 
 Requires the ``azure-storage-blob`` package::
 
-    pip install pirn[azure]
+    pip install "pirn-core[azure]"
 
 Construction accepts a connection string or an account URL with a
 credential.  An optional pre-built ``BlobServiceClient`` can be passed

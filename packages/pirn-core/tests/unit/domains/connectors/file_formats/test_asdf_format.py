@@ -99,10 +99,10 @@ class TestAsdfFormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestAsdfFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestAsdfFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
         import unittest.mock
 
         with unittest.mock.patch.dict("sys.modules", {"asdf": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
-                AsdfFormat._load_asdf()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[asdf\\]"'):
+                await AsdfFormat()._decode_full(b"")

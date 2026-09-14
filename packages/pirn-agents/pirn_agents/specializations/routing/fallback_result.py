@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
 from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.specializations.routing.fallback_frame import FallbackFrame
 from pirn_agents.tools.tool_result import ToolResult
@@ -16,10 +18,9 @@ class FallbackResult(AgentResult[FallbackFrame, ToolResult | None]):
     (PIR-868, following the ADR agents-speaks-core WS6b pattern) — ``data``
     is the successful :class:`ToolResult` (or ``None`` on exhaustion), and
     ``metadata`` is the :class:`FallbackFrame` carrying the
-    succeeded/chosen/attempted/skipped facts. The pre-ADR field names
-    (``succeeded``, ``chosen``, ``result``, ``attempted``, ``skipped``) stay
-    available as read-only properties, so every existing construction and
-    attribute-access call site keeps compiling unchanged.
+    succeeded/chosen/attempted/skipped facts. ``succeeded``, ``chosen``,
+    ``attempted`` and ``skipped`` read the frame and ``result`` reads the data,
+    as read-only properties.
     """
 
     def __init__(
@@ -56,6 +57,11 @@ class FallbackResult(AgentResult[FallbackFrame, ToolResult | None]):
         return self._metadata.skipped
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
-        audit["result"] = None if self.result is None else self.result._pirn_audit_dict()
+        audit = dict(super()._pirn_audit_dict())
+        audit["result"] = None if self.result is None else FallbackResult._audit_of(self.result)
         return audit
+
+    @staticmethod
+    def _audit_of(value: PirnOpaqueValue) -> Any:
+        """Return ``value``'s audit form through the ``PirnOpaqueValue`` contract."""
+        return value._pirn_audit_dict()

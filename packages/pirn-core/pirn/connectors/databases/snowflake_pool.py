@@ -15,6 +15,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.snowflake_config import SnowflakeConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SnowflakePool(DatabaseConnectionPool):
@@ -77,7 +78,7 @@ class SnowflakePool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_execute, client, query, params)
@@ -96,7 +97,7 @@ class SnowflakePool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
@@ -115,7 +116,7 @@ class SnowflakePool(DatabaseConnectionPool):
         query: str,
         parameter_seq: Iterable[Iterable[Any]],
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
         return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
@@ -137,13 +138,7 @@ class SnowflakePool(DatabaseConnectionPool):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            import snowflake.connector  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "SnowflakePool requires snowflake-connector-python; install via "
-                "`pip install pirn[snowflake]`"
-            ) from exc
+        snowflake_connector = OptionalDependency.require("snowflake.connector", extra="snowflake")
         if self._config is None:
             raise self._missing_config_error("SnowflakePool", "client")
 
@@ -161,7 +156,7 @@ class SnowflakePool(DatabaseConnectionPool):
             if value is not None:
                 kwargs[name] = value
         try:
-            client = await asyncio.to_thread(snowflake.connector.connect, **kwargs)
+            client: Any = await asyncio.to_thread(snowflake_connector.connect, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("snowflake.connect")

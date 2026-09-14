@@ -14,6 +14,7 @@ from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.duckdb_config import DuckdbConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DuckdbPool(DatabaseConnectionPool):
@@ -52,7 +53,7 @@ class DuckdbPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         params = list(parameters or ())
         return await asyncio.to_thread(connection.execute, query, params)
@@ -62,7 +63,7 @@ class DuckdbPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, connection, query, params)
@@ -73,12 +74,7 @@ class DuckdbPool(DatabaseConnectionPool):
         return [tuple(r) for r in cursor.fetchall()]
 
     async def _open_connection(self) -> Any:
-        try:
-            import duckdb
-        except ImportError as exc:
-            raise ImportError(
-                "DuckdbPool requires duckdb; install via `pip install pirn[duckdb]`"
-            ) from exc
+        duckdb = OptionalDependency.require("duckdb", extra="duckdb")
         connection = await asyncio.to_thread(
             duckdb.connect,
             database=str(self._config.database),

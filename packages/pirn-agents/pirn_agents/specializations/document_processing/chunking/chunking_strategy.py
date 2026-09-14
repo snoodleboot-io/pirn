@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ChunkingStrategy`` — the pluggable chunking interface (F25-S2 / PIR-575).
 
 Every named strategy (fixed-size, recursive-character, sentence-window,

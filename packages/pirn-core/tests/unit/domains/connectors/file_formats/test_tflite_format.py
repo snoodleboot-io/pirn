@@ -1,7 +1,7 @@
 """Round-trip and validation tests for :class:`TfliteFormat`.
 
 The TFLite interpreter ships with ``ai_edge_litert`` (preferred),
-the legacy ``tflite_runtime``, or the full ``tensorflow`` install.
+the older ``tflite_runtime``, or the full ``tensorflow`` install.
 Construction tests run unconditionally; tests that decode a real model
 skip when none of the three runtimes is available.
 """

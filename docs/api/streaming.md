@@ -80,7 +80,7 @@ await source.run_stream(tapestry, on_result=handle_log_line)
 
 ---
 
-## KafkaStreamingSource (`pirn[kafka]`)
+## KafkaStreamingSource (`pirn-core[kafka]`)
 
 Consumes a Kafka topic, yielding one value per message.
 

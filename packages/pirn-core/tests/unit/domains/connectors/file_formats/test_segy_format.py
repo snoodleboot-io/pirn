@@ -81,11 +81,11 @@ class TestSegyFormatErrors(unittest.IsolatedAsyncioTestCase):
             await fmt._encode_full([])
 
 
-class TestSegyFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestSegyFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
         import unittest.mock
 
         fmt = SegyFormat()
         with unittest.mock.patch.dict("sys.modules", {"segyio": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
-                fmt._load_segyio()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-oilgas\\[oilgas\\]"'):
+                await fmt._decode_full(b"")

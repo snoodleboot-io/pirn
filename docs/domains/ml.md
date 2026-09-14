@@ -34,13 +34,13 @@ ML models are whole-artifact blobs — not row-oriented tables. The connector la
 
 | Format | Class | Extra | Security properties |
 |--------|-------|-------|---------------------|
-| ONNX | `OnnxFormat` | `pirn[onnx]` | Protobuf parser; no pickle path. `validate=True` (default) runs `onnx.checker.check_model`. Treat untrusted payloads as potentially triggering upstream library bugs. |
-| SafeTensors | `SafetensorsFormat` | `pirn[safetensors]` | RCE-safe by design — no embedded code path during deserialisation. No signer required. `include_data=False` emits only shape/dtype metadata for large models. |
-| Joblib | `JoblibFormat` | `pirn[joblib]` | **Uses pickle internally.** Constructor refuses unsigned construction: pass a `Signer` (production) or `allow_unsigned=True` (dev/test only). With a signer, payloads are HMAC-SHA256 signed before emission and verified before `joblib.load`. |
-| PyTorch | `PytorchFormat` | `pirn[pytorch]` | `torch.load` with `weights_only=False` is an RCE sink. Constructor defaults `weights_only=True` (safe-mode, restores tensor data only). Full model loading requires a `Signer` (HMAC-SHA256 verified before deserialisation) or `allow_unsigned=True`. |
-| TF SavedModel | `TfSavedModelFormat` | `pirn[tensorflow]` | Zips the SavedModel directory on encode; extracts to a temp dir on decode. ZIP extraction guards against path-traversal members. Malicious SavedModels may contain arbitrary ops — treat untrusted payloads accordingly. |
-| GGUF | `GgufFormat` | `pirn[gguf]` | llama.cpp quantised LLM weights. Generally robust parser; malformed payloads may trigger upstream bugs. No pickle path. |
-| TFLite | `TfliteFormat` | `pirn[tflite]` | FlatBuffer format; falls back to `tensorflow.lite.Interpreter` if `tflite-runtime` is absent. Malicious models may contain custom ops — treat untrusted payloads accordingly. |
+| ONNX | `OnnxFormat` | `pirn-core[onnx]` | Protobuf parser; no pickle path. `validate=True` (default) runs `onnx.checker.check_model`. Treat untrusted payloads as potentially triggering upstream library bugs. |
+| SafeTensors | `SafetensorsFormat` | `pirn-core[safetensors]` | RCE-safe by design — no embedded code path during deserialisation. No signer required. `include_data=False` emits only shape/dtype metadata for large models. |
+| Joblib | `JoblibFormat` | `pirn-core[joblib]` | **Uses pickle internally.** Constructor refuses unsigned construction: pass a `Signer` (production) or `allow_unsigned=True` (dev/test only). With a signer, payloads are HMAC-SHA256 signed before emission and verified before `joblib.load`. |
+| PyTorch | `PytorchFormat` | `pirn-core[pytorch]` | `torch.load` with `weights_only=False` is an RCE sink. Constructor defaults `weights_only=True` (safe-mode, restores tensor data only). Full model loading requires a `Signer` (HMAC-SHA256 verified before deserialisation) or `allow_unsigned=True`. |
+| TF SavedModel | `TfSavedModelFormat` | `pirn-core[tensorflow]` | Zips the SavedModel directory on encode; extracts to a temp dir on decode. ZIP extraction guards against path-traversal members. Malicious SavedModels may contain arbitrary ops — treat untrusted payloads accordingly. |
+| GGUF | `GgufFormat` | `pirn-core[gguf]` | llama.cpp quantised LLM weights. Generally robust parser; malformed payloads may trigger upstream bugs. No pickle path. |
+| TFLite | `TfliteFormat` | `pirn-core[tflite]` / `pirn-core[tensorflow]` | FlatBuffer format; uses `ai-edge-litert`, then `tflite-runtime` (Python < 3.12), then falls back to `tensorflow.lite.Interpreter`. Malicious models may contain custom ops — treat untrusted payloads accordingly. |
 
 ### Using ML format connectors
 
@@ -352,13 +352,13 @@ All assemblers and disassemblers live under `pirn_ml/assemblers/` and `pirn_ml/d
 pip install 'pirn-ml[ml]'
 
 # Add specific artifact format support (these are pirn-core connector extras):
-pip install pirn[onnx]          # ONNX validation
-pip install pirn[safetensors]   # Hugging Face safetensors
-pip install pirn[joblib]        # scikit-learn / joblib persistence
-pip install pirn[pytorch]       # PyTorch state dicts
-pip install pirn[tensorflow]    # TF SavedModel + TFLite fallback
-pip install pirn[gguf]          # llama.cpp quantised weights
-pip install pirn[tflite]        # TFLite runtime (lighter than full TF)
+pip install "pirn-core[onnx]"   # ONNX validation
+pip install "pirn-core[safetensors]" # Hugging Face safetensors
+pip install "pirn-core[joblib]" # scikit-learn / joblib persistence
+pip install "pirn-core[pytorch]" # PyTorch state dicts
+pip install "pirn-core[tensorflow]" # TF SavedModel + TFLite fallback
+pip install "pirn-core[gguf]"   # llama.cpp quantised weights
+pip install "pirn-core[tflite]" # TFLite runtime (lighter than full TF)
 ```
 
 **See also:** [Connectors — Format Matrix](../connectors/index.md), [Concepts](../getting-started/concepts.md)

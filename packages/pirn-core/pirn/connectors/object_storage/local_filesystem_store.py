@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async local-filesystem :class:`ObjectStore` implementation."""
 
 from __future__ import annotations

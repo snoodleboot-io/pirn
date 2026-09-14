@@ -3,7 +3,7 @@
 Covers the multimodal loader framing raw bytes into a :class:`LoadedDocument`
 whose typed :attr:`blocks` carries an image/audio/file block chosen from the
 media type, with a text projection for graceful degradation, and the
-backward-compatible ``blocks=None`` default plus its ``isinstance`` validation.
+``blocks=None`` default plus its ``isinstance`` validation.
 Mirrored unittest+pytest style; in-memory bytes only, no backend.
 """
 

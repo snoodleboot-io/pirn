@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Azure Blob :class:`ObjectStore` backed by :mod:`azure-storage-blob` aio."""
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from pirn.connectors.object_storage.azure_blob_config import (
     AzureBlobConfig,
 )
 from pirn.connectors.object_store import ObjectStore
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class AzureBlobStore(ObjectStore):
@@ -43,8 +46,8 @@ class AzureBlobStore(ObjectStore):
                 "or account_name and account_key"
             )
         self._config = config
-        self._client = client
-        self._credential = credential
+        self._client: Any | None = client
+        self._credential: Any | None = credential
         self._owned_client: Any = None
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -134,7 +137,10 @@ class AzureBlobStore(ObjectStore):
             if prefix:
                 kwargs["name_starts_with"] = prefix
             async for blob in container_client.list_blobs(**kwargs):
-                name = blob.get("name") if isinstance(blob, dict) else getattr(blob, "name", None)
+                entry: Any = blob
+                name: str | None = (
+                    entry.get("name") if isinstance(blob, dict) else getattr(blob, "name", None)
+                )
                 if name is not None:
                     yield name
 
@@ -143,16 +149,9 @@ class AzureBlobStore(ObjectStore):
     async def _ensure_client(self) -> Any:
         if self._client is not None:
             return self._client
-        try:
-            from azure.storage.blob.aio import (  # type: ignore[import-not-found]
-                BlobServiceClient,
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "AzureBlobStore requires azure-storage-blob; install via `pip install pirn[azure]`"
-            ) from exc
+        blob_aio = OptionalDependency.require("azure.storage.blob.aio", extra="azure")
         if self._config.connection_string:
-            self._owned_client = BlobServiceClient.from_connection_string(
+            self._owned_client = blob_aio.BlobServiceClient.from_connection_string(
                 self._config.connection_string
             )
         else:
@@ -163,7 +162,7 @@ class AzureBlobStore(ObjectStore):
             credential = (
                 self._credential if self._credential is not None else self._config.account_key
             )
-            self._owned_client = BlobServiceClient(
+            self._owned_client = blob_aio.BlobServiceClient(
                 account_url=account_url,
                 credential=credential,
             )

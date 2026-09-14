@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async MySQL connection pool backed by :mod:`aiomysql`.
 
 aiomysql exposes an asyncio-native pool whose connections yield cursors
@@ -8,6 +10,7 @@ reject only ``{...}``-style brace interpolation; ``%s`` is allowed.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import Iterable
 from typing import Any
@@ -15,6 +18,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.mysql_config import MySQLConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MySQLPool(DatabaseConnectionPool):
@@ -85,13 +89,13 @@ class MySQLPool(DatabaseConnectionPool):
             close_fn = getattr(self._pool, "close", None)
             if callable(close_fn):
                 result = close_fn()
-                if hasattr(result, "__await__"):
-                    await result  # type: ignore[misc]
+                if inspect.isawaitable(result):
+                    await result
             wait_fn = getattr(self._pool, "wait_closed", None)
             if callable(wait_fn):
                 result = wait_fn()
-                if hasattr(result, "__await__"):
-                    await result  # type: ignore[misc]
+                if inspect.isawaitable(result):
+                    await result
             self._pool = None
         self._clear_credentials()
         self._closed = True
@@ -102,7 +106,7 @@ class MySQLPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         params = list(parameters or ())
         connection = await pool.acquire()
@@ -130,7 +134,7 @@ class MySQLPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         params = list(parameters or ())
         connection = await pool.acquire()
@@ -158,7 +162,7 @@ class MySQLPool(DatabaseConnectionPool):
         query: str,
         parameter_seq: Iterable[Iterable[Any]],
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         rows = [list(p) for p in parameter_seq]
         connection = await pool.acquire()
@@ -227,8 +231,8 @@ class MySQLPool(DatabaseConnectionPool):
         if not callable(method):
             return
         result = method()
-        if hasattr(result, "__await__"):
-            await result  # type: ignore[misc]
+        if inspect.isawaitable(result):
+            await result
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
@@ -238,12 +242,7 @@ class MySQLPool(DatabaseConnectionPool):
         return self._pool
 
     async def _create_pool(self) -> Any:
-        try:
-            import aiomysql  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "MySQLPool requires aiomysql; install via `pip install pirn[mysql]`"
-            ) from exc
+        aiomysql = OptionalDependency.require("aiomysql", extra="mysql")
         if self._config is None:
             raise self._missing_config_error("MySQLPool", "pool")
 
@@ -260,7 +259,7 @@ class MySQLPool(DatabaseConnectionPool):
         # aiomysql rejects ``None`` for several keys; drop empties.
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         try:
-            pool = await aiomysql.create_pool(**kwargs)
+            pool: Any = await aiomysql.create_pool(**kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("mysql.connect")

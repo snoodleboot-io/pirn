@@ -14,10 +14,9 @@ class SelfAskResult(AgentResult[SelfAskFrame, str]):
     ``SelfAskResult`` is ``Payload[SelfAskFrame, str]`` (PIR-868, following
     the ADR agents-speaks-core WS6b pattern) — ``data`` is the composed
     final answer, and ``metadata`` is the :class:`SelfAskFrame` carrying the
-    sub-questions and sub-answers. The pre-ADR field names (``final_answer``,
-    ``subquestions``, ``subanswers``) stay available as read-only
-    properties, so every existing construction and attribute-access call
-    site keeps compiling unchanged.
+    sub-questions and sub-answers. The constructor takes the pattern's named fields
+    (``final_answer``, ``subquestions``, ``subanswers``), and each is also a read-only
+    property.
     """
 
     def __init__(
@@ -39,6 +38,6 @@ class SelfAskResult(AgentResult[SelfAskFrame, str]):
         return self._metadata.subanswers
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["final_answer"] = self.final_answer
         return audit

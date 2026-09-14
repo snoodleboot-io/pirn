@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``InputMessageScrubber`` — regex-based pre-prompt safety filter.
 
 Inner stage knot used by :class:`InputGuardrailCheck`. Walks each

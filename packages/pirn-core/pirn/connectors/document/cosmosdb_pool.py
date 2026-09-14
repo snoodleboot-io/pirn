@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async Azure Cosmos DB pool backed by :mod:`azure.cosmos.aio`."""
 
 from __future__ import annotations
@@ -9,6 +11,8 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.cosmosdb_config import CosmosDBConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class CosmosDBPool(DatabaseConnectionPool):
@@ -27,7 +31,7 @@ class CosmosDBPool(DatabaseConnectionPool):
                 f"CosmosDBPool: config must be CosmosDBConfig, got {type(config).__name__}"
             )
         self._config = config
-        self._container = container_client
+        self._container: Any = container_client
         self._cosmos_client: Any = None
         self._closed = False
         self._scrubber = DsnScrubber()
@@ -58,7 +62,7 @@ class CosmosDBPool(DatabaseConnectionPool):
         await self._ensure_container()
         if self._container is None:
             raise RuntimeError("CosmosDBPool: not connected — call connect() first")
-        item = parameters if parameters is not None else {}
+        item: Iterable[Any] = parameters if parameters is not None else {}
         result = await self._container.upsert_item(item)
         return str(result.get("id", ""))
 
@@ -81,7 +85,10 @@ class CosmosDBPool(DatabaseConnectionPool):
         if self._container is None:
             raise RuntimeError("CosmosDBPool: not connected — call connect() first")
         for row in parameter_seq:
-            item = row if isinstance(row, dict) else (next(iter(row), {}) if row else {})
+            empty: dict[str, object] = {}
+            item: object = (
+                row if PayloadShape.is_str_dict(row) else (next(iter(row), empty) if row else empty)
+            )
             await self._container.upsert_item(item)
 
     async def _ensure_container(self) -> None:
@@ -91,17 +98,12 @@ class CosmosDBPool(DatabaseConnectionPool):
             await self._create_container()
 
     async def _create_container(self) -> None:
-        try:
-            from azure.cosmos.aio import CosmosClient
-        except ImportError as exc:
-            raise ImportError(
-                "CosmosDBPool requires azure-cosmos; install via pip install pirn[cosmosdb]"
-            ) from exc
+        cosmos_aio = OptionalDependency.require("azure.cosmos.aio", extra="cosmosdb")
         if self._config is None:
             raise self._missing_config_error("CosmosDBPool", "container_client")
 
         try:
-            self._cosmos_client = CosmosClient(
+            self._cosmos_client = cosmos_aio.CosmosClient(
                 url=self._config.endpoint,
                 credential=self._config.key,
                 connection_mode=self._config.connection_mode,

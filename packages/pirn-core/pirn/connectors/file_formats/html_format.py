@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HtmlFormat`` — HTML encoder/decoder.
 
 Reads use ``beautifulsoup4`` with the ``lxml`` parser; writes emit a
@@ -20,7 +22,7 @@ without external entity resolution by default, but callers should still
 treat untrusted HTML as adversarial and avoid evaluating any embedded
 scripts.
 
-Install: ``pip install pirn[html]``.
+Install: ``pip install "pirn-core[html]"``.
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class HtmlFormat(BatchFileFormat):
@@ -54,9 +57,9 @@ class HtmlFormat(BatchFileFormat):
         return self._extract_tables
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        bs4 = self._load_bs4()
+        bs4 = OptionalDependency.require("bs4", extra="html")
         # Verify lxml is importable so the parser argument below works.
-        self._load_lxml()
+        OptionalDependency.require("lxml", extra="html")
         soup = bs4.BeautifulSoup(io.BytesIO(payload), features="lxml")
         if self._extract_tables:
             return self._decode_tables(soup)
@@ -132,23 +135,3 @@ class HtmlFormat(BatchFileFormat):
                     record[key] = cell.get_text(strip=True)
                 records.append(record)
         return records
-
-    @staticmethod
-    def _load_bs4() -> Any:
-        try:
-            import bs4
-        except ImportError as exc:
-            raise ImportError(
-                "HtmlFormat requires beautifulsoup4. Install with `pip install pirn[html]`."
-            ) from exc
-        return bs4
-
-    @staticmethod
-    def _load_lxml() -> Any:
-        try:
-            import lxml
-        except ImportError as exc:
-            raise ImportError(
-                "HtmlFormat requires lxml. Install with `pip install pirn[html]`."
-            ) from exc
-        return lxml

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ReActTerminationCheck`` — decide whether a ReAct loop should stop.
 
 The gate inspects the trailing assistant message produced by the most
@@ -29,7 +31,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeGuard
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -115,12 +117,13 @@ class ReActTerminationCheck(Knot):
     def _coerce_messages(latest_response: Any) -> tuple[AgentMessage, ...]:
         if isinstance(latest_response, AgentMessage):
             return (latest_response,)
-        if isinstance(latest_response, (tuple, list)):
-            collected: list[AgentMessage] = []
-            for item in latest_response:
-                if isinstance(item, AgentMessage):
-                    collected.append(item)
-            return tuple(collected)
+        if ReActTerminationCheck._is_sequence(latest_response):
+            return tuple(item for item in latest_response if isinstance(item, AgentMessage))
         if hasattr(latest_response, "messages"):
             return tuple(m for m in latest_response.messages if isinstance(m, AgentMessage))
         return ()
+
+    @staticmethod
+    def _is_sequence(value: object) -> TypeGuard[tuple[object, ...] | list[object]]:
+        """Narrow a response to the tuple/list of messages a step emits."""
+        return isinstance(value, (tuple, list))

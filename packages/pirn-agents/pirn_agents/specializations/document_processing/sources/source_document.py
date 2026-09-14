@@ -35,7 +35,7 @@ class SourceDocument(PirnOpaqueValue):
     source_id: str
     data: bytes
     content_hash: str
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     @classmethod
     def create(

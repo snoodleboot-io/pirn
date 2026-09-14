@@ -86,7 +86,7 @@ All hooks are `async` but they run on the same event loop as the pipeline. A hoo
 
 - **`LogEmitter(with_payload=True)` is verbose.** It includes the full serialised `RunResult` or `KnotLineage` in each log record. Use only for debugging.
 - **`OpenTelemetryEmitter` produces flat spans, not nested.** Each lineage record becomes an independent span linked by `pirn.run_id`. Nested span hierarchies require a custom sampler in your OTel provider.
-- **`KafkaEmitter` and `ValKeyEmitter` require the respective extras.** Install `pirn[kafka]` or ensure `valkey-glide` is present before using them.
+- **`KafkaEmitter` and `ValKeyEmitter` require the respective extras.** Install `pip install "pirn-core[kafka]"` (aiokafka) or `pip install "pirn-core[valkey]"` (valkey-glide) before using them.
 - **`WebhookEmitter` fires on `on_run_result` only by default.** Check the constructor for `events` parameter to control which hook types POST to the endpoint.
 - **`EmitterErrorPolicy.RAISE` breaks runs on emitter failure.** Only use it in tests where you want to assert emitter correctness.
 

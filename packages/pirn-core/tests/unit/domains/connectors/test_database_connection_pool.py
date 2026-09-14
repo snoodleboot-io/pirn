@@ -25,16 +25,16 @@ class TestDatabaseConnectionPoolHelpers(unittest.TestCase):
     def test_reject_inline_interpolation_braces(self) -> None:
         pool = DatabaseConnectionPool()
         with self.assertRaises(ValueError):
-            pool._reject_inline_interpolation("SELECT {col} FROM t")
+            pool.reject_inline_interpolation("SELECT {col} FROM t")
 
     def test_reject_inline_interpolation_printf(self) -> None:
         pool = DatabaseConnectionPool()
         with self.assertRaises(ValueError):
-            pool._reject_inline_interpolation("SELECT %s FROM t")
+            pool.reject_inline_interpolation("SELECT %s FROM t")
 
     def test_valid_query_passes(self) -> None:
         pool = DatabaseConnectionPool()
-        pool._reject_inline_interpolation("SELECT id FROM t WHERE id = ?")
+        pool.reject_inline_interpolation("SELECT id FROM t WHERE id = ?")
 
     def test_clear_credentials_nulls_config(self) -> None:
         pool = DatabaseConnectionPool()

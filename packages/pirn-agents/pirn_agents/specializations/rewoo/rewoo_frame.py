@@ -5,14 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.nested_audit_value import NestedAuditValue
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
 
 
 @dataclass(frozen=True)
-class ReWooFrame(PirnOpaqueValue):
+class ReWooFrame(NestedAuditValue):
     """Run-level facts for a ReWOO plan-execute-synthesise run.
 
     The frame half of the ``Payload[ReWooFrame, str]`` split (PIR-868).
@@ -32,6 +31,6 @@ class ReWooFrame(PirnOpaqueValue):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "plan": [call._pirn_audit_dict() for call in self.plan],
-            "results": [result._pirn_audit_dict() for result in self.results],
+            "plan": self._audit_forms(self.plan),
+            "results": self._audit_forms(self.results),
         }

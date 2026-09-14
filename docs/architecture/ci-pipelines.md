@@ -134,6 +134,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-core | `pirn/*.py` | 0 | yes |
 | pirn-core | `pirn/backends` | 0 | yes |
 | pirn-core | `pirn/check` | 0 | yes |
+| pirn-core | `pirn/connectors` | 0 | yes |
 | pirn-core | `pirn/core` | 0 | yes |
 | pirn-core | `pirn/emitters` | 0 | yes |
 | pirn-core | `pirn/engine` | 0 | yes |
@@ -146,7 +147,6 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-core | `pirn/triggers` | 0 | yes |
 | pirn-core | `pirn/viz` | 0 | yes |
 | pirn-core | `pirn/yaml_loader` | 0 | yes |
-| pirn-core | `pirn/connectors` | 1050 |  |
 | pirn-agents | `pirn_agents/*.py` | 0 | yes |
 | pirn-agents | `pirn_agents/_internal` | 0 | yes |
 | pirn-agents | `pirn_agents/agent` | 0 | yes |
@@ -174,12 +174,10 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/retrieval` | 0 | yes |
 | pirn-agents | `pirn_agents/security` | 0 | yes |
 | pirn-agents | `pirn_agents/sessions` | 0 | yes |
+| pirn-agents | `pirn_agents/specializations` | 0 | yes |
 | pirn-agents | `pirn_agents/testing` | 0 | yes |
-| pirn-agents | `pirn_agents/types` | 0 | yes |
 | pirn-agents | `pirn_agents/tools` | 0 | yes |
-| pirn-agents | `pirn_agents/determinism` | 0 | yes |
-| pirn-agents | `pirn_agents/evaluation` | 0 | yes |
-| pirn-agents | `pirn_agents/specializations` | 706 |  |
+| pirn-agents | `pirn_agents/types` | 0 | yes |
 | pirn-data | `pirn_data/*.py` | 0 | yes |
 | pirn-data | `pirn_data/frames` | 0 | yes |
 | pirn-data | `pirn_data/lakehouse` | 0 | yes |
@@ -241,8 +239,8 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/types` | 0 | yes |
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
-Totals outside the lists: pirn-core 1050 (`pirn/connectors` only; asyncpg, cloudpickle,
-aiokafka and celery are typed through `packages/pirn-core/typings/`), pirn-agents 706, pirn-data 0 (fully strict;
+Totals outside the lists: pirn-core 0 (fully strict; asyncpg, cloudpickle, aiokafka and
+celery are typed through `packages/pirn-core/typings/`), pirn-agents 0 (fully strict), pirn-data 0 (fully strict;
 pyarrow, pandas, ibis, dask.dataframe and ray.data are typed through the local stubs in
 `packages/pirn-data/typings/`),
 pirn-health 0, pirn-ml 0, pirn-oilgas 0, pirn-signal 0. The dominant

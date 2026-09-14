@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OnnxFormat`` — ONNX (Open Neural Network Exchange) model encoder/decoder.
 
 ONNX artefacts are whole-model protobufs. They cannot be streamed
@@ -18,7 +20,7 @@ Security: pirn does not sandbox ``onnx``. The protobuf parser is
 generally robust, but malformed payloads may still trigger upstream
 library bugs. Treat untrusted payloads accordingly.
 
-Install: ``pip install pirn[onnx]``.
+Install: ``pip install "pirn-core[onnx]"``.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class OnnxFormat(BatchFileFormat):
@@ -50,7 +53,7 @@ class OnnxFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(f"OnnxFormat: payload must be bytes, got {type(payload).__name__}")
-        onnx = self._load_onnx()
+        onnx = OptionalDependency.require("onnx", extra="onnx")
         try:
             model = onnx.load_model_from_string(bytes(payload))
         except Exception as exc:
@@ -87,7 +90,7 @@ class OnnxFormat(BatchFileFormat):
                 f"OnnxFormat: 'model_bytes' must be bytes, got {type(payload).__name__}"
             )
         payload_bytes = bytes(payload)
-        onnx = self._load_onnx()
+        onnx = OptionalDependency.require("onnx", extra="onnx")
         try:
             onnx.load_model_from_string(payload_bytes)
         except Exception as exc:
@@ -95,13 +98,3 @@ class OnnxFormat(BatchFileFormat):
                 f"OnnxFormat: 'model_bytes' is not a valid ONNX model — {exc}"
             ) from exc
         return payload_bytes
-
-    @staticmethod
-    def _load_onnx() -> Any:
-        try:
-            import onnx
-        except ImportError as exc:
-            raise ImportError(
-                "OnnxFormat requires onnx. Install with `pip install pirn[onnx]`."
-            ) from exc
-        return onnx

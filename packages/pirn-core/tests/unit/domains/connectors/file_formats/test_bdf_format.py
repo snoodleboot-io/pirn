@@ -224,8 +224,8 @@ class TestBdfFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestBdfFormatMissingDep(unittest.TestCase):
-    def test_load_pyedflib_raises_on_missing(self) -> None:
+class TestBdfFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_decode_raises_on_missing_pyedflib(self) -> None:
         with patch.dict("sys.modules", {"pyedflib": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                BdfFormat._load_pyedflib()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-health\\[health\\]"'):
+                await BdfFormat()._decode_full(b"")

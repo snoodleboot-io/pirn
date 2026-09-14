@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Connection pool wrapper around the synchronous :mod:`oracledb` driver.
 
 The Oracle Python driver (``python-oracledb``) is synchronous; calls run
@@ -20,6 +22,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.oracle_config import OracleConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 _logger = logging.getLogger(__name__)
 
@@ -51,7 +54,7 @@ class OraclePool(DatabaseConnectionPool):
     one it found already open. This is the guarantee
     :class:`~pirn.connectors.databases.sqlite_pool.SqlitePool` (PIR-819),
     ``ColumnAwareSqlitePool`` (PIR-801), ``AiosqliteConnector`` /
-    ``SqliteConnector`` (PIR-807) and ``_SQLExecutor`` (PIR-817) already make.
+    ``SqliteConnector`` (PIR-807) and ``SQLExecutor`` (PIR-817) already make.
 
     python-oracledb does **not** autocommit, and this pool holds one long-lived
     connection that ``acquire`` hands to every caller, so without this the
@@ -138,7 +141,7 @@ class OraclePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_execute, client, query, params)
@@ -171,7 +174,7 @@ class OraclePool(DatabaseConnectionPool):
         reaching here is rolled back rather than left stranded on the shared
         connection — see the class docstring.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
@@ -203,7 +206,7 @@ class OraclePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
         return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
@@ -307,12 +310,7 @@ class OraclePool(DatabaseConnectionPool):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            import oracledb  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "OraclePool requires oracledb; install via `pip install pirn[oracle]`"
-            ) from exc
+        oracledb = OptionalDependency.require("oracledb", extra="oracle")
         if self._config is None:
             raise self._missing_config_error("OraclePool", "client")
 
@@ -340,7 +338,7 @@ class OraclePool(DatabaseConnectionPool):
             if value is not None:
                 kwargs[key] = value
         try:
-            client = await asyncio.to_thread(oracledb.connect, **kwargs)
+            client: Any = await asyncio.to_thread(oracledb.connect, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("oracle.connect")

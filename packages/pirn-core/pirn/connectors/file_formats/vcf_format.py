@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VcfFormat`` — Variant Call Format (text) encoder/decoder.
 
 VCF is a tab-delimited text format used in genomics for variant calls.
@@ -5,7 +7,7 @@ The text dialect is straightforward enough to parse with stdlib —
 ``##`` lines are metadata, ``#CHROM`` is the column header, and the
 remaining rows are tab-delimited variant records.
 
-The optional ``pysam`` package (declared via ``pirn[genomics]``) is the
+The optional ``pysam`` package (declared via ``pirn-health[genomics]``) is the
 canonical reference implementation; users requiring strict spec
 compliance, indexed access, or BGZF-aware streaming should reach for
 :class:`pirn.connectors.file_formats.bcf_format.BcfFormat` or a
@@ -21,6 +23,7 @@ from typing import Any
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class VcfFormat(StreamingFileFormat):
@@ -206,16 +209,17 @@ class VcfFormat(StreamingFileFormat):
             filt = "."
         if not isinstance(filt, str):
             raise TypeError("VcfFormat: 'filter' must be str")
-        info = record.get("info", {})
+        info = record.get("info")
         if info is None:
-            info = {}
-        if not isinstance(info, Mapping):
+            info_text = "."
+        elif PayloadShape.is_mapping(info):
+            info_text = VcfFormat._serialize_info_field(info)
+        else:
             raise TypeError("VcfFormat: 'info' must be a mapping (dict-like)")
-        info_text = VcfFormat._serialize_info_field(info)
         return f"{chrom}\t{pos}\t{identifier}\t{ref}\t{alt}\t{qual_text}\t{filt}\t{info_text}\n"
 
     @staticmethod
-    def _serialize_info_field(info: Mapping[str, Any]) -> str:
+    def _serialize_info_field(info: Mapping[object, object]) -> str:
         if not info:
             return "."
         parts: list[str] = []

@@ -181,13 +181,13 @@ class TestMzmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestMzmlFormatMissingDep(unittest.TestCase):
-    def test_load_pyteomics_raises_on_missing(self) -> None:
+class TestMzmlFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_decode_raises_on_missing_pyteomics(self) -> None:
         with patch.dict("sys.modules", {"pyteomics": None, "pyteomics.mzml": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                MzmlFormat._load_pyteomics_mzml()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[pyteomics\\]"'):
+                await MzmlFormat()._decode_full(b"<mzML/>")
 
-    def test_load_lxml_raises_on_missing(self) -> None:
+    async def test_encode_raises_on_missing_lxml(self) -> None:
         with patch.dict("sys.modules", {"lxml": None, "lxml.etree": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                MzmlFormat._load_lxml()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[html\\]"'):
+                await MzmlFormat()._encode_full([])

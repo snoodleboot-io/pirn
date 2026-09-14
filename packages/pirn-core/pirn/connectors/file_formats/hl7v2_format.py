@@ -13,7 +13,7 @@ prevent PHI leakage:
 * PID.7 — date of birth
 * PID.11 — address
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-core[hl7]"``.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class Hl7v2Format(BatchFileFormat):
@@ -47,7 +48,7 @@ class Hl7v2Format(BatchFileFormat):
         return "hl7v2"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        hl7 = self._load_hl7()
+        hl7 = OptionalDependency.require("hl7", extra="hl7")
         text = payload.decode("utf-8", errors="replace")
         raw_messages = self._split_messages(text)
         records: list[dict[str, Any]] = []
@@ -139,13 +140,3 @@ class Hl7v2Format(BatchFileFormat):
         if current_lines:
             messages.append("\r".join(current_lines))
         return messages
-
-    @staticmethod
-    def _load_hl7() -> Any:
-        try:
-            import hl7
-        except ImportError as exc:
-            raise ImportError(
-                "Hl7v2Format requires hl7. Install with `pip install pirn[health]`."
-            ) from exc
-        return hl7

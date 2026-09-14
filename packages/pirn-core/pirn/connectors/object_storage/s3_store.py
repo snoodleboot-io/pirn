@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """S3-compatible :class:`ObjectStore` backed by :mod:`aioboto3`."""
 
 from __future__ import annotations
@@ -8,6 +10,7 @@ from typing import Any
 
 from pirn.connectors.object_storage.s3_config import S3Config
 from pirn.connectors.object_store import ObjectStore
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class S3Store(ObjectStore):
@@ -30,8 +33,8 @@ class S3Store(ObjectStore):
         if not config.bucket:
             raise ValueError("S3Config.bucket is required")
         self._config = config
-        self._client = client
-        self._session = session
+        self._client: Any | None = client
+        self._session: Any | None = session
         self._owned_session: Any = None
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -124,7 +127,8 @@ class S3Store(ObjectStore):
                 if continuation is not None:
                     kwargs["ContinuationToken"] = continuation
                 response = await client.list_objects_v2(**kwargs)
-                for item in response.get("Contents", []) or []:
+                contents: list[dict[str, Any]] = response.get("Contents") or []
+                for item in contents:
                     yield item["Key"]
                 if not response.get("IsTruncated"):
                     return
@@ -137,12 +141,7 @@ class S3Store(ObjectStore):
             return self._client
         session = self._session
         if session is None:
-            try:
-                import aioboto3  # type: ignore[import-untyped]
-            except ImportError as exc:
-                raise ImportError(
-                    "S3Store requires aioboto3; install via `pip install pirn[s3]`"
-                ) from exc
+            aioboto3 = OptionalDependency.require("aioboto3", extra="s3")
             session = aioboto3.Session()
             self._session = session
         # Explicit credentials only when configured: ``None`` and "absent"

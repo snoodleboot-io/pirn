@@ -195,17 +195,17 @@ class TestFhirXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestFhirXmlFormatMissingDep(unittest.TestCase):
-    def test_missing_fhir_raises(self) -> None:
+class TestFhirXmlFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_fhir_raises(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"fhir": None, "fhir.resources": None}):
             fmt = FhirXmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_fhir()
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[health\\]"):
+                await fmt._decode_full(b"<Bundle/>")
 
-    def test_missing_defusedxml_raises(self) -> None:
+    async def test_missing_defusedxml_raises(self) -> None:
         with unittest.mock.patch.dict(
             sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
         ):
             fmt = FhirXmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_defusedxml()
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[health\\]"):
+                await fmt._decode_full(b"<Bundle/>")

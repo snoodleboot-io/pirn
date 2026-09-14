@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GzipCodec`` — gzip compression using stdlib :mod:`gzip`.
 
 The implementation drains the input byte stream into a single buffer

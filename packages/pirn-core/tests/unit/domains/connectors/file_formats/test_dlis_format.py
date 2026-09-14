@@ -44,9 +44,9 @@ class TestDlisFormatErrors(unittest.IsolatedAsyncioTestCase):
             await fmt._encode_full([])
 
 
-class TestDlisFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestDlisFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"dlisio": None}):
             fmt = DlisFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
-                fmt._load_dlisio()
+            with self.assertRaisesRegex(ImportError, "pirn-core\\[dlis\\]"):
+                await fmt._decode_full(b"")

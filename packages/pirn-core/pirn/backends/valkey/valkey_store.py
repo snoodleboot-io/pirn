@@ -8,17 +8,18 @@ from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
-
-_logger = logging.getLogger(__name__)
-from pirn.backends.base.tapestry_snapshot import TapestrySnapshot  # noqa: E402
-from pirn.backends.base.tapestry_store import TapestryStore  # noqa: E402
-from pirn.backends.valkey.lazy_client import LazyClient  # noqa: E402
-from pirn.exceptions.duplicate_knot_error import DuplicateKnotError  # noqa: E402
+from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
+from pirn.backends.base.tapestry_store import TapestryStore
+from pirn.backends.valkey.lazy_client import LazyClient
+from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 if TYPE_CHECKING:
     from glide import GlideClient, GlideClientConfiguration
 
     from pirn.core.knot import Knot
+
+_logger = logging.getLogger(__name__)
 
 
 class ValKeyStore(TapestryStore, SubscribableStore):
@@ -229,33 +230,30 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         """Hold a dedicated pub/sub connection until all subscribers cancel.
 
         Creates a new ``GlideClient`` configured with a pub/sub subscription
-        to the registrations channel.  Falls back silently if ``glide`` is
-        not installed or no config is available.
+        to the registrations channel.  Does nothing for an injected client,
+        which carries no config to derive the subscription connection from.
         """
-        try:
-            from glide import GlideClient, GlideClientConfiguration
-        except ImportError:
-            return
-
         base_config = self._client.config
         if base_config is None:
             return
+        glide = OptionalDependency.require("glide", extra="valkey")
+        config_class: type[GlideClientConfiguration] = glide.GlideClientConfiguration
 
         # valkey-glide >= 2 nests the pub/sub types on the configuration class;
         # the ``glide.config`` module this used to import from no longer exists,
         # so the listener silently never started.
-        subscriptions = GlideClientConfiguration.PubSubSubscriptions(
+        subscriptions = config_class.PubSubSubscriptions(
             channels_and_patterns={
-                GlideClientConfiguration.PubSubChannelModes.Exact: {self._registrations_channel}
+                config_class.PubSubChannelModes.Exact: {self._registrations_channel}
             },
             callback=self._on_message,
             context=None,
         )
-        config = GlideClientConfiguration(
+        config = config_class(
             base_config.addresses,
             pubsub_subscriptions=subscriptions,
         )
-        sub_client = await GlideClient.create(config)
+        sub_client: GlideClient = await glide.GlideClient.create(config)
         try:
             while self._subscribers:
                 await asyncio.sleep(0.05)
