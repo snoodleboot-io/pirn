@@ -193,14 +193,8 @@ The canonical examples of this pattern in the codebase are:
 - `pirn_data/specializations/medallion/data_batch_to_tuples_knot.py`
   (`DataBatchToTuplesKnot`) — Disassembler: `DataBatch` → `list[tuple]`
 
-Note: `TuplesToDataBatchKnot` and `DataBatchToTuplesKnot` predated the `Assembler`/
-`Disassembler` base classes and extended `Knot` directly; the data lane is rebasing both
-onto `Assembler`/`Disassembler` in the same PIR-856 merge window, so by the time this
-lands they demonstrate the required base class inheritance like every other knot in
-`pirn_{domain}/assemblers/` and `pirn_{domain}/disassemblers/`. If you
-encounter either class still extending `Knot` directly, treat it as not yet migrated
-rather than as the intended pattern, and follow the `Assembler`/`Disassembler` examples
-elsewhere in the tree instead.
+Both extend the `Assembler` / `Disassembler` base classes, as every knot in
+`pirn_{domain}/assemblers/` and `pirn_{domain}/disassemblers/` does.
 
 Read these before writing a new Assembler or Disassembler.
 

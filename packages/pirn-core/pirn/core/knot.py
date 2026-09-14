@@ -39,7 +39,7 @@ import json
 import types as _types
 import warnings
 import weakref
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
@@ -52,6 +52,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.map import Map
 from pirn.core.map_type_error import MapTypeError
 from pirn.core.ok import Ok
+from pirn.core.required_engine import RequiredEngine
 from pirn.core.result import Result
 from pirn.core.run_context_vars import RunContextVars
 from pirn.core.shape_guard import ShapeGuard
@@ -111,6 +112,15 @@ class Knot:
     # construction.  See ``pirn.core.annotation_import``.
     _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {}
 
+    # Optional engines the knot needs at run time but its annotations do not name
+    # (PIR-873) -- e.g. a pandas knot whose ``process()`` takes and returns a
+    # ``PandasDataBatch`` and calls pandas inside.  Every entry of the class and
+    # its bases is imported through ``OptionalDependency.require`` on the class's
+    # first construction and the success cached per class, so a missing engine
+    # raises its install hint when the pipeline is built, not when the knot
+    # first runs.  See ``pirn.core.required_engine``.
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = ()
+
     # Per-class caches, filled on first need (weak keys: a class generated at run
     # time by ``KnotFactory`` does not outlive its last reference because of them).
     # ``_annotation_namespaces``: class -> resolved ``_annotation_imports``.
@@ -119,6 +129,8 @@ class Knot:
     _annotation_namespaces: ClassVar[weakref.WeakKeyDictionary[type[Knot], dict[str, Any]]] = (
         weakref.WeakKeyDictionary()
     )
+    # ``_engines_present``: classes whose ``_required_engines`` all imported.
+    _engines_present: ClassVar[weakref.WeakSet[type[Knot]]] = weakref.WeakSet()
     _coercible_param_cache: ClassVar[
         weakref.WeakKeyDictionary[type[Knot], dict[str, tuple[Any, Any]]]
     ] = weakref.WeakKeyDictionary()
@@ -239,6 +251,7 @@ class Knot:
                 )
 
     def __init__(self, **kwargs: Any) -> None:
+        type(self)._require_engines()
         config, explicit_tapestry, kwargs = self._extract_framework_kwargs(kwargs)
         mapped_inputs, kwargs = self._extract_map_markers(kwargs, config)
 
@@ -963,6 +976,21 @@ class Knot:
                 stacklevel=3,
             )
             return {}
+
+    @classmethod
+    def _require_engines(cls) -> None:
+        """Import every ``_required_engines`` entry of this class and its bases, once per class.
+
+        A missing engine raises its ``OptionalDependency`` install hint and caches
+        nothing, so every construction of the class raises it again.
+        """
+        if cls in Knot._engines_present:
+            return
+        for klass in reversed(cls.__mro__):
+            own: Sequence[RequiredEngine] = klass.__dict__.get("_required_engines", ())
+            for engine in own:
+                engine.require()
+        Knot._engines_present.add(cls)
 
     @classmethod
     def _annotation_namespace(cls) -> dict[str, Any]:
