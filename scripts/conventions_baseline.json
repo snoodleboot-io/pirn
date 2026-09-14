@@ -8,7 +8,7 @@
     "knot_self_assignment": 2,
     "module_level_function": 23,
     "multi_class_file": 0,
-    "nested_def_missing_override": 30
+    "nested_def_missing_override": 6
   },
   "pirn-core": {
     "filename_mismatch": 1,
