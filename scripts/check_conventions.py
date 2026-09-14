@@ -48,6 +48,33 @@ Rules
    ``OpenAIClient`` in ``openai_client.py`` passes even though naive
    snake-casing of ``OpenAIClient`` would not round-trip. Files with no public
    (non-``_``-prefixed) top-level class are not checked.
+10. ``deprecation_reference`` — a code reference (a name, not text in a
+    string or comment) to ``DeprecationWarning`` or
+    ``PendingDeprecationWarning``, or any ``_deprecated_since`` identifier or
+    string. pirn is alpha: a replaced name is deleted, never deprecated.
+11. ``module_alias_assignment`` — a module-scope assignment (including inside
+    a module-level ``if``/``try``) whose value is a bare name or an attribute
+    of a class or function defined in the module or a name imported into it:
+    ``name = Class.method``, ``OldName = NewName``. Calls, subscripts
+    (``JsonValue = dict[str, Any]``) and literals are not aliases.
+12. ``reexport_module`` — a module whose only statements, after its
+    docstring, ``from __future__`` imports and an ``__all__`` assignment, are
+    imports: a module that exists only to re-export names from another
+    module under an old path.
+13. ``suppression_without_rule_or_reason`` — a ``# type: ignore`` or
+    ``# pyright: ignore`` comment that does not name a rule in brackets and
+    carry a reason comment on the same line
+    (``# pyright: ignore[reportPrivateUsage]  # <reason>``).
+14. ``file_level_pyright_directive`` — any ``# pyright: <setting>`` comment
+    other than a per-line ``ignore``: the type-checking mode and rule
+    overrides live in each package's ``[tool.pyright]`` only.
+15. ``payload_alias_property`` — a ``@property`` on a ``Payload`` /
+    ``PirnOpaqueValue`` subclass (by base name, followed through subclasses
+    defined in the scanned roots) whose body is only
+    ``return self.<metadata|data>[.<field>]`` (or the same over
+    ``self._metadata`` / ``self._data``): a field-name alias for the canonical
+    access. The canonical ``metadata``/``data`` accessors returning
+    ``self._metadata``/``self._data`` are not aliases.
 
 "Knot-like" (rules 5-8)
 -----------------------
@@ -109,8 +136,10 @@ from __future__ import annotations
 
 import argparse
 import ast
+import io
 import re
 import sys
+import tokenize
 from pathlib import Path
 
 # Scoped to the PIR-856 core lane's own framework primitives (see module
@@ -150,7 +179,25 @@ _RULES = (
     "knot_property",
     "knot_process_kwargs_name",
     "filename_mismatch",
+    "deprecation_reference",
+    "module_alias_assignment",
+    "reexport_module",
+    "suppression_without_rule_or_reason",
+    "file_level_pyright_directive",
+    "payload_alias_property",
 )
+
+_DEPRECATION_NAMES = frozenset({"DeprecationWarning", "PendingDeprecationWarning"})
+_DEPRECATED_SINCE = "_deprecated_since"
+
+_SUPPRESSION = re.compile(r"#\s*(?:type|pyright)\s*:\s*ignore\b")
+_SUPPRESSION_WITH_RULE_AND_REASON = re.compile(
+    r"#\s*(?:type|pyright)\s*:\s*ignore\[[^\]\s][^\]]*\]\s*#\s*\S"
+)
+_PYRIGHT_DIRECTIVE = re.compile(r"#\s*pyright\s*:\s*(?!ignore\b)\S")
+
+_PAYLOAD_ROOT_NAMES = frozenset({"Payload", "PirnOpaqueValue"})
+_PAYLOAD_FIELDS = frozenset({"metadata", "data", "_metadata", "_data"})
 
 
 class _Violation:
@@ -564,7 +611,267 @@ def _check_knot_purity_rules(
     return violations
 
 
-def check_file(path: Path, package: str, relative_posix: str) -> list[_Violation]:
+def _check_deprecation_references(
+    tree: ast.Module, source: str, path: Path
+) -> list[_Violation]:
+    violations: list[_Violation] = []
+    for node in ast.walk(tree):
+        name: str | None = None
+        if isinstance(node, ast.Name):
+            name = node.id
+        elif isinstance(node, ast.Attribute):
+            name = node.attr
+        if name in _DEPRECATION_NAMES:
+            violations.append(
+                _Violation(
+                    "deprecation_reference",
+                    path,
+                    node.lineno,
+                    f"{name} referenced — pirn is alpha: delete the name, never deprecate it",
+                )
+            )
+    for lineno, line in enumerate(source.splitlines(), start=1):
+        if _DEPRECATED_SINCE in line:
+            violations.append(
+                _Violation(
+                    "deprecation_reference",
+                    path,
+                    lineno,
+                    f"{_DEPRECATED_SINCE} marker — pirn is alpha: delete the name, never deprecate it",
+                )
+            )
+    return violations
+
+
+def _module_scope_statements(body: list[ast.stmt]) -> list[ast.stmt]:
+    """Module-level statements, descending into module-level ``if``/``try`` blocks."""
+    statements: list[ast.stmt] = []
+    for stmt in body:
+        statements.append(stmt)
+        if isinstance(stmt, ast.If):
+            statements.extend(_module_scope_statements(stmt.body))
+            statements.extend(_module_scope_statements(stmt.orelse))
+        elif isinstance(stmt, ast.Try):
+            statements.extend(_module_scope_statements(stmt.body))
+            for handler in stmt.handlers:
+                statements.extend(_module_scope_statements(handler.body))
+            statements.extend(_module_scope_statements(stmt.orelse))
+            statements.extend(_module_scope_statements(stmt.finalbody))
+    return statements
+
+
+def _root_name(node: ast.expr) -> str | None:
+    """``a`` for ``a``, ``a.b`` or ``a.b.c``; ``None`` for anything else."""
+    while isinstance(node, ast.Attribute):
+        node = node.value
+    return node.id if isinstance(node, ast.Name) else None
+
+
+def _check_module_alias_assignments(tree: ast.Module, path: Path) -> list[_Violation]:
+    statements = _module_scope_statements(tree.body)
+    bound: set[str] = set()
+    for stmt in statements:
+        if isinstance(stmt, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            bound.add(stmt.name)
+        elif isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                bound.add(alias.asname or alias.name.split(".", 1)[0])
+        elif isinstance(stmt, ast.ImportFrom):
+            for alias in stmt.names:
+                bound.add(alias.asname or alias.name)
+    violations: list[_Violation] = []
+    for stmt in statements:
+        if isinstance(stmt, ast.Assign):
+            targets = stmt.targets
+            value: ast.expr | None = stmt.value
+        elif isinstance(stmt, ast.AnnAssign):
+            targets = [stmt.target]
+            value = stmt.value
+        else:
+            continue
+        if value is None or not isinstance(value, (ast.Name, ast.Attribute)):
+            continue
+        root = _root_name(value)
+        if root is None or root not in bound:
+            continue
+        names = [_dotted_name(target) or "<target>" for target in targets]
+        violations.append(
+            _Violation(
+                "module_alias_assignment",
+                path,
+                stmt.lineno,
+                f"module-scope alias {', '.join(names)} = {_dotted_name(value)} — "
+                "delete the old name and move callers to the real one",
+            )
+        )
+    return violations
+
+
+def _is_dunder_all_assignment(stmt: ast.stmt) -> bool:
+    targets: list[ast.expr] = []
+    if isinstance(stmt, ast.Assign):
+        targets = stmt.targets
+    elif isinstance(stmt, (ast.AnnAssign, ast.AugAssign)):
+        targets = [stmt.target]
+    return any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets)
+
+
+def _check_reexport_module(tree: ast.Module, path: Path) -> list[_Violation]:
+    body = tree.body
+    if body and _is_docstring_stmt(body[0]):
+        body = body[1:]
+    remaining = [
+        stmt
+        for stmt in body
+        if not (isinstance(stmt, ast.ImportFrom) and stmt.module == "__future__")
+        and not _is_dunder_all_assignment(stmt)
+    ]
+    if not remaining or not all(
+        isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in remaining
+    ):
+        return []
+    return [
+        _Violation(
+            "reexport_module",
+            path,
+            remaining[0].lineno,
+            "module only re-exports imported names — delete it and import from the real module",
+        )
+    ]
+
+
+def _comments(source: str) -> list[tuple[int, str]]:
+    comments: list[tuple[int, str]] = []
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            if token.type == tokenize.COMMENT:
+                comments.append((token.start[0], token.string))
+    except (tokenize.TokenError, SyntaxError):  # pragma: no cover - ast.parse already succeeded
+        pass
+    return comments
+
+
+def _check_suppression_comments(source: str, path: Path) -> list[_Violation]:
+    violations: list[_Violation] = []
+    for lineno, comment in _comments(source):
+        if _PYRIGHT_DIRECTIVE.search(comment):
+            violations.append(
+                _Violation(
+                    "file_level_pyright_directive",
+                    path,
+                    lineno,
+                    f"{comment.strip()!r} — pyright settings live in [tool.pyright], not in a file",
+                )
+            )
+        if _SUPPRESSION.search(comment) and not _SUPPRESSION_WITH_RULE_AND_REASON.search(
+            comment
+        ):
+            violations.append(
+                _Violation(
+                    "suppression_without_rule_or_reason",
+                    path,
+                    lineno,
+                    f"{comment.strip()!r} — a suppression names its rule in brackets and "
+                    "carries a '# reason' on the same line",
+                )
+            )
+    return violations
+
+
+def _subscript_base(base: ast.expr) -> ast.expr:
+    return base.value if isinstance(base, ast.Subscript) else base
+
+
+def _class_base_names(node: ast.ClassDef) -> list[str]:
+    return _base_names([_subscript_base(base) for base in node.bases])
+
+
+def payload_class_names(import_roots: list[Path]) -> frozenset[str]:
+    """Every class name that derives, by base name, from ``Payload``/``PirnOpaqueValue``."""
+    bases_by_class: dict[str, set[str]] = {}
+    for import_root in import_roots:
+        for file_path in _iter_source_files(import_root):
+            try:
+                tree = ast.parse(file_path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):  # pragma: no cover - defensive
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    bases_by_class.setdefault(node.name, set()).update(
+                        _class_base_names(node)
+                    )
+    names = set(_PAYLOAD_ROOT_NAMES)
+    changed = True
+    while changed:
+        changed = False
+        for class_name, bases in bases_by_class.items():
+            if class_name not in names and bases & names:
+                names.add(class_name)
+                changed = True
+    return frozenset(names)
+
+
+def _is_payload_field_access(node: ast.expr, property_name: str) -> bool:
+    """``self.<metadata|data|_metadata|_data>`` optionally followed by one ``.field`` / ``[key]``."""
+    inner = node
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Attribute):
+        inner = node.value
+    elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+        inner = node.value
+    if not (
+        isinstance(inner, ast.Attribute)
+        and isinstance(inner.value, ast.Name)
+        and inner.value.id == "self"
+        and inner.attr in _PAYLOAD_FIELDS
+    ):
+        return False
+    if inner is node and inner.attr.lstrip("_") == property_name:
+        return False  # the canonical ``metadata``/``data`` accessor itself
+    return True
+
+
+def _check_payload_alias_properties(
+    tree: ast.Module, path: Path, payload_names: frozenset[str]
+) -> list[_Violation]:
+    violations: list[_Violation] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if not set(_class_base_names(node)) & payload_names:
+            continue
+        for stmt in node.body:
+            if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if "property" not in _decorator_names(stmt.decorator_list):
+                continue
+            body = stmt.body
+            if body and _is_docstring_stmt(body[0]):
+                body = body[1:]
+            if (
+                len(body) == 1
+                and isinstance(body[0], ast.Return)
+                and body[0].value is not None
+                and _is_payload_field_access(body[0].value, stmt.name)
+            ):
+                violations.append(
+                    _Violation(
+                        "payload_alias_property",
+                        path,
+                        stmt.lineno,
+                        f"{node.name}.{stmt.name} only returns "
+                        f"{ast.unparse(body[0].value)} — delete the alias and read the "
+                        "canonical field",
+                    )
+                )
+    return violations
+
+
+def check_file(
+    path: Path,
+    package: str,
+    relative_posix: str,
+    payload_names: frozenset[str] = _PAYLOAD_ROOT_NAMES,
+) -> list[_Violation]:
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
@@ -579,6 +886,11 @@ def check_file(path: Path, package: str, relative_posix: str) -> list[_Violation
     violations.extend(_check_gate_naming(tree, path))
     violations.extend(_check_knot_purity_rules(tree, path, package, relative_posix))
     violations.extend(_check_filename(tree, path))
+    violations.extend(_check_deprecation_references(tree, source, path))
+    violations.extend(_check_module_alias_assignments(tree, path))
+    violations.extend(_check_reexport_module(tree, path))
+    violations.extend(_check_suppression_comments(source, path))
+    violations.extend(_check_payload_alias_properties(tree, path, payload_names))
     return violations
 
 
@@ -599,13 +911,14 @@ def collect_counts(
     """Scan every package's import root; return (counts, all violations)."""
     counts: dict[str, dict[str, int]] = {}
     all_violations: list[_Violation] = []
+    payload_names = payload_class_names(import_roots)
     for import_root in import_roots:
         package = import_root.parent.name
         package_root = import_root.parent
         rule_counts = counts.setdefault(package, dict.fromkeys(_RULES, 0))
         for file_path in _iter_source_files(import_root):
             relative_posix = file_path.relative_to(package_root).as_posix()
-            violations = check_file(file_path, package, relative_posix)
+            violations = check_file(file_path, package, relative_posix, payload_names)
             for violation in violations:
                 if violation.rule in rule_counts:
                     rule_counts[violation.rule] += 1

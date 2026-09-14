@@ -468,6 +468,255 @@ def test_root_definition_outside_pirn_core_is_still_checked(tmp_path: Path) -> N
     assert violations >= _KNOT_RULES
 
 
+# --- rule 10: deprecation_reference -----------------------------------------
+
+
+def _check_source(tmp_path: Path, source: str, name: str = "subject.py") -> list[str]:
+    root = _import_root(tmp_path, "acme", "acme")
+    f = root / name
+    f.write_text(source)
+    return _rules(check_file(f, "acme", f"acme/{name}"))
+
+
+def test_flags_deprecation_warning_reference(tmp_path: Path) -> None:
+    source = "import warnings\n\n\nclass Old:\n    def run(self) -> None:\n        warnings.warn('x', DeprecationWarning)\n"
+    assert "deprecation_reference" in _check_source(tmp_path, source)
+
+
+def test_flags_pending_deprecation_warning_attribute(tmp_path: Path) -> None:
+    source = "import builtins\n\n\nclass Old:\n    category = builtins.PendingDeprecationWarning\n"
+    assert "deprecation_reference" in _check_source(tmp_path, source)
+
+
+def test_flags_deprecated_since_marker(tmp_path: Path) -> None:
+    source = "class Old:\n    _deprecated_since = '0.9'\n"
+    assert "deprecation_reference" in _check_source(tmp_path, source)
+
+
+def test_deprecation_word_in_a_docstring_is_not_a_reference(tmp_path: Path) -> None:
+    source = '"""Nothing here raises a DeprecationWarning."""\n\n\nclass Fine:\n    pass\n'
+    assert "deprecation_reference" not in _check_source(tmp_path, source)
+
+
+# --- rule 11: module_alias_assignment ---------------------------------------
+
+
+def test_flags_method_alias_at_module_scope(tmp_path: Path) -> None:
+    source = (
+        "class Renderer:\n"
+        "    @staticmethod\n"
+        "    def render(x: int) -> int:\n"
+        "        return x\n\n\n"
+        "render = Renderer.render\n"
+    )
+    assert "module_alias_assignment" in _check_source(tmp_path, source, "renderer.py")
+
+
+def test_flags_old_name_bound_to_imported_class(tmp_path: Path) -> None:
+    source = "from acme.new_name import NewName\n\nOldName = NewName\n"
+    assert "module_alias_assignment" in _check_source(tmp_path, source)
+
+
+def test_flags_annotated_alias_inside_module_level_if(tmp_path: Path) -> None:
+    source = (
+        "import sys\n"
+        "from acme.new_name import NewName\n\n"
+        "if sys.version_info >= (3, 11):\n"
+        "    OldName: type[NewName] = NewName\n"
+    )
+    assert "module_alias_assignment" in _check_source(tmp_path, source)
+
+
+def test_call_subscript_and_unbound_names_are_not_aliases(tmp_path: Path) -> None:
+    source = (
+        "import logging\n"
+        "from typing import Any\n\n"
+        "logger = logging.getLogger(__name__)\n"
+        "JsonValue = dict[str, Any]\n"
+        "fallback = undefined_elsewhere\n"
+    )
+    assert "module_alias_assignment" not in _check_source(tmp_path, source)
+
+
+def test_class_scope_assignment_is_not_a_module_alias(tmp_path: Path) -> None:
+    source = "from acme.base import Base\n\n\nclass Child:\n    parent = Base\n"
+    assert "module_alias_assignment" not in _check_source(tmp_path, source, "child.py")
+
+
+# --- rule 12: reexport_module -------------------------------------------------
+
+
+def test_flags_module_that_only_reexports(tmp_path: Path) -> None:
+    source = (
+        '"""Old import path."""\n\n'
+        "from __future__ import annotations\n\n"
+        "from acme.core.map import Map\n"
+        "from acme.core.zip_map import ZipMap\n\n"
+        '__all__ = ["Map", "ZipMap"]\n'
+    )
+    assert "reexport_module" in _check_source(tmp_path, source, "map_markers.py")
+
+
+def test_recreated_map_markers_compat_module_fails(tmp_path: Path) -> None:
+    """A copy of the deleted ``pirn/nodes/map_markers.py`` re-export module is caught."""
+    root = _import_root(tmp_path, "pirn-core", "pirn")
+    (root / "nodes").mkdir()
+    f = root / "nodes" / "map_markers.py"
+    f.write_text(
+        '"""Wiring-time markers, re-exported from their canonical location."""\n\n'
+        "from __future__ import annotations\n\n"
+        "from pirn.core.dict_map import DictMap\n"
+        "from pirn.core.map import Map\n"
+        "from pirn.core.map_type_error import MapTypeError\n"
+        "from pirn.core.zip_map import ZipMap\n\n"
+        '__all__ = ["DictMap", "Map", "MapTypeError", "ZipMap"]\n'
+    )
+    assert "reexport_module" in _rules(check_file(f, "pirn-core", "pirn/nodes/map_markers.py"))
+
+
+def test_docstring_only_package_init_is_not_a_reexport(tmp_path: Path) -> None:
+    assert "reexport_module" not in _check_source(tmp_path, '"""A package."""\n', "__init__.py")
+
+
+def test_module_that_imports_and_defines_is_not_a_reexport(tmp_path: Path) -> None:
+    source = "from acme.base import Base\n\n\nclass Child(Base):\n    pass\n"
+    assert "reexport_module" not in _check_source(tmp_path, source, "child.py")
+
+
+# --- rule 13: suppression_without_rule_or_reason -----------------------------
+
+
+def test_flags_bare_type_ignore(tmp_path: Path) -> None:
+    source = "class Subject:\n    value: int = 'x'  # type: ignore\n"
+    assert "suppression_without_rule_or_reason" in _check_source(tmp_path, source)
+
+
+def test_flags_pyright_ignore_without_rule(tmp_path: Path) -> None:
+    source = "class Subject:\n    value: int = 'x'  # pyright: ignore  # wrong on purpose\n"
+    assert "suppression_without_rule_or_reason" in _check_source(tmp_path, source)
+
+
+def test_flags_ruled_suppression_without_reason(tmp_path: Path) -> None:
+    source = "class Subject:\n    value: int = 'x'  # pyright: ignore[reportAssignmentType]\n"
+    assert "suppression_without_rule_or_reason" in _check_source(tmp_path, source)
+
+
+def test_ruled_suppression_with_same_line_reason_passes(tmp_path: Path) -> None:
+    source = (
+        "class Subject:\n"
+        "    value: int = 'x'  # pyright: ignore[reportAssignmentType]  # untyped stub returns str\n"
+        "    other: int = 'y'  # type: ignore[assignment]  # untyped stub returns str\n"
+    )
+    assert "suppression_without_rule_or_reason" not in _check_source(tmp_path, source)
+
+
+def test_suppression_text_inside_a_string_is_not_a_comment(tmp_path: Path) -> None:
+    source = 'class Subject:\n    doc = "write # type: ignore to silence it"\n'
+    assert "suppression_without_rule_or_reason" not in _check_source(tmp_path, source)
+
+
+# --- rule 14: file_level_pyright_directive -----------------------------------
+
+
+def test_flags_file_level_rule_override(tmp_path: Path) -> None:
+    source = "# pyright: reportUnnecessaryIsInstance=false\n\n\nclass Subject:\n    pass\n"
+    assert "file_level_pyright_directive" in _check_source(tmp_path, source)
+
+
+def test_flags_file_level_mode_directive(tmp_path: Path) -> None:
+    source = "# pyright: basic\n\n\nclass Subject:\n    pass\n"
+    assert "file_level_pyright_directive" in _check_source(tmp_path, source)
+
+
+def test_per_line_pyright_ignore_is_not_a_file_directive(tmp_path: Path) -> None:
+    source = "class Subject:\n    value: int = 'x'  # pyright: ignore[reportAssignmentType]  # reason\n"
+    assert "file_level_pyright_directive" not in _check_source(tmp_path, source)
+
+
+# --- rule 15: payload_alias_property ------------------------------------------
+
+
+_PAYLOAD_ALIAS_SOURCE = (
+    "from pirn.core.payload import Payload\n\n\n"
+    "class SignalPayload(Payload[Frame, bytes]):\n"
+    "    @property\n"
+    "    def frame(self) -> Frame:\n"
+    '        """The frame."""\n'
+    "        return self._metadata\n\n"
+    "    @property\n"
+    "    def samples(self) -> bytes:\n"
+    "        return self.data\n\n"
+    "    @property\n"
+    "    def rate(self) -> float:\n"
+    "        return self.metadata.sample_rate\n\n"
+    "    @property\n"
+    "    def label(self) -> str:\n"
+    "        return self.metadata['label']\n"
+)
+
+
+def test_flags_every_payload_field_alias_property(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "acme", "acme")
+    f = root / "signal_payload.py"
+    f.write_text(_PAYLOAD_ALIAS_SOURCE)
+    details = [
+        v.detail for v in check_file(f, "acme", "acme/signal_payload.py") if v.rule == "payload_alias_property"
+    ]
+    assert [d.split(" ", 1)[0] for d in details] == [
+        "SignalPayload.frame",
+        "SignalPayload.samples",
+        "SignalPayload.rate",
+        "SignalPayload.label",
+    ]
+
+
+def test_flags_alias_on_pirn_opaque_value_subclass(tmp_path: Path) -> None:
+    source = (
+        "class Wrapper(PirnOpaqueValue):\n"
+        "    @property\n"
+        "    def inner(self) -> int:\n"
+        "        return self._data\n"
+    )
+    assert "payload_alias_property" in _check_source(tmp_path, source, "wrapper.py")
+
+
+def test_canonical_accessors_and_computed_properties_are_not_aliases(tmp_path: Path) -> None:
+    source = (
+        "class Payload(PirnOpaqueValue):\n"
+        "    @property\n"
+        "    def metadata(self) -> int:\n"
+        "        return self._metadata\n\n"
+        "    @property\n"
+        "    def data(self) -> int:\n"
+        "        return self._data\n\n"
+        "    @property\n"
+        "    def size(self) -> int:\n"
+        "        return len(self.data)\n"
+    )
+    assert "payload_alias_property" not in _check_source(tmp_path, source, "payload.py")
+
+
+def test_property_on_non_payload_class_is_not_flagged(tmp_path: Path) -> None:
+    source = "class Holder:\n    @property\n    def frame(self) -> int:\n        return self._metadata\n"
+    assert "payload_alias_property" not in _check_source(tmp_path, source, "holder.py")
+
+
+def test_payload_subclass_of_a_subclass_is_followed_across_files(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "acme", "acme")
+    (root / "agent_result.py").write_text(
+        "from pirn.core.payload import Payload\n\n\nclass AgentResult(Payload[int, str]):\n    pass\n"
+    )
+    (root / "lats_result.py").write_text(
+        "from acme.agent_result import AgentResult\n\n\n"
+        "class LatsResult(AgentResult):\n"
+        "    @property\n"
+        "    def answer(self) -> str:\n"
+        "        return self.data\n"
+    )
+    counts, _violations = collect_counts([root])
+    assert counts["acme"]["payload_alias_property"] == 1
+
+
 # --- file discovery (skips tests/, conftest.py) -----------------------------
 
 

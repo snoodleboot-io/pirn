@@ -303,7 +303,12 @@ with closing(urlopen("https://example.com")) as response:
   change**, and every caller, test, doc, example and README snippet moves to the replacement.
 - Forbidden: `DeprecationWarning`s, one-cycle shims, compatibility aliases (`name = Class.method`,
   `OldName = NewName`), re-export modules left at an old import path, a `_deprecated_since`-style
-  marker, and "kept for compatibility" / "deprecation candidate" notes.
+  marker, and "kept for compatibility" / "deprecation candidate" notes. A field-name alias
+  property on a `Payload`/`PirnOpaqueValue` subclass (`return self.metadata`, `return self.data`
+  under another name) is the same thing: read `.metadata` / `.data`.
+- `scripts/check_conventions.py` enforces this in package source and fails on any finding:
+  `deprecation_reference`, `module_alias_assignment`, `reexport_module` and
+  `payload_alias_property`.
 - Record each removal in `CHANGELOG.md` under **Removed** / **Renamed** with its replacement.
   `docs/guides/versioning.md` states the same policy for users.
 
