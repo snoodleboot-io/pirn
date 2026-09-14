@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_limit_error import AdmissionLimitError
 from pirn.engine.admission.admission_ticket import AdmissionTicket
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-class UnboundedAdmissionGate(AdmissionGate):
+class UnboundedAdmission(Admission):
     """Admits every knot, holding no lock and no counter.
 
     This is the engine's default, so a run with no concurrency limit pays for

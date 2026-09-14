@@ -10,7 +10,7 @@ from pirn.engine.admission.admission_ticket import AdmissionTicket
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
-    from pirn.engine.admission.admission_gate import AdmissionGate
+    from pirn.engine.admission.admission import Admission
     from pirn.engine.shed.shed import Shed
 
 
@@ -92,7 +92,7 @@ class ReadyQueue:
             self._size += pushed
             self._next_sequence += 1
 
-    def pop_admissible(self, gate: AdmissionGate, shed: Shed) -> tuple[str, AdmissionTicket] | None:
+    def pop_admissible(self, gate: Admission, shed: Shed) -> tuple[str, AdmissionTicket] | None:
         """Remove and return the longest-waiting knot the gate admits.
 
         Heads are offered in readiness order.  A refused head stays queued,
@@ -162,7 +162,7 @@ class ReadyQueue:
             return knot_id, ticket
 
     @staticmethod
-    def _admit(gate: AdmissionGate, knot: Knot, capacity: bool) -> AdmissionTicket | None:
+    def _admit(gate: Admission, knot: Knot, capacity: bool) -> AdmissionTicket | None:
         """Admit *knot*: slot-free for a container, through *gate* for a leaf.
 
         Args:

@@ -14,7 +14,7 @@ a core :class:`~pirn.nodes.aggregator.Aggregator`:
   this policy turns off.
 * **Bounded concurrency** is ``KnotConfig(concurrency_group=...)`` on every
   item plus a ``ConcurrencyLimits`` group cap on the run — the same
-  ``AdmissionGate``/``ReadyQueue`` every other knot in the framework is
+  ``Admission``/``ReadyQueue`` every other knot in the framework is
   scheduled through, not a private semaphore.
 * **Per-item timeout/retry** is ``KnotConfig.timeout`` / ``KnotConfig.retry``
   (a ``KnotRetryPolicy``) on each item's knot — ``GovernedDispatch``'s job,
@@ -138,7 +138,7 @@ class MapAgent(SubTapestry):
                 :class:`~pirn_agents.batch.adaptive_concurrency_controller.AdaptiveConcurrencyController`.
                 When set, it is bound to ``concurrency_group`` and its limit
                 (not ``concurrency``) seeds the run's group cap; it then
-                steers that cap live via the run's ``AdmissionGate``.
+                steers that cap live via the run's ``Admission``.
             dispatcher: The engine ``Dispatcher`` (Local/Thread/Ray/Dask) this
                 batch's items run under. ``None`` inherits the ambient run's.
             admission_observers: Extra observers attached to the run

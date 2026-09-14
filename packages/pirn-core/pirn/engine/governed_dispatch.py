@@ -81,7 +81,7 @@ from pirn.managers.exception_record import ExceptionRecord
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
     from pirn.core.result import Result
-    from pirn.engine.admission.admission_gate import AdmissionGate
+    from pirn.engine.admission.admission import Admission
     from pirn.engine.admission.admission_ticket import AdmissionTicket
     from pirn.engine.admission.admission_ticket_holder import AdmissionTicketHolder
     from pirn.engine.dispatchers.dispatcher import Dispatcher
@@ -120,7 +120,7 @@ class GovernedDispatch:
         knot: Knot,
         inputs: Mapping[str, Any],
         *,
-        gate: AdmissionGate | None = None,
+        gate: Admission | None = None,
         ticket_holder: AdmissionTicketHolder | None = None,
     ) -> tuple[Result[Any], int]:
         """Dispatch *knot* under its config's timeout and retry policy.
@@ -159,7 +159,7 @@ class GovernedDispatch:
 
     async def _release_sleep_and_readmit(
         self,
-        gate: AdmissionGate,
+        gate: Admission,
         ticket_holder: AdmissionTicketHolder,
         knot: Knot,
         delay: float,
@@ -179,7 +179,7 @@ class GovernedDispatch:
         ticket_holder.ticket = await self._readmit(gate, knot)
 
     @staticmethod
-    async def _readmit(gate: AdmissionGate, knot: Knot) -> AdmissionTicket:
+    async def _readmit(gate: Admission, knot: Knot) -> AdmissionTicket:
         """Block until *gate* admits *knot* again, polling on each release."""
         while True:
             ticket = gate.try_admit(knot)

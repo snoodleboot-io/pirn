@@ -327,16 +327,16 @@ result = await tapestry.run(request, dispatcher=KubernetesJobDispatcher())
 
 ---
 
-## Admission control — AdmissionGate and ConcurrencyLimits
+## Admission control — Admission and ConcurrencyLimits
 
 Before a ready knot (all its parents resolved) is dispatched, the engine offers it to an
-`AdmissionGate`, which admits it only while capacity allows. This is how a run caps how
+`Admission`, which admits it only while capacity allows. This is how a run caps how
 many knots execute at once, overall or per named group (e.g. "at most 4 concurrent OpenAI
 calls" while everything else in the same run stays unbounded).
 
 The supported extension point is **`ConcurrencyLimits`**, not writing a custom gate
-directly — the engine already builds the right gate from it (`UnboundedAdmissionGate`
-when nothing is set, `LimitedAdmissionGate` otherwise) and there is no `Tapestry(...)`
+directly — the engine already builds the right gate from it (`UnboundedAdmission`
+when nothing is set, `LimitedAdmission` otherwise) and there is no `Tapestry(...)`
 parameter to substitute a different gate implementation today:
 
 ```python
@@ -354,7 +354,7 @@ A knot joins a group via `KnotConfig(concurrency_group="openai")`. Undefined gro
 fast: once `ConcurrencyLimits` defines any group, a knot naming a group not in that set
 raises `UndefinedConcurrencyGroupError` rather than silently running unbounded.
 
-`pirn.engine.admission.admission_gate.AdmissionGate` itself is documented here because it
+`pirn.engine.admission.admission.Admission` itself is documented here because it
 is the interface those two built-in implementations satisfy (subclass and override
 `has_capacity`, `try_admit`, `release`, `wait_for_release`, `current_limit`, `set_limit`) —
 useful reading if you need to understand or test admission behavior, even though wiring a

@@ -1,4 +1,4 @@
-"""A ``LimitedAdmissionGate`` shared across a run tree (ADR agents-speaks-core, WS0b).
+"""A ``LimitedAdmission`` shared across a run tree (ADR agents-speaks-core, WS0b).
 
 One gate is inherited by identity into every inner run, so it meets two
 things a per-run gate never did: tickets from different runs whose knots
@@ -19,7 +19,7 @@ from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
 
 
 class _Noop(Knot):
@@ -34,7 +34,7 @@ def _knot(knot_id: str, group: str | None = None) -> Knot:
 class TestTicketsAreTrackedByIdentity(unittest.TestCase):
     def test_two_runs_admitting_the_same_knot_id_hold_two_slots(self) -> None:
         # Arrange: an outer and an inner run each have a knot called "d".
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=3))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=3))
 
         # Act
         outer = gate.try_admit(_knot("d"))
@@ -45,7 +45,7 @@ class TestTicketsAreTrackedByIdentity(unittest.TestCase):
         self.assertEqual(gate.in_flight, 2)
 
     def test_each_ticket_releases_its_own_slot(self) -> None:
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2))
         outer = gate.try_admit(_knot("d"))
         inner = gate.try_admit(_knot("d"))
         assert outer is not None and inner is not None
@@ -57,7 +57,7 @@ class TestTicketsAreTrackedByIdentity(unittest.TestCase):
 
     def test_a_same_looking_ticket_from_elsewhere_is_refused(self) -> None:
         # Arrange: a ticket equal by value to a held one, but not the one issued.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2))
         issued = gate.try_admit(_knot("d"))
         assert issued is not None
         lookalike = type(issued)(knot_id="d", group=None)
@@ -69,7 +69,7 @@ class TestTicketsAreTrackedByIdentity(unittest.TestCase):
         self.assertEqual(gate.in_flight, 1)
 
     def test_a_double_release_still_raises(self) -> None:
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2))
         ticket = gate.try_admit(_knot("d"))
         assert ticket is not None
         gate.release(ticket)
@@ -80,7 +80,7 @@ class TestTicketsAreTrackedByIdentity(unittest.TestCase):
 class TestReleaseFromAnotherThreadWakesThisLoop(unittest.IsolatedAsyncioTestCase):
     async def test_a_waiter_is_woken_by_a_release_on_a_worker_thread(self) -> None:
         # Arrange: the gate is full; a waiter parks on this loop.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         ticket = gate.try_admit(_knot("slow"))
         assert ticket is not None
         waiter = asyncio.ensure_future(gate.wait_for_release())
@@ -101,7 +101,7 @@ class TestReleaseFromAnotherThreadWakesThisLoop(unittest.IsolatedAsyncioTestCase
         # Arrange: a worker thread runs its own loop and parks on the gate --
         # the inner-run-under-ThreadDispatcher shape -- while this loop holds
         # the only slot.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         ticket = gate.try_admit(_knot("outer"))
         assert ticket is not None
         parked = threading.Event()

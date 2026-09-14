@@ -373,7 +373,7 @@ The Shed is not part of the public API. It is an engine internal.
 ```
 tracker = DependencyTracker(shed)          # unresolved-parent counts, levels
 ready   = ReadyQueue(tracker.initially_ready())
-gate    = UnboundedAdmissionGate()         # the default admits everything
+gate    = UnboundedAdmission()         # the default admits everything
 
 loop:
     merge any mid-run-registered knots     # newcomers may be ready at once
@@ -395,7 +395,7 @@ loop:
 sort lineage, exceptions, skipped and outputs by (level, dispatched, topo index)
 ```
 
-A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
+A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `Admission` admits it; the default `UnboundedAdmission` admits every ready knot immediately.
 
 Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 
@@ -566,7 +566,7 @@ Inside `_execute_loop` (`pirn/engine/engine.py:105`):
 2. Build a `DependencyTracker` over the shed (unresolved-parent counts, levels, `shed.topological_order()` positions) and push the roots onto a `ReadyQueue`.
 3. **Iteration:**
    a. Drain `pending_new` (mid-run extension).
-   b. Pop every knot the `AdmissionGate` admits. Call `_decide()`: if the decision is `Skipped` or synthetic `Err`, record it immediately and release its children; otherwise materialize its inputs and create an `asyncio.Task`.
+   b. Pop every knot the `Admission` admits. Call `_decide()`: if the decision is `Skipped` or synthetic `Err`, record it immediately and release its children; otherwise materialize its inputs and create an `asyncio.Task`.
    c. If nothing is running, stop. Otherwise wait for the next task to report completion on the queue.
    d. For each completed task, collect `(result, parent_hashes, started_at, finished_at)`.
    e. Call `_rebind_err` to register the `ExceptionRecord` with the live `ExceptionManager`.
@@ -1333,7 +1333,7 @@ flowchart TD
 | `pirn/engine/lineage_recorder.py` | `LineageRecorder` (`record_lineage`, `config_hash`) |
 | `pirn/engine/emitter_fanout.py` | `EmitterFanout` (`subscribe_emitters_to_status`, `handle_emitter_error`) |
 | `pirn/engine/scheduling/` | `DependencyTracker` (readiness, levels, reporting order), `ReadyQueue` |
-| `pirn/engine/admission/` | `AdmissionGate`, `UnboundedAdmissionGate`, `AdmissionTicket` |
+| `pirn/engine/admission/` | `Admission`, `UnboundedAdmission`, `AdmissionTicket` |
 | `pirn/engine/shed/shed.py` | `Shed`, `CycleDetector`, BFS construction, topological sort |
 | `pirn/engine/shed/edge.py` | `Edge` |
 | `pirn/engine/shed/shed_error.py` | `ShedError` |

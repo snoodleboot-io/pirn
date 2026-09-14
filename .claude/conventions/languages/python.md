@@ -349,7 +349,7 @@ def create_handler(config: dict):
 
 Selected Style: **interface** — no `abc.ABC`, no `@abstractmethod`, and no
 `typing.Protocol` for framework interfaces either. Every extension point in this
-codebase (`Knot`, `DataTransport`, `IdentityResolver`, `AdmissionGate`, `Dispatcher`,
+codebase (`Knot`, `DataTransport`, `IdentityResolver`, `Admission`, `Dispatcher`,
 `Emitter`, `Trigger`, the backend base classes under `pirn/backends/base/`, and the
 `FileFormat`/`BatchFileFormat`/`StreamingFileFormat` connector bases) is a plain base
 class whose methods `raise NotImplementedError(...)`. See

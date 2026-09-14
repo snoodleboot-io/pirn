@@ -132,7 +132,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Engine` (`engine.py`) | engine | drives `Knot.__call__`, applies `ErrorPolicy`, subscribes emitters |
 | `GovernedDispatch` (`governed_dispatch.py`) | engine | the dispatch path between `Engine` and `Dispatcher`: applies `KnotConfig.timeout` (`asyncio.wait_for` → `Err(KnotTimeoutError)`) and `KnotConfig.retry` (re-dispatch after backoff on the loop; attempt count → `KnotLineage.extra["attempts"]`). Dispatchers stay one `dispatch()`; `Knot.__call__` stays one attempt |
 | `Shed` / `Edge` (`shed/`) | engine | the resolved execution graph the engine walks |
-| `AdmissionGate` (`admission/`) | interface-base | `has_capacity` / `try_admit` / `release` / `wait_for_release` plus `current_limit(group)` / `set_limit(group, n)` for live caps; `UnboundedAdmissionGate` / `LimitedAdmissionGate` impls, `ConcurrencyLimits` is the public knob |
+| `Admission` (`admission/`) | interface-base | `has_capacity` / `try_admit` / `release` / `wait_for_release` plus `current_limit(group)` / `set_limit(group, n)` for live caps; `UnboundedAdmission` / `LimitedAdmission` impls, `ConcurrencyLimits` is the public knob |
 | `AdmissionObserver` / `AdmissionEvent` (`admission/`) | interface-base / value-object | hears every admission and release (queue depth, wait, hold, outcome, the gate); attach via `Tapestry(admission_observers=)`. `AdmissionFeedback` (`engine/`) builds the events. **An adaptive concurrency controller is an observer calling `event.gate.set_limit`, not a semaphore of its own.** |
 | `ExecutionPlane` (`core/execution_plane.py`) | value-object | the scheduling half of a run — `dispatcher`, `gate` + `limits`, `admission_observers`, `replay`, `identity_resolver` — published by `Tapestry.run` for the run's duration (`ExecutionPlane.current()`) and **inherited by every inner run** for whatever the inner tapestry did not name: the gate by identity, so `ConcurrencyLimits` are one budget across the run tree. Container knots (`Knot._holds_admission_slot = False`: `SubTapestry`, loop iterations) take no slot and may not carry a `concurrency_group`. Per-container overrides: `SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)` or the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` hooks (ADR WS0b) |
 
@@ -409,11 +409,11 @@ deprecation cycle as wrappers that bridge to the event loop (raising if
 called from inside one already running) and emit `DeprecationWarning`.
 
 **Resolved (PIR-866), superseded by full deletion (PIR-864).** PIR-866 first
-turned `BackpressureSemaphore`/`Bulkhead` into `AdmissionGate` subclasses
-delegating to a real `LimitedAdmissionGate` through a shared
+turned `BackpressureSemaphore`/`Bulkhead` into `Admission` subclasses
+delegating to a real `LimitedAdmission` through a shared
 `pirn_agents.performance._backpressure_admission._BackpressureAdmission` (the
 one place `max_queue_depth`/`acquire_timeout` — backpressure knobs core's
-`AdmissionGate` has no equivalent for outside a running `Tapestry` — were
+`Admission` has no equivalent for outside a running `Tapestry` — were
 still implemented directly), and gave `ConcurrencyConfig`/`BulkheadConfig` a
 `to_concurrency_limits()` bridge, while documenting a blocker: three
 `specializations/` pipelines plus `agent/parallel_tool_executor.py` read

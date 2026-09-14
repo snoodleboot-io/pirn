@@ -2,7 +2,7 @@
 
 ADR agents-speaks-core, WS4b: the unit ``MapAgent`` used to dispatch itself
 (a bare coroutine inside ``asyncio.wait``) becomes one knot per item, so
-admission, timeout, and retry are the engine's ``AdmissionGate`` /
+admission, timeout, and retry are the engine's ``Admission`` /
 ``GovernedDispatch`` rather than a hand-rolled scheduler. The caller still
 supplies a plain ``async (item) -> output`` callable — authoring a ``Knot``
 subclass per batch is not required.

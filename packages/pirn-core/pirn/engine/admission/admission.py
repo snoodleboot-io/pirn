@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from pirn.engine.admission.admission_ticket import AdmissionTicket
 
 
-class AdmissionGate:
+class Admission:
     """Interface: admits ready knots into a run while capacity allows.
 
     The engine keeps knots whose parents have all resolved in a ready queue

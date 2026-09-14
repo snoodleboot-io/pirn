@@ -50,8 +50,8 @@ NESTING = frozenset(
 INPUT_SCHEMA: frozenset[str] = frozenset()
 
 # PIR-866 removed BackpressureSemaphore/Bulkhead as private-semaphore shadows:
-# each became an AdmissionGate subclass, delegating every admission decision
-# to a real LimitedAdmissionGate. PIR-864 then deleted BackpressureSemaphore,
+# each became an Admission subclass, delegating every admission decision
+# to a real LimitedAdmission. PIR-864 then deleted BackpressureSemaphore,
 # Bulkhead, ConcurrencyConfig, and BulkheadConfig outright, along with
 # _FanoutRunner/AsyncFanoutEngine (WS1) and BatchScheduler (WS4b) -- every
 # name this list ever named.
@@ -87,7 +87,7 @@ class TestCoreSeamShadowsAreFrozen(unittest.TestCase):
         """A guard that finds nothing passes for the wrong reason."""
         total = sum(len(labels) for labels in self.found.values())
         # PIR-866 removed 2 admission_feedback shadows (BackpressureSemaphore,
-        # Bulkhead -> AdmissionGate subclasses; 18 -> 16). PIR-864 then deleted
+        # Bulkhead -> Admission subclasses; 18 -> 16). PIR-864 then deleted
         # AgentInvoker (nesting), all of input_schema, and all of
         # admission_feedback outright: 16 -> 7 (retry_timeout=2, nesting=3,
         # check_role=1, async_loop_step=1).

@@ -1,7 +1,7 @@
 """``OneSchedulerInventory`` — find classes that schedule work themselves.
 
 ADR agents-speaks-core, WS4b ("one scheduler"): batch/performance/resilience
-code should dispatch through the core engine's ``AdmissionGate`` +
+code should dispatch through the core engine's ``Admission`` +
 ``GovernedDispatch`` and resume through ``RunHistory`` lineage, not through a
 private ``asyncio.wait``/``asyncio.gather`` loop, a hand-held
 ``asyncio.Semaphore`` counting its own concurrency, or a checkpoint store
@@ -108,7 +108,7 @@ class OneSchedulerInventory:
         Matches a call whose final identifier is or ends with ``Semaphore``
         (``asyncio.Semaphore(...)``, a bare ``Semaphore(...)``, or
         ``BackpressureSemaphore(...)``) — a private in-flight budget the
-        engine's ``AdmissionGate``/``ConcurrencyLimits`` cannot see or steer.
+        engine's ``Admission``/``ConcurrencyLimits`` cannot see or steer.
         Only ``ast.Name``/``ast.Attribute`` identifiers are matched, so a
         docstring's prose example never trips this.
         """

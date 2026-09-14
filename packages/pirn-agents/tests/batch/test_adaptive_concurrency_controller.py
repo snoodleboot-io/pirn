@@ -3,7 +3,7 @@
 ``AdaptiveConcurrencyController`` is now an
 :class:`~pirn.engine.admission.admission_observer.AdmissionObserver`: the
 engine calls ``on_admit``/``on_release`` with an ``AdmissionEvent``, and the
-controller reacts by calling ``AdmissionGate.set_limit`` on the fake gate the
+controller reacts by calling ``Admission.set_limit`` on the fake gate the
 event carries. ``on_throttle`` is unchanged — still called directly by a
 rate-limited item, since ``AdmissionEvent`` carries no exception detail (see
 the module docstring).

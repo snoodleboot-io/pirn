@@ -20,7 +20,7 @@ from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.skipped import Skipped
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_ticket import AdmissionTicket
 from pirn.engine.admission.admission_ticket_holder import AdmissionTicketHolder
 from pirn.engine.dispatchers.dispatcher import Dispatcher
@@ -69,7 +69,7 @@ class _Sleeps:
         self.delays.append(delay)
 
 
-class _FakeGate(AdmissionGate):
+class _FakeGate(Admission):
     """Records release/admit calls in order; always admits, never blocks."""
 
     def __init__(self) -> None:

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pirn.engine.admission.admission_gate import AdmissionGate
+    from pirn.engine.admission.admission import Admission
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,4 +54,4 @@ class AdmissionEvent:
     queued_seconds: float
     held_seconds: float | None
     outcome: str | None
-    gate: AdmissionGate = field(repr=False, compare=False)
+    gate: Admission = field(repr=False, compare=False)

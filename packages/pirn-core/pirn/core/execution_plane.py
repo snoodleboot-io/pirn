@@ -5,7 +5,7 @@ and value plane* — history, data store, transport, emitters, traceback
 filter — was forwarded into ``SubTapestry`` / ``LoopSubTapestry`` inner runs
 by PIR-764/834/837.  The *execution plane* is the other half: **how** the
 run's knots are scheduled and attributed — the ``Dispatcher`` they run on,
-the ``AdmissionGate`` that meters them (and the ``ConcurrencyLimits`` it
+the ``Admission`` that meters them (and the ``ConcurrencyLimits`` it
 enforces), the ``AdmissionObserver``s that hear every admission, the
 ``ReplaySession`` the run is served from, and the ``IdentityResolver`` that
 names its actor.  Before this seam an inner tapestry applied only its own
@@ -65,7 +65,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
     from pirn.core.identity.identity_resolver import IdentityResolver
-    from pirn.engine.admission.admission_gate import AdmissionGate
+    from pirn.engine.admission.admission import Admission
     from pirn.engine.admission.admission_observer import AdmissionObserver
     from pirn.engine.dispatchers.dispatcher import Dispatcher
     from pirn.recording.replay_session import ReplaySession
@@ -81,7 +81,7 @@ class ExecutionPlane:
 
     Attributes:
         dispatcher: The ``Dispatcher`` the run's knots execute on.
-        gate: The ``AdmissionGate`` metering the run.  Shared by identity
+        gate: The ``Admission`` metering the run.  Shared by identity
             with every inner run that declares no limits of its own.
         limits: The ``ConcurrencyLimits`` the gate enforces, or ``None`` for
             an unbounded gate.  Reported alongside the gate so an inner run
@@ -96,7 +96,7 @@ class ExecutionPlane:
     """
 
     dispatcher: Dispatcher
-    gate: AdmissionGate
+    gate: Admission
     limits: ConcurrencyLimits | None
     admission_observers: tuple[AdmissionObserver, ...]
     replay: ReplaySession | None

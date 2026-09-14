@@ -103,7 +103,7 @@ class Knot:
     # ``KnotFactory.from_schema``; ``input_json_schema()`` returns it as is.
     _input_schema_override: ClassVar[Mapping[str, Any] | None] = None
 
-    # Whether this knot takes a slot of the run's ``AdmissionGate`` while it
+    # Whether this knot takes a slot of the run's ``Admission`` while it
     # executes.  ``True`` for a leaf -- a knot that does its own work.  A
     # *container* (``SubTapestry``, ``LoopSubTapestry``, a loop iteration)
     # sets it ``False``: it spends its life waiting on an inner run whose

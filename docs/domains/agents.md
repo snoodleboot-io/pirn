@@ -377,14 +377,14 @@ Before ADR "agents speaks core" WS4b/PIR-866, per-backend concurrency
 isolation was three private classes holding their own `asyncio.Semaphore`:
 `ConcurrencyConfig` (sizing), `BackpressureSemaphore` (one bounded pool), and
 `Bulkhead` (one pool per backend, keyed lazily) — none of it visible to the
-core engine's own `AdmissionGate`. PIR-866 made all three thin, engine-backed
+core engine's own `Admission`. PIR-866 made all three thin, engine-backed
 shims for one deprecation cycle; PIR-864 deletes them outright.
 
 **A pipeline wired through the engine does not reach for a concurrency class
 at all.** Declare `KnotConfig(concurrency_group=<backend>)` on the knots that
 call a backend and `ConcurrencyLimits(groups={<backend>: n, ...})` on the
 run: every knot in that group is metered together by one shared
-`AdmissionGate`, whether they come from one pipeline or several (see
+`Admission`, whether they come from one pipeline or several (see
 `tests/performance/test_shared_concurrency_group.py` for a worked example of
 two independently-built pipelines bounded by one shared group). This is
 exactly the isolation `Bulkhead` used to promise, produced by the engine

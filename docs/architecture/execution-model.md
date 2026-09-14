@@ -59,8 +59,8 @@ Parameters are bound first (each `Parameter` knot matched to `RunRequest.paramet
 ```
 tracker = DependencyTracker(shed)          # unresolved-parent counts, levels
 ready   = ReadyQueue(tracker.initially_ready())
-gate    = UnboundedAdmissionGate()         # no limits: admits everything
-          | LimitedAdmissionGate(limits)   # RunRequest.concurrency / Tapestry(concurrency=)
+gate    = UnboundedAdmission()         # no limits: admits everything
+          | LimitedAdmission(limits)   # RunRequest.concurrency / Tapestry(concurrency=)
 
 loop:
     merge any mid-run-registered knots     # newcomers may be ready at once
@@ -82,7 +82,7 @@ loop:
 sort lineage, exceptions, skipped and outputs by (level, dispatched, topo index)
 ```
 
-A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
+A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `Admission` admits it; the default `UnboundedAdmission` admits every ready knot immediately.
 
 #### Concurrency limits
 
@@ -111,7 +111,7 @@ await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(
 - A queued knot stays `PENDING`; `RUNNING` means admitted.
 - **Runtime feedback (WS0).** `Tapestry(admission_observers=[...])` / `run(admission_observers=...)` attach `AdmissionObserver`s that hear every admission and release as an `AdmissionEvent` — queue depth per group, wait, hold time, outcome — and can move a cap mid-run with `event.gate.set_limit(group, n)` (issued tickets untouched; `AdmissionLimitError` for an unknown group, a cap below one, or the unbounded gate). See [Extension Points](extension-points.md#runtime-feedback-admissionobserver-and-set_limit).
 - The effective ceiling is also bounded by the dispatcher (`ThreadDispatcher(max_workers=...)`; a sync `@knot` runs on the default executor, `min(32, cpu + 4)` threads).
-- **Inner runs share the gate (WS0b).** A `SubTapestry` inner run or `LoopSubTapestry` iteration that names no limits of its own — neither `Tapestry(concurrency=)` nor `RunRequest(concurrency=)` — is metered by the enclosing run's gate, the very same instance, so `max_in_flight` and every group cap are one budget across the whole run tree; a shared `LimitedAdmissionGate` is thread-safe (lock-guarded counters, waiters woken on their own loop via `call_soon_threadsafe`) because an inner run under `ThreadDispatcher` admits from a worker thread's loop, and tickets are tracked by identity so inner and outer knots may share an id. An inner run that names limits gets a gate of its own (there is no chaining: its knots then count against its budget, not the outer one), and `RunRequest(concurrency=ConcurrencyLimits())` opts an inner run out of the shared budget explicitly. An engine whose refused knots wait on a shared gate wakes on a release made by any run sharing it, not only on its own completions. Still intra-knot: `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slice 4).
+- **Inner runs share the gate (WS0b).** A `SubTapestry` inner run or `LoopSubTapestry` iteration that names no limits of its own — neither `Tapestry(concurrency=)` nor `RunRequest(concurrency=)` — is metered by the enclosing run's gate, the very same instance, so `max_in_flight` and every group cap are one budget across the whole run tree; a shared `LimitedAdmission` is thread-safe (lock-guarded counters, waiters woken on their own loop via `call_soon_threadsafe`) because an inner run under `ThreadDispatcher` admits from a worker thread's loop, and tickets are tracked by identity so inner and outer knots may share an id. An inner run that names limits gets a gate of its own (there is no chaining: its knots then count against its budget, not the outer one), and `RunRequest(concurrency=ConcurrencyLimits())` opts an inner run out of the shared budget explicitly. An engine whose refused knots wait on a shared gate wakes on a release made by any run sharing it, not only on its own completions. Still intra-knot: `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slice 4).
 
 #### Loop iterations that await
 
@@ -134,7 +134,7 @@ Both are `PirnError`s raised inside the container knot that tried to start the r
 
 #### Inner runs inherit the execution plane
 
-An inner run already inherited the enclosing run's *observability and value plane* — history, data store, transport, emitters, traceback filter (PIR-764/834/837/725) — through `SubTapestry._run_inner` and `_IterationChainKnot`. Since ADR agents-speaks-core WS0b it also inherits the *execution plane* (`pirn/core/execution_plane.py`, `ExecutionPlane`): the `Dispatcher` its knots run on, the `AdmissionGate` and `ConcurrencyLimits` metering them, the `AdmissionObserver`s hearing every admission, the `ReplaySession` it is served from, and the `IdentityResolver` naming its actor. `Tapestry.run` publishes the plane it runs under on a context variable and derives an inner run's plane from it; a knot reads the plane in force with `ExecutionPlane.current()`. Resolution is the same for every half — an explicit `run(...)` argument wins, then the inner tapestry's own explicit constructor setting, then the enclosing plane, then the tapestry default — with three consequences worth knowing:
+An inner run already inherited the enclosing run's *observability and value plane* — history, data store, transport, emitters, traceback filter (PIR-764/834/837/725) — through `SubTapestry._run_inner` and `_IterationChainKnot`. Since ADR agents-speaks-core WS0b it also inherits the *execution plane* (`pirn/core/execution_plane.py`, `ExecutionPlane`): the `Dispatcher` its knots run on, the `Admission` and `ConcurrencyLimits` metering them, the `AdmissionObserver`s hearing every admission, the `ReplaySession` it is served from, and the `IdentityResolver` naming its actor. `Tapestry.run` publishes the plane it runs under on a context variable and derives an inner run's plane from it; a knot reads the plane in force with `ExecutionPlane.current()`. Resolution is the same for every half — an explicit `run(...)` argument wins, then the inner tapestry's own explicit constructor setting, then the enclosing plane, then the tapestry default — with three consequences worth knowing:
 
 - **The gate is shared by identity.** An inner run that names no limits is metered by the enclosing run's gate instance (see *Concurrency limits* above), and its inner tapestry may not name a `concurrency_group` on the container itself. Because observers belong to the gate they steer, an inner run sharing the gate also hears the outer observers (appended after its own, de-duplicated by identity); one with its own gate hears only its own. `AdmissionEvent.in_flight` counts the reporting run's tickets; `event.gate.in_flight` is the shared total.
 - **Overrides are per container.** `SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)` or the overridable `_inner_dispatcher()` / `_inner_concurrency()` / `_inner_admission_observers()` hooks (default `None` = inherit) give one container its own backend or budget; a `LoopSubTapestry` iteration tapestry built as `Tapestry(dispatcher=..., concurrency=...)` inside `step()` keeps what it named, exactly as it keeps a transport. Nothing needs to assign a tapestry's private fields, and `pirn-agents` carries a ratchet (`tests/core_seams/test_execution_plane_reach_through.py`) that refuses code which does.
@@ -256,7 +256,7 @@ sequenceDiagram
     E->>EM: subscribe on_status to StatusManager
 
     loop Until no knot is ready or running
-        E->>E: pop knots the AdmissionGate admits
+        E->>E: pop knots the Admission admits
         E->>E: _decide(knot, results) per knot
         alt inputs resolved
             E->>D: dispatcher.dispatch(knot, inputs)
