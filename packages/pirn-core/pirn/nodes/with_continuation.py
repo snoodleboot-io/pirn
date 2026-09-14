@@ -1,4 +1,4 @@
-"""Continuation — attach dynamic next-step logic to any knot.
+"""``WithContinuation`` — attach dynamic next-step logic to any knot.
 
 A continuation is a plain function that receives a knot's output and returns
 a list of ``Next`` descriptors — one per successor to spawn.  The continuation
@@ -7,7 +7,7 @@ the flow.
 
 Example::
 
-    from pirn.nodes.continuation import continues
+    from pirn.nodes.with_continuation import WithContinuation
     from pirn.nodes.next import Next
 
     pool = {
@@ -21,7 +21,7 @@ Example::
         return [Next("summarise", {"text": result.content})]
 
     search = WebSearchKnot(query=q, _config=KnotConfig(id="search"))
-    continues(search, fn=router, pool=pool)
+    WithContinuation.attach(search, fn=router, pool=pool)
 
 The continuation runs after ``search`` completes, calls ``router`` with the
 result, and registers whatever it returns into the running extensible tapestry.
@@ -29,11 +29,11 @@ result, and registers whatever it returns into the running extensible tapestry.
 
 For agentic flows the agent knot handles continuation logic itself — it runs,
 inspects its output, and calls ``get_current_store().register(...)`` directly.
-``continues()`` is for adding deterministic or rule-based next-steps to
+``WithContinuation.attach()`` is for adding deterministic or rule-based next-steps to
 individual knots without modifying them.
 
 Both patterns can coexist: an agent spawns a search knot wrapped with
-``continues()``; the search knot's fixed continuation runs, and its result
+``WithContinuation.attach()``; the search knot's fixed continuation runs, and its result
 feeds back into the agent's own dynamic planning.
 """
 
@@ -165,7 +165,7 @@ class WithContinuation(Knot):
         fn: ContinuationFn,
         pool: Pool,
     ) -> WithContinuation:
-        """Attach a continuation to *knot* (public alias: ``continues``).
+        """Attach a continuation to *knot*.
 
         Returns a ``WithContinuation`` node wired to run immediately after
         *knot* completes.  The continuation id is ``"{knot.knot_id}__cont"``.
@@ -186,9 +186,3 @@ class WithContinuation(Knot):
             pool=pool,
             _config=KnotConfig(id=f"{knot.knot_id}__cont"),
         )
-
-
-# ── continues() ───────────────────────────────────────────────────────────────
-
-#: Public name for :meth:`WithContinuation.attach` (bare alias, not a ``def``).
-continues = WithContinuation.attach

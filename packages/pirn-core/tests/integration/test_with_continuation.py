@@ -1,11 +1,11 @@
-"""Tests for continues() and WithContinuation."""
+"""Tests for WithContinuation and WithContinuation.attach()."""
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.nodes.continuation import WithContinuation, continues
 from pirn.nodes.next import Next
+from pirn.nodes.with_continuation import WithContinuation
 from pirn.tapestry import Tapestry
 
 
@@ -27,11 +27,13 @@ async def flag_missing(**_) -> str:
 POOL = {"summarise": summarise, "flag_missing": flag_missing}
 
 
-async def test_continues_spawns_successor():
+async def test_attach_spawns_successor():
     with Tapestry() as t:
         q = Parameter("query", str, _config=KnotConfig(id="q"))
         f = fetch(query=q, _config=KnotConfig(id="fetch"))
-        continues(f, fn=lambda r: [Next("summarise", {"text": r["content"]})], pool=POOL)
+        WithContinuation.attach(
+            f, fn=lambda r: [Next("summarise", {"text": r["content"]})], pool=POOL
+        )
 
     r = await t.run(RunRequest(parameters={"query": "test"}), extensible=True)
     assert r.succeeded, [(e.knot_id, e.message) for e in r.exceptions]
@@ -46,7 +48,7 @@ async def test_end_terminates_explicitly():
     with Tapestry() as t:
         q = Parameter("query", str, _config=KnotConfig(id="q2"))
         f = fetch(query=q, _config=KnotConfig(id="fetch2"))
-        continues(f, fn=lambda _: [Next(WithContinuation._end)], pool={})
+        WithContinuation.attach(f, fn=lambda _: [Next(WithContinuation._end)], pool={})
 
     r = await t.run(RunRequest(parameters={"query": "x"}), extensible=True)
     assert r.succeeded, [(e.knot_id, e.message) for e in r.exceptions]
@@ -59,7 +61,7 @@ async def test_continuation_branches():
     with Tapestry() as t:
         q = Parameter("query", str, _config=KnotConfig(id="q3"))
         f = fetch(query=q, _config=KnotConfig(id="fetch3"))
-        continues(
+        WithContinuation.attach(
             f,
             fn=lambda r: [
                 Next("summarise", {"text": r["content"]}, id="sum_a"),
@@ -78,7 +80,7 @@ async def test_missing_pool_action_raises():
     with Tapestry() as t:
         q = Parameter("query", str, _config=KnotConfig(id="q4"))
         f = fetch(query=q, _config=KnotConfig(id="fetch4"))
-        continues(f, fn=lambda _: [Next("unknown_action")], pool={})
+        WithContinuation.attach(f, fn=lambda _: [Next("unknown_action")], pool={})
 
     r = await t.run(RunRequest(parameters={"query": "x"}), extensible=True)
     assert not r.succeeded

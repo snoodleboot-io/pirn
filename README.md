@@ -367,17 +367,18 @@ data edge — the lineage reflects the true parent/child relationship, not
 a shared state blob.
 
 For continuation-style logic (deterministic next-steps attached to an
-existing knot without modifying it), use `continues()`:
+existing knot without modifying it), use `WithContinuation.attach()`:
 
 ```python
-from pirn.nodes.continuation import Next, continues
+from pirn.nodes.next import Next
+from pirn.nodes.with_continuation import WithContinuation
 
 def router(result) -> list[Next]:
     if result.score > 0.8:
         return [Next("publish", {"data": result.content})]
     return [Next("review", {"data": result.content})]
 
-continues(score_knot, fn=router, pool={"publish": PublishKnot, "review": ReviewKnot})
+WithContinuation.attach(score_knot, fn=router, pool={"publish": PublishKnot, "review": ReviewKnot})
 ```
 
 Requires `InMemoryStore` (the default). `SQLiteStore` and other
