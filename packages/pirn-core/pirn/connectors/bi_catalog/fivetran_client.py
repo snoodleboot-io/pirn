@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Fivetran REST API.
 
 Uses ``httpx.AsyncClient`` with HTTP Basic auth (``api_key`` / ``api_secret``).
@@ -22,6 +24,8 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.bi_catalog.fivetran_config import FivetranConfig
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class FivetranClient(ApiClient, TableSource):
@@ -93,10 +97,13 @@ class FivetranClient(ApiClient, TableSource):
         if limit is not None:
             params["limit"] = limit
         response = await self.request("GET", f"/{resource}", params=params or None)
-        data = response.get("data") or {}
-        rows: list[Mapping[str, Any]] = list(data.get("items") or [])
-        next_cursor = data.get("next_cursor")
-        return rows, next_cursor if next_cursor else None
+        payload: Mapping[str, object] = response
+        page = payload.get("data")
+        if not PayloadShape.is_str_mapping(page):
+            return [], None
+        rows = PayloadShape.entities(page.get("items"))
+        next_cursor = page.get("next_cursor")
+        return rows, str(next_cursor) if next_cursor else None
 
     async def request(
         self,
@@ -127,9 +134,9 @@ class FivetranClient(ApiClient, TableSource):
 
     async def close(self) -> None:
         if self._client is not None:
-            aclose_fn = getattr(self._client, "aclose", None)
-            if callable(aclose_fn):
-                await aclose_fn()  # type: ignore[misc]
+            client: Any = self._client
+            if callable(getattr(client, "aclose", None)):
+                await client.aclose()
             self._client = None
         self._clear_credentials()
         self._closed = True
@@ -144,7 +151,7 @@ class FivetranClient(ApiClient, TableSource):
         return base.rstrip("/") + path
 
     async def _create_client(self) -> Any:
-        httpx = self._import_httpx("fivetran")
+        httpx = OptionalDependency.require("httpx", extra="fivetran")
         if self._config is None:
             raise self._missing_config_error("FivetranClient", "client")
         if self._config.api_key is None or self._config.api_secret is None:

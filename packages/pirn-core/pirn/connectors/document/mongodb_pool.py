@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async MongoDB connection pool backed by :mod:`motor`."""
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.mongodb_config import MongoDBConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MongoDBPool(DatabaseConnectionPool):
@@ -59,14 +62,14 @@ class MongoDBPool(DatabaseConnectionPool):
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Insert a document into ``query`` collection; returns inserted_id."""
         db = await self.acquire()
-        doc = parameters if parameters is not None else {}
+        doc: Iterable[Any] = parameters if parameters is not None else {}
         result = await db[query].insert_one(doc)
         return str(result.inserted_id)
 
     async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Fetch all documents from ``query`` collection matching optional filter."""
         db = await self.acquire()
-        filter_doc = parameters if parameters is not None else {}
+        filter_doc: Iterable[Any] = parameters if parameters is not None else {}
         cursor = db[query].find(filter_doc)
         rows = await cursor.to_list(length=None)
         return [{k: v for k, v in doc.items() if k != "_id"} for doc in rows]
@@ -85,12 +88,7 @@ class MongoDBPool(DatabaseConnectionPool):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from motor.motor_asyncio import AsyncIOMotorClient
-        except ImportError as exc:
-            raise ImportError(
-                "MongoDBPool requires motor; install via pip install pirn[mongodb]"
-            ) from exc
+        motor_asyncio = OptionalDependency.require("motor.motor_asyncio", extra="mongodb")
         if self._config is None:
             raise self._missing_config_error("MongoDBPool", "client")
 
@@ -112,9 +110,9 @@ class MongoDBPool(DatabaseConnectionPool):
                 kwargs["username"] = self._config.username
                 kwargs["password"] = self._config.password
                 kwargs["authSource"] = self._config.auth_source
-                client: Any = AsyncIOMotorClient(**kwargs)
+                client: Any = motor_asyncio.AsyncIOMotorClient(**kwargs)
             else:
-                client = AsyncIOMotorClient(uri, **kwargs)
+                client = motor_asyncio.AsyncIOMotorClient(uri, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("mongodb.connect")

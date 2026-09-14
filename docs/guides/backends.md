@@ -19,10 +19,10 @@ pirn splits persistence into three independent roles. Pick the right implementat
 | `PostgresStore / PostgresHistory` | Y | Y | — | Y | OLTP. Async via `asyncpg`. Connection pooling required. Subscribable via LISTEN/NOTIFY. |
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-path target. |
 | `LocalDiskDataStore` | — | — | Y | N | Content-addressed files per value; survives restarts. |
-| `S3DataStore` | — | — | Y | N | Distributed object storage. Requires `pirn[s3]`. |
-| `GCSDataStore` | — | — | Y | N | Google Cloud Storage. Requires `pirn[gcs]`. |
-| `AzureBlobDataStore` | — | — | Y | N | Azure Blob Storage. Requires `pirn[azure]`. |
-| `ValKeyStore / ValKeyDataStore` | Y | — | Y | Y | Low-latency. Optional TTL on data values. Requires `pirn[valkey]`. Subscribable via pub/sub. |
+| `S3DataStore` | — | — | Y | N | Distributed object storage. Requires `pirn-core[s3]`. |
+| `GCSDataStore` | — | — | Y | N | Google Cloud Storage. Requires `pirn-core[gcs]`. |
+| `AzureBlobDataStore` | — | — | Y | N | Azure Blob Storage. Requires `pirn-core[azure]`. |
+| `ValKeyStore / ValKeyDataStore` | Y | — | Y | Y | Low-latency. Optional TTL on data values. Requires `pirn-core[valkey]`. Subscribable via pub/sub. |
 
 A `—` means *no such class exists*, not "undocumented". In particular there is
 **no `SQLiteDataStore` and no `PostgresDataStore`**: `SQLiteStore` and
@@ -54,7 +54,7 @@ from pirn.backends.sqlite.sqlite_store import SQLiteStore
 t = Tapestry(store=SQLiteStore("pirn.db"))
 ```
 
-Requires `pip install pirn[sqlite]`. Uses WAL journal mode by default. Single-writer model — concurrent writers must serialize through SQLite's locking. Fine for single-process deployments.
+No extra required (stdlib `sqlite3`). Uses WAL journal mode by default. Single-writer model — concurrent writers must serialize through SQLite's locking. Fine for single-process deployments.
 
 ### PostgresStore
 
@@ -65,7 +65,7 @@ store = PostgresStore(dsn="postgresql://user:pass@host/db")
 t = Tapestry(store=store)
 ```
 
-Requires `pip install pirn[postgres]`. Connection pooled via `asyncpg`. Schema is versioned with migrations applied automatically on first connection.
+Requires `pip install "pirn-core[postgres]"`. Connection pooled via `asyncpg`. Schema is versioned with migrations applied automatically on first connection.
 
 ### ValKeyStore
 
@@ -76,7 +76,7 @@ store = ValKeyStore(url="redis://localhost:6379", ttl=3600)
 t = Tapestry(store=store)
 ```
 
-Requires `pip install pirn[valkey]`. Uses `valkey-glide`. Optional TTL for ephemeral tapestries — useful in serverless deployments.
+Requires `pip install "pirn-core[valkey]"`. Uses `valkey-glide`. Optional TTL for ephemeral tapestries — useful in serverless deployments.
 
 ---
 
@@ -104,7 +104,7 @@ from pirn.backends.duckdb_history import DuckDBHistory
 history = DuckDBHistory("lineage.duckdb")
 ```
 
-Requires `pip install pirn[duckdb]`. Column-oriented — scanning millions of lineage rows for `P99(duration_ms) GROUP BY knot_id` is orders of magnitude faster than SQLite for the same query. Best used as a read path (write to Postgres, sync to DuckDB for analytics).
+Requires `pip install "pirn-core[duckdb]"`. Column-oriented — scanning millions of lineage rows for `P99(duration_ms) GROUP BY knot_id` is orders of magnitude faster than SQLite for the same query. Best used as a read path (write to Postgres, sync to DuckDB for analytics).
 
 ### PostgresHistory
 
@@ -115,7 +115,7 @@ history = PostgresHistory(dsn="postgresql://...")
 t = Tapestry(history=history)
 ```
 
-Requires `pip install pirn[postgres]`. Multi-host writes, transactional, replication-friendly. Schema-versioned.
+Requires `pip install "pirn-core[postgres]"`. Multi-host writes, transactional, replication-friendly. Schema-versioned.
 
 ---
 
@@ -167,7 +167,7 @@ data = S3DataStore(bucket="pirn-data", prefix="runs/", region="us-east-1")
 t = Tapestry(data_store=data)
 ```
 
-Requires `pip install pirn[s3]`. Uses `aiobotocore`. Suitable for large intermediate values and multi-worker deployments. Supports multipart upload.
+Requires `pip install "pirn-core[s3]"`. Uses `aioboto3`. Suitable for large intermediate values and multi-worker deployments. Supports multipart upload.
 
 !!! warning "Pickle serialisation"
     `S3DataStore` uses pickle. Only use it when the S3 bucket is not writable by adversaries or untrusted pipelines.
@@ -181,7 +181,7 @@ data = ValKeyDataStore(url="redis://localhost:6379", ttl_seconds=3600)
 t = Tapestry(data_store=data)
 ```
 
-Requires `pip install pirn[valkey]`. Sub-millisecond get/put. TTL causes values to auto-expire — useful for streaming pipelines where data has a natural expiry.
+Requires `pip install "pirn-core[valkey]"`. Sub-millisecond get/put. TTL causes values to auto-expire — useful for streaming pipelines where data has a natural expiry.
 
 !!! warning "Pickle serialisation"
     `ValKeyDataStore` uses pickle. Only use it when the ValKey instance is not writable by adversaries.

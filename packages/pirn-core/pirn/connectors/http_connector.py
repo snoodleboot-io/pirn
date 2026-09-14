@@ -38,6 +38,7 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
 from pirn.connectors.connector_base import ConnectorBase
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.credential_ref import CredentialRef
 from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
@@ -132,7 +133,7 @@ class HttpConnector(ConnectorBase):
 
     async def _create_client(self) -> Any:
         """Build the pooled ``httpx.AsyncClient`` lazily (core's ``http`` extra)."""
-        httpx = self._require("http", "httpx")
+        httpx = OptionalDependency.require("httpx", extra="http")
         timeout = httpx.Timeout(self._timeout, connect=self._connect_timeout)
         return httpx.AsyncClient(
             base_url=self._base_url or "", timeout=timeout, follow_redirects=False

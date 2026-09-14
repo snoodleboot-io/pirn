@@ -38,7 +38,7 @@ class GoogleChatClient(ApiClient):
     def config(self) -> GoogleChatConfig | None:
         return self._config
 
-    async def send_message(self, text: str) -> dict:
+    async def send_message(self, text: str) -> dict[str, object]:
         """POST a plain text message to the Google Chat webhook.
 
         Parameters
@@ -49,7 +49,7 @@ class GoogleChatClient(ApiClient):
         self._logger.debug("google_chat.send_message")
         return await self._post({"text": text})
 
-    async def send_card(self, card: dict) -> dict:
+    async def send_card(self, card: Mapping[str, object]) -> dict[str, object]:
         """POST a card payload to the Google Chat webhook.
 
         Parameters
@@ -73,11 +73,12 @@ class GoogleChatClient(ApiClient):
         self._logger.debug("google_chat.request path=%s", path)
         return await self._post(dict(body) if body is not None else {})
 
-    async def _post(self, payload: dict) -> dict:
+    async def _post(self, payload: Mapping[str, object]) -> dict[str, object]:
         client = await self._ensure_client()
         webhook_url = self._webhook_url()
         response = await client.post(webhook_url, json=payload)
-        return dict(response)
+        result: dict[str, object] = dict(response)
+        return result
 
     def _webhook_url(self) -> str:
         if self._config is not None:
@@ -98,4 +99,4 @@ class GoogleChatClient(ApiClient):
         if not self._config.webhook_url:
             raise ValueError("GoogleChatClient: config.webhook_url must be non-empty")
         self._logger.debug("google_chat.connect")
-        return self._build_httpx_client("google-chat", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

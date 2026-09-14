@@ -43,8 +43,8 @@ class DiscordClient(ApiClient):
         content: str,
         *,
         username: str | None = None,
-        embeds: list | None = None,
-    ) -> dict:
+        embeds: list[Mapping[str, object]] | None = None,
+    ) -> dict[str, object]:
         """POST a message to the Discord webhook.
 
         Parameters
@@ -56,7 +56,7 @@ class DiscordClient(ApiClient):
         embeds:
             Optional list of embed objects.
         """
-        payload: dict[str, Any] = {"content": content}
+        payload: dict[str, object] = {"content": content}
         if username is not None:
             payload["username"] = username
         if embeds is not None:
@@ -70,7 +70,7 @@ class DiscordClient(ApiClient):
         description: str,
         *,
         color: int = 0x5865F2,
-    ) -> dict:
+    ) -> dict[str, object]:
         """POST an embed via the Discord webhook.
 
         Parameters
@@ -82,7 +82,7 @@ class DiscordClient(ApiClient):
         color:
             Embed accent colour as an integer (default Discord Blurple).
         """
-        payload: dict[str, Any] = {
+        payload: dict[str, object] = {
             "embeds": [
                 {
                     "title": title,
@@ -115,11 +115,12 @@ class DiscordClient(ApiClient):
         )
         return response
 
-    async def _post(self, payload: dict) -> dict:
+    async def _post(self, payload: Mapping[str, object]) -> dict[str, object]:
         client = await self._ensure_client()
         webhook_url = self._webhook_url()
         response = await client.post(webhook_url, json=payload)
-        return dict(response)
+        result: dict[str, object] = dict(response)
+        return result
 
     def _webhook_url(self) -> str:
         if self._config is not None and self._config.webhook_url:
@@ -142,4 +143,4 @@ class DiscordClient(ApiClient):
                 "DiscordClient: at least one of webhook_url or bot_token must be non-empty"
             )
         self._logger.debug("discord.connect")
-        return self._build_httpx_client("discord", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

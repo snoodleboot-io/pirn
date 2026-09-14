@@ -1,4 +1,4 @@
-"""``_PyArrowHDFSClient`` — thin PyArrow HDFS adapter used by :class:`HDFSStore`."""
+"""``PyarrowHdfsClient`` — thin PyArrow HDFS adapter used by :class:`HDFSStore`."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 from typing import Any
 
 
-class _PyArrowHDFSClient:
+class PyarrowHdfsClient:
     """Thin PyArrow HDFS adapter."""
 
     def __init__(self, *, fs: Any) -> None:

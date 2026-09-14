@@ -131,15 +131,6 @@ class TestConnectorBase(unittest.IsolatedAsyncioTestCase):
         assert connector._credential is None
         assert connector._pirn_audit_dict()["has_credential"] is False
 
-    def test_require_raises_actionable_install_error(self) -> None:
-        # Arrange
-        connector = StubConnector()
-
-        # Act / Assert
-        with self.assertRaises(ImportError) as ctx:
-            connector._require("vector", "nope_missing_xyz")
-        assert 'pip install "pirn-core[vector]"' in str(ctx.exception)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -57,7 +57,7 @@ class TestLazyClientGet(unittest.IsolatedAsyncioTestCase):
         with patch.dict("sys.modules", {"glide": None}):
             with self.assertRaises(ImportError) as ctx:
                 await lc.get()
-        self.assertIn("valkey-glide", str(ctx.exception))
+        self.assertIn('pip install "pirn-core[valkey]"', str(ctx.exception))
 
 
 class TestLazyClientClose(unittest.IsolatedAsyncioTestCase):

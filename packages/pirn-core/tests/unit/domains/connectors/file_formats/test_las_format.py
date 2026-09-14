@@ -107,11 +107,12 @@ class TestLasFormatErrors(unittest.IsolatedAsyncioTestCase):
             await fmt._encode_full([])
 
 
-class TestLasFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestLasFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
+        import sys
         import unittest.mock
 
         fmt = LasFormat()
-        with unittest.mock.patch.dict("sys.modules", {"lasio": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
-                fmt._load_lasio()
+        with unittest.mock.patch.dict(sys.modules, {"lasio": None}):
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-oilgas\\[oilgas\\]"'):
+                await fmt._decode_full(b"~VERSION")

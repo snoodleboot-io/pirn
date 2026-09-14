@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PptxFormat`` — Microsoft PowerPoint ``.pptx`` (Office Open XML) encoder/decoder.
 
 Reads and writes use ``python-pptx``. ``.pptx`` is a zipped XML bundle:
@@ -17,7 +19,7 @@ text content (whitespace-normalised) rather than byte equality.
 Security: pirn does not sandbox ``python-pptx``. Malformed archives may
 trigger upstream library bugs. Treat untrusted payloads accordingly.
 
-Install: ``pip install pirn[pptx]``.
+Install: ``pip install "pirn-core[pptx]"``.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PptxFormat(BatchFileFormat):
@@ -51,7 +54,7 @@ class PptxFormat(BatchFileFormat):
         return self._extract_speaker_notes
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        pptx = self._load_pptx()
+        pptx = OptionalDependency.require("pptx", extra="pptx")
         presentation = pptx.Presentation(io.BytesIO(payload))
         records: list[Mapping[str, Any]] = []
         for index, slide in enumerate(presentation.slides):
@@ -69,7 +72,7 @@ class PptxFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        pptx = self._load_pptx()
+        pptx = OptionalDependency.require("pptx", extra="pptx")
         presentation = pptx.Presentation()
         blank_layout = presentation.slide_layouts[6]
         for record in records:
@@ -121,25 +124,14 @@ class PptxFormat(BatchFileFormat):
 
     @staticmethod
     def _add_textbox(presentation: Any, slide: Any, text: str) -> None:
-        from pptx.util import Emu
-
+        emu = OptionalDependency.require("pptx.util", extra="pptx").Emu
         # Use the slide's own dimensions (Emu); fall back to a fixed
         # rectangle when geometry is unavailable.
-        left = Emu(914400)  # 1 inch
-        top = Emu(914400)
-        width = presentation.slide_width - Emu(1828800)  # 2 inch margin
-        height = presentation.slide_height - Emu(1828800)
+        left = emu(914400)  # 1 inch
+        top = emu(914400)
+        width = presentation.slide_width - emu(1828800)  # 2 inch margin
+        height = presentation.slide_height - emu(1828800)
         textbox = slide.shapes.add_textbox(left, top, width, height)
         text_frame = textbox.text_frame
         text_frame.word_wrap = True
         text_frame.text = text
-
-    @staticmethod
-    def _load_pptx() -> Any:
-        try:
-            import pptx
-        except ImportError as exc:
-            raise ImportError(
-                "PptxFormat requires python-pptx. Install with `pip install pirn[pptx]`."
-            ) from exc
-        return pptx

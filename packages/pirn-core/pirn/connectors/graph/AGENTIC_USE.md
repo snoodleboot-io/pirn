@@ -54,10 +54,10 @@ await pool.close()
 
 ## Constraints and gotchas
 
-- **Each pool requires its own extra:** `pirn[neo4j]`, `pirn[memgraph]`, `pirn[orientdb]`.
+- **Each pool requires its own extra:** `pip install "pirn-core[neo4j]"`, `"pirn-core[memgraph]"`, `"pirn-core[orientdb]"`.
 - **`MemgraphPool` is Bolt-compatible** with Neo4j — the same Cypher queries work on both. Use `MemgraphPool` when targeting Memgraph specifically for its streaming/in-memory properties.
 - **`Neo4jPool` requires the Bolt port (default 7687)**, not the HTTP browser port (7474).
-- **`OrientDBPool` is legacy.** OrientDB SQL is not standard SQL — graph traversal uses `TRAVERSE` and `MATCH` extensions.
+- **`OrientDBPool` speaks OrientDB SQL.** OrientDB SQL is not standard SQL — graph traversal uses `TRAVERSE` and `MATCH` extensions.
 
 ---
 
@@ -65,9 +65,9 @@ await pool.close()
 
 | Database | Config | Pool | Query language | Extra |
 |----------|--------|------|----------------|-------|
-| Neo4j | `Neo4jConfig` | `Neo4jPool` | Cypher | `pirn[neo4j]` |
-| Memgraph | `MemgraphConfig` | `MemgraphPool` | Cypher | `pirn[memgraph]` |
-| OrientDB | `OrientDBConfig` | `OrientDBPool` | OrientDB SQL + graph extensions | `pirn[orientdb]` |
+| Neo4j | `Neo4jConfig` | `Neo4jPool` | Cypher | `pirn-core[neo4j]` |
+| Memgraph | `MemgraphConfig` | `MemgraphPool` | Cypher | `pirn-core[memgraph]` |
+| OrientDB | `OrientDBConfig` | `OrientDBPool` | OrientDB SQL + graph extensions | `pirn-core[orientdb]` |
 
 ---
 

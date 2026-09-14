@@ -227,8 +227,8 @@ class TestEdfFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestEdfFormatMissingDep(unittest.TestCase):
-    def test_load_pyedflib_raises_on_missing(self) -> None:
+class TestEdfFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_decode_raises_install_hint_when_pyedflib_missing(self) -> None:
         with patch.dict("sys.modules", {"pyedflib": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                EdfFormat._load_pyedflib()
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[health\\]"):
+                await EdfFormat()._decode_full(b"")

@@ -15,6 +15,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.databricks_config import DatabricksConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DatabricksPool(DatabaseConnectionPool):
@@ -124,13 +125,7 @@ class DatabricksPool(DatabaseConnectionPool):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from databricks import sql as dbsql  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "DatabricksPool requires databricks-sql-connector; install via "
-                "`pip install pirn[databricks]`"
-            ) from exc
+        dbsql = OptionalDependency.require("databricks.sql", extra="databricks")
         if self._config is None:
             raise self._missing_config_error("DatabricksPool", "client")
 
@@ -146,7 +141,7 @@ class DatabricksPool(DatabaseConnectionPool):
         if self._config.schema is not None:
             kwargs["schema"] = self._config.schema
         try:
-            client = await asyncio.to_thread(dbsql.connect, **kwargs)
+            client: Any = await asyncio.to_thread(dbsql.connect, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("databricks.connect")

@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.backends._signer import _Signer
 from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.signer import Signer
 
 if TYPE_CHECKING:
     from pirn.connectors.object_store import ObjectStore
@@ -46,7 +46,7 @@ class S3DataStore(_CloudObjectStore):
         region: str | None = None,
         endpoint_url: str | None = None,
         session: Any = None,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         """Initialise the store.
@@ -62,7 +62,7 @@ class S3DataStore(_CloudObjectStore):
                 as MinIO, Ceph, or Cloudflare R2.
             session: An existing ``aioboto3.Session`` to reuse.  If ``None``
                 a new session is created lazily on first use.
-            signer: An ``_Signer`` for HMAC payload signing.  Required unless
+            signer: An ``Signer`` for HMAC payload signing.  Required unless
                 ``allow_unsigned=True`` is set.
             allow_unsigned: If ``True``, the store operates without signing.
                 Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.

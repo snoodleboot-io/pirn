@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OrcFormat`` — Apache ORC batch encoder/decoder.
 
 Uses ``pyarrow.orc`` (which depends on the bundled C++ ORC reader).
@@ -5,7 +7,7 @@ ORC files are columnar with a footer index; ``pyarrow`` requires the
 full payload before it can produce a table, so this is a
 :class:`BatchFileFormat`.
 
-Install: ``pip install pirn[orc]``.
+Install: ``pip install "pirn-core[orc]"``.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class OrcFormat(BatchFileFormat):
@@ -49,13 +52,15 @@ class OrcFormat(BatchFileFormat):
         return self._compression
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        pa, orc = self._load_pyarrow_orc()
+        pa = OptionalDependency.require("pyarrow", extra="orc")
+        orc = OptionalDependency.require("pyarrow.orc", extra="orc")
         buf = pa.BufferReader(payload)
         table = orc.read_table(buf)
         return [dict(row) for row in table.to_pylist()]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        pa, orc = self._load_pyarrow_orc()
+        pa = OptionalDependency.require("pyarrow", extra="orc")
+        orc = OptionalDependency.require("pyarrow.orc", extra="orc")
         materialised: list[Mapping[str, Any]] = list(records)
         table = pa.Table.from_pylist(materialised)
         sink = pa.BufferOutputStream()
@@ -64,14 +69,3 @@ class OrcFormat(BatchFileFormat):
         else:
             orc.write_table(table, sink)
         return bytes(sink.getvalue())
-
-    @staticmethod
-    def _load_pyarrow_orc() -> tuple[Any, Any]:
-        try:
-            import pyarrow as pa
-            import pyarrow.orc as orc
-        except ImportError as exc:
-            raise ImportError(
-                "OrcFormat requires pyarrow with ORC support. Install with `pip install pirn[orc]`."
-            ) from exc
-        return pa, orc

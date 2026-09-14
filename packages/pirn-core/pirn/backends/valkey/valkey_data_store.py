@@ -4,8 +4,8 @@ import logging
 import os
 from typing import Any
 
-from pirn.backends._signer import _Signer
 from pirn.backends.base.data_store import DataStore
+from pirn.backends.signer import Signer
 from pirn.backends.valkey._lazy_client import _LazyClient
 
 _logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class ValKeyDataStore(DataStore):
         client: Any = None,
         config: Any = None,
         ttl_seconds: int | None = None,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         """Initialise the data store.
@@ -37,7 +37,7 @@ class ValKeyDataStore(DataStore):
                 lazily on first use.  Mutually exclusive with ``client``.
             ttl_seconds: Optional TTL applied to every key on write.  If
                 ``None``, keys do not expire automatically.
-            signer: An ``_Signer`` instance for HMAC payload signing.
+            signer: An ``Signer`` instance for HMAC payload signing.
                 Required unless ``allow_unsigned=True`` is set.
             allow_unsigned: If ``True``, the store operates without signing.
                 Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.

@@ -42,12 +42,12 @@ class TestCloudObjectStoreUnsignedGate(unittest.TestCase):
 
     def test_signed_store_requires_no_env_var(self) -> None:
         os.environ.pop("PIRN_ALLOW_UNSIGNED", None)
-        from pirn.backends._signer import _Signer
         from pirn.backends.local_disk_data_store import LocalDiskDataStore
+        from pirn.backends.signer import Signer
 
         os.environ["PIRN_ENV"] = "test"
         try:
-            signer = _Signer.test_signer()
+            signer = Signer.test_signer()
             with tempfile.TemporaryDirectory() as tmp:
                 store = LocalDiskDataStore(tmp, signer=signer)
                 assert store is not None

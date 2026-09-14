@@ -17,7 +17,7 @@ class HubSpotConfig(ConnectionConfig):
     access_token:
         Private-app or OAuth access token (preferred).
     api_key:
-        Legacy ``hapikey`` (deprecated by HubSpot, retained for migration).
+        HubSpot developer API key (``hapikey``); prefer ``access_token``.
     """
 
     access_token: str | None = None

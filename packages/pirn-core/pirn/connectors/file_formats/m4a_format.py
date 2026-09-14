@@ -12,7 +12,7 @@ Each file is decoded into ONE record::
         "frames":        bytes, # raw PCM frame data
     }
 
-Install: ``pip install pirn[audio]`` and ensure ffmpeg is installed.
+Install: ``pip install "pirn-core[audio]"`` and ensure ffmpeg is installed.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class M4aFormat(BatchFileFormat):
@@ -36,8 +37,8 @@ class M4aFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             raise ValueError("M4aFormat: payload is empty — cannot decode M4A")
-        audio_segment_cls = self._load_pydub()
-        segment = audio_segment_cls.from_file(io.BytesIO(payload), format="m4a")
+        pydub = OptionalDependency.require("pydub", extra="audio")
+        segment = pydub.AudioSegment.from_file(io.BytesIO(payload), format="m4a")
         record: dict[str, Any] = {
             "sample_rate": segment.frame_rate,
             "n_channels": segment.channels,
@@ -51,9 +52,9 @@ class M4aFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("M4aFormat: cannot encode an empty record stream")
-        audio_segment_cls = self._load_pydub()
+        pydub = OptionalDependency.require("pydub", extra="audio")
         record = materialised[0]
-        segment = audio_segment_cls(
+        segment = pydub.AudioSegment(
             data=bytes(record["frames"]),
             sample_width=int(record["sample_width"]),
             frame_rate=int(record["sample_rate"]),
@@ -62,14 +63,3 @@ class M4aFormat(BatchFileFormat):
         buf = io.BytesIO()
         segment.export(buf, format="ipod")
         return buf.getvalue()
-
-    @staticmethod
-    def _load_pydub() -> Any:
-        try:
-            from pydub import AudioSegment
-        except ImportError as exc:
-            raise ImportError(
-                "M4aFormat requires pydub and ffmpeg. Install with "
-                "`pip install pirn[audio]` and ensure ffmpeg is installed."
-            ) from exc
-        return AudioSegment

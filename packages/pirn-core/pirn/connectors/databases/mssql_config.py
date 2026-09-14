@@ -40,7 +40,7 @@ class MssqlConfig(ConnectionConfig):
             return self.dsn
         parts = [f"DRIVER={{{self.driver}}}"]
         if self.host is not None:
-            server = self.host if self.port is None else f"{self.host},{self.port}"
+            server = f"{self.host},{self.port}"
             parts.append(f"SERVER={server}")
         if self.database is not None:
             parts.append(f"DATABASE={self.database}")

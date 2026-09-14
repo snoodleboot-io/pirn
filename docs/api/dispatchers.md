@@ -50,7 +50,7 @@ with Tapestry(dispatcher=ThreadDispatcher(max_workers=8)) as t:
 
 ---
 
-## CeleryDispatcher (`pirn[celery]`)
+## CeleryDispatcher (`pirn-core[celery]`)
 
 Submits each knot through Celery for distributed execution.
 
@@ -91,7 +91,7 @@ with Tapestry(dispatcher=dispatcher) as t:
 
 ---
 
-## DaskDispatcher (`pirn[dask]`)
+## DaskDispatcher (`pirn-core[dask]`)
 
 ::: pirn.engine.dispatchers.dask_dispatcher.DaskDispatcher
     options:
@@ -116,7 +116,7 @@ Dask uses `cloudpickle` — handles lambdas and locally-defined functions. Worke
 
 ---
 
-## RayDispatcher (`pirn[ray]`)
+## RayDispatcher (`pirn-core[ray]`)
 
 ::: pirn.engine.dispatchers.ray_dispatcher.RayDispatcher
     options:

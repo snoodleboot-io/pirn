@@ -166,7 +166,7 @@ OpenSlide supports whole-slide imaging (WSI) formats including Aperio SVS, Hamam
 | `tile_size` | `int` | `256` | Tile size recorded in each level record |
 | `max_decode_pixels` | `int \| None` | `None` | Levels whose total pixel count (width × height) ≤ this value have RGB bytes materialised into `data`; larger levels emit `data=None` |
 
-**Limitations:** Requires the OpenSlide C library to be installed on the system in addition to the `openslide-python` binding. The `pirn[health]` extra installs the Python binding only; the C library must be installed separately (e.g. `apt install openslide-tools` on Debian/Ubuntu).
+**Limitations:** Requires the OpenSlide C library to be installed on the system in addition to the `openslide-python` binding. The `pirn-health[health]` extra installs the Python binding and the `openslide-bin` wheel, which bundles the C library.
 
 ---
 
@@ -641,6 +641,6 @@ pip install "pirn-health[genomics]"
 Additional system-level dependencies not installed by pip:
 
 - **OpenSlide C library** — required by `OpenSlideFormat`. Install via the OS package manager (`apt install openslide-tools`, `brew install openslide`).
-- **ffmpeg** — not used by health formats (audio only), but required by `pirn[audio]` for MP3/AAC/M4A.
+- **ffmpeg** — not used by health formats (audio only), but required by `pirn-core[audio]` for MP3/AAC/M4A.
 
 **See also:** [File Formats — Connectors](../connectors/index.md), [Signal Domain](signal.md), [Data Domain](data.md)

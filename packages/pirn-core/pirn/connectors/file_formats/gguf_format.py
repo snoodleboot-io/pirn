@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GgufFormat`` — GGUF (llama.cpp quantised LLM weight) encoder/decoder.
 
 GGUF is the binary container used by ``llama.cpp`` for quantised LLM
@@ -14,7 +16,7 @@ Security: pirn does not sandbox ``gguf``. Malformed payloads may trigger
 upstream library bugs — the parser is generally robust but treat
 untrusted payloads accordingly.
 
-Install: ``pip install pirn[gguf]``.
+Install: ``pip install "pirn-core[gguf]"``.
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class GgufFormat(BatchFileFormat):
@@ -42,7 +46,7 @@ class GgufFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(f"GgufFormat: payload must be bytes, got {type(payload).__name__}")
-        gguf = self._load_gguf()
+        gguf = OptionalDependency.require("gguf", extra="gguf")
         # ``GGUFReader`` accepts a path or an open file handle. To avoid
         # disk IO when callers hand us bytes, materialise a temp file.
         with tempfile.NamedTemporaryFile(
@@ -96,15 +100,15 @@ class GgufFormat(BatchFileFormat):
             raise ValueError(
                 f"GgufFormat: 'architecture' must be a non-empty string, got {architecture!r}"
             )
-        metadata = record["metadata"]
-        if not isinstance(metadata, Mapping):
+        metadata: object = record["metadata"]
+        if not PayloadShape.is_mapping(metadata):
             raise TypeError(
                 f"GgufFormat: 'metadata' must be a Mapping, got {type(metadata).__name__}"
             )
-        tensors = record["tensors"]
-        if not isinstance(tensors, Iterable):
+        tensors: object = record["tensors"]
+        if not PayloadShape.is_iterable(tensors):
             raise TypeError(f"GgufFormat: 'tensors' must be iterable, got {type(tensors).__name__}")
-        gguf = self._load_gguf()
+        gguf = OptionalDependency.require("gguf", extra="gguf")
         with tempfile.NamedTemporaryFile(
             prefix="pirn-gguf-write-", suffix=".gguf", delete=False
         ) as handle:
@@ -119,7 +123,7 @@ class GgufFormat(BatchFileFormat):
                         )
                     self._write_metadata_value(writer, key, value)
                 for tensor in tensors:
-                    if not isinstance(tensor, Mapping):
+                    if not PayloadShape.is_mapping(tensor):
                         raise TypeError(
                             "GgufFormat: each tensor must be a Mapping with 'name' and 'data' keys"
                         )
@@ -157,13 +161,13 @@ class GgufFormat(BatchFileFormat):
             value = getattr(field, attr, None)
             if value is not None:
                 try:
-                    return value.tolist()  # type: ignore[union-attr]
+                    return value.tolist()
                 except AttributeError:
                     return value
         return None
 
     @staticmethod
-    def _write_metadata_value(writer: Any, key: str, value: Any) -> None:
+    def _write_metadata_value(writer: Any, key: str, value: object) -> None:
         if isinstance(value, bool):
             writer.add_bool(key, value)
         elif isinstance(value, int):
@@ -176,13 +180,3 @@ class GgufFormat(BatchFileFormat):
             raise TypeError(
                 f"GgufFormat: unsupported metadata value type for {key!r}: {type(value).__name__}"
             )
-
-    @staticmethod
-    def _load_gguf() -> Any:
-        try:
-            import gguf
-        except ImportError as exc:
-            raise ImportError(
-                "GgufFormat requires gguf. Install with `pip install pirn[gguf]`."
-            ) from exc
-        return gguf

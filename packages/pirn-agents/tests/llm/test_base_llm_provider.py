@@ -9,9 +9,11 @@ usage + cost accounting, and streaming connection cleanup) through a minimal
 
 from __future__ import annotations
 
+import sys
 import unittest
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
+from unittest.mock import patch
 
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
@@ -315,6 +317,17 @@ class TestStreamingCleanup(unittest.IsolatedAsyncioTestCase):
                 pass
 
         assert stream.closed is True
+
+
+class TestClientConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_httpx_names_the_pirn_agents_extra(self) -> None:
+        # Arrange: no injected client, and ``httpx`` cannot be imported.
+        provider = StubLLMProvider(model="stub-model", base_url="https://stub.example/v1")
+
+        # Act / Assert
+        with patch.dict(sys.modules, {"httpx": None}), self.assertRaises(ImportError) as ctx:
+            await provider._get_client()
+        assert 'pip install "pirn-agents[web]"' in str(ctx.exception)
 
 
 async def _as_aiter(items: list[StreamDelta]) -> AsyncIterator[StreamDelta]:

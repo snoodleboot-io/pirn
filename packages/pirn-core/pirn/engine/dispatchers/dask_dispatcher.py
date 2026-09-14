@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.result import Result
 
 
@@ -41,14 +42,9 @@ class DaskDispatcher:
     @classmethod
     def local(cls, **kwargs: Any) -> DaskDispatcher:
         """Build a dispatcher backed by an in-process LocalCluster."""
-        try:
-            from dask.distributed import Client, LocalCluster
-        except ImportError as exc:
-            raise ImportError(
-                "DaskDispatcher requires dask[distributed]; install via `pip install pirn[dask]`"
-            ) from exc
-        cluster = LocalCluster(**kwargs)
-        return cls(client=Client(cluster, asynchronous=True))
+        distributed = OptionalDependency.require("dask.distributed", extra="dask")
+        cluster = distributed.LocalCluster(**kwargs)
+        return cls(client=distributed.Client(cluster, asynchronous=True))
 
     @property
     def name(self) -> str:
@@ -56,14 +52,8 @@ class DaskDispatcher:
 
     async def _ensure_client(self) -> Any:
         if self._client is None:
-            try:
-                from dask.distributed import Client
-            except ImportError as exc:
-                raise ImportError(
-                    "DaskDispatcher requires dask[distributed]; install via "
-                    "`pip install pirn[dask]`"
-                ) from exc
-            self._client = await Client(self._scheduler, asynchronous=True)
+            distributed = OptionalDependency.require("dask.distributed", extra="dask")
+            self._client = await distributed.Client(self._scheduler, asynchronous=True)
         return self._client
 
     async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:

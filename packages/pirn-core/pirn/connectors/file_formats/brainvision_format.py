@@ -27,19 +27,28 @@ Record shape (one per channel)::
         "data":          bytes,  # raw float64 array bytes
     }
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"`` to decode with ``mne``.
 """
 
 from __future__ import annotations
 
+import configparser
 import io
+import tempfile
 import zipfile
 from collections.abc import Iterable, Mapping
-from typing import Any, ClassVar
+from pathlib import Path
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
 
 
 class BrainVisionFormat(BatchFileFormat):
@@ -69,18 +78,13 @@ class BrainVisionFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         bundle = self._unpack_zip(payload)
         try:
-            import mne as _mne  # noqa: F401
-
-            return self._decode_with_mne(bundle)
+            mne = OptionalDependency.require("mne", extra="health", package="pirn-health")
         except ImportError:
             return self._decode_fallback(bundle)
+        return self._decode_with_mne(mne, bundle)
 
     @classmethod
-    def _decode_with_mne(cls, bundle: dict[str, bytes]) -> list[Mapping[str, Any]]:
-        import tempfile
-        from pathlib import Path
-
-        import mne
+    def _decode_with_mne(cls, mne: ModuleType, bundle: dict[str, bytes]) -> list[Mapping[str, Any]]:
         import numpy as np
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -102,9 +106,10 @@ class BrainVisionFormat(BatchFileFormat):
             eeg_path.write_bytes(eeg_bytes)
 
             raw = mne.io.read_raw_brainvision(str(vhdr_path), preload=True, verbose=False)
-            data, _ = raw.get_data(return_times=True)
-            sfreq = raw.info["sfreq"]
-            ch_names = raw.info["ch_names"]
+            data: NDArray[np.float64]
+            data, _times = raw.get_data(return_times=True)
+            sfreq: float = raw.info["sfreq"]
+            ch_names: list[str] = raw.info["ch_names"]
 
             records: list[Mapping[str, Any]] = []
             for idx, ch_name in enumerate(ch_names):
@@ -202,14 +207,14 @@ class BrainVisionFormat(BatchFileFormat):
         ch_names = [str(r.get("channel_name", f"Ch{r['channel_index'] + 1}")) for r in materialised]
 
         # Build data matrix (channels x samples)
-        arrays = []
+        arrays: list[NDArray[np.float64]] = []
         for rec in materialised:
             data_bytes = rec.get("data", b"")
             arr = np.frombuffer(data_bytes, dtype=np.float64)
             arrays.append(arr)
         n_samples = max((len(a) for a in arrays), default=0)
         # Pad/truncate to uniform length
-        padded = []
+        padded: list[NDArray[np.float64]] = []
         for arr in arrays:
             if len(arr) < n_samples:
                 arr = np.pad(arr, (0, n_samples - len(arr)))
@@ -300,9 +305,7 @@ class BrainVisionFormat(BatchFileFormat):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_vhdr(text: str) -> Any:
-        import configparser
-
+    def _parse_vhdr(text: str) -> configparser.ConfigParser:
         parser = configparser.ConfigParser(strict=False)
         # Skip the first "Brain Vision Data Exchange Header..." line
         lines = text.splitlines()
@@ -311,7 +314,7 @@ class BrainVisionFormat(BatchFileFormat):
         return parser
 
     @staticmethod
-    def _parse_channel_names(parser: Any, n_channels: int) -> list[str]:
+    def _parse_channel_names(parser: configparser.ConfigParser, n_channels: int) -> list[str]:
         ch_names: list[str] = []
         section = "Channel Infos"
         for idx in range(1, n_channels + 1):
@@ -327,7 +330,7 @@ class BrainVisionFormat(BatchFileFormat):
     @classmethod
     def _rewrite_vhdr_paths(cls, vhdr_text: str, tmpdir: str) -> str:
         """Rewrite DataFile/MarkerFile paths to point to tmpdir."""
-        lines = []
+        lines: list[str] = []
         for line in vhdr_text.splitlines():
             stripped = line.strip()
             if stripped.startswith("DataFile="):

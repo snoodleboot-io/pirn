@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OpenSlideFormat`` — Whole-slide imaging (WSI) batch decoder.
 
 OpenSlide supports a variety of WSI formats (SVS, NDPI, SCN, TIFF
@@ -17,7 +19,7 @@ Records are emitted as ONE record per pyramid level::
 PHI note: some WSI files embed patient metadata in vendor tags. Known
 PHI metadata keys are stripped before records are emitted.
 
-Install: ``pip install pirn[health]`` (requires OpenSlide C library).
+Install: ``pip install "pirn-health[health]"`` (requires OpenSlide C library).
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class OpenSlideFormat(BatchFileFormat):
@@ -89,7 +92,7 @@ class OpenSlideFormat(BatchFileFormat):
         return self._max_decode_pixels
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        openslide = self._load_openslide()
+        openslide = OptionalDependency.require("openslide", extra="health", package="pirn-health")
         records: list[Mapping[str, Any]] = []
         with tempfile.TemporaryDirectory() as tmpdir:
             # OpenSlide identifies format from file extension; use .tiff
@@ -131,15 +134,3 @@ class OpenSlideFormat(BatchFileFormat):
     @classmethod
     def _strip_phi_metadata(cls, properties: Mapping[str, str]) -> dict[str, str]:
         return {k: v for k, v in properties.items() if k not in cls._phi_metadata_keys}
-
-    @staticmethod
-    def _load_openslide() -> Any:
-        try:
-            import openslide
-        except ImportError as exc:
-            raise ImportError(
-                "OpenSlideFormat requires openslide-python and the "
-                "OpenSlide C library. Install with "
-                "`pip install pirn[health]`."
-            ) from exc
-        return openslide

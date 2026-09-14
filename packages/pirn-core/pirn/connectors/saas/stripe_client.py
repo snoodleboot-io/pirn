@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Stripe SaaS connector wrapping the synchronous ``stripe`` SDK.
 
 Stripe's modern Python SDK ships a per-instance ``stripe.StripeClient``.
@@ -9,7 +11,7 @@ The connector exposes:
    ``list_charges`` by default. Override the default by passing
    ``object_type=`` to the constructor for a different Stripe list
    endpoint.
-3. The legacy :meth:`request` escape hatch (forwards to
+3. The generic :meth:`request` escape hatch (forwards to
    ``stripe.StripeClient.raw_request``) for cases the typed surface
    does not cover.
 
@@ -28,6 +30,7 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.saas.stripe_config import StripeConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class StripeClient(ApiClient, TableSource):
@@ -163,12 +166,7 @@ class StripeClient(ApiClient, TableSource):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            import stripe  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "StripeClient requires stripe; install via `pip install pirn[stripe]`"
-            ) from exc
+        stripe = OptionalDependency.require("stripe", extra="stripe")
         if self._config is None:
             raise self._missing_config_error("StripeClient", "client")
         if self._config.api_key is None:

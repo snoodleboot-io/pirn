@@ -173,7 +173,7 @@ All format classes live in `pirn/connectors/file_formats/`.
 ```python
 from pirn.connectors.file_formats.safetensors_format import SafetensorsFormat
 from pirn.connectors.file_formats.joblib_format import JoblibFormat
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 
 # SafeTensors — no signer required.
 fmt = SafetensorsFormat(include_data=True)
@@ -181,7 +181,7 @@ records = list(await fmt.read(Path("model.safetensors").read_bytes()))
 # records[0] keys: "tensors", "metadata", "tensor_count"
 
 # Joblib — production: always use a signer.
-signer = _Signer(secret=b"my-hmac-key")
+signer = Signer(secret=b"my-hmac-key")
 fmt = JoblibFormat(signer=signer)
 payload = await fmt.write([{"object": my_sklearn_pipeline}])
 
@@ -210,11 +210,11 @@ from pirn_ml.evaluation.metric_check import MetricCheck
 from pirn_ml.deployment.model_serializer import ModelSerializer
 from pirn_ml.deployment.model_registrar import ModelRegistrar
 from pirn.connectors.file_formats.joblib_format import JoblibFormat
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 from sklearn.linear_model import LogisticRegression
 
 async def main():
-    signer = _Signer(secret=b"prod-secret")
+    signer = Signer(secret=b"prod-secret")
 
     with Tapestry() as t:
         dataset = DatasetLoader(
@@ -261,7 +261,7 @@ For dynamic registry sweeps (e.g. evaluating N models in sequence without knowin
 
 ### Loading Joblib or PyTorch artifacts without a signer in production
 
-`JoblibFormat(allow_unsigned=True)` and `PytorchFormat(allow_unsigned=True)` skip HMAC verification. Any tampered or malicious payload will be deserialised without warning. Reserve both flags for unit tests and local development only; production code must pass a `_Signer` instance.
+`JoblibFormat(allow_unsigned=True)` and `PytorchFormat(allow_unsigned=True)` skip HMAC verification. Any tampered or malicious payload will be deserialised without warning. Reserve both flags for unit tests and local development only; production code must pass a `Signer` instance.
 
 ### Using `ModelSerializer` expecting actual fitted-model bytes
 
@@ -319,8 +319,8 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 | Explain predictions | `Explainer` |
 | Fairness audit | `FairnessAudit` |
 | Serialise artifact (metadata) | `ModelSerializer` |
-| Serialise sklearn/joblib artifact | `JoblibFormat` + `_Signer` |
-| Serialise PyTorch artifact | `PytorchFormat` + `_Signer` |
+| Serialise sklearn/joblib artifact | `JoblibFormat` + `Signer` |
+| Serialise PyTorch artifact | `PytorchFormat` + `Signer` |
 | Serialise ONNX artifact | `OnnxFormat` |
 | Serialise SafeTensors artifact | `SafetensorsFormat` |
 | Register model with lineage | `ModelRegistrar` + `LineageStore` |

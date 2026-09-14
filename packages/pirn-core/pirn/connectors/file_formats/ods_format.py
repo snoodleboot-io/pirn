@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OdsFormat`` — OpenDocument Spreadsheet (``.ods``) encoder/decoder.
 
 Built directly on ``odfpy``: ``OpenDocumentSpreadsheet``, ``Table``,
@@ -7,18 +9,20 @@ walked via ``getElementsByType``.
 ODS is a zipped XML bundle (similar shape to XLSX); random access
 requires the whole archive, so this is a :class:`BatchFileFormat`.
 
-Install: ``pip install pirn[ods]``.
+Install: ``pip install "pirn-core[ods]"``.
 """
 
 from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
+from types import ModuleType
 from typing import Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class OdsFormat(BatchFileFormat):
@@ -51,7 +55,9 @@ class OdsFormat(BatchFileFormat):
         return self._has_header
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        opendocument, table_ns, text_ns = self._load_odfpy_read()
+        opendocument = OptionalDependency.require("odf.opendocument", extra="ods")
+        table_ns = OptionalDependency.require("odf.table", extra="ods")
+        text_ns = OptionalDependency.require("odf.text", extra="ods")
         document = opendocument.load(io.BytesIO(payload))
         target_table = None
         for table in document.spreadsheet.getElementsByType(table_ns.Table):
@@ -94,13 +100,11 @@ class OdsFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        (
-            opendocument_spreadsheet,
-            table_ns,
-            text_ns,
-        ) = self._load_odfpy_write()
+        opendocument = OptionalDependency.require("odf.opendocument", extra="ods")
+        table_ns = OptionalDependency.require("odf.table", extra="ods")
+        text_ns = OptionalDependency.require("odf.text", extra="ods")
         materialised: list[Mapping[str, Any]] = list(records)
-        document = opendocument_spreadsheet()
+        document = opendocument.OpenDocumentSpreadsheet()
         table = table_ns.Table(name=self._sheet_name)
         columns: tuple[str, ...] = tuple(materialised[0].keys()) if materialised else ()
         if self._has_header and columns:
@@ -121,7 +125,7 @@ class OdsFormat(BatchFileFormat):
         return buf.getvalue()
 
     @classmethod
-    def _build_cell(cls, value: Any, table_ns: Any, text_ns: Any) -> Any:
+    def _build_cell(cls, value: Any, table_ns: ModuleType, text_ns: ModuleType) -> Any:
         if value is None:
             return table_ns.TableCell()
         if isinstance(value, bool):
@@ -144,7 +148,7 @@ class OdsFormat(BatchFileFormat):
         return cell
 
     @staticmethod
-    def _extract_cell_value(cell: Any, text_ns: Any) -> Any:
+    def _extract_cell_value(cell: Any, text_ns: ModuleType) -> Any:
         value_type = cell.getAttribute("valuetype")
         if value_type == "boolean":
             raw = cell.getAttribute("booleanvalue")
@@ -167,29 +171,3 @@ class OdsFormat(BatchFileFormat):
         if not text_parts:
             return None
         return "".join(text_parts)
-
-    @staticmethod
-    def _load_odfpy_read() -> tuple[Any, Any, Any]:
-        try:
-            from odf import opendocument
-            from odf import table as table_ns
-            from odf import text as text_ns
-        except ImportError as exc:
-            raise ImportError(
-                "OdsFormat requires odfpy. Install with `pip install pirn[ods]`."
-            ) from exc
-        return opendocument, table_ns, text_ns
-
-    @staticmethod
-    def _load_odfpy_write() -> tuple[Any, Any, Any]:
-        try:
-            from odf import table as table_ns
-            from odf import text as text_ns
-            from odf.opendocument import (
-                OpenDocumentSpreadsheet,
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "OdsFormat requires odfpy. Install with `pip install pirn[ods]`."
-            ) from exc
-        return OpenDocumentSpreadsheet, table_ns, text_ns

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MarkdownFormat`` — CommonMark Markdown encoder/decoder.
 
 Reads parse the document with ``markdown-it-py`` and walk the token
@@ -16,7 +18,7 @@ split modes:
 Markdown is a textual format with no random access — implemented as a
 :class:`BatchFileFormat`.
 
-Install: ``pip install pirn[markdown]``.
+Install: ``pip install "pirn-core[markdown]"``.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MarkdownFormat(BatchFileFormat):
@@ -71,11 +74,11 @@ class MarkdownFormat(BatchFileFormat):
             return []
         text = payload.decode(self._encoding)
         if self._split_on == "file":
-            renderer = self._load_markdown()
+            renderer = OptionalDependency.require("markdown", extra="markdown")
             html = renderer.markdown(text)
             return [{"text": html, "level": 0, "title": None}]
 
-        markdown_it = self._load_markdown_it()
+        markdown_it = OptionalDependency.require("markdown_it", extra="markdown")
         parser = markdown_it.MarkdownIt()
         tokens = parser.parse(text)
         if self._split_on == "heading":
@@ -218,23 +221,3 @@ class MarkdownFormat(BatchFileFormat):
                 f"MarkdownFormat: record 'text' value must be str, got {type(text).__name__}"
             )
         return text
-
-    @staticmethod
-    def _load_markdown_it() -> Any:
-        try:
-            import markdown_it
-        except ImportError as exc:
-            raise ImportError(
-                "MarkdownFormat requires markdown-it-py. Install with `pip install pirn[markdown]`."
-            ) from exc
-        return markdown_it
-
-    @staticmethod
-    def _load_markdown() -> Any:
-        try:
-            import markdown
-        except ImportError as exc:
-            raise ImportError(
-                "MarkdownFormat requires markdown. Install with `pip install pirn[markdown]`."
-            ) from exc
-        return markdown

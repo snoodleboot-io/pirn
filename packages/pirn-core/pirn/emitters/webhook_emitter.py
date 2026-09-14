@@ -7,6 +7,7 @@ import logging
 import urllib.parse
 from typing import TYPE_CHECKING, Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.emitters.emitter import Emitter
 
 if TYPE_CHECKING:
@@ -141,12 +142,7 @@ class WebhookEmitter(Emitter):
 
     async def _ensure_client(self) -> Any:
         if self._client is None:
-            try:
-                import httpx
-            except ImportError as exc:
-                raise ImportError(
-                    "WebhookEmitter requires httpx; install via `pip install pirn[http]`"
-                ) from exc
+            httpx = OptionalDependency.require("httpx", extra="http")
             kwargs: dict[str, Any] = {"timeout": self._timeout, "verify": self._verify}
             if self._ssl_context is not None:
                 kwargs["verify"] = self._ssl_context

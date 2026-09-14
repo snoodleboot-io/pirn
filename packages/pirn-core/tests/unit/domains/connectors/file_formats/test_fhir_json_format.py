@@ -203,9 +203,9 @@ class TestFhirJsonFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestFhirJsonFormatMissingDep(unittest.TestCase):
-    def test_missing_fhir_raises_import_error(self) -> None:
+class TestFhirJsonFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_fhir_raises_import_error(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"fhir": None, "fhir.resources": None}):
             fmt = FhirJsonFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_fhir()
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[health\\]"):
+                await fmt._decode_full(b"{}")

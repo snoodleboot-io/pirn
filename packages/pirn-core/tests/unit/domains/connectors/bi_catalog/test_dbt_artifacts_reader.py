@@ -6,6 +6,9 @@ Uses pre-loaded ``manifest=`` / ``run_results=`` mappings so no real
 
 from __future__ import annotations
 
+import json
+import os
+import tempfile
 import unittest
 
 from pirn.connectors.bi_catalog.dbt_artifacts_config import (
@@ -67,6 +70,25 @@ class TestDiskFallback(unittest.IsolatedAsyncioTestCase):
         reader = DbtArtifactsReader(config=DbtArtifactsConfig())
         with self.assertRaisesRegex(RuntimeError, "target_path"):
             await reader.load_run_results()
+
+    async def test_load_manifest_reads_json_object_from_disk(self) -> None:
+        with tempfile.TemporaryDirectory() as target:
+            with open(os.path.join(target, "manifest.json"), "w", encoding="utf-8") as handle:
+                json.dump({"nodes": {}}, handle)
+            reader = DbtArtifactsReader(config=DbtArtifactsConfig(target_path=target))
+
+            result = await reader.load_manifest()
+
+        assert result == {"nodes": {}}
+
+    async def test_non_object_artifact_raises_value_error(self) -> None:
+        with tempfile.TemporaryDirectory() as target:
+            with open(os.path.join(target, "run_results.json"), "w", encoding="utf-8") as handle:
+                json.dump([1, 2], handle)
+            reader = DbtArtifactsReader(config=DbtArtifactsConfig(target_path=target))
+
+            with self.assertRaisesRegex(ValueError, "JSON object"):
+                await reader.load_run_results()
 
 
 class TestCredentialSafety(unittest.TestCase):

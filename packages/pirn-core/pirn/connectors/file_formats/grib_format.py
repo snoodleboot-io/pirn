@@ -19,7 +19,7 @@ Encode is not supported because producing GRIB messages requires the
 ``eccodes`` library's write API, which is outside the scope of this
 connector.
 
-Install: ``pip install pirn[weather]``.
+Install: ``pip install "pirn-core[grib]"``.
 """
 
 from __future__ import annotations
@@ -27,11 +27,15 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class GribFormat(BatchFileFormat):
@@ -45,7 +49,8 @@ class GribFormat(BatchFileFormat):
         return "grib"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        _cfgrib, eccodes = self._load_cfgrib_eccodes()
+        OptionalDependency.require("cfgrib", extra="grib")
+        eccodes = OptionalDependency.require("eccodes", extra="grib")
         tmp_path = self._write_temp(payload, ".grib2")
         records: list[Mapping[str, Any]] = []
         try:
@@ -118,14 +123,3 @@ class GribFormat(BatchFileFormat):
             os.remove(tmp_path)
             raise
         return tmp_path
-
-    @staticmethod
-    def _load_cfgrib_eccodes() -> tuple[Any, Any]:
-        try:
-            import cfgrib
-            import eccodes
-        except ImportError as exc:
-            raise ImportError(
-                "GribFormat requires cfgrib and eccodes. Install with `pip install pirn[weather]`."
-            ) from exc
-        return cfgrib, eccodes

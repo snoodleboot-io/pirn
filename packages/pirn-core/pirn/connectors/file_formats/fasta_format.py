@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FastaFormat`` — FASTA sequence encoder/decoder.
 
 FASTA is a simple text format used in bioinformatics: each record is a
@@ -8,7 +10,7 @@ required for the basic streaming round-trip path.
 The optional ``pyfaidx`` package is used only when callers want indexed
 random-access reads against a local file; it is not required for the
 :meth:`read` / :meth:`write` API exposed here. It remains a soft
-dependency declared via ``pirn[genomics]``.
+dependency declared via ``pirn-health[genomics]``.
 """
 
 from __future__ import annotations

@@ -1,9 +1,12 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ConnectorBase`` — base class for connectors holding a pooled backend client.
 
 A connector wraps live client state (an HTTP session, a vector-store client, a
 database pool) and is therefore opaque at the pirn IO boundary. Concrete
 connectors override :meth:`_create_client` to lazily build their backend client
-via :meth:`_require` (so importing this module never imports any backend), and
+via :meth:`pirn.core.optional_dependency.OptionalDependency.require` (so
+importing this module never imports any backend), and
 the base provides deterministic, idempotent lifecycle management:
 
     * construct-once-reuse via :meth:`_get_client` (the pooling lever),
@@ -13,9 +16,7 @@ the base provides deterministic, idempotent lifecycle management:
 
 from __future__ import annotations
 
-import importlib
-from types import ModuleType
-from typing import Any, ClassVar
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.exceptions.connector_closed_error import ConnectorClosedError
@@ -25,13 +26,6 @@ from pirn.security.credential_ref import CredentialRef
 
 class ConnectorBase(PirnOpaqueValue):
     """Base class for connectors that hold a lazily-pooled backend client."""
-
-    #: Distribution whose extras provide this connector's optional backends. It is
-    #: named in the friendly ``ImportError`` raised by :meth:`_require`. Connectors
-    #: shipped in another distribution override it (e.g. pirn-agents connectors set
-    #: ``_install_dist = "pirn-agents"``) so the install hint points at the right
-    #: package.
-    _install_dist: ClassVar[str] = "pirn-core"
 
     def __init__(self, *, credential: CredentialRef | None = None) -> None:
         """Initialise the connector.
@@ -51,24 +45,6 @@ class ConnectorBase(PirnOpaqueValue):
         self._credential: CredentialRef | None = credential
         self._client: Any | None = None
 
-    def _require(self, extra: str, module: str) -> ModuleType:
-        """Import ``module`` lazily, raising a friendly error if it is missing.
-
-        Turns a missing optional backend into an ``ImportError`` naming the exact
-        ``pip install`` command — using :attr:`_install_dist` so the hint points at
-        the distribution that ships this connector.
-
-        Raises:
-            ImportError: If ``module`` cannot be imported.
-        """
-        try:
-            return importlib.import_module(module)
-        except ImportError as exc:
-            raise ImportError(
-                f"{module!r} is required for this feature; install it with: "
-                f'pip install "{self._install_dist}[{extra}]"'
-            ) from exc
-
     async def _get_client(self) -> Any:
         """Return the pooled client, constructing it once and caching it.
 
@@ -83,7 +59,9 @@ class ConnectorBase(PirnOpaqueValue):
     async def _create_client(self) -> Any:
         """Build and return the backend client. Overridden by concrete connectors.
 
-        Implementations use :meth:`_require` to lazily import their backend.
+        Implementations use :meth:`OptionalDependency.require
+        <pirn.core.optional_dependency.OptionalDependency.require>` to lazily
+        import their backend.
 
         Raises:
             NotImplementedError: Always, in the base class.

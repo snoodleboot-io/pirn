@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TfSavedModelFormat`` — TensorFlow SavedModel directory bundle.
 
 TensorFlow's SavedModel is a directory layout (``saved_model.pb`` plus a
@@ -20,7 +22,7 @@ Security: pirn does not sandbox ``tensorflow``. Malicious SavedModels
 may contain arbitrary ops; treat untrusted payloads accordingly. ZIP
 extraction guards against absolute / parent-directory member paths.
 
-Install: ``pip install pirn[tensorflow]``.
+Install: ``pip install "pirn-core[tensorflow]"``.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class TfSavedModelFormat(BatchFileFormat):
@@ -53,7 +56,7 @@ class TfSavedModelFormat(BatchFileFormat):
             raise TypeError(
                 f"TfSavedModelFormat: payload must be bytes, got {type(payload).__name__}"
             )
-        tf = self._load_tensorflow()
+        tf = OptionalDependency.require("tensorflow", extra="tensorflow")
         tmpdir = tempfile.TemporaryDirectory(prefix="pirn-tf-savedmodel-")
         try:
             with zipfile.ZipFile(io.BytesIO(bytes(payload))) as archive:
@@ -123,14 +126,3 @@ class TfSavedModelFormat(BatchFileFormat):
                     f"TfSavedModelFormat: zip member escapes target directory — {member.filename!r}"
                 )
         archive.extractall(target)
-
-    @staticmethod
-    def _load_tensorflow() -> Any:
-        try:
-            import tensorflow as tf
-        except ImportError as exc:
-            raise ImportError(
-                "TfSavedModelFormat requires tensorflow. Install with "
-                "`pip install pirn[tensorflow]`."
-            ) from exc
-        return tf

@@ -11,8 +11,8 @@ import unittest
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.backends._signer import _Signer
 from pirn.backends.s3_data_store import S3DataStore
+from pirn.backends.signer import Signer
 
 
 def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
@@ -72,7 +72,7 @@ class TestS3DataStoreConstruction(unittest.TestCase):
         self.assertIsNotNone(store)
 
     def test_accepts_signer(self) -> None:
-        store = S3DataStore(bucket="my-bucket", signer=_Signer.test_signer())
+        store = S3DataStore(bucket="my-bucket", signer=Signer.test_signer())
         self.assertIsNotNone(store)
 
 

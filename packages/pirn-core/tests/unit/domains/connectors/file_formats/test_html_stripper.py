@@ -1,15 +1,15 @@
-"""Tests for :class:`_HtmlStripper`."""
+"""Tests for :class:`HtmlStripper`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.connectors.file_formats._html_stripper import _HtmlStripper
+from pirn.connectors.file_formats.html_stripper import HtmlStripper
 
 
 class TestHtmlStripper(unittest.TestCase):
     def _strip(self, html: str) -> str:
-        s = _HtmlStripper()
+        s = HtmlStripper()
         s.feed(html)
         return s.text()
 

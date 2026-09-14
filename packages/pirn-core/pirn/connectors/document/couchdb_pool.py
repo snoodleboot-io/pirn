@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async CouchDB pool backed by :mod:`aiocouch`."""
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.couchdb_config import CouchDBConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class CouchDBPool(DatabaseConnectionPool):
@@ -61,7 +64,7 @@ class CouchDBPool(DatabaseConnectionPool):
         if self._session is None:
             raise RuntimeError("CouchDBPool: not connected — call connect() first")
         assert self._config is not None
-        doc_data = parameters if parameters is not None else {}
+        doc_data: Iterable[Any] = parameters if parameters is not None else {}
         db = await self._session[self._config.database]
         doc = await db.create(query, data=doc_data)
         await doc.save()
@@ -98,17 +101,12 @@ class CouchDBPool(DatabaseConnectionPool):
             self._session = await self._create_session()
 
     async def _create_session(self) -> Any:
-        try:
-            import aiocouch
-        except ImportError as exc:
-            raise ImportError(
-                "CouchDBPool requires aiocouch; install via pip install pirn[couchdb]"
-            ) from exc
+        aiocouch = OptionalDependency.require("aiocouch", extra="couchdb")
         if self._config is None:
             raise self._missing_config_error("CouchDBPool", "session")
 
         try:
-            session = aiocouch.CouchDB(
+            session: Any = aiocouch.CouchDB(
                 self._config.url,
                 user=self._config.username,
                 password=self._config.password,

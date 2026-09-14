@@ -17,7 +17,7 @@ strips the following fields from the ``data`` dict in decoded records:
 * ``identifier`` — raw patient identifier; replaced by ``identifier_hash``
   (SHA-256 hex digest)
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"``.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class FhirJsonFormat(BatchFileFormat):
@@ -56,7 +57,7 @@ class FhirJsonFormat(BatchFileFormat):
         return "fhir_json"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        self._load_fhir()
+        OptionalDependency.require("fhir.resources", extra="health", package="pirn-health")
         raw = json.loads(payload.decode("utf-8"))
         records: list[dict[str, Any]] = []
         entries = raw.get("entry", [])
@@ -68,9 +69,9 @@ class FhirJsonFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        self._load_fhir()
+        OptionalDependency.require("fhir.resources", extra="health", package="pirn-health")
         materialised = [dict(r) for r in records]
-        entries = []
+        entries: list[dict[str, dict[str, Any]]] = []
         for record in materialised:
             if "resource_type" not in record:
                 raise KeyError(
@@ -84,7 +85,7 @@ class FhirJsonFormat(BatchFileFormat):
             if record.get("status"):
                 resource["status"] = record["status"]
             entries.append({"resource": resource})
-        bundle = {
+        bundle: dict[str, Any] = {
             "resourceType": "Bundle",
             "type": "collection",
             "entry": entries,
@@ -107,13 +108,3 @@ class FhirJsonFormat(BatchFileFormat):
             "status": status,
             "data": data,
         }
-
-    @staticmethod
-    def _load_fhir() -> Any:
-        try:
-            import fhir.resources
-        except ImportError as exc:
-            raise ImportError(
-                "FhirJsonFormat requires fhir.resources. Install with `pip install pirn[health]`."
-            ) from exc
-        return fhir.resources

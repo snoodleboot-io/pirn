@@ -1,10 +1,11 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SegdFormat`` — SEG-D seismic field-tape batch decoder.
 
 SEG-D is a binary tape format used to record seismic field data. It
 predates SEG-Y and is used primarily by acquisition crews.
 
-If ``segpy`` is installed it is used; otherwise a minimal pure-Python
-reader parses the 32-byte General Header Block 1 and emits one record::
+A minimal pure-Python reader parses the 32-byte General Header Block 1 and emits one record::
 
     {
         "record_length":    int,     # milliseconds
@@ -15,7 +16,7 @@ reader parses the 32-byte General Header Block 1 and emits one record::
 
 Encoding raises :exc:`NotImplementedError`.
 
-Install: ``pip install pirn[oilgas]``.
+No optional dependency is required: the reader is pure Python.
 """
 
 from __future__ import annotations
@@ -29,8 +30,8 @@ from pirn.connectors.file_formats.batch_file_format import (
 
 
 class SegdFormat(BatchFileFormat):
-    """SEG-D decoder. Segpy is used when available; pure-Python fallback
-    reads the 32-byte General Header Block 1 only."""
+    """SEG-D decoder. The pure-Python reader parses the 32-byte General
+    Header Block 1 only."""
 
     _gh1_size: ClassVar[int] = 32  # General Header Block 1 per SEG-D rev 3
 

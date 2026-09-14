@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the synchronous PyGithub SDK.
 
 PyGithub is sync; calls run in a worker thread via
@@ -10,7 +12,7 @@ The connector exposes:
 2. The :class:`TableSource` capability — ``fetch_page`` pages the
    configured ``resource`` (``issues`` by default) using GitHub's
    ``?page=N`` cursor.
-3. The legacy :meth:`request` escape hatch.
+3. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -23,7 +25,9 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.github_config import GitHubConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class GitHubClient(ApiClient, TableSource):
@@ -131,15 +135,14 @@ class GitHubClient(ApiClient, TableSource):
         return rows, next_cursor
 
     @staticmethod
-    def _extract_rows(response: Any) -> list[Mapping[str, Any]]:
+    def _extract_rows(response: object) -> list[Mapping[str, Any]]:
         # PyGithub's ``requestJsonAndCheck`` returns ``(headers, body)``;
         # raw HTTP returns ``body`` directly. Handle both shapes.
-        if isinstance(response, tuple) and len(response) == 2:
+        body = response
+        if PayloadShape.is_tuple(response) and len(response) == 2:
             body = response[1]
-        else:
-            body = response
-        if isinstance(body, list):
-            return list(body)
+        if PayloadShape.is_list(body):
+            return PayloadShape.rows(body, source="GitHubClient")
         return []
 
     async def request(
@@ -205,23 +208,18 @@ class GitHubClient(ApiClient, TableSource):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from github import Auth, Github  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "GitHubClient requires PyGithub; install via `pip install pirn[github]`"
-            ) from exc
+        github = OptionalDependency.require("github", extra="github")
         if self._config is None:
             raise self._missing_config_error("GitHubClient", "client")
 
         kwargs: dict[str, Any] = {"base_url": self._config.base_url}
         if self._config.token is not None:
-            kwargs["auth"] = Auth.Token(self._config.token)
+            kwargs["auth"] = github.Auth.Token(self._config.token)
         elif self._config.app_id is not None and self._config.private_key is not None:
-            kwargs["auth"] = Auth.AppAuth(self._config.app_id, self._config.private_key)
+            kwargs["auth"] = github.Auth.AppAuth(self._config.app_id, self._config.private_key)
 
         try:
-            client = await asyncio.to_thread(Github, **kwargs)
+            client = await asyncio.to_thread(github.Github, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("github.connect")

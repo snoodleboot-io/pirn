@@ -25,6 +25,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Never
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.exceptions.connector_closed_error import ConnectorClosedError
 from pirn.exceptions.connector_config_error import ConnectorConfigError
@@ -68,43 +69,10 @@ class ApiClient(PirnOpaqueValue):
     _client: Any
     _closed: bool
 
-    def _import_httpx(self, extra: str, *, quoted: bool = True) -> Any:
-        """Import :mod:`httpx` lazily, or raise a uniform install hint.
-
-        The shared, **guard-free** HTTP bootstrap for every ``ApiClient``
-        that talks to a vendor over HTTP. It applies no SSRF/egress
-        check: these connectors reach operator-configured, frequently
-        internal endpoints, and guarding them would break self-hosted
-        deployments (settled on PIR-745). Callers that need the module
-        object itself (e.g. ``httpx.BasicAuth``) use this directly;
-        callers that only build an ``AsyncClient`` use
-        :meth:`_build_httpx_client`.
-
-        Args:
-            extra: The pip extra that pulls in httpx for this connector,
-                used to build the ``pip install pirn[<extra>]`` hint.
-            quoted: When ``True`` the install command is wrapped in
-                backticks, matching the connectors that already did so.
-
-        Returns:
-            The imported ``httpx`` module.
-
-        Raises:
-            ImportError: If ``httpx`` is not installed.
-        """
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            command = f"pip install pirn[{extra}]"
-            hint = f"`{command}`" if quoted else command
-            raise ImportError(f"{type(self).__name__} requires httpx; install via {hint}") from exc
-        return httpx
-
     def _build_httpx_client(
         self,
         extra: str,
         *,
-        quoted: bool = True,
         scrub_errors: bool = False,
         **kwargs: Any,
     ) -> Any:
@@ -114,11 +82,13 @@ class ApiClient(PirnOpaqueValue):
         behind one seam while leaving each connector's own auth, base
         URL, and timeout ``kwargs`` untouched, so the request that goes
         out is identical to the hand-rolled version. No SSRF/egress guard
-        is applied (see :meth:`_import_httpx`; PIR-745).
+        is applied: these connectors reach operator-configured, frequently
+        internal endpoints, and guarding them would break self-hosted
+        deployments (settled on PIR-745).
 
         Args:
-            extra: pip extra forwarded to :meth:`_import_httpx`.
-            quoted: Install-hint style forwarded to :meth:`_import_httpx`.
+            extra: The ``pirn-core`` extra named in the install hint when
+                ``httpx`` is missing.
             scrub_errors: When ``True`` a construction failure is
                 re-raised with credential markers scrubbed via
                 :meth:`_reraise_scrubbed`, matching the connectors that
@@ -128,8 +98,12 @@ class ApiClient(PirnOpaqueValue):
 
         Returns:
             A new ``httpx.AsyncClient``.
+
+        Raises:
+            ImportError: If ``httpx`` is not installed; the message names
+                ``pip install "pirn-core[<extra>]"``.
         """
-        httpx = self._import_httpx(extra, quoted=quoted)
+        httpx = OptionalDependency.require("httpx", extra=extra)
         if not scrub_errors:
             return httpx.AsyncClient(**kwargs)
         try:

@@ -71,7 +71,7 @@ pd = PagerDutyClient(config=PagerDutyConfig(
 
 ## Constraints and gotchas
 
-- **Each client requires its own extra:** `pirn[slack]`, `pirn[teams]`, `pirn[discord]`, `pirn[telegram]`, `pirn[pagerduty]`.
+- **Install extras:** `SlackClient` needs `pip install "pirn-core[slack]"` (slack-sdk); Teams, Discord, Telegram, Google Chat and PagerDuty use httpx via `pip install "pirn-core[http]"`.
 - **`TeamsClient` supports two auth modes:** incoming webhook URL (simpler, less permission) and Microsoft Graph API (full features, requires Azure app registration).
 - **`PagerDutyClient.trigger()` uses Events API v2** — `service_key` is the integration key, not the service ID.
 - **Rate limits are enforced by the upstream service**, not pirn. Add retry logic in the client wrapper for production use.

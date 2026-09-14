@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Valkey Streams :class:`MessageBroker` implementation."""
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from typing import Any
 from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.valkey_record import ValkeyRecord
 from pirn.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ValkeyStreamBroker(MessageBroker):
@@ -104,14 +107,8 @@ class ValkeyStreamBroker(MessageBroker):
         return self._client
 
     async def _build_client(self) -> Any:
-        try:
-            import valkey.asyncio as valkey_async  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "ValkeyStreamBroker requires a valkey async client; install via "
-                "`pip install pirn[valkey]`"
-            ) from exc
-        client = valkey_async.Valkey(  # type: ignore[attr-defined]
+        valkey_async = OptionalDependency.require("valkey.asyncio", extra="valkey")
+        client = valkey_async.Valkey(
             host=self._config.host,
             port=self._config.port,
             password=self._config.password,
