@@ -25,7 +25,7 @@ class DataSchema(PirnOpaqueValue):
         Subset of ``columns`` keys whose values may be ``None``.
     """
 
-    columns: Mapping[str, type] = field(default_factory=dict)
+    columns: Mapping[str, type] = field(default_factory=dict[str, type])
     primary_keys: tuple[str, ...] = ()
     nullable: tuple[str, ...] = ()
 

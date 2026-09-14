@@ -71,7 +71,11 @@ class ArrowToLanceSink(Sink):
                 "{'create', 'append', 'overwrite'}, got "
                 f"{mode!r}"
             )
-        from lance.dataset import write_dataset
+        # ``from ... import``: ``lance.dataset`` the attribute is the ``lance.dataset()``
+        # function, which shadows the submodule of the same name.
+        from lance.dataset import (
+            write_dataset,  # pyright: ignore[reportUnknownVariableType]  # lance's signature has untyped params
+        )
 
         write_dataset(table, path, mode=mode)
         return path

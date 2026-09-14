@@ -88,9 +88,9 @@ class FreshnessCheck(Knot):
         max_age: timedelta,
         **_: Any,
     ) -> QualityReport:
-        if not isinstance(column, str) or not column:
+        if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("FreshnessCheck: column must be a non-empty string")
-        if not isinstance(max_age, timedelta):
+        if not isinstance(max_age, timedelta):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 "FreshnessCheck: max_age must be a datetime.timedelta, "
                 f"got {type(max_age).__name__}"

@@ -38,6 +38,6 @@ class DeltaTableConfig(ConnectionConfig):
     """
 
     table_uri: str | None = None
-    storage_options: Mapping[str, str] = field(default_factory=dict)
+    storage_options: Mapping[str, str] = field(default_factory=dict[str, str])
 
     sensitive_fields: ClassVar[tuple[str, ...]] = ()

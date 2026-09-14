@@ -40,7 +40,7 @@ class IcebergTableConfig(ConnectionConfig):
     """
 
     catalog_name: str | None = None
-    catalog_properties: Mapping[str, str] = field(default_factory=dict)
+    catalog_properties: Mapping[str, str] = field(default_factory=dict[str, str])
     table_identifier: str | None = None
     namespace: str | None = None
 

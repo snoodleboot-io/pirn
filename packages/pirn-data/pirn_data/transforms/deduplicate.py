@@ -47,6 +47,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data._value_shape import (
+    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_data.data_batch import DataBatch
 
 
@@ -78,7 +81,7 @@ class Deduplicate(Knot):
         Returns:
             A new DataBatch with duplicate rows removed, preserving original row order.
         """
-        if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
+        if not _ValueShape.is_sequence(keys) or isinstance(keys, (str, bytes)):
             raise TypeError(
                 "Deduplicate: keys must be a sequence of column names (e.g. tuple or list)"
             )

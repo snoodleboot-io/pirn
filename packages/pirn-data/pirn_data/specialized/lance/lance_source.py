@@ -54,7 +54,7 @@ class LanceSource(Source):
         Returns:
             A LanceDataset wrapping the opened Lance dataset.
         """
-        if not isinstance(path, str) or not path:
+        if not isinstance(path, str) or not path:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("LanceSource: path must be a non-empty string")
 
         from lance.dataset import LanceDataset as _LanceDataset

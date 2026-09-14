@@ -72,7 +72,7 @@ class ElandSource(Source):
         Raises:
             ValueError: If ``index`` is empty or not a string.
         """
-        if not isinstance(index, str) or not index:
+        if not isinstance(index, str) or not index:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("ElandSource: index must be a non-empty string")
         import eland as ed
 
