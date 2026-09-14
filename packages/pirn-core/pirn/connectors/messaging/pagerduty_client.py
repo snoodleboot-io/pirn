@@ -49,7 +49,7 @@ class PagerDutyClient(ApiClient):
         *,
         severity: str = "error",
         dedup_key: str | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Trigger an incident via the PagerDuty Events API v2.
 
         Parameters
@@ -71,7 +71,7 @@ class PagerDutyClient(ApiClient):
                 f"{sorted(type(self)._valid_severities)!r}; got {severity!r}"
             )
         routing_key = self._routing_key()
-        payload: dict[str, Any] = {
+        payload: dict[str, object] = {
             "routing_key": routing_key,
             "event_action": "trigger",
             "payload": {
@@ -85,7 +85,7 @@ class PagerDutyClient(ApiClient):
         self._logger.debug("pagerduty.trigger_incident summary=%s", summary)
         return await self._post_events(payload)
 
-    async def resolve_incident(self, dedup_key: str) -> dict:
+    async def resolve_incident(self, dedup_key: str) -> dict[str, object]:
         """Resolve an incident via the PagerDuty Events API v2.
 
         Parameters
@@ -96,7 +96,7 @@ class PagerDutyClient(ApiClient):
         if self._closed:
             raise self._closed_error("PagerDutyClient")
         routing_key = self._routing_key()
-        payload: dict[str, Any] = {
+        payload: dict[str, object] = {
             "routing_key": routing_key,
             "event_action": "resolve",
             "dedup_key": dedup_key,
@@ -109,7 +109,7 @@ class PagerDutyClient(ApiClient):
         *,
         status: str = "triggered",
         limit: int = 25,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """List incidents from the PagerDuty REST API.
 
         Parameters
@@ -125,7 +125,8 @@ class PagerDutyClient(ApiClient):
             "/incidents",
             params={"statuses[]": status, "limit": limit},
         )
-        return list(response.get("incidents") or ())
+        incidents: list[dict[str, object]] = list(response.get("incidents") or ())
+        return incidents
 
     async def request(
         self,
@@ -160,11 +161,12 @@ class PagerDutyClient(ApiClient):
         )
         return response
 
-    async def _post_events(self, payload: dict) -> dict:
+    async def _post_events(self, payload: Mapping[str, object]) -> dict[str, object]:
         client = await self._ensure_client()
         self._logger.debug("pagerduty._post_events")
         response = await client.post(type(self)._events_api_url, json=payload)
-        return dict(response)
+        result: dict[str, object] = dict(response)
+        return result
 
     def _routing_key(self) -> str:
         if self._config is not None and self._config.routing_key:

@@ -22,7 +22,7 @@ transport class works with Redis OSS, Valkey, AWS ElastiCache, and
 Google Cloud Memorystore. It provides native asyncio support, cluster
 mode, TLS, and connection pooling.
 
-Install: ``pip install pirn[valkey]``
+Install: ``pip install "pirn-core[valkey]"``
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ import hashlib
 import logging
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
@@ -197,35 +198,20 @@ class ValkeyTransport(DataTransport):
         return f"{self._key_prefix}:{safe_run}:{safe_knot}:{content_hash}"
 
     async def _connect(self) -> Any:
+        glide = OptionalDependency.require("glide", extra="valkey")
         try:
+            addresses = [glide.NodeAddress(host=self._host, port=self._port)]
             if self._cluster_mode:
-                from glide import (  # type: ignore[import-untyped]
-                    GlideClusterClient,
-                    GlideClusterClientConfiguration,
-                    NodeAddress,
-                )
-
-                config = GlideClusterClientConfiguration(
-                    addresses=[NodeAddress(host=self._host, port=self._port)],
+                config = glide.GlideClusterClientConfiguration(
+                    addresses=addresses,
                     use_tls=self._tls,
                 )
-                return await GlideClusterClient.create(config)
-            else:
-                from glide import (  # type: ignore[import-untyped]
-                    GlideClient,
-                    GlideClientConfiguration,
-                    NodeAddress,
-                )
-
-                config = GlideClientConfiguration(
-                    addresses=[NodeAddress(host=self._host, port=self._port)],
-                    use_tls=self._tls,
-                )
-                return await GlideClient.create(config)
-        except ImportError as exc:
-            raise ImportError(
-                "ValkeyTransport requires valkey-glide. Install with `pip install pirn[valkey]`."
-            ) from exc
+                return await glide.GlideClusterClient.create(config)
+            config = glide.GlideClientConfiguration(
+                addresses=addresses,
+                use_tls=self._tls,
+            )
+            return await glide.GlideClient.create(config)
         except Exception as exc:
             raise TransportError(
                 f"ValkeyTransport: failed to connect to {self._host}:{self._port}: {exc}"

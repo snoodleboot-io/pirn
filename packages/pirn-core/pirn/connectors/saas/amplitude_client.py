@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Amplitude Analytics ingestion connector wrapping the sync ``Amplitude`` SDK.
 
 The official ``amplitude-analytics`` SDK is synchronous and
@@ -11,7 +13,7 @@ The connector exposes:
 2. The :class:`EventEmitter` capability — :meth:`emit` accepts
    ``{"user_id", "event"|"event_type", "properties"?}`` and forwards to
    :meth:`track`.
-3. The legacy :meth:`request` escape hatch (``POST /track``).
+3. The generic :meth:`request` escape hatch (``POST /track``).
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.event_emitter import EventEmitter
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.saas.amplitude_config import AmplitudeConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class AmplitudeClient(ApiClient, EventEmitter):
@@ -132,14 +135,8 @@ class AmplitudeClient(ApiClient, EventEmitter):
         self._logger.debug("amplitude.close")
 
     async def _build_event(self, body: Mapping[str, Any]) -> Any:
-        try:
-            from amplitude import BaseEvent  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "AmplitudeClient requires amplitude-analytics; install via "
-                "`pip install pirn[amplitude]`"
-            ) from exc
-        return BaseEvent(
+        amplitude = OptionalDependency.require("amplitude", extra="amplitude")
+        return amplitude.BaseEvent(
             event_type=body["event"],
             user_id=body.get("user_id"),
             event_properties=(dict(body["properties"]) if body.get("properties") else None),
@@ -153,19 +150,13 @@ class AmplitudeClient(ApiClient, EventEmitter):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from amplitude import Amplitude  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "AmplitudeClient requires amplitude-analytics; install via "
-                "`pip install pirn[amplitude]`"
-            ) from exc
+        amplitude = OptionalDependency.require("amplitude", extra="amplitude")
         if self._config is None:
             raise self._missing_config_error("AmplitudeClient", "client")
         if self._config.api_key is None:
             raise RuntimeError("AmplitudeClient: config.api_key is required")
         try:
-            client = await asyncio.to_thread(Amplitude, self._config.api_key)
+            client = await asyncio.to_thread(amplitude.Amplitude, self._config.api_key)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("amplitude.connect")

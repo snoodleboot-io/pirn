@@ -85,7 +85,7 @@ class AirtableClient(ApiClient, TableSource):
         next_offset = response.get("offset") or None
         return records, next_offset
 
-    async def create_record(self, fields: dict) -> dict:
+    async def create_record(self, fields: Mapping[str, Any]) -> dict[str, Any]:
         """Create a new record in the configured table.
 
         Parameters
@@ -99,7 +99,7 @@ class AirtableClient(ApiClient, TableSource):
         response = await self.request("POST", path, body={"fields": fields})
         return dict(response)
 
-    async def update_record(self, record_id: str, fields: dict) -> dict:
+    async def update_record(self, record_id: str, fields: Mapping[str, Any]) -> dict[str, Any]:
         """Patch an existing record in the configured table.
 
         Parameters
@@ -115,7 +115,7 @@ class AirtableClient(ApiClient, TableSource):
         response = await self.request("PATCH", path, body={"fields": fields})
         return dict(response)
 
-    async def delete_record(self, record_id: str) -> dict:
+    async def delete_record(self, record_id: str) -> dict[str, Any]:
         """Delete a record from the configured table.
 
         Parameters

@@ -363,8 +363,8 @@ class TestDicomRoundTrip(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestDicomMissingDependency(unittest.TestCase):
-    def test_load_pydicom_raises_on_missing(self) -> None:
+class TestDicomMissingDependency(unittest.IsolatedAsyncioTestCase):
+    async def test_decode_raises_install_hint_when_pydicom_missing(self) -> None:
         with patch.dict("sys.modules", {"pydicom": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[dicom\\]"):
-                DicomFormat._load_pydicom()
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[health\\]"):
+                await DicomFormat()._decode_full(b"DICM")

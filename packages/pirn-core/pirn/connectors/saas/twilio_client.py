@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the synchronous Twilio SDK.
 
 ``twilio.rest.Client`` is sync; calls run in a worker thread via
@@ -10,7 +12,7 @@ The connector exposes:
 2. The :class:`RecordWriter` capability — :meth:`write_records`
    forwards each record to ``send_sms`` and returns the count
    accepted.
-3. The legacy :meth:`request` escape hatch.
+3. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.record_writer import RecordWriter
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.saas.twilio_config import TwilioConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class TwilioClient(ApiClient, RecordWriter):
@@ -153,12 +156,7 @@ class TwilioClient(ApiClient, RecordWriter):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from twilio.rest import Client  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "TwilioClient requires the twilio SDK; install via `pip install pirn[twilio]`"
-            ) from exc
+        twilio_rest = OptionalDependency.require("twilio.rest", extra="twilio")
         if self._config is None:
             raise self._missing_config_error("TwilioClient", "client")
 
@@ -168,7 +166,7 @@ class TwilioClient(ApiClient, RecordWriter):
 
         try:
             client = await asyncio.to_thread(
-                Client,
+                twilio_rest.Client,
                 self._config.account_sid,
                 self._config.auth_token,
                 **kwargs,

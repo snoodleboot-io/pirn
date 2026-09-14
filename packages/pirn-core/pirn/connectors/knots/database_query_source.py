@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatabaseQuerySource`` — a pirn :class:`Source` that runs a parameterised
 SELECT against any :class:`DatabaseConnectionPool` backend and returns rows.
 
@@ -38,7 +40,7 @@ class DatabaseQuerySource(Source):
         *,
         pool: DatabaseConnectionPoolKnot,
         query: Knot | str,
-        parameters: Knot | tuple | None = None,
+        parameters: Knot | tuple[Any, ...] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

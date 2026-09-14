@@ -9,6 +9,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.graph.memgraph_config import MemgraphConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MemgraphPool(DatabaseConnectionPool):
@@ -70,12 +71,7 @@ class MemgraphPool(DatabaseConnectionPool):
         return self._connection
 
     async def _create_connection(self) -> Any:
-        try:
-            import gqlalchemy  # type: ignore[import]
-        except ImportError as exc:
-            raise ImportError(
-                "MemgraphPool requires gqlalchemy; install via pip install pirn[memgraph]"
-            ) from exc
+        gqlalchemy = OptionalDependency.require("gqlalchemy", extra="memgraph")
         if self._config is None:
             raise self._missing_config_error("MemgraphPool", "connection")
         try:

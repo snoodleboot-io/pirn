@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Shopify SaaS connector wrapping the synchronous ``ShopifyAPI`` SDK.
 
 ShopifyAPI follows ActiveResource patterns and exposes a low-level
@@ -14,7 +16,7 @@ The connector exposes:
    constructor's ``resource`` (default ``"orders"``) using Shopify's
    cursor-based ``page_info`` pagination. The cursor is extracted from
    the response's ``Link`` header (``rel="next"``).
-3. The legacy :meth:`request` escape hatch.
+3. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -23,12 +25,15 @@ import asyncio
 import logging
 import re
 from collections.abc import Mapping
+from types import ModuleType
 from typing import Any
 
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.shopify_config import ShopifyConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ShopifyClient(ApiClient, TableSource):
@@ -105,8 +110,8 @@ class ShopifyClient(ApiClient, TableSource):
         response = await self._raw_request("GET", full_path)
         body = self._extract_body(response)
         rows: list[Mapping[str, Any]] = []
-        if isinstance(body, Mapping):
-            rows = list(body.get(resource) or ())
+        if PayloadShape.is_str_mapping(body):
+            rows = PayloadShape.rows(body.get(resource), source="ShopifyClient")
         next_cursor = self._extract_next_cursor(response, body)
         return rows, next_cursor
 
@@ -132,8 +137,8 @@ class ShopifyClient(ApiClient, TableSource):
         return "2024-04"
 
     @staticmethod
-    def _extract_body(response: Any) -> Any:
-        if isinstance(response, Mapping):
+    def _extract_body(response: object) -> object:
+        if PayloadShape.is_str_mapping(response):
             return response
         body_attr = getattr(response, "body", None)
         if body_attr is not None:
@@ -141,30 +146,30 @@ class ShopifyClient(ApiClient, TableSource):
         return response
 
     @classmethod
-    def _extract_next_cursor(cls, response: Any, body: Any) -> str | None:
+    def _extract_next_cursor(cls, response: object, body: object) -> str | None:
         link_header = cls._extract_link_header(response, body)
         if link_header:
             cursor = cls._parse_link_header_cursor(link_header)
             if cursor is not None:
                 return cursor
-        if isinstance(body, Mapping):
+        if PayloadShape.is_str_mapping(body):
             page_info = body.get("page_info")
             if page_info:
                 return str(page_info)
         return None
 
     @staticmethod
-    def _extract_link_header(response: Any, body: Any) -> str | None:
-        headers = getattr(response, "headers", None)
-        if isinstance(headers, Mapping):
+    def _extract_link_header(response: object, body: object) -> str | None:
+        headers: object = getattr(response, "headers", None)
+        if PayloadShape.is_str_mapping(headers):
             link = headers.get("Link") or headers.get("link")
             if link:
                 return str(link)
-        if isinstance(response, Mapping):
+        if PayloadShape.is_str_mapping(response):
             link = response.get("Link") or response.get("link")
             if link:
                 return str(link)
-        if isinstance(body, Mapping):
+        if PayloadShape.is_str_mapping(body):
             link = body.get("Link") or body.get("link")
             if link:
                 return str(link)
@@ -234,12 +239,7 @@ class ShopifyClient(ApiClient, TableSource):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            import shopify  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ShopifyClient requires ShopifyAPI; install via `pip install pirn[shopify]`"
-            ) from exc
+        shopify = OptionalDependency.require("shopify", extra="shopify")
         if self._config is None:
             raise self._missing_config_error("ShopifyClient", "client")
         if self._config.shop_url is None:
@@ -261,7 +261,9 @@ class ShopifyClient(ApiClient, TableSource):
         return client
 
     @staticmethod
-    def _sync_connect(shopify: Any, shop_url: str, api_version: str, access_token: str) -> Any:
+    def _sync_connect(
+        shopify: ModuleType, shop_url: str, api_version: str, access_token: str
+    ) -> Any:
         session = shopify.Session(shop_url, api_version, access_token)
         shopify.ShopifyResource.activate_session(session)
         return shopify.ShopifyResource.connection

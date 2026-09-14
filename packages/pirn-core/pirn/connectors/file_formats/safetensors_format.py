@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SafetensorsFormat`` — Hugging Face safetensors encoder/decoder.
 
 Safetensors stores tensor weights in a flat header + payload layout
@@ -15,7 +17,7 @@ large models, callers can construct with ``include_data=False`` to
 emit only ``shape`` and ``dtype`` per tensor; the read path will then
 omit the ``data`` key.
 
-Install: ``pip install pirn[safetensors]``.
+Install: ``pip install "pirn-core[safetensors]"``.
 """
 
 from __future__ import annotations
@@ -23,11 +25,16 @@ from __future__ import annotations
 import json
 import struct
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, SupportsIndex
+
+import numpy as np
+from numpy.typing import DTypeLike, NDArray
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SafetensorsFormat(BatchFileFormat):
@@ -53,8 +60,7 @@ class SafetensorsFormat(BatchFileFormat):
             raise TypeError(
                 f"SafetensorsFormat: payload must be bytes, got {type(payload).__name__}"
             )
-        numpy_module = self._load_numpy()
-        safetensors_numpy = self._load_safetensors_numpy()
+        safetensors_numpy = OptionalDependency.require("safetensors.numpy", extra="safetensors")
         try:
             tensors_array: Mapping[str, Any] = safetensors_numpy.load(bytes(payload))
         except Exception as exc:
@@ -69,7 +75,7 @@ class SafetensorsFormat(BatchFileFormat):
                 "dtype": str(array.dtype),
             }
             if self._include_data:
-                entry["data"] = numpy_module.asarray(array).flatten().tolist()
+                entry["data"] = np.asarray(array).flatten().tolist()
             tensors_record[name] = entry
         record: dict[str, Any] = {
             "tensors": tensors_record,
@@ -87,43 +93,45 @@ class SafetensorsFormat(BatchFileFormat):
         record = materialised[0]
         if "tensors" not in record:
             raise ValueError("SafetensorsFormat: record missing required 'tensors' key")
-        tensors_in = record["tensors"]
-        if not isinstance(tensors_in, Mapping):
+        tensors_in: object = record["tensors"]
+        if not PayloadShape.is_mapping(tensors_in):
             raise TypeError(
                 f"SafetensorsFormat: 'tensors' must be a mapping, got {type(tensors_in).__name__}"
             )
-        metadata = record.get("metadata") or {}
-        if not isinstance(metadata, Mapping):
+        metadata_in: object = record.get("metadata") or {}
+        if not PayloadShape.is_mapping(metadata_in):
             raise TypeError(
-                f"SafetensorsFormat: 'metadata' must be a mapping, got {type(metadata).__name__}"
+                f"SafetensorsFormat: 'metadata' must be a mapping, got {type(metadata_in).__name__}"
             )
-        for key, value in metadata.items():
+        metadata: dict[str, str] = {}
+        for key, value in metadata_in.items():
             if not isinstance(key, str) or not isinstance(value, str):
                 raise TypeError(
                     "SafetensorsFormat: metadata keys and values must be "
                     "str (safetensors header restriction); offending pair "
                     f"{key!r}: {value!r}"
                 )
-        numpy_module = self._load_numpy()
-        safetensors_numpy = self._load_safetensors_numpy()
-        arrays: dict[str, Any] = {}
+            metadata[key] = value
+        safetensors_numpy = OptionalDependency.require("safetensors.numpy", extra="safetensors")
+        arrays: dict[str, NDArray[Any]] = {}
         for tensor_name, tensor_spec in tensors_in.items():
             if not isinstance(tensor_name, str) or not tensor_name:
                 raise ValueError(
                     "SafetensorsFormat: tensor names must be non-empty "
                     f"strings, got {tensor_name!r}"
                 )
-            arrays[tensor_name] = self._coerce_to_array(tensor_spec, numpy_module)
+            arrays[tensor_name] = self._coerce_to_array(tensor_spec)
         try:
-            return safetensors_numpy.save(arrays, metadata=dict(metadata) if metadata else None)
+            serialised: bytes = safetensors_numpy.save(arrays, metadata=metadata or None)
         except Exception as exc:
             raise ValueError(f"SafetensorsFormat: failed to serialise tensors — {exc}") from exc
+        return serialised
 
     @staticmethod
-    def _coerce_to_array(spec: Any, numpy_module: Any) -> Any:
+    def _coerce_to_array(spec: Any) -> NDArray[Any]:
         if hasattr(spec, "shape") and hasattr(spec, "dtype"):
-            return numpy_module.ascontiguousarray(spec)
-        if isinstance(spec, Mapping):
+            return np.ascontiguousarray(spec)
+        if PayloadShape.is_mapping(spec):
             if "data" not in spec:
                 raise ValueError(
                     "SafetensorsFormat: tensor spec requires 'data' "
@@ -135,8 +143,23 @@ class SafetensorsFormat(BatchFileFormat):
                 raise ValueError(
                     "SafetensorsFormat: tensor spec requires 'shape' and 'dtype' fields"
                 )
-            array = numpy_module.asarray(spec["data"], dtype=dtype)
-            return numpy_module.ascontiguousarray(array.reshape(tuple(shape)))
+            if not PayloadShape.is_sequence(shape):
+                raise TypeError(
+                    "SafetensorsFormat: tensor spec 'shape' must be a list or tuple, "
+                    f"got {type(shape).__name__}"
+                )
+            dims: list[SupportsIndex] = []
+            for dim in shape:
+                if not isinstance(dim, SupportsIndex):
+                    raise TypeError(
+                        "SafetensorsFormat: tensor spec 'shape' entries must be "
+                        f"integers, got {type(dim).__name__}"
+                    )
+                dims.append(dim)
+            # A ``numpy.dtype`` instance stringifies to its canonical name.
+            resolved_dtype: DTypeLike = dtype if isinstance(dtype, (str, type)) else str(dtype)
+            array = np.asarray(spec["data"], dtype=resolved_dtype)
+            return np.ascontiguousarray(array.reshape(tuple(dims)))
         raise TypeError(
             "SafetensorsFormat: tensor entries must be a numpy array "
             "or a mapping with 'data', 'shape', 'dtype'; "
@@ -153,33 +176,12 @@ class SafetensorsFormat(BatchFileFormat):
             return {}
         try:
             header_text = payload[8 : 8 + header_length].decode("utf-8")
-            header = json.loads(header_text)
+            header: object = json.loads(header_text)
         except (UnicodeDecodeError, ValueError):
             return {}
-        meta = header.get("__metadata__") if isinstance(header, dict) else None
-        if not isinstance(meta, dict):
+        if not PayloadShape.is_dict(header):
+            return {}
+        meta = header.get("__metadata__")
+        if not PayloadShape.is_dict(meta):
             return {}
         return {str(key): str(value) for key, value in meta.items()}
-
-    @staticmethod
-    def _load_safetensors_numpy() -> Any:
-        try:
-            from safetensors import numpy as safetensors_numpy
-        except ImportError as exc:
-            raise ImportError(
-                "SafetensorsFormat requires safetensors. Install with "
-                "`pip install pirn[safetensors]`."
-            ) from exc
-        return safetensors_numpy
-
-    @staticmethod
-    def _load_numpy() -> Any:
-        try:
-            import numpy
-        except ImportError as exc:
-            raise ImportError(
-                "SafetensorsFormat requires numpy (transitive via "
-                "safetensors). Install with "
-                "`pip install pirn[safetensors]`."
-            ) from exc
-        return numpy

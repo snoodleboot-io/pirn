@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """AWS Kinesis :class:`MessageBroker` backed by :mod:`aioboto3`."""
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from typing import Any
 
 from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.kinesis_config import KinesisConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class KinesisBroker(MessageBroker):
@@ -130,12 +133,7 @@ class KinesisBroker(MessageBroker):
         return self._client
 
     async def _build_client(self) -> Any:
-        try:
-            import aioboto3  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "KinesisBroker requires aioboto3; install via `pip install pirn[kinesis]`"
-            ) from exc
+        aioboto3 = OptionalDependency.require("aioboto3", extra="kinesis")
         session = aioboto3.Session(
             aws_access_key_id=self._config.access_key_id,
             aws_secret_access_key=self._config.secret_access_key,

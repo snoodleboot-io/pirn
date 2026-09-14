@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ParquetFormat`` — Apache Parquet encoder/decoder using ``pyarrow.parquet``.
 
 Streaming on the encode/decode boundary: the body is drained into a
@@ -16,6 +18,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ParquetFormat(StreamingFileFormat):
@@ -70,15 +73,8 @@ class ParquetFormat(StreamingFileFormat):
         return self._row_group_size
 
     async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
-        try:
-            import pyarrow as pa
-            import pyarrow.parquet as pq
-        except ImportError as exc:
-            raise ImportError(
-                "ParquetFormat requires pyarrow. Install with "
-                "'pip install pirn[data]' or 'pip install pirn[arrow]'."
-            ) from exc
-
+        pa = OptionalDependency.require("pyarrow", extra="parquet")
+        pq = OptionalDependency.require("pyarrow.parquet", extra="parquet")
         payload = await self._drain_bytes(body)
         buffer = pa.BufferReader(payload)
         parquet_file = pq.ParquetFile(buffer)
@@ -93,15 +89,8 @@ class ParquetFormat(StreamingFileFormat):
         return _iter()
 
     async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
-        try:
-            import pyarrow as pa
-            import pyarrow.parquet as pq
-        except ImportError as exc:
-            raise ImportError(
-                "ParquetFormat requires pyarrow. Install with "
-                "'pip install pirn[data]' or 'pip install pirn[arrow]'."
-            ) from exc
-
+        pa = OptionalDependency.require("pyarrow", extra="parquet")
+        pq = OptionalDependency.require("pyarrow.parquet", extra="parquet")
         materialised = await self._drain_records(records)
         rows = [dict(record) for record in materialised]
         table = pa.Table.from_pylist(rows)

@@ -10,6 +10,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.timeseries.kdb_config import KdbConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class KdbPool(DatabaseConnectionPool):
@@ -116,8 +117,12 @@ class KdbPool(DatabaseConnectionPool):
     def _connect_sync(config: KdbConfig) -> Any:
         """Synchronous connection attempt; called inside :func:`asyncio.to_thread`."""
         try:
-            import pykx
-
+            pykx = OptionalDependency.require("pykx", extra="kdb")
+        except ImportError as pykx_err:
+            logging.getLogger(__name__).debug(
+                "kdb: pykx not available (%s), trying qpython", pykx_err
+            )
+        else:
             return pykx.SyncQConnection(
                 host=config.host,
                 port=config.port,
@@ -126,26 +131,14 @@ class KdbPool(DatabaseConnectionPool):
                 timeout=config.timeout,
                 tls=config.tls,
             )
-        except ImportError as _pykx_err:
-            import logging as _logging
 
-            _logging.getLogger(__name__).debug(
-                "kdb: pykx not available (%s), trying qpython", _pykx_err
-            )
-
-        try:
-            from qpython import qconnection
-
-            conn = qconnection.QConnection(
-                host=config.host,
-                port=config.port,
-                username=config.username or None,
-                password=config.password or None,
-                timeout=config.timeout,
-            )
-            conn.open()
-            return conn
-        except ImportError as exc:
-            raise ImportError(
-                "KdbPool requires pykx or qpython; install via `pip install pirn[kdb]`"
-            ) from exc
+        qconnection = OptionalDependency.require("qpython.qconnection", extra="kdb")
+        conn = qconnection.QConnection(
+            host=config.host,
+            port=config.port,
+            username=config.username or None,
+            password=config.password or None,
+            timeout=config.timeout,
+        )
+        conn.open()
+        return conn

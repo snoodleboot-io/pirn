@@ -106,10 +106,10 @@ class TestGribFormatErrors(unittest.IsolatedAsyncioTestCase):
         assert records == []
 
 
-class TestGribFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestGribFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
         import unittest.mock
 
         with unittest.mock.patch.dict("sys.modules", {"cfgrib": None, "eccodes": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[weather\\]"):
-                GribFormat._load_cfgrib_eccodes()
+            with self.assertRaisesRegex(ImportError, "pirn-core\\[grib\\]"):
+                await GribFormat()._decode_full(b"")

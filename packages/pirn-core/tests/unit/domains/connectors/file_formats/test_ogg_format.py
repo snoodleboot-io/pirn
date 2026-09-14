@@ -84,19 +84,11 @@ class TestOggFormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestOggFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
-        import builtins
-
-        real_import = builtins.__import__
-
-        def _mock_import(name: str, *args, **kwargs):
-            if name == "soundfile":
-                raise ImportError("no module named soundfile")
-            return real_import(name, *args, **kwargs)
-
+class TestOggFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
+        import sys
         import unittest.mock
 
-        with unittest.mock.patch("builtins.__import__", side_effect=_mock_import):
-            with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
-                OggFormat._load_deps()
+        with unittest.mock.patch.dict(sys.modules, {"soundfile": None}):
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[audio\\]"'):
+                await OggFormat()._decode_full(b"not-ogg")

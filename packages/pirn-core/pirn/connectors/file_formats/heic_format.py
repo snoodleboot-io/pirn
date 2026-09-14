@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HeicFormat`` — High Efficiency Image Container (HEIC/HEIF) encoder/decoder.
 
 Reads and writes use ``pillow-heif`` (which registers HEIF support
@@ -25,7 +27,7 @@ Security: pirn does not sandbox ``pillow-heif`` / libheif. Malformed
 payloads may trigger upstream library bugs. Treat untrusted payloads
 accordingly.
 
-Install: ``pip install pirn[heic]``.
+Install: ``pip install "pirn-core[heic]"``.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class HeicFormat(BatchFileFormat):
@@ -60,7 +63,9 @@ class HeicFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(f"HeicFormat: payload must be bytes, got {type(payload).__name__}")
-        pil_image = self._load_pil_image_with_heif()
+        pil_image = OptionalDependency.require("PIL.Image", extra="heic")
+        # Idempotent — pillow-heif guards against double registration.
+        OptionalDependency.require("pillow_heif", extra="heic").register_heif_opener()
         with pil_image.open(io.BytesIO(payload)) as image:
             image.load()
             return [
@@ -81,7 +86,9 @@ class HeicFormat(BatchFileFormat):
             )
         record = materialised[0]
         width, height, mode, data = self._validate_record(record)
-        pil_image = self._load_pil_image_with_heif()
+        pil_image = OptionalDependency.require("PIL.Image", extra="heic")
+        # Idempotent — pillow-heif guards against double registration.
+        OptionalDependency.require("pillow_heif", extra="heic").register_heif_opener()
         image = pil_image.frombytes(mode, (width, height), data)
         buf = io.BytesIO()
         image.save(buf, format="HEIF", quality=self._quality)
@@ -110,34 +117,3 @@ class HeicFormat(BatchFileFormat):
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError(f"HeicFormat: 'data' must be bytes, got {type(data).__name__}")
         return width, height, mode, bytes(data)
-
-    @staticmethod
-    def _load_pil_image_with_heif() -> Any:
-        try:
-            from PIL import Image
-        except ImportError as exc:
-            raise ImportError(
-                "HeicFormat requires Pillow. Install with `pip install pirn[heic]`."
-            ) from exc
-        try:
-            import pillow_heif
-        except ImportError as exc:
-            raise ImportError(
-                "HeicFormat requires pillow-heif. Install with `pip install pirn[heic]`."
-            ) from exc
-        # Idempotent — pillow-heif guards against double registration.
-        #
-        # The ignore is upstream's re-export gap, not ours (PIR-843).
-        # pillow-heif 1.7.0 (2026-09-06) added `py.typed`, which makes pyright
-        # apply PEP 484 re-export rules to it — and its `__init__.py` imports
-        # this symbol plainly, with no `as` alias and no `__all__`, so the
-        # symbol is not a *public* re-export even though it is the documented
-        # entry point and works fine at run time.
-        #
-        # We keep the documented public import rather than reaching into
-        # `pillow_heif.as_plugin`, where the function actually lives: importing
-        # a submodule would type-check but would break at run time if upstream
-        # reorganises internals, which is the worse failure. Drop this once
-        # pillow-heif re-exports properly.
-        pillow_heif.register_heif_opener()  # pyright: ignore[reportPrivateImportUsage]
-        return Image

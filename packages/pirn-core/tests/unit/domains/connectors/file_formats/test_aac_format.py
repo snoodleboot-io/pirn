@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import struct
 import unittest
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
 
@@ -48,7 +50,7 @@ class TestAacFormatConstruction(unittest.TestCase):
         assert isinstance(AacFormat(), BatchFileFormat)
 
 
-async def _aac_round_trip(record: dict) -> list[dict]:
+async def _aac_round_trip(record: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     """Encode then decode one record; skip if ffmpeg is absent."""
     fmt = AacFormat()
     try:
@@ -102,10 +104,10 @@ class TestAacFormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestAacFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestAacFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
         import unittest.mock
 
         with unittest.mock.patch.dict("sys.modules", {"pydub": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
-                AacFormat._load_pydub()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[audio\\]"'):
+                await AacFormat()._decode_full(b"not-empty")

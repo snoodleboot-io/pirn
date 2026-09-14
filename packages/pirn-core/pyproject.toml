@@ -424,6 +424,7 @@ include = ["pirn"]
 # docs/architecture/ci-pipelines.md.
 strict = [
     "pirn/check",
+    "pirn/connectors",
     "pirn/emitters",
     "pirn/exceptions",
     "pirn/managers",

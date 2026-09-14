@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatherFormat`` — Apache Arrow Feather v2 encoder/decoder.
 
 Feather is the random-access on-disk form of the Arrow columnar
@@ -5,7 +7,7 @@ specification. It is distinct from Arrow IPC (the streaming form):
 different file framing, different reader API. This module wraps
 ``pyarrow.feather``.
 
-Install: ``pip install pirn[feather]`` (or ``pirn[arrow]``).
+Install: ``pip install "pirn-core[feather]"`` (or ``"pirn-core[arrow]"``).
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class FeatherFormat(BatchFileFormat):
@@ -48,12 +51,14 @@ class FeatherFormat(BatchFileFormat):
         return self._compression
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        pa, feather = self._load_pyarrow_feather()
+        pa = OptionalDependency.require("pyarrow", extra="feather")
+        feather = OptionalDependency.require("pyarrow.feather", extra="feather")
         table = feather.read_table(pa.BufferReader(payload))
         return [dict(row) for row in table.to_pylist()]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        pa, feather = self._load_pyarrow_feather()
+        pa = OptionalDependency.require("pyarrow", extra="feather")
+        feather = OptionalDependency.require("pyarrow.feather", extra="feather")
         materialised: list[Mapping[str, Any]] = list(records)
         table = pa.Table.from_pylist(materialised)
         buf = io.BytesIO()
@@ -62,15 +67,3 @@ class FeatherFormat(BatchFileFormat):
         else:
             feather.write_feather(table, buf)
         return buf.getvalue()
-
-    @staticmethod
-    def _load_pyarrow_feather() -> tuple[Any, Any]:
-        try:
-            import pyarrow as pa
-            import pyarrow.feather as feather
-        except ImportError as exc:
-            raise ImportError(
-                "FeatherFormat requires pyarrow. Install with "
-                "`pip install pirn[feather]` or `pip install pirn[arrow]`."
-            ) from exc
-        return pa, feather

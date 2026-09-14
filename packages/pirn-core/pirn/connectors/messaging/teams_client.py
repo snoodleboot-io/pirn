@@ -44,7 +44,7 @@ class TeamsClient(ApiClient):
         *,
         title: str | None = None,
         color: str = "0076D7",
-    ) -> dict:
+    ) -> dict[str, object]:
         """Send a simple Adaptive Card message to the webhook.
 
         Parameters
@@ -56,7 +56,14 @@ class TeamsClient(ApiClient):
         color:
             Accent colour hex string (without ``#``).
         """
-        body: dict[str, Any] = {
+        text_blocks: list[dict[str, object]] = [
+            {"type": "TextBlock", "text": text, "wrap": True},
+        ]
+        if title is not None:
+            text_blocks.insert(
+                0, {"type": "TextBlock", "text": title, "weight": "Bolder", "size": "Medium"}
+            )
+        body: dict[str, object] = {
             "type": "message",
             "attachments": [
                 {
@@ -65,22 +72,16 @@ class TeamsClient(ApiClient):
                         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                         "type": "AdaptiveCard",
                         "version": "1.4",
-                        "body": [
-                            {"type": "TextBlock", "text": text, "wrap": True},
-                        ],
+                        "body": text_blocks,
                         "msteams": {"accentColor": color},
                     },
                 }
             ],
         }
-        if title is not None:
-            body["attachments"][0]["content"]["body"].insert(
-                0, {"type": "TextBlock", "text": title, "weight": "Bolder", "size": "Medium"}
-            )
         self._logger.debug("teams.send_message")
         return await self._post(body)
 
-    async def send_card(self, card: dict) -> dict:
+    async def send_card(self, card: Mapping[str, object]) -> dict[str, object]:
         """POST an arbitrary Adaptive Card payload to the webhook.
 
         Parameters
@@ -104,11 +105,12 @@ class TeamsClient(ApiClient):
         self._logger.debug("teams.request path=%s", path)
         return await self._post(dict(body) if body is not None else {})
 
-    async def _post(self, payload: dict) -> dict:
+    async def _post(self, payload: Mapping[str, object]) -> dict[str, object]:
         client = await self._ensure_client()
         webhook_url = self._webhook_url()
         response = await client.post(webhook_url, json=payload)
-        return dict(response)
+        result: dict[str, object] = dict(response)
+        return result
 
     def _webhook_url(self) -> str:
         if self._config is not None:

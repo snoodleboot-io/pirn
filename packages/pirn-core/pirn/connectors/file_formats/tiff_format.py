@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TiffFormat`` — Tagged Image File Format encoder/decoder.
 
 Reads and writes use ``tifffile`` — the de-facto scientific TIFF
@@ -23,7 +25,7 @@ Encoding accepts one or more records and writes a multi-page TIFF
 Security: pirn does not sandbox ``tifffile``. Malformed payloads may
 trigger upstream library bugs. Treat untrusted payloads accordingly.
 
-Install: ``pip install pirn[tiff]``.
+Install: ``pip install "pirn-core[tiff]"``.
 """
 
 from __future__ import annotations
@@ -32,9 +34,13 @@ import io
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+import numpy as np
+from numpy.typing import NDArray
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class TiffFormat(BatchFileFormat):
@@ -58,11 +64,11 @@ class TiffFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(f"TiffFormat: payload must be bytes, got {type(payload).__name__}")
-        tifffile = self._load_tifffile()
+        tifffile = OptionalDependency.require("tifffile", extra="tiff")
         records: list[Mapping[str, Any]] = []
         with tifffile.TiffFile(io.BytesIO(payload)) as tiff:
             for index, page in enumerate(tiff.pages):
-                array = page.asarray()
+                array: NDArray[Any] = page.asarray()
                 width, height, mode = self._derive_dimensions_and_mode(array)
                 records.append(
                     {
@@ -83,9 +89,8 @@ class TiffFormat(BatchFileFormat):
                 "TiffFormat: cannot encode an empty record stream — "
                 "TIFF requires at least one page."
             )
-        tifffile = self._load_tifffile()
-        numpy = self._load_numpy()
-        arrays = [self._record_to_array(record, numpy) for record in materialised]
+        tifffile = OptionalDependency.require("tifffile", extra="tiff")
+        arrays = [self._record_to_array(record) for record in materialised]
         buf = io.BytesIO()
         with tifffile.TiffWriter(buf) as tw:
             for array in arrays:
@@ -93,7 +98,7 @@ class TiffFormat(BatchFileFormat):
         return buf.getvalue()
 
     @staticmethod
-    def _derive_dimensions_and_mode(array: Any) -> tuple[int, int, str]:
+    def _derive_dimensions_and_mode(array: NDArray[Any]) -> tuple[int, int, str]:
         # tifffile arrays are (H, W) for greyscale, (H, W, C) for
         # multi-channel. Map to PIL-style mode strings for consumer
         # compatibility.
@@ -115,7 +120,7 @@ class TiffFormat(BatchFileFormat):
         return int(width), int(height), mode
 
     @staticmethod
-    def _record_to_array(record: Mapping[str, Any], numpy: Any) -> Any:
+    def _record_to_array(record: Mapping[str, Any]) -> NDArray[Any]:
         for field in ("width", "height", "mode", "data", "dtype"):
             if field not in record:
                 raise ValueError(
@@ -149,26 +154,4 @@ class TiffFormat(BatchFileFormat):
             shape = (height, width, channels)
         else:
             raise ValueError(f"TiffFormat: unsupported mode {mode!r} for encode")
-        array = numpy.frombuffer(bytes(data), dtype=dtype).reshape(shape)
-        return array
-
-    @staticmethod
-    def _load_tifffile() -> Any:
-        try:
-            import tifffile
-        except ImportError as exc:
-            raise ImportError(
-                "TiffFormat requires tifffile. Install with `pip install pirn[tiff]`."
-            ) from exc
-        return tifffile
-
-    @staticmethod
-    def _load_numpy() -> Any:
-        try:
-            import numpy
-        except ImportError as exc:
-            raise ImportError(
-                "TiffFormat requires numpy (pulled in by tifffile). "
-                "Install with `pip install pirn[tiff]`."
-            ) from exc
-        return numpy
+        return np.frombuffer(bytes(data), dtype=dtype).reshape(shape)

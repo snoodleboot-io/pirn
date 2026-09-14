@@ -10,6 +10,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.graph.orientdb_config import OrientDBConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class OrientDBPool(DatabaseConnectionPool):
@@ -78,12 +79,7 @@ class OrientDBPool(DatabaseConnectionPool):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            import pyorient  # type: ignore[import]
-        except ImportError as exc:
-            raise ImportError(
-                "OrientDBPool requires pyorient; install via pip install pirn[orientdb]"
-            ) from exc
+        pyorient = OptionalDependency.require("pyorient", extra="orientdb")
         if self._config is None:
             raise self._missing_config_error("OrientDBPool", "client")
         try:

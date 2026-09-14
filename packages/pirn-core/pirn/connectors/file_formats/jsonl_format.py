@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JsonlFormat`` — line-delimited JSON encoder/decoder using stdlib ``json``.
 
 Genuinely streamable both directions: each line is one JSON object, so

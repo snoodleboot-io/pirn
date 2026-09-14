@@ -18,6 +18,7 @@ from pirn.connectors.databases._bigquery_stub_job_config import (
 )
 from pirn.connectors.databases.bigquery_config import BigqueryConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class BigqueryPool(DatabaseConnectionPool):
@@ -125,24 +126,22 @@ class BigqueryPool(DatabaseConnectionPool):
         else:
             params_list = list(parameters)
         try:
-            from google.cloud import bigquery  # type: ignore[import-not-found]
+            bigquery = OptionalDependency.require("google.cloud.bigquery", extra="bigquery")
         except ImportError:
-            bigquery = None  # type: ignore[assignment]
+            # When the SDK is not installed (e.g. stub-injected client tests),
+            # surface a plain object so the stub can introspect it without
+            # needing the real BigQuery types.
+            return BigqueryStubJobConfig(query_parameters=params_list)
 
         wrapped: list[Any] = []
-        if bigquery is not None:
-            for value in params_list:
-                if hasattr(value, "to_api_repr"):
-                    wrapped.append(value)
-                else:
-                    wrapped.append(
-                        bigquery.ScalarQueryParameter(None, self._guess_bq_type(value), value)
-                    )
-            return bigquery.QueryJobConfig(query_parameters=wrapped)
-        # When the SDK is not installed (e.g. stub-injected client tests),
-        # surface a plain object so the stub can introspect it without
-        # needing the real BigQuery types.
-        return BigqueryStubJobConfig(query_parameters=params_list)
+        for value in params_list:
+            if hasattr(value, "to_api_repr"):
+                wrapped.append(value)
+            else:
+                wrapped.append(
+                    bigquery.ScalarQueryParameter(None, self._guess_bq_type(value), value)
+                )
+        return bigquery.QueryJobConfig(query_parameters=wrapped)
 
     @staticmethod
     def _guess_bq_type(value: Any) -> str:
@@ -164,13 +163,7 @@ class BigqueryPool(DatabaseConnectionPool):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from google.cloud import bigquery  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "BigqueryPool requires google-cloud-bigquery; install via "
-                "`pip install pirn[bigquery]`"
-            ) from exc
+        bigquery = OptionalDependency.require("google.cloud.bigquery", extra="bigquery")
         if self._config is None:
             raise self._missing_config_error("BigqueryPool", "client")
 
@@ -179,16 +172,15 @@ class BigqueryPool(DatabaseConnectionPool):
             kwargs["project"] = self._config.project_id
         try:
             if self._config.credentials_path:
-                from google.oauth2 import (  # type: ignore[import-not-found]
-                    service_account,
+                service_account = OptionalDependency.require(
+                    "google.oauth2.service_account", extra="bigquery"
                 )
-
                 credentials = await asyncio.to_thread(
                     service_account.Credentials.from_service_account_file,
                     self._config.credentials_path,
                 )
                 kwargs["credentials"] = credentials
-            client = await asyncio.to_thread(bigquery.Client, **kwargs)
+            client: Any = await asyncio.to_thread(bigquery.Client, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("bigquery.connect")

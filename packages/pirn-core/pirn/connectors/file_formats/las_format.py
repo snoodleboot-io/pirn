@@ -12,7 +12,7 @@ A single record is emitted per file::
         "metadata": dict,               # file-level header info
     }
 
-Install: ``pip install pirn[oilgas]``.
+Install: ``pip install "pirn-oilgas[oilgas]"``.
 """
 
 from __future__ import annotations
@@ -21,9 +21,12 @@ import io
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+import numpy as np
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class LasFormat(BatchFileFormat):
@@ -34,7 +37,7 @@ class LasFormat(BatchFileFormat):
         return "las"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        lasio = self._load_lasio()
+        lasio = OptionalDependency.require("lasio", extra="oilgas", package="pirn-oilgas")
         text = payload.decode("utf-8", errors="replace")
         las = lasio.read(io.StringIO(text))
         curves = list(las.keys())
@@ -44,13 +47,18 @@ class LasFormat(BatchFileFormat):
             row = [float(las[curve][row_idx]) for curve in curves]
             data.append(row)
         metadata: dict[str, Any] = {}
-        for section_name in ("well", "params", "curves", "other"):
-            section = getattr(las, section_name, None)
-            if section is None:
+        sections: tuple[tuple[str, Any], ...] = (
+            ("well", las.well),
+            ("params", las.params),
+            ("curves", las.curves),
+            ("other", las.other),
+        )
+        for section_name, section in sections:
+            # ``las.other`` is free text, not a section of header items.
+            if not hasattr(section, "items"):
                 continue
-            if hasattr(section, "items"):
-                for key, item in section.items():
-                    metadata[f"{section_name}.{key}"] = getattr(item, "value", str(item))
+            for key, item in section.items():
+                metadata[f"{section_name}.{key}"] = item.value
         record: dict[str, Any] = {
             "curves": curves,
             "data": data,
@@ -59,7 +67,7 @@ class LasFormat(BatchFileFormat):
         return [record]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        lasio = self._load_lasio()
+        lasio = OptionalDependency.require("lasio", extra="oilgas", package="pirn-oilgas")
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("LasFormat: cannot encode an empty record stream")
@@ -71,8 +79,6 @@ class LasFormat(BatchFileFormat):
                 )
         curves: list[str] = list(record["curves"])
         data: list[list[float]] = list(record["data"])
-        import numpy as np
-
         las = lasio.LASFile()
         if not curves:
             buf = io.StringIO()
@@ -94,13 +100,3 @@ class LasFormat(BatchFileFormat):
         buf = io.StringIO()
         las.write(buf)
         return buf.getvalue().encode("utf-8")
-
-    @staticmethod
-    def _load_lasio() -> Any:
-        try:
-            import lasio
-        except ImportError as exc:
-            raise ImportError(
-                "LasFormat requires lasio. Install with `pip install pirn[oilgas]`."
-            ) from exc
-        return lasio

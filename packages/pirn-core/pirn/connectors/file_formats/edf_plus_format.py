@@ -14,7 +14,7 @@ signal-channel records::
 On encode, if that record is present in the input stream, the
 annotations are written back into the EDF+ file.
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"``.
 """
 
 from __future__ import annotations

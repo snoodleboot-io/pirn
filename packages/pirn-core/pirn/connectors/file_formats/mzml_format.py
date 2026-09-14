@@ -14,18 +14,23 @@ Records are emitted as ONE record per spectrum::
         "intensity_array":   bytes,   # raw float64 little-endian bytes
     }
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-core[pyteomics]"``.
 """
 
 from __future__ import annotations
 
 import base64
+import io
 from collections.abc import Iterable, Mapping
+from types import ModuleType
 from typing import Any
+
+import numpy as np
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MzmlFormat(BatchFileFormat):
@@ -36,29 +41,23 @@ class MzmlFormat(BatchFileFormat):
         return "mzml"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        import io as _io
-
-        pyteomics_mzml = self._load_pyteomics_mzml()
+        pyteomics_mzml = OptionalDependency.require("pyteomics.mzml", extra="pyteomics")
         records: list[Mapping[str, Any]] = []
-        with pyteomics_mzml.MzML(_io.BytesIO(payload)) as reader:
+        with pyteomics_mzml.MzML(io.BytesIO(payload)) as reader:
             for spectrum in reader:
                 records.append(self._spectrum_to_record(spectrum))
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        lxml_etree = self._load_lxml()
-        import io as _io
-
-        import numpy as np
-
+        lxml_etree = OptionalDependency.require("lxml.etree", extra="html")
         materialised = list(records)
         nsmap = {None: "http://psi.hupo.org/ms/mzml"}
         root = lxml_etree.Element("mzML", nsmap=nsmap)
         run_el = lxml_etree.SubElement(root, "run")
         spec_list = lxml_etree.SubElement(run_el, "spectrumList", count=str(len(materialised)))
         for index, record in enumerate(materialised):
-            self._record_to_spectrum_element(spec_list, record, index, lxml_etree, np)
-        buf = _io.BytesIO()
+            self._record_to_spectrum_element(spec_list, record, index, lxml_etree)
+        buf = io.BytesIO()
         tree = lxml_etree.ElementTree(root)
         tree.write(
             buf,
@@ -70,8 +69,6 @@ class MzmlFormat(BatchFileFormat):
 
     @staticmethod
     def _spectrum_to_record(spectrum: Any) -> dict[str, Any]:
-        import numpy as np
-
         scan_number = 0
         scan_info = spectrum.get("scanList", {}).get("scan", [{}])
         if scan_info:
@@ -110,8 +107,7 @@ class MzmlFormat(BatchFileFormat):
         parent: Any,
         record: Mapping[str, Any],
         index: int,
-        etree: Any,
-        np: Any,
+        etree: ModuleType,
     ) -> None:
         scan_number = record.get("scan_number", index + 1)
         ms_level = record.get("ms_level", 1)
@@ -179,23 +175,3 @@ class MzmlFormat(BatchFileFormat):
             )
             binary_el = etree.SubElement(bda, "binary")
             binary_el.text = base64.b64encode(arr.astype(np.float64).tobytes()).decode("ascii")
-
-    @staticmethod
-    def _load_pyteomics_mzml() -> Any:
-        try:
-            from pyteomics import mzml
-        except ImportError as exc:
-            raise ImportError(
-                "MzmlFormat requires pyteomics. Install with `pip install pirn[health]`."
-            ) from exc
-        return mzml
-
-    @staticmethod
-    def _load_lxml() -> Any:
-        try:
-            from lxml import etree  # type: ignore[attr-defined]
-        except ImportError as exc:
-            raise ImportError(
-                "MzmlFormat requires lxml. Install with `pip install pirn[health]`."
-            ) from exc
-        return etree

@@ -176,19 +176,11 @@ class TestNetcdf4FormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestNetcdf4FormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
-        import builtins
-
-        real_import = builtins.__import__
-
-        def _block_netcdf4(name: str, *args: object, **kwargs: object) -> object:
-            if name == "netCDF4":
-                raise ImportError("No module named 'netCDF4'")
-            return real_import(name, *args, **kwargs)
-
+class TestNetcdf4FormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
+        import sys
         import unittest.mock
 
-        with unittest.mock.patch("builtins.__import__", side_effect=_block_netcdf4):
-            with self.assertRaisesRegex(ImportError, "pirn\\[netcdf\\]"):
-                Netcdf4Format._load_netcdf4()
+        with unittest.mock.patch.dict(sys.modules, {"netCDF4": None}):
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[netcdf\\]"'):
+                await Netcdf4Format()._decode_full(b"not a netcdf4 file")

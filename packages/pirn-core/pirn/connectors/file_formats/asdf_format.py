@@ -7,7 +7,7 @@ binary array blocks inline. The reference Python binding is ``asdf``.
 Records are emitted as ONE record that is the full ASDF tree as a dict.
 Binary array blocks are serialised as ``bytes`` items in the dict.
 
-Install: ``pip install pirn[astronomy]``.
+Install: ``pip install "pirn-core[asdf]"``.
 """
 
 from __future__ import annotations
@@ -19,6 +19,8 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class AsdfFormat(BatchFileFormat):
@@ -34,55 +36,45 @@ class AsdfFormat(BatchFileFormat):
         return "asdf"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        asdf_mod = self._load_asdf()
-        import numpy as np
-
+        asdf_mod = OptionalDependency.require("asdf", extra="asdf")
         with asdf_mod.open(io.BytesIO(payload)) as af:
-            tree = self._serialise_tree(dict(af.tree), np)
+            source: dict[str, object] = dict(af.tree)
+            tree: dict[str, Any] = {
+                key: self._serialise_tree(value) for key, value in source.items()
+            }
         return [tree]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        asdf_mod = self._load_asdf()
-        import numpy as np
-
+        asdf_mod = OptionalDependency.require("asdf", extra="asdf")
         materialised = [dict(record) for record in records]
-        if not materialised:
-            tree: dict[str, Any] = {}
-        else:
-            tree = self._deserialise_tree(materialised[0], np)
+        tree: dict[str, object] = {}
+        if materialised:
+            tree = {key: self._deserialise_tree(value) for key, value in materialised[0].items()}
         af = asdf_mod.AsdfFile(tree)
         buf = io.BytesIO()
         af.write_to(buf)
         return buf.getvalue()
 
     @classmethod
-    def _serialise_tree(cls, obj: Any, np: Any) -> Any:
+    def _serialise_tree(cls, obj: object) -> object:
         """Recursively convert numpy arrays to bytes for serialisation."""
-        if isinstance(obj, np.ndarray):
+        if PayloadShape.is_ndarray(obj):
             return obj.tobytes()
-        if isinstance(obj, dict):
-            return {k: cls._serialise_tree(v, np) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            converted = [cls._serialise_tree(item, np) for item in obj]
-            return type(obj)(converted)
+        if PayloadShape.is_dict(obj):
+            return {key: cls._serialise_tree(value) for key, value in obj.items()}
+        if PayloadShape.is_list(obj):
+            return [cls._serialise_tree(item) for item in obj]
+        if PayloadShape.is_tuple(obj):
+            return tuple(cls._serialise_tree(item) for item in obj)
         return obj
 
     @classmethod
-    def _deserialise_tree(cls, obj: Any, np: Any) -> Any:
+    def _deserialise_tree(cls, obj: object) -> object:
         """Recursively pass through tree; bytes stay as bytes for asdf."""
-        if isinstance(obj, dict):
-            return {k: cls._deserialise_tree(v, np) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            converted = [cls._deserialise_tree(item, np) for item in obj]
-            return type(obj)(converted)
+        if PayloadShape.is_dict(obj):
+            return {key: cls._deserialise_tree(value) for key, value in obj.items()}
+        if PayloadShape.is_list(obj):
+            return [cls._deserialise_tree(item) for item in obj]
+        if PayloadShape.is_tuple(obj):
+            return tuple(cls._deserialise_tree(item) for item in obj)
         return obj
-
-    @staticmethod
-    def _load_asdf() -> Any:
-        try:
-            import asdf
-        except ImportError as exc:
-            raise ImportError(
-                "AsdfFormat requires asdf. Install with `pip install pirn[astronomy]`."
-            ) from exc
-        return asdf

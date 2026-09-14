@@ -12,7 +12,7 @@ from pirn.connectors.connection_config_decorator import ConnectionConfigDecorato
 class KdbConfig(ConnectionConfig):
     """Configuration for a kdb+ connection.
 
-    Uses ``pykx`` (preferred) or ``qpython`` (legacy) under the hood, both
+    Uses ``pykx`` (preferred) or ``qpython`` (fallback) under the hood, both
     wrapped in ``asyncio.to_thread`` for async compatibility.
     """
 

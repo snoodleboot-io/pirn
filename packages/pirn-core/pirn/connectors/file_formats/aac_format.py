@@ -13,7 +13,7 @@ Each file is decoded into ONE record::
         "frames":        bytes, # raw PCM frame data
     }
 
-Install: ``pip install pirn[audio]`` and ensure ffmpeg is installed.
+Install: ``pip install "pirn-core[audio]"`` and ensure ffmpeg is installed.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class AacFormat(BatchFileFormat):
@@ -37,8 +38,8 @@ class AacFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             raise ValueError("AacFormat: payload is empty — cannot decode AAC")
-        audio_segment_cls = self._load_pydub()
-        segment = audio_segment_cls.from_file(io.BytesIO(payload), format="aac")
+        pydub = OptionalDependency.require("pydub", extra="audio")
+        segment = pydub.AudioSegment.from_file(io.BytesIO(payload), format="aac")
         record: dict[str, Any] = {
             "sample_rate": segment.frame_rate,
             "n_channels": segment.channels,
@@ -52,9 +53,9 @@ class AacFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("AacFormat: cannot encode an empty record stream")
-        audio_segment_cls = self._load_pydub()
+        pydub = OptionalDependency.require("pydub", extra="audio")
         record = materialised[0]
-        segment = audio_segment_cls(
+        segment = pydub.AudioSegment(
             data=bytes(record["frames"]),
             sample_width=int(record["sample_width"]),
             frame_rate=int(record["sample_rate"]),
@@ -63,14 +64,3 @@ class AacFormat(BatchFileFormat):
         buf = io.BytesIO()
         segment.export(buf, format="adts")
         return buf.getvalue()
-
-    @staticmethod
-    def _load_pydub() -> Any:
-        try:
-            from pydub import AudioSegment
-        except ImportError as exc:
-            raise ImportError(
-                "AacFormat requires pydub and ffmpeg. Install with "
-                "`pip install pirn[audio]` and ensure ffmpeg is installed."
-            ) from exc
-        return AudioSegment

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MatlabMatFormat`` — MATLAB ``.mat`` batch encoder/decoder.
 
 Uses ``scipy.io.loadmat`` / ``scipy.io.savemat`` (MAT-file v5; v7.3 is
@@ -9,7 +11,7 @@ single named structured array (default name ``"data"``) of length N.
 matrices on the way out; the decode path unwraps those wrappers back
 into Python primitives so round-trips return ``dict`` rows.
 
-Install: ``pip install pirn[matlab]``.
+Install: ``pip install "pirn-core[matlab]"``.
 """
 
 from __future__ import annotations
@@ -18,9 +20,14 @@ import io
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
+import numpy as np
+import numpy.typing as npt
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MatlabMatFormat(BatchFileFormat):
@@ -72,7 +79,7 @@ class MatlabMatFormat(BatchFileFormat):
         return self._field_names
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        scipy_io, np = self._load_scipy_numpy()
+        scipy_io = OptionalDependency.require("scipy.io", extra="matlab")
         # scipy.io.loadmat may invoke pickle for MATLAB object arrays (cell
         # arrays containing arbitrary MATLAB objects). Do not load untrusted
         # .mat files without additional validation at the call site.
@@ -98,12 +105,12 @@ class MatlabMatFormat(BatchFileFormat):
         for row in row_iter:
             record: dict[str, Any] = {}
             for field in array.dtype.names:
-                record[field] = self._unwrap_matlab_scalar(row[field], np)
+                record[field] = self._unwrap_matlab_scalar(row[field])
             records.append(record)
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        scipy_io, np = self._load_scipy_numpy()
+        scipy_io = OptionalDependency.require("scipy.io", extra="matlab")
         materialised = [dict(record) for record in records]
         if not materialised:
             raise ValueError(
@@ -111,26 +118,25 @@ class MatlabMatFormat(BatchFileFormat):
                 "stream (.mat structured arrays require at least one "
                 "row)"
             )
-        structured = self._records_to_structured_array(materialised, np)
+        structured = self._records_to_structured_array(materialised)
         buf = io.BytesIO()
         scipy_io.savemat(buf, {self._variable_name: structured})
         return buf.getvalue()
 
-    def _records_to_structured_array(self, records: list[dict[str, Any]], np: Any) -> Any:
+    def _records_to_structured_array(self, records: list[dict[str, Any]]) -> npt.NDArray[np.void]:
         field_order = self._derive_field_order(records)
-        dtype_fields: list[tuple[str, Any]] = []
+        dtype_fields: list[tuple[str, type[np.generic] | str]] = []
         for field in field_order:
             sample_value = next((rec[field] for rec in records if field in rec), None)
-            dtype_fields.append((field, self._infer_numpy_dtype(sample_value, records, field, np)))
+            dtype_fields.append((field, self._infer_numpy_dtype(sample_value, records, field)))
+        zero_values = {field: self._zero_for_dtype(np.dtype(spec)) for field, spec in dtype_fields}
         structured = np.zeros(len(records), dtype=dtype_fields)
         for index, record in enumerate(records):
             for field in field_order:
                 if field in record:
                     structured[index][field] = record[field]
                 else:
-                    structured[index][field] = self._zero_for_dtype(
-                        structured.dtype.fields[field][0]
-                    )
+                    structured[index][field] = zero_values[field]
         return structured
 
     def _derive_field_order(self, records: list[dict[str, Any]]) -> list[str]:
@@ -147,11 +153,10 @@ class MatlabMatFormat(BatchFileFormat):
 
     @staticmethod
     def _infer_numpy_dtype(
-        sample_value: Any,
+        sample_value: object,
         records: list[dict[str, Any]],
         field: str,
-        np: Any,
-    ) -> Any:
+    ) -> type[np.generic] | str:
         if isinstance(sample_value, bool):
             # MAT files have no native bool — store as int8.
             return np.int8
@@ -168,7 +173,7 @@ class MatlabMatFormat(BatchFileFormat):
         return np.float64
 
     @staticmethod
-    def _zero_for_dtype(dtype: Any) -> Any:
+    def _zero_for_dtype(dtype: np.dtype[Any]) -> str | int | float:
         kind = dtype.kind
         if kind == "U":
             return ""
@@ -178,34 +183,24 @@ class MatlabMatFormat(BatchFileFormat):
             return 0.0
         return 0
 
-    @staticmethod
-    def _unwrap_matlab_scalar(value: Any, np: Any) -> Any:
+    @classmethod
+    def _unwrap_matlab_scalar(cls, value: Any) -> Any:
         # scipy.io wraps every cell as a 2-D ndarray (typically (1, 1)
         # or (1, N) for strings).
-        if isinstance(value, np.ndarray):
-            if value.dtype.kind == "U":
+        if PayloadShape.is_ndarray(value):
+            array = value
+            if array.dtype.kind == "U":
                 # Concatenate the row of unicode chars / strings.
-                if value.size == 0:
+                if array.size == 0:
                     return ""
-                if value.size == 1:
-                    return str(value.flat[0])
-                return "".join(str(v) for v in value.flat)
-            if value.size == 1:
-                return MatlabMatFormat._unwrap_matlab_scalar(value.flat[0], np)
-            return value
+                if array.size == 1:
+                    return str(array.flat[0])
+                return "".join(str(v) for v in array.flat)
+            if array.size == 1:
+                return cls._unwrap_matlab_scalar(array.flat[0])
+            return array
         if isinstance(value, bytes):
             return value.decode("utf-8")
         if hasattr(value, "item"):
             return value.item()
         return value
-
-    @staticmethod
-    def _load_scipy_numpy() -> tuple[Any, Any]:
-        try:
-            import numpy as np
-            import scipy.io as scipy_io
-        except ImportError as exc:
-            raise ImportError(
-                "MatlabMatFormat requires scipy. Install with `pip install pirn[matlab]`."
-            ) from exc
-        return scipy_io, np

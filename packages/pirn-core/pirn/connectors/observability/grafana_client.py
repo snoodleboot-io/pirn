@@ -1,9 +1,11 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Grafana HTTP REST API.
 
 Grafana exposes a fully-documented HTTP REST API at
 ``/api/dashboards``, ``/api/datasources``, ``/api/folders`` etc.
 Authentication uses a bearer token (API key or service-account token).
-The connector uses :mod:`httpx` directly (``pirn[grafana]`` extra
+The connector uses :mod:`httpx` directly (``pip install "pirn-core[grafana]"``
 declares the dependency).
 
 Capabilities exposed:
@@ -29,6 +31,7 @@ from pirn.connectors.capabilities.metric_query import MetricQuery
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.observability.grafana_config import GrafanaConfig
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class GrafanaClient(ApiClient, TableSource, MetricQuery):
@@ -178,9 +181,9 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         if end is not None:
             body["to"] = str(int(end.timestamp() * 1000))
         response = await self.request("POST", "/api/ds/query", body=body)
-        if not isinstance(response, Mapping):
-            return {"data": response}
-        return response
+        if PayloadShape.is_str_mapping(response):
+            return response
+        return {"data": response}
 
     async def request(
         self,
@@ -212,16 +215,12 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
             safe_message = self._scrubber.scrub(str(exc))
             raise type(exc)(safe_message) from None
 
-        raise_for_status = getattr(response, "raise_for_status", None)
-        if callable(raise_for_status):
-            raise_for_status()
+        response.raise_for_status()
         return response.json()
 
     async def close(self) -> None:
         if self._client is not None:
-            aclose = getattr(self._client, "aclose", None)
-            if callable(aclose):
-                await aclose()  # type: ignore[misc]
+            await self._client.aclose()
             self._client = None
         self._clear_credentials()
         self._closed = True

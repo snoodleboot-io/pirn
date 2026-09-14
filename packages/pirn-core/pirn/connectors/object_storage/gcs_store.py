@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Google Cloud Storage :class:`ObjectStore` backed by :mod:`gcloud-aio-storage`."""
 
 from __future__ import annotations
@@ -8,6 +10,7 @@ from typing import Any
 
 from pirn.connectors.object_storage.gcs_config import GCSConfig
 from pirn.connectors.object_store import ObjectStore
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class GCSStore(ObjectStore):
@@ -31,8 +34,8 @@ class GCSStore(ObjectStore):
         if not config.bucket:
             raise ValueError("GCSConfig.bucket is required")
         self._config = config
-        self._client = client
-        self._session = session
+        self._client: Any | None = client
+        self._session: Any | None = session
         self._owned_client: Any = None
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -128,8 +131,10 @@ class GCSStore(ObjectStore):
                 if page_token is not None:
                     params["pageToken"] = page_token
                 response = await client.list_objects(bucket=bucket, params=params)
-                for item in response.get("items", []) or []:
-                    name = item.get("name") if isinstance(item, dict) else item
+                items: list[Any] = response.get("items") or []
+                for item in items:
+                    entry: Any = item
+                    name: str | None = entry.get("name") if isinstance(item, dict) else item
                     if name is not None:
                         yield name
                 page_token = response.get("nextPageToken")
@@ -141,15 +146,10 @@ class GCSStore(ObjectStore):
     async def _ensure_client(self) -> Any:
         if self._client is not None:
             return self._client
-        try:
-            from gcloud.aio.storage import Storage  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "GCSStore requires gcloud-aio-storage; install via `pip install pirn[gcs]`"
-            ) from exc
+        storage = OptionalDependency.require("gcloud.aio.storage", extra="gcs")
         kwargs: dict[str, Any] = {"service_file": self._config.service_account_json}
         if self._session is not None:
             kwargs["session"] = self._session
-        self._owned_client = Storage(**kwargs)
+        self._owned_client = storage.Storage(**kwargs)
         self._client = self._owned_client
         return self._client

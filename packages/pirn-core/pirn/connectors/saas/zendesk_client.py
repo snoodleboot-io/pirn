@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the synchronous zenpy SDK.
 
 ``Zenpy`` is sync; calls run in a worker thread via
@@ -13,7 +15,7 @@ The connector exposes:
    cursor-based pagination API.
 3. The :class:`RecordWriter` capability — ``write_records`` POSTs each
    record as a ticket via ``/api/v2/tickets.json``.
-4. The legacy :meth:`request` escape hatch.
+4. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -27,7 +29,9 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.record_writer import RecordWriter
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.zendesk_config import ZendeskConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ZendeskClient(ApiClient, TableSource, RecordWriter):
@@ -113,10 +117,10 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         )
         rows: list[Mapping[str, Any]] = []
         next_cursor: str | None = None
-        if isinstance(response, Mapping):
-            rows = list(response.get(resource) or ())
+        if PayloadShape.is_str_mapping(response):
+            rows = PayloadShape.rows(response.get(resource), source="ZendeskClient")
             meta = response.get("meta")
-            if isinstance(meta, Mapping) and meta.get("has_more"):
+            if PayloadShape.is_str_mapping(meta) and meta.get("has_more"):
                 after_cursor = meta.get("after_cursor")
                 if after_cursor is not None:
                     next_cursor = str(after_cursor)
@@ -208,12 +212,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from zenpy import Zenpy  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ZendeskClient requires zenpy; install via `pip install pirn[zendesk]`"
-            ) from exc
+        zenpy = OptionalDependency.require("zenpy", extra="zendesk")
         if self._config is None:
             raise self._missing_config_error("ZendeskClient", "client")
 
@@ -228,7 +227,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
             creds["oauth_token"] = self._config.oauth_token
 
         try:
-            client = await asyncio.to_thread(Zenpy, **creds)
+            client = await asyncio.to_thread(zenpy.Zenpy, **creds)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("zendesk.connect")

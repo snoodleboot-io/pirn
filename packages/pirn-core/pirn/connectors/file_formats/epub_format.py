@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EpubFormat`` — EPUB e-book encoder/decoder backed by ``ebooklib``.
 
 EPUB is a zipped bundle of HTML chapters with a manifest. Reads use
@@ -10,7 +12,7 @@ Records have shape ``{"chapter_id": str, "title": str, "text": str}``.
 Round-trip is text-only — HTML markup, embedded media, and CSS are not
 preserved.
 
-Install: ``pip install pirn[epub]``.
+Install: ``pip install "pirn-core[epub]"``.
 """
 
 from __future__ import annotations
@@ -20,10 +22,11 @@ import tempfile
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from pirn.connectors.file_formats._html_stripper import _HtmlStripper
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.file_formats.html_stripper import HtmlStripper
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class EpubFormat(BatchFileFormat):
@@ -64,8 +67,8 @@ class EpubFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             return []
-        epub = self._load_epub()
-        ebooklib = self._load_ebooklib()
+        epub = OptionalDependency.require("ebooklib.epub", extra="epub")
+        ebooklib = OptionalDependency.require("ebooklib", extra="epub")
         with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as handle:
             handle.write(payload)
             tmp_path = handle.name
@@ -80,7 +83,7 @@ class EpubFormat(BatchFileFormat):
                     body_text = body.decode("utf-8", errors="replace")
                 else:
                     body_text = str(body)
-                stripper = _HtmlStripper()
+                stripper = HtmlStripper()
                 stripper.feed(body_text)
                 stripper.close()
                 text = stripper.text()
@@ -100,7 +103,7 @@ class EpubFormat(BatchFileFormat):
                 pass
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        epub = self._load_epub()
+        epub = OptionalDependency.require("ebooklib.epub", extra="epub")
         materialised = list(records)
         book = epub.EpubBook()
         book.set_identifier(self._identifier)
@@ -178,23 +181,3 @@ class EpubFormat(BatchFileFormat):
         if not isinstance(value, str):
             raise TypeError(f"EpubFormat: record {key!r} must be str, got {type(value).__name__}")
         return value
-
-    @staticmethod
-    def _load_epub() -> Any:
-        try:
-            from ebooklib import epub
-        except ImportError as exc:
-            raise ImportError(
-                "EpubFormat requires ebooklib. Install with `pip install pirn[epub]`."
-            ) from exc
-        return epub
-
-    @staticmethod
-    def _load_ebooklib() -> Any:
-        try:
-            import ebooklib
-        except ImportError as exc:
-            raise ImportError(
-                "EpubFormat requires ebooklib. Install with `pip install pirn[epub]`."
-            ) from exc
-        return ebooklib

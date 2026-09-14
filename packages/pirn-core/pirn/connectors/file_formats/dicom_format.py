@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DicomFormat`` — DICOM (medical imaging) batch encoder/decoder.
 
 DICOM (Digital Imaging and Communications in Medicine) is the de-facto
@@ -33,19 +35,21 @@ Records are emitted as ONE record per file with shape::
         "metadata":           Mapping (sanitised),
     }
 
-Install: ``pip install pirn[dicom]``.
+Install: ``pip install "pirn-health[health]"``.
 """
 
 from __future__ import annotations
 
 import hashlib
 import io
-from collections.abc import Iterable, Mapping
-from typing import Any, ClassVar
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any, ClassVar, SupportsIndex, SupportsInt
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DicomFormat(BatchFileFormat):
@@ -111,7 +115,7 @@ class DicomFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(f"DicomFormat: payload must be bytes, got {type(payload).__name__}")
-        pydicom = self._load_pydicom()
+        pydicom = OptionalDependency.require("pydicom", extra="health", package="pirn-health")
         dataset = pydicom.dcmread(io.BytesIO(bytes(payload)))
         patient_id = self._safe_text(getattr(dataset, "PatientID", ""))
         record: dict[str, Any] = {
@@ -134,8 +138,8 @@ class DicomFormat(BatchFileFormat):
                 "DICOM requires exactly one dataset per file."
             )
         record = materialised[0]
-        pydicom = self._load_pydicom()
-        dataset = self._build_dataset(record, pydicom)
+        pydicom = OptionalDependency.require("pydicom", extra="health", package="pirn-health")
+        dataset = self._build_dataset(record)
         buf = io.BytesIO()
         # ``write_like_original=False`` writes the DICOM File Meta
         # Information preamble so the bytes are a valid Part-10 file
@@ -145,24 +149,26 @@ class DicomFormat(BatchFileFormat):
         return buf.getvalue()
 
     @classmethod
-    def _build_dataset(cls, record: Mapping[str, Any], pydicom: Any) -> Any:
-        from pydicom.dataset import Dataset, FileMetaDataset
-        from pydicom.uid import (
-            ExplicitVRLittleEndian,
-            generate_uid,
+    def _build_dataset(cls, record: Mapping[str, Any]) -> Any:
+        pydicom_dataset = OptionalDependency.require(
+            "pydicom.dataset", extra="health", package="pirn-health"
         )
+        pydicom_uid = OptionalDependency.require(
+            "pydicom.uid", extra="health", package="pirn-health"
+        )
+        generate_uid = pydicom_uid.generate_uid
 
-        file_meta = FileMetaDataset()
+        file_meta = pydicom_dataset.FileMetaDataset()
         sop_instance = cls._safe_text(record.get("sop_instance_uid", ""))
         if not sop_instance:
             sop_instance = generate_uid()
         # SecondaryCaptureImageStorage — generic SOP class for round-trip
         # tests where no specific modality storage class is required.
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"  # type: ignore[misc]
-        file_meta.MediaStorageSOPInstanceUID = sop_instance  # type: ignore[misc]
-        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
+        file_meta.MediaStorageSOPInstanceUID = sop_instance
+        file_meta.TransferSyntaxUID = pydicom_uid.ExplicitVRLittleEndian
 
-        dataset = Dataset()
+        dataset = pydicom_dataset.Dataset()
         dataset.file_meta = file_meta
         dataset.is_little_endian = True
         dataset.is_implicit_VR = False
@@ -206,12 +212,13 @@ class DicomFormat(BatchFileFormat):
         pydicom.dcmwrite(buf, dataset, write_like_original=False)
 
     @classmethod
-    def _coerce_shape(cls, shape: Any) -> tuple[int, int]:
+    def _coerce_shape(cls, shape: object) -> tuple[int, int]:
         if shape is None:
             return 1, 1
-        if isinstance(shape, (list, tuple)) and len(shape) >= 2:
-            rows = int(shape[0])
-            columns = int(shape[1])
+        dims: Sequence[object] = shape if PayloadShape.is_sequence(shape) else ()
+        if len(dims) >= 2:
+            rows = cls._coerce_dim(dims[0])
+            columns = cls._coerce_dim(dims[1])
             if rows <= 0 or columns <= 0:
                 raise ValueError(
                     f"DicomFormat: pixel_array_shape rows/columns must be positive, got {shape!r}"
@@ -219,6 +226,14 @@ class DicomFormat(BatchFileFormat):
             return rows, columns
         raise ValueError(
             f"DicomFormat: pixel_array_shape must be a (rows, cols[, ...]) tuple, got {shape!r}"
+        )
+
+    @staticmethod
+    def _coerce_dim(value: object) -> int:
+        if isinstance(value, (str, bytes, bytearray, SupportsInt, SupportsIndex)):
+            return int(value)
+        raise TypeError(
+            f"DicomFormat: pixel_array_shape entries must be integers, got {type(value).__name__}"
         )
 
     @classmethod
@@ -282,13 +297,3 @@ class DicomFormat(BatchFileFormat):
         if isinstance(pixel_data, (bytes, bytearray)):
             return bytes(pixel_data)
         return bytes(pixel_data)
-
-    @staticmethod
-    def _load_pydicom() -> Any:
-        try:
-            import pydicom
-        except ImportError as exc:
-            raise ImportError(
-                "DicomFormat requires pydicom. Install with `pip install pirn[dicom]`."
-            ) from exc
-        return pydicom

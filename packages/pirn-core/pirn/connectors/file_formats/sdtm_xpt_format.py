@@ -13,7 +13,8 @@ a ``_metadata`` key with::
         }
     }
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-core[spss]"`` (``pyreadstat``) and
+``pip install "pirn-data[data]"`` (``pandas``, for writing).
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SdtmXptFormat(BatchFileFormat):
@@ -63,7 +66,7 @@ class SdtmXptFormat(BatchFileFormat):
         return "sdtm_xpt"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        pyreadstat = self._load_pyreadstat()
+        pyreadstat = OptionalDependency.require("pyreadstat", extra="spss")
         with tempfile.NamedTemporaryFile(suffix=".xpt", delete=False) as tmp:
             tmp.write(payload)
             tmp_path = tmp.name
@@ -80,9 +83,9 @@ class SdtmXptFormat(BatchFileFormat):
             file_label = str(meta.file_label)
 
         records: list[dict[str, Any]] = []
-        rows = df.to_dict(orient="records")
+        rows: list[Mapping[str, Any]] = df.to_dict(orient="records")
         for index, row in enumerate(rows):
-            record: dict[str, Any] = {k: v for k, v in row.items()}
+            record: dict[str, Any] = dict(row)
             if index == 0:
                 record["_metadata"] = {
                     "column_labels": column_labels,
@@ -92,16 +95,19 @@ class SdtmXptFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        pyreadstat = self._load_pyreadstat()
+        pyreadstat = OptionalDependency.require("pyreadstat", extra="spss")
         materialised = [dict(r) for r in records]
         # Extract metadata from first record if present
         column_labels: dict[str, str] = {}
         file_label: str = ""
         if materialised and "_metadata" in materialised[0]:
-            meta = materialised[0]["_metadata"]
-            if isinstance(meta, dict):
-                column_labels = meta.get("column_labels") or {}
-                file_label = meta.get("file_label") or ""
+            meta: object = materialised[0]["_metadata"]
+            if PayloadShape.is_str_dict(meta):
+                labels_value = meta.get("column_labels")
+                if PayloadShape.is_mapping(labels_value):
+                    column_labels = {str(name): str(label) for name, label in labels_value.items()}
+                label_value = meta.get("file_label")
+                file_label = str(label_value) if label_value else ""
 
         # Strip _metadata from all rows before writing
         clean_rows: list[dict[str, Any]] = []
@@ -109,18 +115,12 @@ class SdtmXptFormat(BatchFileFormat):
             clean = {k: v for k, v in row.items() if k != "_metadata"}
             clean_rows.append(clean)
 
-        try:
-            import pandas as pd
-        except ImportError as exc:
-            raise ImportError(
-                "SdtmXptFormat requires pandas. Install with `pip install pirn[health]`."
-            ) from exc
-
+        pd = OptionalDependency.require("pandas", extra="data", package="pirn-data")
         df = pd.DataFrame(clean_rows)
         with tempfile.NamedTemporaryFile(suffix=".xpt", delete=False) as tmp:
             tmp_path = tmp.name
         try:
-            col_names = list(df.columns)
+            col_names: list[str] = [str(c) for c in df.columns]
             labels = [column_labels.get(c, "") for c in col_names]
             pyreadstat.write_xport(
                 df,
@@ -131,13 +131,3 @@ class SdtmXptFormat(BatchFileFormat):
             return Path(tmp_path).read_bytes()
         finally:
             Path(tmp_path).unlink(missing_ok=True)
-
-    @staticmethod
-    def _load_pyreadstat() -> Any:
-        try:
-            import pyreadstat
-        except ImportError as exc:
-            raise ImportError(
-                "SdtmXptFormat requires pyreadstat. Install with `pip install pirn[health]`."
-            ) from exc
-        return pyreadstat

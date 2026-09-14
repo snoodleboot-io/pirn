@@ -12,7 +12,7 @@ Each file is decoded into ONE record::
         "frames":       bytes,  # raw float32 interleaved PCM bytes
     }
 
-Install: ``pip install pirn[audio]``.
+Install: ``pip install "pirn-core[audio]"``.
 """
 
 from __future__ import annotations
@@ -22,9 +22,12 @@ import tempfile
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+import numpy as np
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class OggFormat(BatchFileFormat):
@@ -49,7 +52,7 @@ class OggFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             raise ValueError("OggFormat: payload is empty — cannot decode Ogg")
-        sf, _np = self._load_deps()
+        sf = OptionalDependency.require("soundfile", extra="audio")
         with tempfile.NamedTemporaryFile(suffix=".ogg") as tmp:
             tmp.write(payload)
             tmp.flush()
@@ -67,7 +70,7 @@ class OggFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("OggFormat: cannot encode an empty record stream")
-        sf, np = self._load_deps()
+        sf = OptionalDependency.require("soundfile", extra="audio")
         record = materialised[0]
         n_frames = int(record["n_frames"])
         n_channels = int(record["n_channels"])
@@ -81,14 +84,3 @@ class OggFormat(BatchFileFormat):
             payload = fh.read()
         os.unlink(tmp_path)
         return payload
-
-    @staticmethod
-    def _load_deps() -> tuple[Any, Any]:
-        try:
-            import numpy as np
-            import soundfile as sf
-        except ImportError as exc:
-            raise ImportError(
-                "OggFormat requires soundfile and numpy. Install with `pip install pirn[audio]`."
-            ) from exc
-        return sf, np

@@ -12,18 +12,22 @@ Each file is decoded into ONE record::
         "frames":       bytes,  # raw float32 interleaved PCM bytes
     }
 
-Install: ``pip install pirn[audio]``.
+Install: ``pip install "pirn-core[audio]"``.
 """
 
 from __future__ import annotations
 
+import os
 import tempfile
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+import numpy as np
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class FlacFormat(BatchFileFormat):
@@ -48,7 +52,7 @@ class FlacFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             raise ValueError("FlacFormat: payload is empty — cannot decode FLAC")
-        sf, _np = self._load_deps()
+        sf = OptionalDependency.require("soundfile", extra="audio")
         with tempfile.NamedTemporaryFile(suffix=".flac") as tmp:
             tmp.write(payload)
             tmp.flush()
@@ -66,7 +70,7 @@ class FlacFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("FlacFormat: cannot encode an empty record stream")
-        sf, np = self._load_deps()
+        sf = OptionalDependency.require("soundfile", extra="audio")
         record = materialised[0]
         n_frames = int(record["n_frames"])
         n_channels = int(record["n_channels"])
@@ -78,18 +82,5 @@ class FlacFormat(BatchFileFormat):
         sf.write(tmp_path, data, sample_rate, format="FLAC", subtype="PCM_16")
         with open(tmp_path, "rb") as fh:
             payload = fh.read()
-        import os
-
         os.unlink(tmp_path)
         return payload
-
-    @staticmethod
-    def _load_deps() -> tuple[Any, Any]:
-        try:
-            import numpy as np
-            import soundfile as sf
-        except ImportError as exc:
-            raise ImportError(
-                "FlacFormat requires soundfile and numpy. Install with `pip install pirn[audio]`."
-            ) from exc
-        return sf, np

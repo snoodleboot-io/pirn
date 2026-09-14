@@ -114,17 +114,17 @@ class TestResqmlFormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestResqmlFormatMissingDep(unittest.TestCase):
-    def test_defusedxml_import_error_message(self) -> None:
+class TestResqmlFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_defusedxml_import_error_message(self) -> None:
         with unittest.mock.patch.dict(
             sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
         ):
             fmt = ResqmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
-                fmt._load_defusedxml()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-oilgas\\[oilgas\\]"'):
+                await fmt._decode_full(b"<root/>")
 
-    def test_lxml_import_error_message(self) -> None:
+    async def test_lxml_import_error_message(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"lxml": None, "lxml.etree": None}):
             fmt = ResqmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
-                fmt._load_lxml()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[html\\]"'):
+                await fmt._encode_full([{"a": "1"}])

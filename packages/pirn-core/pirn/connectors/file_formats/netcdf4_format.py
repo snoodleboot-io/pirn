@@ -16,7 +16,7 @@ Records are emitted with shape::
         "data":           bytes,
     }
 
-Install: ``pip install pirn[netcdf]``.
+Install: ``pip install "pirn-core[netcdf]"``.
 """
 
 from __future__ import annotations
@@ -26,9 +26,12 @@ import tempfile
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+import numpy as np
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class Netcdf4Format(BatchFileFormat):
@@ -44,7 +47,7 @@ class Netcdf4Format(BatchFileFormat):
         return "netcdf4"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        netcdf4_lib = self._load_netcdf4()
+        netcdf4_lib = OptionalDependency.require("netCDF4", extra="netcdf")
         tmp_path = self._write_temp(payload, ".nc")
         records: list[Mapping[str, Any]] = []
         try:
@@ -59,7 +62,7 @@ class Netcdf4Format(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        netcdf4_lib = self._load_netcdf4()
+        netcdf4_lib = OptionalDependency.require("netCDF4", extra="netcdf")
         materialised = [dict(record) for record in records]
         # mkstemp creates the file atomically with 0600 perms (no mktemp race);
         # close our handle so the netCDF4 "w" open can overwrite the path.
@@ -69,7 +72,7 @@ class Netcdf4Format(BatchFileFormat):
             ds = netcdf4_lib.Dataset(tmp_path, "w", format="NETCDF4")
             try:
                 for record in materialised:
-                    self._write_record(ds, record, netcdf4_lib)
+                    self._write_record(ds, record)
             finally:
                 ds.close()
             with open(tmp_path, "rb") as fh:
@@ -85,8 +88,6 @@ class Netcdf4Format(BatchFileFormat):
         group_path: str,
         records: list[Mapping[str, Any]],
     ) -> None:
-        import numpy as np
-
         for var_name, var in group.variables.items():
             data_array = var[:]
             if hasattr(data_array, "filled"):
@@ -122,9 +123,7 @@ class Netcdf4Format(BatchFileFormat):
         return current
 
     @classmethod
-    def _write_record(cls, ds: Any, record: Mapping[str, Any], netcdf4_lib: Any) -> None:
-        import numpy as np
-
+    def _write_record(cls, ds: Any, record: Mapping[str, Any]) -> None:
         group_path = record.get("group_path", "/")
         var_name = record["variable_name"]
         dimensions: list[str] = list(record.get("dimensions") or [])
@@ -157,13 +156,3 @@ class Netcdf4Format(BatchFileFormat):
             os.remove(tmp_path)
             raise
         return tmp_path
-
-    @staticmethod
-    def _load_netcdf4() -> Any:
-        try:
-            import netCDF4 as netcdf4_lib
-        except ImportError as exc:
-            raise ImportError(
-                "Netcdf4Format requires netCDF4. Install with `pip install pirn[netcdf]`."
-            ) from exc
-        return netcdf4_lib

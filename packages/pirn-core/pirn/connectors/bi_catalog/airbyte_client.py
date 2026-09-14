@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Airbyte REST API.
 
 Uses ``httpx.AsyncClient`` with a bearer-token ``Authorization`` header.
@@ -131,9 +133,9 @@ class AirbyteClient(ApiClient, TableSource):
 
     async def close(self) -> None:
         if self._client is not None:
-            aclose_fn = getattr(self._client, "aclose", None)
-            if callable(aclose_fn):
-                await aclose_fn()  # type: ignore[misc]
+            client: Any = self._client
+            if callable(getattr(client, "aclose", None)):
+                await client.aclose()
             self._client = None
         self._clear_credentials()
         self._closed = True

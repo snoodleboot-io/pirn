@@ -72,7 +72,7 @@ await pool.close()
 
 ## Constraints and gotchas
 
-- **Each pool requires its own extra:** `pirn[mongodb]`, `pirn[arangodb]`, `pirn[couchdb]`, `pirn[couchbase]`, `pirn[cosmosdb]`, `pirn[firestore]`.
+- **Each pool names its own extra:** `"pirn-core[mongodb]"`, `"pirn-core[arangodb]"`, `"pirn-core[couchdb]"`, `"pirn-core[couchbase]"`, `"pirn-core[cosmosdb]"`, `"pirn-core[firestore]"`. A missing driver raises `ImportError` with that `pip install` hint. These extras are not yet declared in `pyproject.toml`; install the driver (motor, python-arango, aiocouch, couchbase, azure-cosmos, google-cloud-firestore) directly until they are.
 - **`MongoDBPool` uses motor** — the async MongoDB driver. Connection string follows the standard MongoDB URI format.
 - **`FirestorePool` uses the native Firestore query DSL**, not MQL or SQL. The `query=` string is parsed by the pool into a Firestore query object.
 - **`CosmosDBPool` supports the Cosmos DB SQL API** — a SQL-like query language. Use standard `SELECT` syntax.
@@ -84,12 +84,12 @@ await pool.close()
 
 | Database | Config | Pool | Extra |
 |----------|--------|------|-------|
-| MongoDB | `MongoDBConfig` | `MongoDBPool` | `pirn[mongodb]` |
-| ArangoDB | `ArangoDBConfig` | `ArangoDBPool` | `pirn[arangodb]` |
-| CouchDB | `CouchDBConfig` | `CouchDBPool` | `pirn[couchdb]` |
-| Couchbase | `CouchbaseConfig` | `CouchbasePool` | `pirn[couchbase]` |
-| CosmosDB | `CosmosDBConfig` | `CosmosDBPool` | `pirn[cosmosdb]` |
-| Firestore | `FirestoreConfig` | `FirestorePool` | `pirn[firestore]` |
+| MongoDB | `MongoDBConfig` | `MongoDBPool` | `"pirn-core[mongodb]"` |
+| ArangoDB | `ArangoDBConfig` | `ArangoDBPool` | `"pirn-core[arangodb]"` |
+| CouchDB | `CouchDBConfig` | `CouchDBPool` | `"pirn-core[couchdb]"` |
+| Couchbase | `CouchbaseConfig` | `CouchbasePool` | `"pirn-core[couchbase]"` |
+| CosmosDB | `CosmosDBConfig` | `CosmosDBPool` | `"pirn-core[cosmosdb]"` |
+| Firestore | `FirestoreConfig` | `FirestorePool` | `"pirn-core[firestore]"` |
 
 ---
 

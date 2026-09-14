@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``XlsxFormat`` — Microsoft Excel ``.xlsx`` (Office Open XML) encoder/decoder.
 
 Reads use ``openpyxl`` in ``read_only=True`` / ``data_only=True`` mode:
@@ -12,7 +14,7 @@ Security: pirn does not sandbox openpyxl. Macros (vbaProject.bin) are
 ignored by ``read_only`` mode, but malformed archives may still trigger
 upstream library bugs. Treat untrusted ``.xlsx`` payloads accordingly.
 
-Install: ``pip install pirn[xlsx]``.
+Install: ``pip install "pirn-core[xlsx]"``.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class XlsxFormat(BatchFileFormat):
@@ -77,7 +80,7 @@ class XlsxFormat(BatchFileFormat):
         return self._column_names
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        openpyxl = self._load_openpyxl()
+        openpyxl = OptionalDependency.require("openpyxl", extra="xlsx")
         workbook = openpyxl.load_workbook(
             io.BytesIO(payload),
             read_only=True,
@@ -122,7 +125,7 @@ class XlsxFormat(BatchFileFormat):
             workbook.close()
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        xlsxwriter = self._load_xlsxwriter()
+        xlsxwriter = OptionalDependency.require("xlsxwriter", extra="xlsx")
         materialised: list[Mapping[str, Any]] = list(records)
         if self._column_names is not None:
             columns = self._column_names
@@ -146,23 +149,3 @@ class XlsxFormat(BatchFileFormat):
         finally:
             workbook.close()
         return buf.getvalue()
-
-    @staticmethod
-    def _load_openpyxl() -> Any:
-        try:
-            import openpyxl
-        except ImportError as exc:
-            raise ImportError(
-                "XlsxFormat requires openpyxl. Install with `pip install pirn[xlsx]`."
-            ) from exc
-        return openpyxl
-
-    @staticmethod
-    def _load_xlsxwriter() -> Any:
-        try:
-            import xlsxwriter
-        except ImportError as exc:
-            raise ImportError(
-                "XlsxFormat requires xlsxwriter. Install with `pip install pirn[xlsx]`."
-            ) from exc
-        return xlsxwriter

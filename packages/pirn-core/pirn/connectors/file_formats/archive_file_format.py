@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ArchiveFileFormat`` — multi-file archive wrapper (tar, zip).
 
 Where :class:`CompressedFileFormat` wraps a single file with a codec,
@@ -7,18 +9,21 @@ decoded by the inner :class:`FileFormat`. Records are emitted as
 source file.
 
 Supported archive types: ``"tar"``, ``"tar.gz"``, ``"tar.bz2"``,
-``"tar.zst"``, ``"zip"``. ``"tar.zst"`` requires ``zstandard``.
+``"tar.zst"``, ``"zip"``. ``"tar.zst"`` requires ``zstandard``
+(``pip install "pirn-core[zstd]"``).
 """
 
 from __future__ import annotations
 
 import io
+import os.path
 import tarfile
 import zipfile
 from collections.abc import AsyncIterator, Mapping
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from pirn.connectors.file_format import FileFormat
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ArchiveFileFormat(FileFormat):
@@ -41,14 +46,14 @@ class ArchiveFileFormat(FileFormat):
         {"tar", "tar.gz", "tar.bz2", "tar.zst", "zip"}
     )
 
-    _tar_modes: ClassVar[dict[str, str]] = {
+    _tar_modes: ClassVar[dict[str, Literal["r:", "r:gz", "r:bz2", "r:*"]]] = {
         "tar": "r:",
         "tar.gz": "r:gz",
         "tar.bz2": "r:bz2",
         "tar.zst": "r:*",
     }
 
-    _tar_write_modes: ClassVar[dict[str, str]] = {
+    _tar_write_modes: ClassVar[dict[str, Literal["w:", "w:gz", "w:bz2"]]] = {
         "tar": "w:",
         "tar.gz": "w:gz",
         "tar.bz2": "w:bz2",
@@ -123,9 +128,7 @@ class ArchiveFileFormat(FileFormat):
             raise ValueError("ArchiveFileFormat: archive member path must be non-empty")
         if "\x00" in name:
             raise ValueError(f"ArchiveFileFormat: archive member path contains NUL byte: {name!r}")
-        import os.path as _osp
-
-        if _osp.isabs(name):
+        if os.path.isabs(name):
             raise ValueError(
                 f"ArchiveFileFormat: archive member path must be relative, got {name!r}"
             )
@@ -176,19 +179,12 @@ class ArchiveFileFormat(FileFormat):
         inner: FileFormat, payload: bytes, archive_type: str
     ) -> AsyncIterator[Mapping[str, Any]]:
         if archive_type == "tar.zst":
-            try:
-                import zstandard as zstd
-            except ImportError as exc:
-                raise ImportError(
-                    "ArchiveFileFormat: tar.zst requires zstandard. "
-                    "Install with `pip install pirn[zstd]`."
-                ) from exc
-            dctx = zstd.ZstdDecompressor()
-            raw = dctx.decompress(payload)
+            zstd = OptionalDependency.require("zstandard", extra="zstd")
+            raw: bytes = zstd.ZstdDecompressor().decompress(payload)
             tf = tarfile.open(fileobj=io.BytesIO(raw), mode="r:")
         else:
             mode = ArchiveFileFormat._tar_modes.get(archive_type, "r:*")
-            tf = tarfile.open(fileobj=io.BytesIO(payload), mode=mode)  # type: ignore[call-overload]
+            tf = tarfile.open(fileobj=io.BytesIO(payload), mode=mode)
 
         try:
             for member in tf.getmembers():
@@ -245,7 +241,7 @@ class ArchiveFileFormat(FileFormat):
             tf = tarfile.open(fileobj=raw_buf, mode="w:")
         else:
             mode = ArchiveFileFormat._tar_write_modes.get(archive_type, "w:")
-            tf = tarfile.open(fileobj=buf, mode=mode)  # type: ignore[call-overload]
+            tf = tarfile.open(fileobj=buf, mode=mode)
 
         try:
             for member_name, member_records in grouped.items():
@@ -267,14 +263,8 @@ class ArchiveFileFormat(FileFormat):
             tf.close()
 
         if archive_type == "tar.zst":
-            try:
-                import zstandard as zstd
-            except ImportError as exc:
-                raise ImportError(
-                    "ArchiveFileFormat: tar.zst requires zstandard. "
-                    "Install with `pip install pirn[zstd]`."
-                ) from exc
-            cctx = zstd.ZstdCompressor()
-            return cctx.compress(raw_buf.getvalue())
+            zstd = OptionalDependency.require("zstandard", extra="zstd")
+            compressed: bytes = zstd.ZstdCompressor().compress(raw_buf.getvalue())
+            return compressed
 
         return buf.getvalue()

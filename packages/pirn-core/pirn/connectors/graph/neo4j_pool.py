@@ -9,6 +9,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.graph.neo4j_config import Neo4jConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class Neo4jPool(DatabaseConnectionPool):
@@ -84,12 +85,7 @@ class Neo4jPool(DatabaseConnectionPool):
         return self._driver
 
     async def _create_driver(self) -> Any:
-        try:
-            import neo4j  # type: ignore[import]
-        except ImportError as exc:
-            raise ImportError(
-                "Neo4jPool requires neo4j; install via pip install pirn[neo4j]"
-            ) from exc
+        neo4j = OptionalDependency.require("neo4j", extra="neo4j")
         if self._config is None:
             raise self._missing_config_error("Neo4jPool", "driver")
         try:

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Sync ArangoDB pool (wrapped in asyncio.to_thread) backed by :mod:`arango`."""
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.arangodb_config import ArangoDBConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ArangoDBPool(DatabaseConnectionPool):
@@ -52,14 +55,14 @@ class ArangoDBPool(DatabaseConnectionPool):
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Execute an AQL query; returns cursor result as str."""
         await self._ensure_db()
-        bind_vars = parameters if parameters is not None else {}
+        bind_vars: Iterable[Any] = parameters if parameters is not None else {}
         cursor = await asyncio.to_thread(self._db.aql.execute, query, bind_vars=bind_vars)
         return str(cursor)
 
     async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Execute an AQL query and return all result documents."""
         await self._ensure_db()
-        bind_vars = parameters if parameters is not None else {}
+        bind_vars: Iterable[Any] = parameters if parameters is not None else {}
         cursor = await asyncio.to_thread(self._db.aql.execute, query, bind_vars=bind_vars)
         return list(cursor)
 
@@ -75,21 +78,16 @@ class ArangoDBPool(DatabaseConnectionPool):
             self._db = await asyncio.to_thread(self._create_db)
 
     def _create_db(self) -> Any:
-        try:
-            from arango import ArangoClient
-        except ImportError as exc:
-            raise ImportError(
-                "ArangoDBPool requires python-arango; install via pip install pirn[arangodb]"
-            ) from exc
+        arango = OptionalDependency.require("arango", extra="arangodb")
         if self._config is None:
             raise self._missing_config_error("ArangoDBPool", "db")
 
         try:
-            client = ArangoClient(
+            client = arango.ArangoClient(
                 hosts=self._config.url,
                 verify_override=self._config.verify_ssl,
             )
-            db = client.db(
+            db: Any = client.db(
                 self._config.database,
                 username=self._config.username,
                 password=self._config.password,

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SegyFormat`` — SEG-Y seismic data batch encoder/decoder.
 
 SEG-Y is the industry-standard format for seismic reflection data. Each
@@ -13,7 +15,7 @@ Records are emitted as one dict per trace::
         "data":        bytes,             # raw float32 sample bytes
     }
 
-Install: ``pip install pirn[oilgas]``.
+Install: ``pip install "pirn-oilgas[oilgas]"``.
 """
 
 from __future__ import annotations
@@ -22,11 +24,15 @@ import struct
 import tempfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, SupportsIndex, SupportsInt
+
+import numpy as np
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SegyFormat(BatchFileFormat):
@@ -53,7 +59,7 @@ class SegyFormat(BatchFileFormat):
         return self._sample_rate
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        segyio = self._load_segyio()
+        segyio = OptionalDependency.require("segyio", extra="oilgas", package="pirn-oilgas")
         records: list[dict[str, Any]] = []
         with tempfile.NamedTemporaryFile(suffix=".segy", delete=False) as tmp:
             tmp_path = tmp.name
@@ -61,7 +67,7 @@ class SegyFormat(BatchFileFormat):
         try:
             with segyio.open(tmp_path, "r", ignore_geometry=True) as f:
                 for idx, trace in enumerate(f.trace):
-                    header = {}
+                    header: dict[str, int] = {}
                     for key in f.header[idx].keys():
                         header[str(key)] = int(f.header[idx][key])
                     data = struct.pack(f">{len(trace)}f", *trace.tolist())
@@ -77,11 +83,10 @@ class SegyFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        segyio = self._load_segyio()
+        segyio = OptionalDependency.require("segyio", extra="oilgas", package="pirn-oilgas")
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("SegyFormat: cannot encode an empty record stream")
-        import numpy as np
 
         first_data = materialised[0].get("data", b"")
         if not isinstance(first_data, (bytes, bytearray)):
@@ -119,8 +124,12 @@ class SegyFormat(BatchFileFormat):
                             samples = samples[:n_samples]
                     f.trace[idx] = samples
                     header = record.get("header", {})
-                    if isinstance(header, dict) and header:
+                    if PayloadShape.is_dict(header) and header:
                         for key, val in header.items():
+                            if not isinstance(
+                                val, (str, bytes, bytearray, SupportsInt, SupportsIndex)
+                            ):
+                                continue
                             try:
                                 f.header[idx].update({key: int(val)})
                             except (ValueError, TypeError, KeyError):
@@ -129,13 +138,3 @@ class SegyFormat(BatchFileFormat):
         finally:
             Path(tmp_path).unlink(missing_ok=True)
         return result
-
-    @staticmethod
-    def _load_segyio() -> Any:
-        try:
-            import segyio
-        except ImportError as exc:
-            raise ImportError(
-                "SegyFormat requires segyio. Install with `pip install pirn[oilgas]`."
-            ) from exc
-        return segyio

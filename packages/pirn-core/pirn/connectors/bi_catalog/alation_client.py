@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Alation REST API.
 
 Alation uses a refresh-token + access-token flow. The simplest correct
@@ -31,6 +33,7 @@ from pirn.connectors.capabilities.metadata_catalog import (
 )
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class AlationClient(ApiClient, TableSource, MetadataCatalog):
@@ -122,14 +125,14 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         return rows, next_cursor
 
     @staticmethod
-    def _extract_rows(response: Any) -> list[Mapping[str, Any]]:
-        if isinstance(response, list):
-            return list(response)
-        if isinstance(response, Mapping):
+    def _extract_rows(response: object) -> list[Mapping[str, Any]]:
+        if PayloadShape.is_list(response):
+            return PayloadShape.entities(response)
+        if PayloadShape.is_str_mapping(response):
             for key in ("items", "data", "results"):
                 value = response.get(key)
-                if isinstance(value, list):
-                    return list(value)
+                if PayloadShape.is_list(value):
+                    return PayloadShape.entities(value)
         return []
 
     @staticmethod
@@ -168,9 +171,9 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
 
     async def close(self) -> None:
         if self._client is not None:
-            aclose_fn = getattr(self._client, "aclose", None)
-            if callable(aclose_fn):
-                await aclose_fn()  # type: ignore[misc]
+            client: Any = self._client
+            if callable(getattr(client, "aclose", None)):
+                await client.aclose()
             self._client = None
         self._clear_credentials()
         self._closed = True

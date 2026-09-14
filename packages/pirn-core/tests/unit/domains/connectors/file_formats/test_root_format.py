@@ -106,10 +106,10 @@ class TestRootFormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestRootFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestRootFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
         import unittest.mock
 
         with unittest.mock.patch.dict("sys.modules", {"uproot": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[physics\\]"):
-                RootFormat._load_uproot()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[root\\]"'):
+                await RootFormat()._decode_full(b"")

@@ -28,19 +28,24 @@ Each decoded record represents one signal channel::
         "data":          bytes,  # raw float64 array bytes
     }
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"``.
 """
 
 from __future__ import annotations
 
 import tempfile
+import warnings
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, ClassVar
 
+import numpy as np
+import numpy.typing as npt
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class EdfFormat(BatchFileFormat):
@@ -80,7 +85,7 @@ class EdfFormat(BatchFileFormat):
         return "edf"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        pyedflib = self._load_pyedflib()
+        pyedflib = OptionalDependency.require("pyedflib", extra="health", package="pirn-health")
         with tempfile.NamedTemporaryFile(suffix=self._file_suffix, delete=False) as tmp:
             tmp_path = tmp.name
             tmp.write(payload)
@@ -92,8 +97,6 @@ class EdfFormat(BatchFileFormat):
 
     @classmethod
     def _read_signals(cls, pyedflib: Any, path: str) -> list[Mapping[str, Any]]:
-        import numpy as np
-
         records: list[Mapping[str, Any]] = []
         with pyedflib.EdfReader(path) as reader:
             n_signals = reader.signals_in_file
@@ -112,9 +115,7 @@ class EdfFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        import numpy as np
-
-        pyedflib = self._load_pyedflib()
+        pyedflib = OptionalDependency.require("pyedflib", extra="health", package="pirn-health")
         materialised = [dict(r) for r in records]
         # Separate annotation record (EDF+) from signal records
         signal_records, annotation_record = self._split_records(materialised)
@@ -131,8 +132,8 @@ class EdfFormat(BatchFileFormat):
         try:
             with pyedflib.EdfWriter(tmp_path, len(signal_records)) as writer:
                 self._apply_phi_redaction(writer)
-                headers = []
-                signal_arrays = []
+                headers: list[dict[str, str | int | float]] = []
+                signal_arrays: list[npt.NDArray[np.float64]] = []
                 for i, rec in enumerate(signal_records):
                     for field in ("data", "sample_rate"):
                         if field not in rec:
@@ -180,8 +181,8 @@ class EdfFormat(BatchFileFormat):
     def _split_records(
         records: list[dict[str, Any]],
     ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
-        signal_records = []
-        annotation_record = None
+        signal_records: list[dict[str, Any]] = []
+        annotation_record: dict[str, Any] | None = None
         for rec in records:
             if "_edfplus_annotations" in rec:
                 annotation_record = rec
@@ -192,8 +193,6 @@ class EdfFormat(BatchFileFormat):
     @staticmethod
     def _apply_phi_redaction(writer: Any) -> None:
         """Set patient/admin fields to [REDACTED] in the EDF header."""
-        import warnings
-
         _setters = [
             ("setPatientCode", "[REDACTED]"),
             ("setPatientName", "[REDACTED]"),
@@ -224,13 +223,3 @@ class EdfFormat(BatchFileFormat):
     def _write_annotations(writer: Any, annotation_record: dict[str, Any] | None) -> None:
         """Write EDF+ annotations if present. No-op for plain EDF."""
         pass  # Overridden in EdfPlusFormat
-
-    @staticmethod
-    def _load_pyedflib() -> Any:
-        try:
-            import pyedflib
-        except ImportError as exc:
-            raise ImportError(
-                "EdfFormat requires pyedflib. Install with `pip install pirn[health]`."
-            ) from exc
-        return pyedflib

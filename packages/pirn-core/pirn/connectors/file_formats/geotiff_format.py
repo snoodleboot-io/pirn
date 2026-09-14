@@ -19,7 +19,7 @@ not preserved. Tests assert pixel-data and shape survival.
 GeoTIFF cannot be decoded incrementally without seekable storage —
 inherits from :class:`BatchFileFormat`.
 
-Install: ``pip install pirn[geotiff]``.
+Install: ``pip install "pirn-core[geotiff]"``.
 """
 
 from __future__ import annotations
@@ -27,11 +27,15 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, SupportsFloat, SupportsIndex
+
+import numpy as np
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class GeotiffFormat(BatchFileFormat):
@@ -42,7 +46,7 @@ class GeotiffFormat(BatchFileFormat):
         return "geotiff"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        rasterio = self._load_rasterio()
+        rasterio = OptionalDependency.require("rasterio", extra="geotiff")
         path = self._materialise_payload(payload)
         try:
             with rasterio.open(path) as dataset:
@@ -72,8 +76,7 @@ class GeotiffFormat(BatchFileFormat):
                 pass
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        rasterio = self._load_rasterio()
-        numpy = self._load_numpy()
+        rasterio = OptionalDependency.require("rasterio", extra="geotiff")
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
             raise ValueError(
@@ -94,7 +97,7 @@ class GeotiffFormat(BatchFileFormat):
                 "GeotiffFormat: record missing required field 'transform'; "
                 f"got: {list(first_record)}"
             )
-        transform = self._transform_from_mapping(rasterio, first_record["transform"])
+        transform = self._transform_from_mapping(first_record["transform"])
         if "crs" not in first_record or not first_record["crs"]:
             raise ValueError(
                 f"GeotiffFormat: record missing required field 'crs'; got: {list(first_record)}"
@@ -116,7 +119,7 @@ class GeotiffFormat(BatchFileFormat):
             with rasterio.open(path, "w", **profile) as dataset:
                 for index, record in enumerate(materialised, start=1):
                     self._validate_record(record)
-                    band_data = numpy.asarray(record["data"], dtype=dtype).reshape(height, width)
+                    band_data = np.asarray(record["data"], dtype=dtype).reshape(height, width)
                     dataset.write(band_data, index)
             with open(path, "rb") as handle:
                 return handle.read()
@@ -155,24 +158,31 @@ class GeotiffFormat(BatchFileFormat):
         }
 
     @staticmethod
-    def _transform_from_mapping(rasterio: Any, mapping: Any) -> Any:
-        from rasterio.transform import Affine
-
+    def _transform_from_mapping(mapping: object) -> Any:
+        affine = OptionalDependency.require("rasterio.transform", extra="geotiff").Affine
         if mapping is None:
-            return Affine.identity()
-        if not isinstance(mapping, Mapping):
+            return affine.identity()
+        if not PayloadShape.is_mapping(mapping):
             raise TypeError(
                 f"GeotiffFormat: transform must be a Mapping, got {type(mapping).__name__}"
             )
         keys = ("a", "b", "c", "d", "e", "f")
         try:
-            values = [float(mapping[key]) for key in keys]
+            values = [GeotiffFormat._coerce_coefficient(mapping[key]) for key in keys]
         except KeyError as exc:
             raise ValueError(
                 "GeotiffFormat: transform mapping missing required "
                 f"key {exc.args[0]!r}; expected keys {list(keys)}"
             ) from exc
-        return Affine(*values)
+        return affine(*values)
+
+    @staticmethod
+    def _coerce_coefficient(value: object) -> float:
+        if isinstance(value, (str, bytes, bytearray, SupportsFloat, SupportsIndex)):
+            return float(value)
+        raise TypeError(
+            f"GeotiffFormat: transform coefficients must be numeric, got {type(value).__name__}"
+        )
 
     @staticmethod
     def _validate_record(record: Mapping[str, Any]) -> None:
@@ -185,24 +195,3 @@ class GeotiffFormat(BatchFileFormat):
                 "GeotiffFormat: 'data' must be a list/tuple of pixel "
                 f"values, got {type(data).__name__}"
             )
-
-    @staticmethod
-    def _load_rasterio() -> Any:
-        try:
-            import rasterio
-        except ImportError as exc:
-            raise ImportError(
-                "GeotiffFormat requires rasterio. Install with `pip install pirn[geotiff]`."
-            ) from exc
-        return rasterio
-
-    @staticmethod
-    def _load_numpy() -> Any:
-        try:
-            import numpy
-        except ImportError as exc:
-            raise ImportError(
-                "GeotiffFormat requires numpy (transitively via "
-                "rasterio). Install with `pip install pirn[geotiff]`."
-            ) from exc
-        return numpy

@@ -125,7 +125,7 @@ pirn/connectors/file_formats/
 │  ── Codecs and primitives ──
 ├── codec.py                 Codec                — base: encode()/decode() pair
 ├── codecs/                  (compression codec impls — internal)
-└── _html_stripper.py        (internal HTML text extractor)
+└── html_stripper.py         (internal HTML text extractor)
 ```
 
 ---
@@ -187,8 +187,8 @@ fmt = CompressedFileFormat(inner=JsonFormat(), codec="zstd")
 
 ## Constraints and gotchas
 
-- **Domain-specific formats require their own extras.** `pirn[dicom]`, `pirn[genomics]`, `pirn[segy]`, `pirn[ml-formats]`, etc. Check `pyproject.toml` for exact names.
-- **`SegyFormat` and `DlisFormat` are read-only.** `encode()` raises `NotImplementedError` — these are read formats only.
+- **Domain-specific formats require their own extras.** e.g. DICOM needs `pirn-health[health]`, BAM/SAM/CRAM/BCF need `pirn-health[genomics]`, SEG-Y needs `pirn-oilgas[oilgas]`, ONNX needs `pirn-core[onnx]`. The exact extra is the one in the format's `OptionalDependency.require(...)` call; the quick reference below lists the common ones.
+- **`DlisFormat` and `RootFormat` are read-only.** `encode()` raises `NotImplementedError` — these are read formats only.
 - **`BamFormat` and `CramFormat` require a reference genome for CRAM decoding.** Pass `reference_path=` to the constructor.
 - **`TfSavedModelFormat` encodes/decodes a directory, not a single file.** The store knot must support directory-level reads and writes.
 - **`CompressedFileFormat` wraps any inner format.** Supported codecs: `"gzip"`, `"bzip2"`, `"zstd"`, `"lz4"`.
@@ -200,29 +200,29 @@ fmt = CompressedFileFormat(inner=JsonFormat(), codec="zstd")
 
 | Format | Class | Extra |
 |--------|-------|-------|
-| Parquet | `ParquetFormat` | base |
+| Parquet | `ParquetFormat` | `pirn-core[parquet]` |
 | CSV / TSV | `CsvFormat`, `TsvFormat` | base |
 | JSON / JSONL | `JsonFormat`, `JsonlFormat` | base |
-| Arrow IPC | `ArrowIpcFormat` | base |
-| ORC | `OrcFormat` | `pirn[orc]` |
-| Avro | `AvroFormat` | `pirn[avro]` |
-| HDF5 | `Hdf5Format` | `pirn[hdf5]` |
-| Zarr | `ZarrFormat` | `pirn[zarr]` |
-| ONNX | `OnnxFormat` | `pirn[ml-formats]` |
-| SafeTensors | `SafetensorsFormat` | `pirn[ml-formats]` |
-| DICOM | `DicomFormat` | `pirn[dicom]` |
-| NIfTI | `NiftiFormat` | `pirn[neuroimaging]` |
-| EDF/BDF | `EdfFormat`, `BdfFormat` | `pirn[biosignals]` |
-| FHIR JSON | `FhirJsonFormat` | base |
-| FASTA/FASTQ | `FastaFormat`, `FastqFormat` | `pirn[genomics]` |
-| BAM/SAM/CRAM | `BamFormat`, `SamFormat`, `CramFormat` | `pirn[genomics]` |
-| SEG-Y | `SegyFormat` | `pirn[segy]` |
-| DLIS | `DlisFormat` | `pirn[segy]` |
-| GeoTIFF | `GeotiffFormat` | `pirn[geospatial]` |
-| PDF | `PdfFormat` | `pirn[document]` |
-| DOCX / PPTX | `DocxFormat`, `PptxFormat` | `pirn[document]` |
-| WAV / MP3 | `WavFormat`, `Mp3Format` | `pirn[audio]` |
-| PNG / JPEG / TIFF | `PngFormat`, `JpegFormat`, `TiffFormat` | `pirn[image]` |
+| Arrow IPC | `ArrowIpcFormat` | `pirn-core[arrow]` |
+| ORC | `OrcFormat` | `pirn-core[orc]` |
+| Avro | `AvroFormat` | `pirn-core[avro]` |
+| HDF5 | `Hdf5Format` | `pirn-core[hdf5]` |
+| Zarr | `ZarrFormat` | `pirn-core[zarr]` |
+| ONNX | `OnnxFormat` | `pirn-core[onnx]` |
+| SafeTensors | `SafetensorsFormat` | `pirn-core[safetensors]` |
+| DICOM | `DicomFormat` | `pirn-health[health]` |
+| NIfTI | `NiftiFormat` | `pirn-health[health]` |
+| EDF/BDF | `EdfFormat`, `BdfFormat` | `pirn-health[health]` |
+| FHIR JSON | `FhirJsonFormat` | `pirn-health[health]` |
+| FASTA/FASTQ | `FastaFormat`, `FastqFormat` | base |
+| BAM/SAM/CRAM | `BamFormat`, `SamFormat`, `CramFormat` | `pirn-health[genomics]` |
+| SEG-Y | `SegyFormat` | `pirn-oilgas[oilgas]` |
+| DLIS | `DlisFormat` | `pirn-core[dlis]` |
+| GeoTIFF | `GeotiffFormat` | `pirn-core[geotiff]` |
+| PDF | `PdfFormat` | `pirn-core[pdf]` |
+| DOCX / PPTX | `DocxFormat`, `PptxFormat` | `pirn-core[docx]`, `pirn-core[pptx]` |
+| WAV / MP3 | `WavFormat`, `Mp3Format` | base (WAV), `pirn-core[audio]` (MP3) |
+| PNG / JPEG / TIFF | `PngFormat`, `JpegFormat`, `TiffFormat` | `pirn-core[image]` (TIFF: `pirn-core[tiff]`) |
 | Compressed wrapper | `CompressedFileFormat(inner=fmt, codec=...)` | base |
 
 ---

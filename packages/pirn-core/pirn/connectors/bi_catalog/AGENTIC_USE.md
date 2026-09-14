@@ -28,6 +28,8 @@ pirn/connectors/bi_catalog/
 └── open_metadata_client.py   OpenMetadataClient    — OpenMetadata REST API (tables, lineage, tags)
 ```
 
+Untyped catalog JSON is narrowed with the shared `pirn.connectors.payload_shape.PayloadShape` (type guards + lenient `entities()` extraction).
+
 ---
 
 ## Canonical pattern
@@ -84,9 +86,9 @@ dh = DataHubClient(config=DataHubConfig(
 
 ## Constraints and gotchas
 
-- **Each client requires its own extra:** `pirn[dbt-artifacts]`, `pirn[fivetran]`, `pirn[airbyte]`, `pirn[datahub]`, `pirn[alation]`, `pirn[open-metadata]`.
-- **`DbtArtifactsReader` reads files at construction time**, not lazily. Ensure `target/manifest.json` is present before building the tapestry.
-- **`DataHubClient` uses the DataHub GMS REST API**, not the Python SDK emitter — no local SDK install required beyond `pirn[datahub]`.
+- **Each HTTP client requires its own extra:** `pip install "pirn-core[fivetran]"`, `"pirn-core[airbyte]"`, `"pirn-core[datahub]"`, `"pirn-core[alation]"`, `"pirn-core[open-metadata]"`. `DbtArtifactsReader` uses only the standard library and needs no extra.
+- **`DbtArtifactsReader` reads files lazily**, on the first `load_manifest` / `load_run_results` / catalog call (each call re-reads from disk). Ensure `target/manifest.json` is present before the tapestry runs.
+- **`DataHubClient` uses the DataHub GMS REST API**, not the Python SDK emitter — no local SDK install required beyond `"pirn-core[datahub]"`.
 - **`AirbyteClient` uses Airbyte API v1** — requires Airbyte >= 0.50.0.
 
 ---

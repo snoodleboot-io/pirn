@@ -6,7 +6,7 @@ from html.parser import HTMLParser
 from typing import ClassVar
 
 
-class _HtmlStripper(HTMLParser):
+class HtmlStripper(HTMLParser):
     """Extract plain text from an HTML fragment."""
 
     _block_tags: ClassVar[frozenset[str]] = frozenset(
