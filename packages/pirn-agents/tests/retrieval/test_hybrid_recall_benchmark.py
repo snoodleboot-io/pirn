@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.retrieval.bm25_index import Bm25Index
@@ -48,11 +49,22 @@ def _build_fixture() -> tuple[list[VectorRecord], Bm25Index, list[tuple[str, str
     return records, index, queries
 
 
-def _make_retriever() -> HybridRetriever:
-    with Tapestry():
-        knot = HybridRetriever.__new__(HybridRetriever)
-        object.__setattr__(knot, "_config", KnotConfig(id="hybrid-bench"))
-    return knot
+async def _hybrid_ids(
+    query: str, store: InMemoryVectorStore, index: Bm25Index, top_k: int
+) -> set[str]:
+    """Run one ``HybridRetriever`` through the engine and return the fused hit ids."""
+    with Tapestry() as tapestry:
+        HybridRetriever(
+            query=query,
+            store=store,
+            lexical=index,
+            embedder=FixedEmbedder([1.0, 0.0]),
+            top_k=top_k,
+            _config=KnotConfig(id="hybrid-bench"),
+        )
+    run = await tapestry.run(RunRequest())
+    assert run.succeeded, run.exceptions
+    return {hit["id"] for hit in run.outputs["hybrid-bench"]}
 
 
 @pytest.mark.benchmark
@@ -60,8 +72,6 @@ async def test_hybrid_recall_beats_pure_dense() -> None:
     records, index, queries = _build_fixture()
     store = InMemoryVectorStore()
     await store.upsert(records)
-    retriever = _make_retriever()
-    embedder = FixedEmbedder([1.0, 0.0])
     top_k = 3
 
     dense_hits = 0
@@ -70,14 +80,7 @@ async def test_hybrid_recall_beats_pure_dense() -> None:
         dense_matches = await store.query([1.0, 0.0], top_k=top_k)
         if relevant_id in {m.id for m in dense_matches}:
             dense_hits += 1
-        hybrid = await retriever.process(
-            query=query,
-            store=store,
-            lexical=index,
-            embedder=embedder,
-            top_k=top_k,
-        )
-        if relevant_id in {hit["id"] for hit in hybrid}:
+        if relevant_id in await _hybrid_ids(query, store, index, top_k):
             hybrid_hits += 1
 
     dense_recall = dense_hits / len(queries)
