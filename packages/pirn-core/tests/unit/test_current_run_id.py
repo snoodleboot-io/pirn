@@ -1,7 +1,7 @@
 """Tests for the public ``Tapestry.current_run_id()`` accessor.
 
 The run id has always been carried in a ContextVar, but only as the private
-``_current_run_id``.  Downstream packages that want to correlate their own
+``RunContextVars.run_id``.  Downstream packages that want to correlate their own
 telemetry with a run had to reach into that private name.  These tests pin the
 public accessor's contract, including the two cases where it must degrade to
 ``None`` rather than lie: outside a run, and across a process boundary.

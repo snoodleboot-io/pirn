@@ -19,5 +19,5 @@ class Next:
     """
 
     action: str
-    inputs: dict[str, Any] = field(default_factory=dict)
+    inputs: dict[str, Any] = field(default_factory=dict[str, Any])
     id: str | None = None

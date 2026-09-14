@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.signer import Signer
-from pirn.backends.valkey._lazy_client import _LazyClient
+from pirn.backends.valkey.lazy_client import LazyClient
+from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    from glide import ExpirySet, GlideClient, GlideClientConfiguration
 
 _logger = logging.getLogger(__name__)
 
@@ -23,8 +27,8 @@ class ValKeyDataStore(DataStore):
     def __init__(
         self,
         *,
-        client: Any = None,
-        config: Any = None,
+        client: GlideClient | None = None,
+        config: GlideClientConfiguration | None = None,
         ttl_seconds: int | None = None,
         signer: Signer | None = None,
         allow_unsigned: bool = False,
@@ -69,7 +73,7 @@ class ValKeyDataStore(DataStore):
                 "cloudpickle.loads on attacker-controlled bytes is an RCE sink. "
                 "Ensure the backing store is within the same trust boundary as this process.",
             )
-        self._client = _LazyClient(client=client, config=config)
+        self._client = LazyClient(client=client, config=config)
         self._ttl = ttl_seconds
         self.__signer = signer
 
@@ -101,9 +105,8 @@ class ValKeyDataStore(DataStore):
         if self.__signer is not None:
             payload = self.__signer.sign(payload)
         if self._ttl is not None:
-            from glide import ExpirySet, ExpiryType
-
-            expiry = ExpirySet(ExpiryType.SEC, self._ttl)
+            glide = OptionalDependency.require("glide", extra="valkey")
+            expiry: ExpirySet = glide.ExpirySet(glide.ExpiryType.SEC, self._ttl)
             await client.set(self._key(content_hash), payload, expiry=expiry)
         else:
             await client.set(self._key(content_hash), payload)

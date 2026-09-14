@@ -28,7 +28,8 @@ from typing import Any, Generic, TypeVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-M = TypeVar("M")
+#: The metadata descriptor: an opaque value that describes itself for the audit trail.
+M = TypeVar("M", bound=PirnOpaqueValue)
 D = TypeVar("D")
 
 
@@ -56,7 +57,7 @@ class Payload(PirnOpaqueValue, Generic[M, D]):
         return self._data
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return self._metadata._pirn_audit_dict()  # type: ignore[union-attr]
+        return self._metadata._pirn_audit_dict()
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(metadata={self._metadata!r})"

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
-from pirn.triggers._run_driver import _RunDriver
+from pirn.triggers.run_driver import RunDriver
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -82,12 +82,12 @@ class Trigger:
         must not be able to swallow them and leave the loop running after its
         task was cancelled.
 
-        Thin wrapper around ``_RunDriver.drive``, shared with
+        Thin wrapper around ``RunDriver.drive``, shared with
         ``StreamingSource.run_stream``: a trigger's events already
         are ``RunRequest``s, so ``to_request`` is the identity function, and
         "close" means :meth:`close`.
         """
-        await _RunDriver.drive(
+        await RunDriver.drive(
             self.stream(),
             tapestry=tapestry,
             to_request=lambda request: request,

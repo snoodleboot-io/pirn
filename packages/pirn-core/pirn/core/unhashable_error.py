@@ -1,9 +1,9 @@
-"""``_UnhashableError`` — internal sentinel raised by ``ContentHasher`` to bail on opaque values."""
+"""``UnhashableError`` — internal sentinel raised by ``ContentHasher`` to bail on opaque values."""
 
 from __future__ import annotations
 
 
-class _UnhashableError(Exception):
+class UnhashableError(Exception):
     """Internal sentinel used by ``ContentHasher._canonicalise`` to bail on opaque values.
 
     Carries the offending leaf's type name so ``ContentHasher.hash(...,

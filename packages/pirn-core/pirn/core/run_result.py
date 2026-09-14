@@ -70,9 +70,9 @@ class RunResult(BaseModel):
         description="Per-knot output values for knots that produced Ok results.",
     )
     skipped: list[str] = Field(default_factory=list)
-    exceptions: list[ExceptionRecord] = Field(default_factory=list)
-    lineage: list[KnotLineage] = Field(default_factory=list)
-    status_events: list[StatusEvent] = Field(default_factory=list)
+    exceptions: list[ExceptionRecord] = Field(default_factory=list[ExceptionRecord])
+    lineage: list[KnotLineage] = Field(default_factory=list[KnotLineage])
+    status_events: list[StatusEvent] = Field(default_factory=list[StatusEvent])
     started_at: datetime
     finished_at: datetime
     dispatcher: str = Field(..., description="Name of the dispatcher used for this run.")

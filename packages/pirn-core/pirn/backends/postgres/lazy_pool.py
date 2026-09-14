@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from asyncpg import Pool
 
 from pirn.core.optional_dependency import OptionalDependency
 
 
-class _LazyPool:
+class LazyPool:
     """Wraps either an injected pool (test / sharing) or a DSN string.
 
     When a DSN is given the asyncpg pool is created lazily on first use.
@@ -16,7 +19,7 @@ class _LazyPool:
     def __sanitize_dsn(dsn: str) -> str:
         return re.sub(r"(://)[^@]+(@)", r"\1<redacted>\2", dsn)
 
-    def __init__(self, pool: Any = None, dsn: str | None = None) -> None:
+    def __init__(self, pool: Pool | None = None, dsn: str | None = None) -> None:
         """Initialise the wrapper.
 
         Args:
@@ -31,11 +34,11 @@ class _LazyPool:
         """
         if pool is None and dsn is None:
             raise TypeError("provide either pool= or dsn=")
-        self._pool = pool
+        self._pool: Pool | None = pool
         self._dsn = dsn
         self._dsn_display = self.__sanitize_dsn(dsn) if dsn else None
 
-    async def get(self) -> Any:
+    async def get(self) -> Pool:
         """Return the connection pool, creating it lazily if needed.
 
         Credentials in any exception messages are redacted before re-raising.
@@ -51,10 +54,11 @@ class _LazyPool:
         if self._pool is None:
             asyncpg = OptionalDependency.require("asyncpg", extra="postgres")
             try:
-                self._pool = await asyncpg.create_pool(self._dsn)
+                pool: Pool = await asyncpg.create_pool(self._dsn)
             except Exception as exc:
                 safe_msg = self.__sanitize_dsn(str(exc))
                 raise type(exc)(safe_msg) from None
+            self._pool = pool
         return self._pool
 
     async def close(self) -> None:

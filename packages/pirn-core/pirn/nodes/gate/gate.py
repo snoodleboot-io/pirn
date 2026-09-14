@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Gate — predicate-driven pass-through.
 
 A ``Gate`` takes one parent and a decision.  If the decision is open, the
@@ -99,7 +101,7 @@ class Gate(Knot):
 
         self._frozen = True
 
-    async def process(  # type: ignore[override]
+    async def process(
         self,
         input: Any,
         predicate: Callable[[Any], bool] | None = None,

@@ -29,6 +29,15 @@ class TestObjectStoreInterface(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(NotImplementedError):
             await store.list()
 
+    async def test_close_default_holds_nothing_and_is_repeatable(self) -> None:
+        # Arrange
+        store = ObjectStore()
+        # Act
+        await store.close()
+        await store.close()
+        # Assert — a store with no SDK session closes without error.
+        self.assertIsInstance(store, ObjectStore)
+
 
 class TestObjectStoreValidateKey(unittest.TestCase):
     def setUp(self) -> None:

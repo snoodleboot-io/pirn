@@ -246,7 +246,7 @@ class TestSpendCapInteraction:
         # levels deep (ADR agents-speaks-core WS5b): ModelCascadeRouter's own
         # inner run contains the CascadeLoop knot (itself a SubTapestry);
         # CascadeLoop's own inner run contains the failing iteration's
-        # _IterationChainKnot (whose SubTapestryError message names the
+        # IterationChainKnot (whose SubTapestryError message names the
         # iteration's own run); that run is where AttemptTier's raw
         # BudgetBreachError actually lives.
         run = await t.run(RunRequest())

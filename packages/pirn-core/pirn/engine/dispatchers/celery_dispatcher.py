@@ -24,11 +24,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.core.knot import Knot
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.result import Result
+
+if TYPE_CHECKING:
+    from celery import Celery
 
 
 class CeleryDispatcher:
@@ -39,13 +42,13 @@ class CeleryDispatcher:
     def __init__(
         self,
         *,
-        app: Any = None,
+        app: Celery | None = None,
         broker_url: str | None = None,
         backend_url: str | None = None,
     ) -> None:
         if app is None and broker_url is None:
             raise TypeError("provide either app= or broker_url=")
-        self._app = app
+        self._app: Celery | None = app
         self._broker_url = broker_url
         self._backend_url = backend_url
 
@@ -53,19 +56,20 @@ class CeleryDispatcher:
     def name(self) -> str:
         return "CeleryDispatcher"
 
-    def _ensure_app(self) -> Any:
+    def _ensure_app(self) -> Celery:
         if self._app is None:
             celery = OptionalDependency.require("celery", extra="celery")
-            self._app = celery.Celery(
+            app: Celery = celery.Celery(
                 "pirn",
                 broker=self._broker_url,
                 backend=self._backend_url or self._broker_url,
             )
-            self._app.conf.update(
+            app.conf.update(
                 task_serializer="pickle",
                 accept_content=["pickle"],
                 result_serializer="pickle",
             )
+            self._app = app
         return self._app
 
     async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
@@ -74,8 +78,10 @@ class CeleryDispatcher:
             self._task_name,
             args=(knot, dict(inputs)),
         )
-        # Celery's get() is blocking; bridge to async.
-        return await asyncio.to_thread(async_result.get)
+        # Celery's get() is blocking; bridge to async.  The worker task is
+        # ``_run_knot_sync``, whose return value is the knot's ``Result``.
+        outcome: Result[Any] = await asyncio.to_thread(async_result.get)
+        return outcome
 
     @staticmethod
     def _run_knot_sync(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
@@ -90,7 +96,7 @@ class CeleryDispatcher:
         return asyncio.run(knot(inputs))
 
     @classmethod
-    def register_worker_task(cls, app: Any) -> None:
+    def register_worker_task(cls, app: Celery) -> None:
         """Register the ``pirn.run_knot`` task on a Celery app.
 
         Call this from the Celery worker's startup code so workers know

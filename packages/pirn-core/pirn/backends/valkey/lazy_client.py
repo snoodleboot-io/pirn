@@ -1,17 +1,24 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from glide import GlideClient, GlideClientConfiguration
 
 from pirn.core.optional_dependency import OptionalDependency
 
 
-class _LazyClient:
+class LazyClient:
     """Wraps either an injected client (test / sharing) or a GlideClientConfiguration.
 
     When a config is given the GlideClient is created lazily on first use.
     """
 
-    def __init__(self, client: Any = None, config: Any = None) -> None:
+    def __init__(
+        self,
+        client: GlideClient | None = None,
+        config: GlideClientConfiguration | None = None,
+    ) -> None:
         """Initialise the wrapper.
 
         Args:
@@ -26,10 +33,15 @@ class _LazyClient:
         """
         if client is None and config is None:
             raise TypeError("provide either client= or config=")
-        self._client = client
-        self._config = config
+        self._client: GlideClient | None = client
+        self._config: GlideClientConfiguration | None = config
 
-    async def get(self) -> Any:
+    @property
+    def config(self) -> GlideClientConfiguration | None:
+        """The configuration a client is created from, or ``None`` for an injected client."""
+        return self._config
+
+    async def get(self) -> GlideClient:
         """Return the ValKey client, creating it lazily if needed.
 
         Returns:
@@ -39,8 +51,11 @@ class _LazyClient:
             ImportError: If ``valkey-glide`` is not installed.
         """
         if self._client is None:
+            if self._config is None:
+                raise TypeError("LazyClient: no client was injected and no config was given")
             glide = OptionalDependency.require("glide", extra="valkey")
-            self._client = await glide.GlideClient.create(self._config)
+            client: GlideClient = await glide.GlideClient.create(self._config)
+            self._client = client
         return self._client
 
     async def close(self) -> None:

@@ -58,6 +58,13 @@ class ObjectStore(PirnOpaqueValue):
                 return True
         return False
 
+    async def close(self) -> None:
+        """Release the SDK client and any other resources the store holds.
+
+        Safe to call repeatedly. The default holds nothing and does nothing;
+        a store backed by an SDK session overrides it.
+        """
+
     def is_not_found(self, exc: BaseException) -> bool:
         """Classify a backend exception raised by :meth:`get` as "no such key".
 

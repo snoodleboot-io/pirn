@@ -12,8 +12,9 @@ from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.postgres.postgres_store import PostgresStore
-from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
-from pirn.tapestry import Tapestry, _current_dispatching_knot_id, _current_run_id
+from pirn.core.run_context_vars import RunContextVars
+from pirn.engine.run_scoped_subscriber import RunScopedSubscriber
+from pirn.tapestry import Tapestry
 
 
 def _make_knot(knot_id: str) -> MagicMock:
@@ -188,7 +189,7 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
 
     ``PostgresStore`` delivers through a background LISTEN task, which
     never inherited the registering task's context, so PIR-808's
-    ``_RunScopedSubscriber`` saw no ambient run and fell through its
+    ``RunScopedSubscriber`` saw no ambient run and fell through its
     ``None`` passthrough -- every extensible run on the tapestry got
     every other run's knots (PIR-815).
     """
@@ -203,11 +204,11 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
         Mirrors the real shape: the registration happens inside the run's
         context, the notification is read back somewhere else entirely.
         """
-        token = _current_run_id.set(run_id)
+        token = RunContextVars.run_id.set(run_id)
         try:
             await self.store.aregister(knot)
         finally:
-            _current_run_id.reset(token)
+            RunContextVars.run_id.reset(token)
 
     def _drain_notifications(self) -> None:
         """Replay captured payloads the way the LISTEN task would.
@@ -232,8 +233,8 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
     async def test_concurrent_runs_do_not_receive_each_others_knots(self) -> None:
         pending_a: list[Any] = []
         pending_b: list[Any] = []
-        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
-        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+        self.store._subscribers[0] = RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = RunScopedSubscriber("run-b", pending_b)
 
         knot_a = _make_knot("k-a")
         knot_b = _make_knot("k-b")
@@ -255,8 +256,8 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
     async def test_registration_with_no_run_in_scope_still_broadcasts(self) -> None:
         pending_a: list[Any] = []
         pending_b: list[Any] = []
-        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
-        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+        self.store._subscribers[0] = RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = RunScopedSubscriber("run-b", pending_b)
 
         knot = _make_knot("k1")
         await self._register_under_run(knot, None)
@@ -273,16 +274,16 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
         # notice names no registering knot (PIR-841).
         pending: list[Any] = []
         registrars: dict[str, str] = {}
-        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending, registrars)
+        self.store._subscribers[0] = RunScopedSubscriber("run-a", pending, registrars)
         knot = _make_knot("k1")
         await self._register_under_run(knot, "run-a")
-        token = _current_dispatching_knot_id.set("outer-knot")
+        token = RunContextVars.dispatching_knot_id.set("outer-knot")
 
         # Act
         try:
             self._drain_notifications()
         finally:
-            _current_dispatching_knot_id.reset(token)
+            RunContextVars.dispatching_knot_id.reset(token)
 
         # Assert
         self.assertEqual(pending, [knot])
@@ -296,8 +297,8 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
         """
         pending_a: list[Any] = []
         pending_b: list[Any] = []
-        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
-        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+        self.store._subscribers[0] = RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = RunScopedSubscriber("run-b", pending_b)
 
         knot = _make_knot("k1")
         self.store._live["k1"] = knot

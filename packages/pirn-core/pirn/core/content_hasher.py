@@ -22,12 +22,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from collections.abc import Mapping, Sequence, Set
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, TypeAdapter
 
-from pirn.core._unhashable_error import _UnhashableError
+from pirn.core.shape_guard import ShapeGuard
+from pirn.core.unhashable_error import UnhashableError
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 _logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class ContentHasher:
     #: pair (~10-100 µs); at millions of canonicalisations per tapestry the
     #: cost compounds. Keyed by the runtime type so different concrete types
     #: remain isolated.
-    _type_adapter_cache: ClassVar[dict[type, TypeAdapter]] = {}
+    _type_adapter_cache: ClassVar[dict[type, TypeAdapter[Any]]] = {}
 
     @staticmethod
     def hash(value: Any, *, strict: bool = False) -> str:
@@ -58,7 +58,7 @@ class ContentHasher:
             2. If canonicalisation hits a leaf with no canonical form at all
                — no ``__pirn_canonical__``, no pydantic core schema, not a
                recognised container — :meth:`_canonicalise` raises
-               ``_UnhashableError`` naming that leaf's type. ``strict=True``
+               ``UnhashableError`` naming that leaf's type. ``strict=True``
                re-raises it as :class:`~pirn.exceptions.unhashable_value_error.UnhashableValueError`;
                ``strict=False`` (the default) swallows it and returns a
                ``sha256:unhashable:<top-level type>`` sentinel instead, since
@@ -100,10 +100,10 @@ class ContentHasher:
         """
         try:
             canonical = ContentHasher._canonicalise(value, strict=strict)
-        except _UnhashableError as exc:
+        except UnhashableError as exc:
             if strict:
                 raise UnhashableValueError(type_name=exc.type_name) from exc
-            return f"sha256:{_UnhashableError.sentinel}:{type(value).__name__}"
+            return f"sha256:{UnhashableError.sentinel}:{type(value).__name__}"
         payload = json.dumps(canonical, separators=(",", ":"), sort_keys=False).encode("utf-8")
         digest = hashlib.sha256(payload).hexdigest()
         return f"sha256:{digest}"
@@ -121,7 +121,12 @@ class ContentHasher:
         return repr(opaque_value)
 
     @staticmethod
-    def _canonicalise(value: Any, *, strict: bool = False) -> Any:
+    def _is_builtin_container(value: object) -> bool:
+        """Whether ``value`` is a builtin container ``_canonicalise`` walks itself."""
+        return isinstance(value, (list, tuple, dict, set, frozenset))
+
+    @staticmethod
+    def _canonicalise(value: object, *, strict: bool = False) -> object:
         """Recursively convert ``value`` into a JSON-serialisable canonical form.
 
         We use prefixed type tags ("__bytes__", "__set__", etc.) to ensure
@@ -144,7 +149,7 @@ class ContentHasher:
           :class:`PirnOpaqueValue`). ``TypeAdapter.dump_python`` honours the
           type's custom serialiser, producing a JSON-friendly dict that we
           then canonicalise normally. Without this branch the canonicaliser
-          walks dataclass ``type`` fields and hits ``_UnhashableError`` for
+          walks dataclass ``type`` fields and hits ``UnhashableError`` for
           anything containing a ``Mapping[str, type]`` (DataSchema columns).
 
         Args:
@@ -153,7 +158,7 @@ class ContentHasher:
                 through ``_canonicalise`` itself — the per-element sub-hash
                 inside the set/frozenset branch, which calls
                 :meth:`hash` directly. Every other branch recurses via
-                ``_canonicalise``, and ``_UnhashableError`` from a nested
+                ``_canonicalise``, and ``UnhashableError`` from a nested
                 call propagates unmodified regardless of ``strict`` — this
                 method never catches it, only :meth:`hash` does.
         """
@@ -165,8 +170,11 @@ class ContentHasher:
             return {"__bytes__": value.hex()}
         # Sanctioned hook — types control their canonical form explicitly
         # when this is defined.
-        if hasattr(value, "__pirn_canonical__"):
-            return ContentHasher._canonicalise(value.__pirn_canonical__(), strict=strict)
+        # A dynamic hook by design: any type may declare it, so it is looked up
+        # by name rather than through a base class.
+        canonical_hook = getattr(value, "__pirn_canonical__", None)
+        if canonical_hook is not None:
+            return ContentHasher._canonicalise(canonical_hook(), strict=strict)
         if isinstance(value, BaseModel):
             # Model JSON, then re-canonicalise the resulting dict so nested
             # non-Pydantic values are handled consistently.
@@ -188,7 +196,7 @@ class ContentHasher:
         # custom core schema. Excludes containers so the dedicated branches
         # below remain authoritative. ``TypeAdapter`` instances are cached
         # per concrete type to amortise schema-construction cost.
-        if not isinstance(value, (list, tuple, dict, set, frozenset)) and hasattr(
+        if not ContentHasher._is_builtin_container(value) and hasattr(
             type(value), "__get_pydantic_core_schema__"
         ):
             value_type = type(value)
@@ -202,14 +210,14 @@ class ContentHasher:
                 )
             except Exception:
                 # Fall through to the container/Mapping/Sequence branches
-                # below; if those also fail we end up at ``_UnhashableError``.
+                # below; if those also fail we end up at ``UnhashableError``.
                 _logger.warning(
                     "ContentHasher: TypeAdapter.dump_python failed for %s; "
                     "falling back to container/repr canonicalisation",
                     value_type,
                     exc_info=True,
                 )
-        if isinstance(value, Mapping):
+        if ShapeGuard.is_mapping(value):
             # Sort by str(key) for determinism.  Keys must serialise to strings
             # in JSON anyway.
             return {
@@ -221,7 +229,7 @@ class ContentHasher:
                     for k in sorted(value.keys(), key=str)
                 ]
             }
-        if isinstance(value, (set, frozenset, Set)):
+        if ShapeGuard.is_abstract_set(value):
             # Hash each element separately, then sort element-hashes for an
             # order-independent canonical form. Goes through ``hash()``, not
             # ``_canonicalise()``, so ``strict`` must be passed explicitly —
@@ -230,8 +238,8 @@ class ContentHasher:
             # reaching the outer ``hash()`` call's ``except``.
             element_hashes = sorted(ContentHasher.hash(e, strict=strict) for e in value)
             return {"__set__": element_hashes}
-        if isinstance(value, (list, tuple, Sequence)) and not isinstance(value, (str, bytes)):
+        if ShapeGuard.is_sequence(value) and not isinstance(value, (str, bytes)):
             return {"__seq__": [ContentHasher._canonicalise(e, strict=strict) for e in value]}
         # Opaque type — bail.  Caller produces the UNHASHABLE marker (or, in
         # strict mode, UnhashableValueError naming this exact type).
-        raise _UnhashableError(type_name=type(value).__name__)
+        raise UnhashableError(type_name=type(value).__name__)

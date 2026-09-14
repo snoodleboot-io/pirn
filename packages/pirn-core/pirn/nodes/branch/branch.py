@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Branch — route a value to one of N named paths.
 
 A ``Branch`` takes one input and a selector function that returns the
@@ -15,6 +17,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_context_vars import RunContextVars
 from pirn.exceptions.invalid_branch_error import InvalidBranchError
 from pirn.nodes.branch.branch_output import BranchOutput
 
@@ -77,9 +80,7 @@ class Branch(Knot):
             tapestry=tapestry,
         )
 
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
+        target = tapestry or RunContextVars.tapestry.get(None)
 
         self._mutable_outputs: dict[str, BranchOutput] = {}
         for name in branches:
@@ -123,7 +124,7 @@ class Branch(Knot):
         selector: Callable[[Any], str],
         branch_names: tuple[str, ...],
         **_: Any,
-    ) -> str:  # type: ignore[override]
+    ) -> str:
         """Apply the selector to the input value and return the name of the chosen branch.
 
         Args:

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound arguments: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Cron-style trigger.
 
 Fires a ``RunRequest`` at fixed intervals or at specific times.  Pure

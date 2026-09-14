@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.base.cloud_object_store import CloudObjectStore
 from pirn.backends.signer import Signer
 
 if TYPE_CHECKING:
     from pirn.connectors.object_store import ObjectStore
 
 
-class GCSDataStore(_CloudObjectStore):
+class GCSDataStore(CloudObjectStore):
     """``DataStore`` backed by a GCS bucket via gcloud-aio-storage.
 
     Each value is one GCS object at ``gs://{bucket}/{prefix}{hash}``.

@@ -1,9 +1,9 @@
-"""``_OptionalMarker`` — plain mixin applied to every Optional-decorated knot or stub."""
+"""``OptionalMarker`` — plain mixin applied to every Optional-decorated knot or stub."""
 
 from __future__ import annotations
 
 
-class _OptionalMarker:
+class OptionalMarker:
     """Plain mixin applied to every Optional-decorated knot or stub.
 
     Has no logic of its own.  Its sole purpose is to serve as a stable

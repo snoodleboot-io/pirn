@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound arguments: explicit type guards are house style (docs/contributing/domain-knots.md)
 """A gate that enforces a run's ``ConcurrencyLimits``."""
 
 from __future__ import annotations

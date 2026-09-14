@@ -115,4 +115,7 @@ class InMemoryStore(TapestryStore, SubscribableStore):
                 has already been unsubscribed is silently ignored.
         """
         with self._lock:
-            self._subscribers.pop(token, None)  # type: ignore[arg-type]
+            # Tokens this store issues are ints; any other object was never a
+            # subscription here and is ignored like an already-cancelled one.
+            if isinstance(token, int):
+                self._subscribers.pop(token, None)

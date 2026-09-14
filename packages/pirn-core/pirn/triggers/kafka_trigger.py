@@ -18,12 +18,16 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import AsyncIterator
-from typing import Any
+from collections.abc import AsyncIterator, Callable
+from typing import TYPE_CHECKING
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.run_request import RunRequest
+from pirn.core.shape_guard import ShapeGuard
 from pirn.triggers.trigger import Trigger
+
+if TYPE_CHECKING:
+    from aiokafka import AIOKafkaConsumer, ConsumerRecord
 
 _logger = logging.getLogger(__name__)
 
@@ -39,11 +43,11 @@ class KafkaTrigger(Trigger):
     def __init__(
         self,
         *,
-        consumer: Any = None,
+        consumer: AIOKafkaConsumer | None = None,
         topic: str | None = None,
         bootstrap_servers: str | None = None,
         group_id: str = "pirn",
-        request_builder: Any = None,
+        request_builder: Callable[[ConsumerRecord], RunRequest] | None = None,
     ) -> None:
         """Initialise the trigger.
 
@@ -59,7 +63,7 @@ class KafkaTrigger(Trigger):
                 ``"localhost:9092"``).  Required when ``consumer`` is
                 ``None``.
             group_id: Kafka consumer group id.  Defaults to ``"pirn"``.
-            request_builder: Callable ``(msg: AIOKafkaMessage) ->
+            request_builder: Callable ``(msg: ConsumerRecord) ->
                 RunRequest``.  Defaults to JSON-decoding the message
                 value as a parameter dict.
 
@@ -68,17 +72,19 @@ class KafkaTrigger(Trigger):
         """
         if consumer is None and topic is None:
             raise TypeError("provide either consumer= or topic=")
-        self._consumer = consumer
+        self._consumer: AIOKafkaConsumer | None = consumer
         self._topic = topic
         self._bootstrap = bootstrap_servers
         self._group_id = group_id
-        self._builder = request_builder or KafkaTrigger.__default_request_builder
+        self._builder: Callable[[ConsumerRecord], RunRequest] = (
+            request_builder or KafkaTrigger.__default_request_builder
+        )
 
     @property
     def name(self) -> str:
         return "KafkaTrigger"
 
-    async def _ensure_consumer(self) -> Any:
+    async def _ensure_consumer(self) -> AIOKafkaConsumer:
         """Return the consumer, creating and starting one lazily if needed.
 
         Returns:
@@ -86,18 +92,20 @@ class KafkaTrigger(Trigger):
 
         Raises:
             ImportError: If ``aiokafka`` is not installed.
-            AssertionError: If ``bootstrap_servers`` was not provided
-                when constructing without a consumer.
+            AssertionError: If ``bootstrap_servers`` or ``topic`` was not
+                provided when constructing without a consumer.
         """
         if self._consumer is None:
             aiokafka = OptionalDependency.require("aiokafka", extra="kafka")
             assert self._bootstrap is not None, "bootstrap_servers required when no consumer"
-            self._consumer = aiokafka.AIOKafkaConsumer(
+            assert self._topic is not None, "topic required when no consumer"
+            consumer: AIOKafkaConsumer = aiokafka.AIOKafkaConsumer(
                 self._topic,
                 bootstrap_servers=self._bootstrap,
                 group_id=self._group_id,
             )
-            await self._consumer.start()
+            await consumer.start()
+            self._consumer = consumer
         return self._consumer
 
     async def stream(self) -> AsyncIterator[RunRequest]:
@@ -122,15 +130,13 @@ class KafkaTrigger(Trigger):
                 _logger.warning("KafkaTrigger: consumer.stop() raised during close", exc_info=True)
 
     @staticmethod
-    def __default_request_builder(msg: Any) -> RunRequest:
+    def __default_request_builder(msg: ConsumerRecord) -> RunRequest:
         raw = msg.value
         if isinstance(raw, bytes):
             raw = raw.decode("utf-8")
-        if isinstance(raw, str):
-            params = json.loads(raw)
-        else:
-            params = raw
-        if not isinstance(params, dict):
+        # A value a deserializer already decoded is taken as it is.
+        params: object = json.loads(raw) if isinstance(raw, str) else raw
+        if not ShapeGuard.is_str_keyed_dict(params):
             raise TypeError(
                 f"KafkaTrigger: expected JSON object for message value, got {type(params).__name__}"
             )

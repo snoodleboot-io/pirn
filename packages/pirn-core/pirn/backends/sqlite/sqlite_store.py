@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
-from pirn.backends.sqlite._migrations import _SqliteMigrations
+from pirn.backends.sqlite.sqlite_migrations import SqliteMigrations
 from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 if TYPE_CHECKING:
@@ -96,7 +96,7 @@ class SQLiteStore(TapestryStore):
         if self._initialized:
             return
         self._conn.executescript(self._schema_version_ddl + self._store_ddl)
-        _SqliteMigrations.apply(self._conn, "store", self._schema_version)
+        SqliteMigrations.apply(self._conn, "store", self._schema_version)
         self._conn.commit()
         self._initialized = True
 

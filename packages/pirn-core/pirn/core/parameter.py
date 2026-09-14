@@ -20,7 +20,7 @@ from pydantic import TypeAdapter
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter_spec import ParameterSpec
-from pirn.core.sentinels._unset import _Unset
+from pirn.core.sentinels.unset import Unset
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 
 
@@ -73,7 +73,7 @@ class Parameter(Knot):
         name: str,
         type_: Any,
         *,
-        default: Any = _Unset,
+        default: Any = Unset,
         description: str | None = None,
         _config: KnotConfig | None = None,
         tapestry: Any = None,
@@ -87,7 +87,7 @@ class Parameter(Knot):
             type_: The Python type the bound value must conform to.  Any type
                 accepted by ``pydantic.TypeAdapter`` is valid.
             default: Optional fallback value used when the caller does not
-                supply a binding.  Omit (or pass ``_Unset``) to require the
+                supply a binding.  Omit (or pass ``Unset``) to require the
                 caller to always supply a value.
             description: Human-readable description surfaced in schema exports
                 and visualisations.
@@ -101,7 +101,7 @@ class Parameter(Knot):
         # Parameter has no `process` parameters, so the standard Knot
         # introspection would find nothing to validate.  We bypass most of
         # it and set up our own state.
-        has_default = default is not _Unset
+        has_default = default is not Unset
         spec = ParameterSpec(
             name=name,
             type_=type_,
@@ -121,7 +121,7 @@ class Parameter(Knot):
         # refuse our parameters; instead we go through the shared
         # _bootstrap() helper that stashes the same fields and self-registers.
         self._mutable_spec = spec
-        self._mutable_value: Any = _Unset
+        self._mutable_value: Any = Unset
         self._bootstrap(config=config, parents={}, output_adapter=adapter, tapestry=tapestry)
 
         self._frozen = True
@@ -207,7 +207,7 @@ class Parameter(Knot):
         Raises:
             UnboundParameterError: If no value is bound and no default is declared.
         """
-        if self._mutable_value is not _Unset:
+        if self._mutable_value is not Unset:
             return self._mutable_value
         if self.has_default:
             return self.default

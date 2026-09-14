@@ -8,15 +8,18 @@ from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
-
-_logger = logging.getLogger(__name__)
-from pirn.backends.base.tapestry_snapshot import TapestrySnapshot  # noqa: E402
-from pirn.backends.base.tapestry_store import TapestryStore  # noqa: E402
-from pirn.backends.valkey._lazy_client import _LazyClient  # noqa: E402
-from pirn.exceptions.duplicate_knot_error import DuplicateKnotError  # noqa: E402
+from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
+from pirn.backends.base.tapestry_store import TapestryStore
+from pirn.backends.valkey.lazy_client import LazyClient
+from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 if TYPE_CHECKING:
+    from glide import GlideClient, GlideClientConfiguration
+
     from pirn.core.knot import Knot
+
+_logger = logging.getLogger(__name__)
 
 
 class ValKeyStore(TapestryStore, SubscribableStore):
@@ -31,7 +34,12 @@ class ValKeyStore(TapestryStore, SubscribableStore):
     _knot_key_prefix = "pirn:tapestry:knot:"
     _registrations_channel = "pirn:tapestry:registrations"
 
-    def __init__(self, *, client: Any = None, config: Any = None) -> None:
+    def __init__(
+        self,
+        *,
+        client: GlideClient | None = None,
+        config: GlideClientConfiguration | None = None,
+    ) -> None:
         """Initialise the store.
 
         Args:
@@ -43,7 +51,7 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         Raises:
             TypeError: If neither ``client`` nor ``config`` is provided.
         """
-        self._client = _LazyClient(client=client, config=config)
+        self._client = LazyClient(client=client, config=config)
         self._live: dict[str, Knot] = {}
         self._pending_register_tasks: list[Any] = []
         self._subscribers: dict[int, Callable[[Any], None]] = {}
@@ -175,7 +183,10 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         Args:
             token: The token returned by :meth:`subscribe`.
         """
-        self._subscribers.pop(token, None)  # type: ignore[arg-type]
+        # Tokens this store issues are ints; any other object was never a
+        # subscription here and is ignored like an already-cancelled one.
+        if isinstance(token, int):
+            self._subscribers.pop(token, None)
         if not self._subscribers and self._listener_task is not None:
             self._listener_task.cancel()
             self._listener_task = None
@@ -219,28 +230,30 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         """Hold a dedicated pub/sub connection until all subscribers cancel.
 
         Creates a new ``GlideClient`` configured with a pub/sub subscription
-        to the registrations channel.  Falls back silently if ``glide`` is
-        not installed or no config is available.
+        to the registrations channel.  Does nothing for an injected client,
+        which carries no config to derive the subscription connection from.
         """
-        try:
-            from glide import GlideClient, GlideClientConfiguration
-            from glide.config import PubSubChannelModes, PubSubSubscriptions
-        except ImportError:
+        base_config = self._client.config
+        if base_config is None:
             return
+        glide = OptionalDependency.require("glide", extra="valkey")
+        config_class: type[GlideClientConfiguration] = glide.GlideClientConfiguration
 
-        if self._client._config is None:
-            return
-
-        subscriptions = PubSubSubscriptions(
-            channels_and_patterns={PubSubChannelModes.Exact: {self._registrations_channel}},
+        # valkey-glide >= 2 nests the pub/sub types on the configuration class;
+        # the ``glide.config`` module this used to import from no longer exists,
+        # so the listener silently never started.
+        subscriptions = config_class.PubSubSubscriptions(
+            channels_and_patterns={
+                config_class.PubSubChannelModes.Exact: {self._registrations_channel}
+            },
             callback=self._on_message,
             context=None,
         )
-        config = GlideClientConfiguration(
-            self._client._config.addresses,
+        config = config_class(
+            base_config.addresses,
             pubsub_subscriptions=subscriptions,
         )
-        sub_client = await GlideClient.create(config)
+        sub_client: GlideClient = await glide.GlideClient.create(config)
         try:
             while self._subscribers:
                 await asyncio.sleep(0.05)

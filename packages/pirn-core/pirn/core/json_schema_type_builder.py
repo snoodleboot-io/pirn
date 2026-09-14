@@ -49,11 +49,16 @@ References:
 
 from __future__ import annotations
 
+import functools
+import types
 from collections.abc import Mapping
 from typing import Annotated, Any, ClassVar, Literal, NotRequired, Required, Union
 
 from pydantic import ConfigDict, Field, TypeAdapter
 from typing_extensions import TypedDict
+
+from pirn.core.json_schema_field_constraints import JsonSchemaFieldConstraints
+from pirn.core.shape_guard import ShapeGuard
 
 
 class JsonSchemaTypeBuilder:
@@ -65,20 +70,6 @@ class JsonSchemaTypeBuilder:
         "number": float,
         "boolean": bool,
         "null": type(None),
-    }
-
-    #: JSON-schema keyword -> ``pydantic.Field`` constraint keyword.
-    _constraints: ClassVar[dict[str, str]] = {
-        "minimum": "ge",
-        "maximum": "le",
-        "exclusiveMinimum": "gt",
-        "exclusiveMaximum": "lt",
-        "multipleOf": "multiple_of",
-        "minLength": "min_length",
-        "maxLength": "max_length",
-        "pattern": "pattern",
-        "minItems": "min_length",
-        "maxItems": "max_length",
     }
 
     @classmethod
@@ -94,13 +85,13 @@ class JsonSchemaTypeBuilder:
             TypeError: If *schema* is not an object schema with a
                 ``properties`` mapping, or names a reserved property.
         """
-        if not isinstance(schema, Mapping):
+        if not ShapeGuard.is_str_keyed_mapping(schema):
             raise TypeError(f"input schema must be a mapping, got {type(schema).__name__}")
         declared_type = schema.get("type", "object")
         if declared_type != "object":
             raise TypeError(f"input schema must describe an object, got type={declared_type!r}")
         properties = schema.get("properties", {})
-        if not isinstance(properties, Mapping):
+        if not ShapeGuard.is_str_keyed_mapping(properties):
             raise TypeError("input schema 'properties' must be a mapping")
         clashes = sorted(set(properties) & reserved)
         if clashes:
@@ -108,7 +99,9 @@ class JsonSchemaTypeBuilder:
                 f"input schema property name(s) {clashes!r} conflict with framework-reserved kwargs"
             )
         required = schema.get("required", [])
-        unknown = sorted(set(required) - set(properties))
+        if not ShapeGuard.is_list_or_tuple(required):
+            raise TypeError("input schema 'required' must be a list of property names")
+        unknown = sorted(str(name) for name in set(required) - set(properties))
         if unknown:
             raise TypeError(f"input schema requires undeclared property name(s) {unknown!r}")
         return {**schema, "properties": dict(properties)}
@@ -149,16 +142,72 @@ class JsonSchemaTypeBuilder:
             root: The schema ``$ref`` pointers resolve against; defaults to
                 *fragment* itself.
         """
-        if not isinstance(fragment, Mapping):
+        if not ShapeGuard.is_str_keyed_mapping(fragment):
             return Any
-        root = root if root is not None else fragment
-        base = cls._unconstrained_type(fragment, root)
-        constraints = {
-            keyword: fragment[key] for key, keyword in cls._constraints.items() if key in fragment
-        }
+        schema_root: Mapping[str, Any] = root if root is not None else fragment
+        base = cls._unconstrained_type(fragment, schema_root)
+        constraints = cls._field_constraints(fragment)
         if not constraints or base is Any:
             return base
         return Annotated[base, Field(**constraints)]
+
+    @classmethod
+    def _field_constraints(cls, fragment: Mapping[str, object]) -> JsonSchemaFieldConstraints:
+        """Map the fragment's bound keywords onto ``pydantic.Field`` constraints.
+
+        Raises:
+            TypeError: If a bound keyword carries a value of the wrong JSON type.
+        """
+        constraints: JsonSchemaFieldConstraints = {}
+        minimum = cls._number(fragment, "minimum")
+        if minimum is not None:
+            constraints["ge"] = minimum
+        maximum = cls._number(fragment, "maximum")
+        if maximum is not None:
+            constraints["le"] = maximum
+        exclusive_minimum = cls._number(fragment, "exclusiveMinimum")
+        if exclusive_minimum is not None:
+            constraints["gt"] = exclusive_minimum
+        exclusive_maximum = cls._number(fragment, "exclusiveMaximum")
+        if exclusive_maximum is not None:
+            constraints["lt"] = exclusive_maximum
+        multiple_of = cls._number(fragment, "multipleOf")
+        if multiple_of is not None:
+            constraints["multiple_of"] = multiple_of
+        for keyword in ("minLength", "minItems"):
+            min_length = cls._count(fragment, keyword)
+            if min_length is not None:
+                constraints["min_length"] = min_length
+        for keyword in ("maxLength", "maxItems"):
+            max_length = cls._count(fragment, keyword)
+            if max_length is not None:
+                constraints["max_length"] = max_length
+        pattern = fragment.get("pattern")
+        if pattern is not None:
+            if not isinstance(pattern, str):
+                raise TypeError(f"input schema 'pattern' must be a string, got {pattern!r}")
+            constraints["pattern"] = pattern
+        return constraints
+
+    @staticmethod
+    def _number(fragment: Mapping[str, object], keyword: str) -> int | float | None:
+        """The numeric bound under *keyword*, or ``None`` when the fragment has none."""
+        value = fragment.get(keyword)
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(f"input schema {keyword!r} must be a number, got {value!r}")
+        return value
+
+    @staticmethod
+    def _count(fragment: Mapping[str, object], keyword: str) -> int | None:
+        """The non-negative integer bound under *keyword*, or ``None`` when absent."""
+        value = fragment.get(keyword)
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"input schema {keyword!r} must be an integer, got {value!r}")
+        return value
 
     @classmethod
     def _unconstrained_type(cls, fragment: Mapping[str, Any], root: Mapping[str, Any]) -> Any:
@@ -168,15 +217,15 @@ class JsonSchemaTypeBuilder:
             return Literal[fragment["const"]]
         if "enum" in fragment:
             values = tuple(fragment["enum"])
-            return Literal[values] if values else Any  # type: ignore[valid-type]
+            return Literal[values] if values else Any
         for combinator in ("anyOf", "oneOf"):
             if combinator in fragment:
                 members = [cls.python_type(member, root=root) for member in fragment[combinator]]
                 return cls._union(members)
         declared = fragment.get("type")
         nullable = bool(fragment.get("nullable", False))
-        if isinstance(declared, list):
-            members = [cls._typed(fragment, name, root) for name in declared]
+        if ShapeGuard.is_list(declared):
+            members = [cls._typed(fragment, str(name), root) for name in declared]
             return cls._union(members)
         if declared is None:
             # No ``type``: an object shape may still be implied by ``properties``.
@@ -194,7 +243,7 @@ class JsonSchemaTypeBuilder:
             return cls._scalars[name]
         if name == "array":
             items = fragment.get("items")
-            return list[cls.python_type(items, root=root)] if items is not None else list[Any]  # type: ignore[misc]
+            return list[cls.python_type(items, root=root)] if items is not None else list[Any]
         if name == "object":
             return cls._object_type(fragment, root)
         return Any
@@ -203,21 +252,33 @@ class JsonSchemaTypeBuilder:
     def _object_type(cls, fragment: Mapping[str, Any], root: Mapping[str, Any]) -> Any:
         properties = fragment.get("properties")
         additional = fragment.get("additionalProperties", True)
-        if not isinstance(properties, Mapping) or not properties:
+        if not ShapeGuard.is_str_keyed_mapping(properties) or not properties:
             value_type = cls.python_type(additional, root=root) if additional is not False else Any
-            return dict[str, value_type]  # type: ignore[valid-type]
+            return dict[str, value_type]
         required = set(fragment.get("required", []))
         fields: dict[str, Any] = {}
         for prop_name, prop_fragment in properties.items():
             prop_type = cls.python_type(prop_fragment, root=root)
             fields[prop_name] = (
-                Required[prop_type] if prop_name in required else NotRequired[prop_type]  # type: ignore[valid-type]
+                Required[prop_type] if prop_name in required else NotRequired[prop_type]
             )
-        typed = TypedDict(str(fragment.get("title", "Object")), fields)  # type: ignore[misc]
-        typed.__pydantic_config__ = ConfigDict(  # type: ignore[attr-defined]
-            extra="forbid" if additional is False else "allow"
+        # The class name and keys come from the schema at runtime, which the
+        # ``TypedDict(name, fields)`` call form cannot take; building the class
+        # through ``types.new_class`` is the same ``TypedDict`` subclass.
+        typed = types.new_class(
+            str(fragment.get("title", "Object")),
+            (TypedDict,),
+            None,
+            functools.partial(JsonSchemaTypeBuilder._typed_dict_namespace, fields),
         )
+        # pydantic reads a TypedDict's config from this class attribute.
+        typed.__pydantic_config__ = ConfigDict(extra="forbid" if additional is False else "allow")
         return typed
+
+    @staticmethod
+    def _typed_dict_namespace(fields: Mapping[str, Any], namespace: dict[str, Any]) -> None:
+        """Populate a ``TypedDict`` class body with *fields* as its annotations."""
+        namespace["__annotations__"] = dict(fields)
 
     @staticmethod
     def _union(members: list[Any]) -> Any:

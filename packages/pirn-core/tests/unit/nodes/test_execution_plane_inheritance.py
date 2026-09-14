@@ -34,6 +34,7 @@ from pirn.core.execution_plane import ExecutionPlane
 from pirn.core.identity.identity_resolver import IdentityResolver
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_context_vars import RunContextVars
 from pirn.core.run_request import RunRequest
 from pirn.engine.admission.admission_observer import AdmissionObserver
 from pirn.engine.admission.limited_admission import LimitedAdmission
@@ -44,7 +45,7 @@ from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.recording.replay_session import ReplaySession
-from pirn.tapestry import Tapestry, _current_execution_plane, _current_run_id
+from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
@@ -784,13 +785,13 @@ class TestInnerRunsInheritReplayPosture(unittest.IsolatedAsyncioTestCase):
             _Counting(calls=calls, _config=KnotConfig(id="inner"))
 
         # Act
-        token_plane = _current_execution_plane.set(self._plane(outer_session))
-        token_run = _current_run_id.set(outer.run_id)
+        token_plane = RunContextVars.execution_plane.set(self._plane(outer_session))
+        token_run = RunContextVars.run_id.set(outer.run_id)
         try:
             replayed = await inner.run(RunRequest(), _parent_knot_id="sub")
         finally:
-            _current_run_id.reset(token_run)
-            _current_execution_plane.reset(token_plane)
+            RunContextVars.run_id.reset(token_run)
+            RunContextVars.execution_plane.reset(token_plane)
 
         # Assert: served, not executed.
         self.assertTrue(replayed.succeeded, replayed.exceptions)
@@ -805,13 +806,13 @@ class TestInnerRunsInheritReplayPosture(unittest.IsolatedAsyncioTestCase):
         with Tapestry(history=history, data_store=store) as inner:
             _Counting(calls=calls, _config=KnotConfig(id="inner"))
 
-        token_plane = _current_execution_plane.set(self._plane(outer_session))
-        token_run = _current_run_id.set(outer.run_id)
+        token_plane = RunContextVars.execution_plane.set(self._plane(outer_session))
+        token_run = RunContextVars.run_id.set(outer.run_id)
         try:
             live = await inner.run(RunRequest(), _parent_knot_id="not-recorded")
         finally:
-            _current_run_id.reset(token_run)
-            _current_execution_plane.reset(token_plane)
+            RunContextVars.run_id.reset(token_run)
+            RunContextVars.execution_plane.reset(token_plane)
 
         self.assertTrue(live.succeeded, live.exceptions)
         self.assertEqual(calls, ["inner", "inner"])
@@ -825,13 +826,13 @@ class TestInnerRunsInheritReplayPosture(unittest.IsolatedAsyncioTestCase):
         with Tapestry(history=history, data_store=store) as inner:
             _Counting(calls=calls, _config=KnotConfig(id="inner"))
 
-        token_plane = _current_execution_plane.set(self._plane(None))
-        token_run = _current_run_id.set(outer.run_id)
+        token_plane = RunContextVars.execution_plane.set(self._plane(None))
+        token_run = RunContextVars.run_id.set(outer.run_id)
         try:
             replayed = await inner.run(RunRequest(), replay=own_session, _parent_knot_id="sub")
         finally:
-            _current_run_id.reset(token_run)
-            _current_execution_plane.reset(token_plane)
+            RunContextVars.run_id.reset(token_run)
+            RunContextVars.execution_plane.reset(token_plane)
 
         self.assertTrue(replayed.succeeded, replayed.exceptions)
         self.assertEqual(calls, ["inner"])

@@ -20,14 +20,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.base.cloud_object_store import CloudObjectStore
 from pirn.backends.signer import Signer
 
 if TYPE_CHECKING:
     from pirn.connectors.object_store import ObjectStore
 
 
-class S3DataStore(_CloudObjectStore):
+class S3DataStore(CloudObjectStore):
     """``DataStore`` backed by an S3 bucket via aioboto3.
 
     Each value is one S3 object at ``s3://{bucket}/{prefix}{hash}``.

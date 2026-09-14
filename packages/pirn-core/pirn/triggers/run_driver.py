@@ -1,10 +1,10 @@
-"""``_RunDriver`` — shared iterate/convert/run/observe loop.
+"""``RunDriver`` — shared iterate/convert/run/observe loop.
 
 ``triggers.trigger.run_forever`` and ``streaming.streaming_source.run_stream``
 were near-identical module-level drivers: pull one event at a time from an
 async iterator, convert it to a ``RunRequest``, run it against a
 ``Tapestry``, dispatch the result (or an unhandled exception) to an optional
-callback, and always close the underlying source on exit. ``_RunDriver``
+callback, and always close the underlying source on exit. ``RunDriver``
 factors that loop out; both public functions become thin wrappers that
 supply the two things that differ — how an event becomes a ``RunRequest``,
 and what "close" means for their event source.
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
-class _RunDriver:
+class RunDriver:
     """Stateless driver shared by ``Trigger.run_forever`` and ``StreamingSource.run_stream``."""
 
     @staticmethod
@@ -80,7 +80,7 @@ class _RunDriver:
                 await close()
             except Exception:
                 _logger.warning(
-                    "_RunDriver: %s raised while shutting down",
+                    "RunDriver: %s raised while shutting down",
                     close_error_context,
                     exc_info=True,
                 )
