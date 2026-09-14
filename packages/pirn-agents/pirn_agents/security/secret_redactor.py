@@ -37,6 +37,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.security.redaction_result import RedactionResult
 from pirn_agents.security.secret_finding import SecretFinding
 from pirn_agents.security.secret_leak_scanner import SecretLeakScanner
@@ -153,7 +154,7 @@ class SecretRedactor:
 
     def _redact(self, value: Any, path: str, findings: list[SecretFinding]) -> Any:
         """Recursively redact ``value``, appending findings with their ``path``."""
-        if isinstance(value, Mapping):
+        if JsonShape.is_any_mapping(value):
             out: dict[Any, Any] = {}
             for key, item in value.items():
                 child_path = f"{path}.{key}"
@@ -168,11 +169,11 @@ class SecretRedactor:
             for kind in kinds:
                 findings.append(SecretFinding(kind=kind, path=path))
             return redacted
-        if isinstance(value, tuple):
+        if JsonShape.is_tuple(value):
             return tuple(
                 self._redact(item, f"{path}[{index}]", findings) for index, item in enumerate(value)
             )
-        if isinstance(value, list):
+        if JsonShape.is_list(value):
             return [
                 self._redact(item, f"{path}[{index}]", findings) for index, item in enumerate(value)
             ]

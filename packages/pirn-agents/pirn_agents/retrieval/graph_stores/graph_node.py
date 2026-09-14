@@ -34,7 +34,7 @@ class GraphNode(PirnOpaqueValue):
 
     id: str
     type: str
-    properties: Mapping[str, Any] = field(default_factory=dict)
+    properties: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     @classmethod
     def create(

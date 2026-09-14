@@ -40,7 +40,7 @@ class GraphEdge(PirnOpaqueValue):
     source_id: str
     target_id: str
     type: str
-    properties: Mapping[str, Any] = field(default_factory=dict)
+    properties: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     @classmethod
     def create(

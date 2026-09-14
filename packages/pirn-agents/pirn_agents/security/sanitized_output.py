@@ -78,5 +78,10 @@ class SanitizedOutput(PirnOpaqueValue):
             "original_length": self.original_length,
             "truncated": self.truncated,
             "stripped": self.stripped,
-            "quarantined": [item._pirn_audit_dict() for item in self.quarantined],
+            "quarantined": self._audit_all(self.quarantined),
         }
+
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]

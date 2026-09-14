@@ -37,6 +37,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, ClassVar
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.prompt.prompt_template import PromptTemplate
 from pirn_agents.tools.filesystem._path_guard import PathGuard
@@ -79,7 +80,7 @@ class PromptPackLoader:
         raw_templates = data.get("templates")
         if raw_templates is None:
             raise ValueError("PromptPackLoader: pack must declare a 'templates' mapping")
-        if not isinstance(raw_templates, Mapping):
+        if not JsonShape.is_any_mapping(raw_templates):
             raise TypeError(
                 "PromptPackLoader: 'templates' must be a mapping of name -> body, "
                 f"got {type(raw_templates).__name__}"
@@ -101,7 +102,7 @@ class PromptPackLoader:
             parsed = json.loads(text)
         except json.JSONDecodeError as exc:
             raise ValueError(f"PromptPackLoader.from_json: invalid JSON: {exc}") from exc
-        if not isinstance(parsed, dict):
+        if not JsonShape.is_dict(parsed):
             raise TypeError(
                 "PromptPackLoader.from_json: top-level JSON must be an object, "
                 f"got {type(parsed).__name__}"
@@ -124,7 +125,7 @@ class PromptPackLoader:
             parsed = yaml.safe_load(text)
         except yaml.YAMLError as exc:
             raise ValueError(f"PromptPackLoader.from_yaml: invalid YAML: {exc}") from exc
-        if not isinstance(parsed, dict):
+        if not JsonShape.is_dict(parsed):
             raise TypeError(
                 "PromptPackLoader.from_yaml: top-level YAML must be a mapping, "
                 f"got {type(parsed).__name__}"
@@ -188,7 +189,7 @@ class PromptPackLoader:
             )
         if isinstance(body, str):
             return PromptTemplate(name=name, version=cls._default_version, template=body)
-        if not isinstance(body, Mapping):
+        if not JsonShape.is_mapping(body):
             raise TypeError(
                 f"PromptPackLoader: template {name!r} must be a string body or a mapping, "
                 f"got {type(body).__name__}"
@@ -205,7 +206,7 @@ class PromptPackLoader:
         if not isinstance(description, str):
             raise ValueError(f"PromptPackLoader: template {name!r} has a non-string 'description'")
         raw_partials = body.get("partials", {})
-        if not isinstance(raw_partials, Mapping):
+        if not JsonShape.is_mapping(raw_partials):
             raise TypeError(
                 f"PromptPackLoader: template {name!r} has non-mapping 'partials', "
                 f"got {type(raw_partials).__name__}"

@@ -39,7 +39,7 @@ class VectorMatch(PirnOpaqueValue):
 
     id: str
     score: float
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
     document: str | None = None
 
     def __post_init__(self) -> None:

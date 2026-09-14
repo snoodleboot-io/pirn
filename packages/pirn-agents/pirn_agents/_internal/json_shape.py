@@ -48,6 +48,11 @@ class JsonShape:
         return isinstance(value, (list, tuple))
 
     @staticmethod
+    def is_list_tuple_or_set(value: object) -> TypeGuard[list[Any] | tuple[Any, ...] | set[Any]]:
+        """Return ``True`` when ``value`` is a ``list``, a ``tuple`` or a ``set``."""
+        return isinstance(value, list | tuple | set)
+
+    @staticmethod
     def is_sequence(value: object) -> TypeGuard[Sequence[Any]]:
         """Return ``True`` when ``value`` is any ``Sequence`` (``str`` included)."""
         return isinstance(value, Sequence)

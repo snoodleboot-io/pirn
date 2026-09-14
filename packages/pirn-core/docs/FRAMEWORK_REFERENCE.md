@@ -517,7 +517,7 @@ threaded across iterations is the running tuple of step results.
 
 Three more `USES_ASYNCIO_GATHER` sites fixed in PIR-867: `HybridRetriever`
 (`retrieval/`) now wires its dense and lexical arms as two knots
-(`_DenseIds`/`_LexicalIds`, the BM25 side still offloading to a worker thread
+(`DenseIds`/`LexicalIds`, the BM25 side still offloading to a worker thread
 internally via `asyncio.to_thread`) into an `Aggregator`, so it is a
 `SubTapestry` now rather than a plain `Knot` — `HybridRetrieverBase` stays a
 plain `Retriever`/`Knot` base since `HybridGraphRetriever` still needs that

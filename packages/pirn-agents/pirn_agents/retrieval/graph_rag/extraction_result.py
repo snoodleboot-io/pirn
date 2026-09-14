@@ -26,5 +26,5 @@ class ExtractionResult(BaseModel):
         The typed relations extracted between those entities.
     """
 
-    entities: list[ExtractedEntity] = Field(default_factory=list)
-    relations: list[ExtractedRelation] = Field(default_factory=list)
+    entities: list[ExtractedEntity] = Field(default_factory=list[ExtractedEntity])
+    relations: list[ExtractedRelation] = Field(default_factory=list[ExtractedRelation])

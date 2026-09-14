@@ -54,7 +54,7 @@ class PromptTemplate(PirnOpaqueValue):
     name: str
     version: str
     template: str
-    partials: Mapping[str, str] = field(default_factory=dict)
+    partials: Mapping[str, str] = field(default_factory=dict[str, str])
     description: str = ""
 
     def __post_init__(self) -> None:
