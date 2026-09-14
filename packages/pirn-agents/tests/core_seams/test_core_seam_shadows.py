@@ -35,13 +35,10 @@ from tests.core_seams.core_seam_shadow_inventory import CoreSeamShadowInventory
 # KnotRetryPolicy.run and KnotConfig.timeout -> KnotTimeoutError.
 RETRY_TIMEOUT: frozenset[str] = frozenset()
 
-NESTING = frozenset(
-    {
-        "exceptions/agent_cycle_error.py::AgentCycleError",
-        "exceptions/agent_depth_exceeded_error.py::AgentDepthExceededError",
-        "exceptions/agent_recursion_error.py::AgentRecursionError",
-    }
-)
+# AgentRecursionError/AgentDepthExceededError/AgentCycleError, AgentToolContext
+# and AgentNestingConfig deleted (PIR-872): RunNesting + Tapestry(max_nesting_depth=)
+# with NestingDepthExceededError / NestedRunCycleError.
+NESTING: frozenset[str] = frozenset()
 
 # AgentSchemaDeriver/ToolSchemaCompiler/ArgumentValidator all deleted (PIR-864).
 INPUT_SCHEMA: frozenset[str] = frozenset()

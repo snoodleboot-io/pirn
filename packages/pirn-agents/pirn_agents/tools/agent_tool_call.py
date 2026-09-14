@@ -12,14 +12,14 @@ it around the nested run:
   core's :class:`~pirn.core.run_nesting.RunNesting` guard refuses runaway
   recursion and an agent re-entering itself (``NestedRunCycleError``), and
   the container's nesting key is the *agent* class, not this wrapper;
-* **budget** — the ambient :class:`~pirn_agents.agent.agent_tool_context.AgentToolContext`
+* **budget** — the ambient :class:`~pirn_agents.agent.agent_tool_policy.AgentToolPolicy`
   meter is inherited (or built from the tool's ``budget``), spent one
   iteration per call before the run and the response's tokens after it;
 * **provider** — a pooled ``LLMProvider`` is threaded into the agent's ``llm``
   input when it declares one, so nested agents reuse it by identity.
 
 Algorithm:
-    1. ``__call__`` — resolve the inherited context, build the child context
+    1. ``__call__`` — resolve the inherited policy, build this call's policy
        with the effective meter/provider, spend an iteration, bind it, and
        run as a ``SubTapestry``; afterwards spend the response's tokens.
     2. ``process()`` — construct ``agent_class(**bound, **arguments,
@@ -44,9 +44,8 @@ from pirn.core.skipped import Skipped
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
-from pirn_agents.agent.agent_tool_context import AgentToolContext
+from pirn_agents.agent.agent_tool_policy import AgentToolPolicy
 from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
@@ -67,7 +66,7 @@ class AgentToolCall(SubTapestry):
         bound: Knot | Mapping[str, Any] | None = None,
         budget: Any = None,
         provider: Any = None,
-        max_depth: Knot | int = AgentNestingConfig.max_depth,
+        max_depth: Knot | int = 8,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -86,7 +85,9 @@ class AgentToolCall(SubTapestry):
             budget: A :class:`RunBudget` enforced when no ambient meter is
                 active (``Any``: bound policy, never model-supplied).
             provider: A pooled ``LLMProvider`` to inject as ``llm``.
-            max_depth: Agent-as-tool frames allowed below this call.
+            max_depth: Agent-as-tool frames allowed below this call; each frame
+                is two nested runs (this call and the agent), which
+                ``_make_inner_tapestry`` turns into core's ``max_nesting_depth``.
             _config: Framework metadata; ``id`` is the call id.
         """
         super().__init__(
@@ -113,29 +114,27 @@ class AgentToolCall(SubTapestry):
 
     def _make_inner_tapestry(self) -> Tapestry:
         """An inner tapestry capped at ``max_depth`` agent-as-tool frames below here."""
-        max_depth = self.config_values.get("max_depth", AgentNestingConfig.max_depth)
+        max_depth = self.config_values.get("max_depth", 8)
         frames = max_depth if isinstance(max_depth, int) and max_depth > 0 else 1
         return Tapestry(max_nesting_depth=RunNesting.current().depth + 2 * frames)
 
     async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
         """Bind the budget/provider context around the nested run and account for it."""
         values = self.config_values
-        base = AgentToolContext.bound()
-        if base is None:
-            base = AgentToolContext.from_current_frame()
+        base = AgentToolPolicy.current()
         meter: RunBudgetMeter | None = base.meter
         budget = values.get("budget")
         if meter is None and isinstance(budget, RunBudget):
             meter = RunBudgetMeter(budget)
         own_provider = values.get("provider")
         provider = own_provider if own_provider is not None else base.provider
-        child = AgentToolContext.from_current_frame(meter=meter, provider=provider)
+        policy = AgentToolPolicy(meter=meter, provider=provider)
         if meter is not None:
             meter.token.raise_if_cancelled()
             meter.checkpoint()
             meter.spend_iteration()
         start = time.perf_counter()
-        with AgentToolContext.bind(child):
+        with AgentToolPolicy.bind(policy):
             result = await super().__call__(parent_results)
         if not isinstance(result, Skipped):
             await AgentCallRecorder.record(
@@ -163,7 +162,7 @@ class AgentToolCall(SubTapestry):
         bound: Mapping[str, Any] | None = None,
         budget: Any = None,
         provider: Any = None,
-        max_depth: int = AgentNestingConfig.max_depth,
+        max_depth: int = 8,
         **_: Any,
     ) -> Knot:
         """Construct the agent knot for this call and return it as the sink.
@@ -191,8 +190,7 @@ class AgentToolCall(SubTapestry):
                 f"AgentToolCall: agent_class must be a SubTapestry class, got {agent_class!r}"
             )
         inputs: dict[str, Any] = {**(bound or {}), **arguments}
-        context = AgentToolContext.bound()
-        effective = provider if provider is not None else (context.provider if context else None)
+        effective = provider if provider is not None else AgentToolPolicy.current().provider
         if effective is not None and "llm" not in arguments and self._accepts(agent_class, "llm"):
             inputs["llm"] = effective
         knot_id = ToolFactory.knot_id_for(agent_id if agent_id else tool_name)

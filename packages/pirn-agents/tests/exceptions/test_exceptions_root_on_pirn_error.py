@@ -10,9 +10,6 @@ from __future__ import annotations
 import pytest
 from pirn.exceptions.pirn_error import PirnError
 
-from pirn_agents.exceptions.agent_cycle_error import AgentCycleError
-from pirn_agents.exceptions.agent_depth_exceeded_error import AgentDepthExceededError
-from pirn_agents.exceptions.agent_recursion_error import AgentRecursionError
 from pirn_agents.exceptions.missing_cassette_entry_error import MissingCassetteEntryError
 from pirn_agents.exceptions.sandbox_disabled_error import SandboxDisabledError
 from pirn_agents.exceptions.tool_argument_validation_error import ToolArgumentValidationError
@@ -30,7 +27,6 @@ from pirn_agents.security.untrusted_directive_error import UntrustedDirectiveErr
     ("exc_type", "builtin_base"),
     [
         (ToolInvocationError, Exception),
-        (AgentRecursionError, RuntimeError),
         (SandboxDisabledError, RuntimeError),
         (UnsupportedModalityError, ValueError),
         (MissingCassetteEntryError, LookupError),
@@ -41,8 +37,6 @@ from pirn_agents.security.untrusted_directive_error import UntrustedDirectiveErr
         (ToolCancelledError, ToolInvocationError),
         (ToolNotFoundError, ToolInvocationError),
         (ToolArgumentValidationError, ToolInvocationError),
-        (AgentCycleError, AgentRecursionError),
-        (AgentDepthExceededError, AgentRecursionError),
     ],
 )
 def test_roots_on_pirn_error_and_keeps_its_builtin_base(
@@ -58,7 +52,6 @@ def test_roots_on_pirn_error_and_keeps_its_builtin_base(
 def test_except_pirn_error_catches_every_fixed_exception() -> None:
     for build in (
         lambda: ToolInvocationError("boom"),
-        lambda: AgentRecursionError(),
         lambda: SandboxDisabledError(),
         lambda: UnsupportedModalityError("image", "text-only"),
         lambda: MissingCassetteEntryError("k", "llm"),
