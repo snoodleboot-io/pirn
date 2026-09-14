@@ -21,11 +21,25 @@ from pirn.tapestry import Tapestry
 from pirn_health.eeg_meg.eeg_ica_decomposer import EEGICADecomposer
 
 _RNG = np.random.default_rng(0)
+# ICA identifies non-Gaussian sources only: mix five distinct non-Gaussian
+# waveforms (sine, square, sawtooth, cubed sine, Laplace noise) into eight
+# channels so FastICA has a well-posed problem and converges.
+_T = np.linspace(0.0, 8.0, 2000)
+_SOURCES = np.stack(
+    [
+        np.sin(2.0 * _T),
+        np.sign(np.sin(3.0 * _T)),
+        (1.7 * _T) % 1.0 - 0.5,
+        np.sin(5.0 * _T) ** 3,
+        _RNG.laplace(size=_T.size),
+    ]
+)
+_MIXING = _RNG.uniform(0.5, 1.5, size=(8, 5))
 _EEG_DATA: dict[str, Any] = {
     "n_channels": 8,
-    "n_samples": 200,
+    "n_samples": 2000,
     "sample_rate_hz": 250.0,
-    "data": _RNG.standard_normal((8, 200)).tolist(),
+    "data": (_MIXING @ _SOURCES).tolist(),
 }
 
 
