@@ -27,19 +27,26 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import pyarrow as pa
-import pyarrow.compute as pc
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import pyarrow as pa
+
 
 class PyarrowCast(Knot):
     """Coerce values per column to caller-specified PyArrow types."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
+        "pc": AnnotationImport("pyarrow.compute", extra="data", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -68,6 +75,9 @@ class PyarrowCast(Knot):
             A new PyarrowDataBatch with the configured columns cast to their
             target PyArrow types.
         """
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
         if not ValueShape.is_mapping(casts) or not casts:
             raise TypeError("PyarrowCast: casts must be a non-empty Mapping[column, dtype]")
         for column in casts:
@@ -97,6 +107,8 @@ class PyarrowCast(Knot):
 
     @staticmethod
     def _normalise_dtype(column: str, dtype: Any) -> pa.DataType:
+        import pyarrow as pa
+
         if isinstance(dtype, pa.DataType):
             return dtype
         primitives: dict[type, pa.DataType] = {

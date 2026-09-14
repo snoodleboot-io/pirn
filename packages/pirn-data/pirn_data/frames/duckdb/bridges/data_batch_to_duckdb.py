@@ -27,7 +27,7 @@ Algorithm:
     conn = connection or duckdb.connect(":memory:")
     if not batch.rows:
         return DuckdbDataBatch(relation=conn.sql("SELECT NULL AS _empty WHERE FALSE"), ...)
-    frame = polars.DataFrame(list(batch.rows))
+    frame = pl.DataFrame(list(batch.rows))
     arrow = frame.to_arrow()
     view  = f"_pirn_rows_{id(arrow):x}"
     conn.register(view, arrow)
@@ -45,17 +45,20 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import duckdb
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.duckdb.duckdb_connection import DuckDBConnection
 from pirn_data.frames.duckdb.duckdb_connection_knot import DuckDBConnectionKnot
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+
+if TYPE_CHECKING:
+    import duckdb
 
 
 class DataBatchToDuckdb(Knot):
@@ -65,6 +68,11 @@ class DataBatchToDuckdb(Knot):
     share a single in-process DuckDB database. Otherwise a fresh
     ``:memory:`` connection is opened per knot invocation.
     """
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "duckdb": AnnotationImport("duckdb", extra="duckdb", package="pirn-data"),
+        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -88,6 +96,8 @@ class DataBatchToDuckdb(Knot):
         Returns:
             A DuckdbDataBatch wrapping a DuckDB relation with the batch's rows.
         """
+        import duckdb
+
         if connection is not None and not isinstance(connection, DuckDBConnection):
             raise TypeError("DataBatchToDuckdb: connection must be a DuckDBConnection or None")
         raw_conn: duckdb.DuckDBPyConnection = (
@@ -116,8 +126,9 @@ class DataBatchToDuckdb(Knot):
         # nullable for missing). DuckDB ingests the resulting Arrow
         # table — registered under a unique view name so multiple
         # bridges on the same connection don't collide.
-        polars = OptionalDependency.require("polars", extra="polars", package="pirn-data")
-        frame = polars.DataFrame(list(batch.rows))
+        import polars as pl
+
+        frame = pl.DataFrame(list(batch.rows))
         arrow_table = frame.to_arrow()
         view_name = f"_pirn_rows_{id(arrow_table):x}"
         connection.register(view_name, arrow_table)

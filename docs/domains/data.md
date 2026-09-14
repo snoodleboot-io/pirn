@@ -42,20 +42,42 @@ Tier-1 (`DataBatch`) is always included with `pirn-data[data]`. All higher tiers
 
 The `pirn-data[all-frames]` convenience extra installs every Tier-2 single-machine CPU engine. The `pirn-data[all-lazy]` convenience extra installs every Tier-3 push-down engine.
 
-### Import policy: tier engines vs. everything else
+### Import policy: no optional engine at import time
 
-**Tier-engine subpackages import their engine at module top; everything else lazy-imports.**
+**No `pirn_data` module imports an optional engine at module scope.** `import pirn_data` imports every module (the registry fill), and it loads none of Polars, pandas, PyArrow, DataFusion, DuckDB, Ibis, Dask or Ray; CI's install-isolation job imports every submodule in a clean environment and fails otherwise.
 
-Every module under `pirn_data.frames.{engine}` and `pirn_data.lazy.{engine}` (Polars, DataFusion, DuckDB, Ibis, Dask, Ray Data) does a plain top-level `import polars`, `import duckdb`, `import ibis`, and so on. This is deliberate, not an oversight to be cleaned up:
+Tier-engine modules (`pirn_data.frames.{engine}`, `pirn_data.lazy.{engine}`) follow one pattern:
 
-* The engine **is** the subpackage's identity — a module under `frames/polars/` is meaningless without Polars installed.
-* The whole subpackage is opt-in via its own `pirn-data[{engine}]` extra (see the table above), so a top-level import in `frames/polars/*.py` never breaks an installation that only asked for `pirn-data[data]` — that install never imports `pirn_data.frames.polars` in the first place.
+```python
+from __future__ import annotations
 
-A tier-engine module imports only its *own* engine at module top: the DuckDB bridge's Polars schema inference loads Polars through `OptionalDependency.require` inside the method, and the `PandasDataBatch` / `PolarsDataBatch` value types import their engine only under `TYPE_CHECKING` (the frame is an annotation, never a runtime reference), so the validation and specialized modules that accept them import without the engine installed.
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-Modules under `pirn_data.lakehouse`, `pirn_data.validation`, and `pirn_data.specialized` do the opposite: they lazy-import their vendor SDK from inside `process()` or a helper it calls (see, e.g., `DeltaTable._import_deltalake`, `GreatExpectationsPandasValidator`). Those subpackages lazy-import because a single module often supports more than one optional backend, or is reachable from a code path (construction, validation) that should not require the dependency at all.
+from pirn.core.annotation_import import AnnotationImport
+from pirn.core.knot import Knot
 
-**The one exception is `pirn_data.lazy.spark`.** Every `pyspark` import there is deferred into `process()` (or a called helper) as well, because PySpark's JVM bootstrap cost is high enough that even an unrelated knot elsewhere in the process shouldn't pay for it. `SparkDataFrame.frame` is typed `Any` for the same reason — spelling the real type would require importing `pyspark.sql` at module load.
+if TYPE_CHECKING:
+    import polars as pl
+
+
+class PolarsWindowCalc(Knot):
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
+    }
+
+    async def process(self, batch: PolarsDataBatch, windows: Any, **_: Any) -> PolarsDataBatch:
+        import polars as pl  # typed runtime access; the engine resolved at construction
+        ...
+```
+
+* The engine is imported only under `if TYPE_CHECKING:`, for annotations.
+* Every knot names the engine in `_annotation_imports`. `Knot` resolves those entries through `OptionalDependency.require` the first time the knot is constructed, so `process()` annotations that name engine types validate exactly as with an eager import, and a missing engine raises the `pip install "pirn-data[<extra>]"` hint at construction rather than at import.
+* Runtime use of the engine is a plain import inside the method, which keeps it fully typed and is only reachable from a knot whose engine has already resolved.
+
+Modules under `pirn_data.lakehouse`, `pirn_data.validation`, and `pirn_data.specialized` import their vendor SDK inside `process()` (or a helper it calls) the same way.
+
+`pirn_data.lazy.spark` goes further: it declares no annotation imports and types `SparkDataFrame.frame` as `Any`, so even constructing a Spark knot does not pay PySpark's JVM bootstrap cost.
 
 See the `pirn_data.frames` and `pirn_data.lazy` package docstrings for the same policy stated next to the code it governs.
 

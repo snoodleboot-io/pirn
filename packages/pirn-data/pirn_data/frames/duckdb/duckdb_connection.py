@@ -12,8 +12,12 @@ Analogous to :class:`~pirn_data.frames.datafusion.datafusion_session_context.Dat
 
 from __future__ import annotations
 
-import duckdb
+from typing import TYPE_CHECKING
+
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+if TYPE_CHECKING:
+    import duckdb
 
 
 class DuckDBConnection(PirnOpaqueValue):

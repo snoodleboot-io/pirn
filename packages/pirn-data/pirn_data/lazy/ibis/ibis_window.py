@@ -47,19 +47,26 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import ibis
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ibis.ibis_table import IbisTable
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import ibis
+
 
 class IbisWindow(Knot):
     """Append window-function columns via Ibis ``mutate``."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "ibis": AnnotationImport("ibis", extra="ibis", package="pirn-data"),
+    }
 
     def __init__(
         self,

@@ -22,15 +22,19 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import datafusion as df
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.datafusion.datafusion_session_context import (
     DatafusionSessionContext,
 )
+
+if TYPE_CHECKING:
+    pass
 
 
 class DatafusionSessionContextKnot(Knot):
@@ -40,6 +44,10 @@ class DatafusionSessionContextKnot(Knot):
     time. Downstream Knots declare this Knot as a typed ``__init__`` parameter
     and receive the :class:`DatafusionSessionContext` wrapper in ``process()``.
     """
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "df": AnnotationImport("datafusion", extra="datafusion", package="pirn-data"),
+    }
 
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
@@ -51,4 +59,6 @@ class DatafusionSessionContextKnot(Knot):
             A :class:`DatafusionSessionContext` wrapping a fresh
             :class:`datafusion.SessionContext`.
         """
+        import datafusion as df
+
         return DatafusionSessionContext(ctx=df.SessionContext())

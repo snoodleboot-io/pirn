@@ -31,17 +31,25 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import polars as pl
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
+if TYPE_CHECKING:
+    pass
+
 
 class PolarsFilter(Knot):
     """Apply a Polars predicate expression to a :class:`PolarsDataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -68,6 +76,8 @@ class PolarsFilter(Knot):
         Returns:
             A new PolarsDataBatch containing only rows that satisfy the expression.
         """
+        import polars as pl
+
         if not isinstance(expression, pl.Expr):
             raise TypeError(
                 "PolarsFilter: expression must be a polars.Expr; "

@@ -26,8 +26,10 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
@@ -39,6 +41,10 @@ from pirn_data.lazy.ibis.ibis_table import IbisTable
 
 class IbisSource(Source):
     """Bind an Ibis connection + table and emit a deferred expression."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "ibis": AnnotationImport("ibis", extra="ibis", package="pirn-data"),
+    }
 
     def __init__(
         self,

@@ -59,20 +59,27 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import pyarrow as pa
-import pyarrow.compute as pc
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    pass
+
 
 class PyarrowDeduplicate(Knot):
     """Drop duplicate rows by key tuple, keeping the first occurrence."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
+        "pc": AnnotationImport("pyarrow.compute", extra="data", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -100,6 +107,9 @@ class PyarrowDeduplicate(Knot):
             A new PyarrowDataBatch with duplicate key-tuple rows removed,
             preserving input order.
         """
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
         if not ValueShape.is_sequence(keys) or isinstance(keys, (str, bytes)):
             raise TypeError("PyarrowDeduplicate: keys must be a sequence of column names")
         if not keys:

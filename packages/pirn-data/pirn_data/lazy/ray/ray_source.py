@@ -34,19 +34,27 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import ray.data
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
 from pirn_data.lazy.ray.ray_dataset import RayDataset
 
+if TYPE_CHECKING:
+    import ray.data
+
 
 class RaySource(Source):
     """Bind a Ray Data factory or path-based reader to emit a deferred dataset."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "ray": AnnotationImport("ray", extra="ray-data", package="pirn-data"),
+        "ray_data": AnnotationImport("ray.data", extra="ray-data", package="pirn-data"),
+    }
 
     def __init__(
         self,

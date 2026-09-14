@@ -26,8 +26,10 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -39,6 +41,10 @@ from pirn_data.frames.datafusion.datafusion_data_batch import (
 
 class DatafusionToDataBatch(Knot):
     """Materialise a :class:`DatafusionDataBatch` back into a Tier-1 :class:`DataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "df": AnnotationImport("datafusion", extra="datafusion", package="pirn-data"),
+    }
 
     def __init__(
         self,

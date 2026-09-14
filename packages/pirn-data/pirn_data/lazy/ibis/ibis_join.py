@@ -46,19 +46,26 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import Any, ClassVar
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import ibis
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ibis.ibis_table import IbisTable
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import ibis
+
 
 class IbisJoin(Knot):
     """Binary join over two :class:`IbisTable` parents."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "ibis": AnnotationImport("ibis", extra="ibis", package="pirn-data"),
+    }
 
     _allowed_how: ClassVar[tuple[str, ...]] = (
         "inner",

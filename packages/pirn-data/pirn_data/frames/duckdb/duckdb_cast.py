@@ -43,8 +43,9 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -55,6 +56,10 @@ from pirn_data.value_shape import ValueShape
 
 class DuckdbCast(Knot):
     """Coerce per-column types via DuckDB ``CAST(... AS ...)`` projections."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "duckdb": AnnotationImport("duckdb", extra="duckdb", package="pirn-data"),
+    }
 
     def __init__(
         self,

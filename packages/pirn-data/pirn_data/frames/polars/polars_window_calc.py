@@ -30,19 +30,26 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import polars as pl
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import polars as pl
+
 
 class PolarsWindowCalc(Knot):
     """Append window-expression columns to a :class:`PolarsDataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -69,6 +76,8 @@ class PolarsWindowCalc(Knot):
         Returns:
             A new PolarsDataBatch with the window expression columns appended.
         """
+        import polars as pl
+
         if not ValueShape.is_sequence(windows) or isinstance(windows, (str, bytes)):
             raise TypeError("PolarsWindowCalc: windows must be a sequence of polars.Expr")
         if not windows:

@@ -24,8 +24,10 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -35,6 +37,10 @@ from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
 class PyarrowToDataBatch(Knot):
     """Materialise a :class:`PyarrowDataBatch` back into a Tier-1 :class:`DataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
+    }
 
     def __init__(
         self,

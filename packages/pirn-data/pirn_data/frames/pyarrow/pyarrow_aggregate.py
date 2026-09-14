@@ -41,6 +41,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -51,6 +52,10 @@ from pirn_data.value_shape import ValueShape
 
 class PyarrowAggregate(Knot):
     """Group rows by ``by`` and apply PyArrow aggregation kernels."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
+    }
 
     _allowed_functions: ClassVar[frozenset[str]] = frozenset(
         {
