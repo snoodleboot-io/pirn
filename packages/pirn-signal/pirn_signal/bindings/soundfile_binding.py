@@ -13,8 +13,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SoundfileBinding:
@@ -25,7 +24,7 @@ class SoundfileBinding:
 
     @classmethod
     def load(cls) -> SoundfileBinding:
-        """Import ``soundfile`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``soundfile`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -34,7 +33,7 @@ class SoundfileBinding:
             ImportError: If ``soundfile`` is not installed; the message names
                 ``pirn-signal[signal]``.
         """
-        return cls(SignalOptionalDependency.require("soundfile", extra="signal"))
+        return cls(OptionalDependency.require("soundfile", extra="signal", package="pirn-signal"))
 
     def write_float_wav(
         self, buffer: io.BytesIO, audio: NDArray[np.floating[Any]], sample_rate_hz: int

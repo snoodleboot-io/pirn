@@ -65,7 +65,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         try:
             import vmdpy  # noqa: F401
         except ImportError:
-            with self.assertRaisesRegex(ImportError, "requires 'vmdpy'"):
+            with self.assertRaisesRegex(ImportError, r"'vmdpy' is required.*pirn-signal\[signal\]"):
                 await k.process(signal=payload, mode_count=4, bandwidth_constraint=1.0)
             return
         out = await k.process(signal=payload, mode_count=4, bandwidth_constraint=1.0)
@@ -81,7 +81,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             pass
         k = self._bare_knot()
         payload = make_signal_payload()
-        with self.assertRaisesRegex(ImportError, "requires 'vmdpy'"):
+        with self.assertRaisesRegex(ImportError, r"'vmdpy' is required.*pirn-signal\[signal\]"):
             await k.process(
                 signal=payload,
                 mode_count=4,

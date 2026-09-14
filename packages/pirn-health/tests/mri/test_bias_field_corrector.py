@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.bias_field_corrector import BiasFieldCorrector
 
 _CFG = KnotConfig(id="b")
@@ -30,7 +30,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_sitk = MagicMock()
         mock_sitk.sitkFloat32 = 8
         with patch.object(
-            HealthOptionalDependency,
+            OptionalDependency,
             "require",
             side_effect=lambda module, **_: {"SimpleITK": mock_sitk}[module],
         ):

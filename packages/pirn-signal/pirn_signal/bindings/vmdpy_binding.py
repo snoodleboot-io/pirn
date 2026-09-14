@@ -11,8 +11,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class VmdpyBinding:
@@ -23,7 +22,7 @@ class VmdpyBinding:
 
     @classmethod
     def load(cls) -> VmdpyBinding:
-        """Import ``vmdpy`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``vmdpy`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -32,7 +31,7 @@ class VmdpyBinding:
             ImportError: If ``vmdpy`` is not installed; the message names
                 ``pirn-signal[signal]``.
         """
-        return cls(SignalOptionalDependency.require("vmdpy", extra="signal"))
+        return cls(OptionalDependency.require("vmdpy", extra="signal", package="pirn-signal"))
 
     def vmd(
         self, signal_array: NDArray[np.floating[Any]], alpha: float, mode_count: int

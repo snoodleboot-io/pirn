@@ -14,8 +14,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PyWaveletsBinding:
@@ -26,7 +25,7 @@ class PyWaveletsBinding:
 
     @classmethod
     def load(cls) -> PyWaveletsBinding:
-        """Import ``pywt`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``pywt`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -35,7 +34,7 @@ class PyWaveletsBinding:
             ImportError: If ``pywt`` is not installed; the message names
                 ``pirn-signal[signal]``.
         """
-        return cls(SignalOptionalDependency.require("pywt", extra="signal"))
+        return cls(OptionalDependency.require("pywt", extra="signal", package="pirn-signal"))
 
     def wavedec(
         self, data: ArrayLike, wavelet: str, level: int, axis: int = -1

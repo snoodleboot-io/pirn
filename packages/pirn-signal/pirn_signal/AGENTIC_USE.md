@@ -51,7 +51,6 @@ Use `pirn[signal,audio]` to get both.
 ```
 pirn_signal/
 ├── __init__.py                  — lazy package; no module-level scipy/pywavelets imports
-├── signal_optional_dependency.py — SignalOptionalDependency.require(module, extra=...) lazy extra import
 ├── bindings/                    — typed facades over untyped scipy / pywt / PyEMD / vmdpy / sklearn / soundfile
 ├── types/
 │   ├── signal_frame.py          — SignalFrame (primary unit of data)
@@ -244,7 +243,7 @@ Placing a filter upstream of a resampler means the filter was designed for the w
 
 ## Constraints and gotchas
 
-- **scipy / pywavelets are runtime-only.** The package imports cleanly without them; the `ExtrasLoader` raises at `process()` call time. Guard optional sub-pipelines with `try/except ImportError` in application bootstrap if the extra may be absent.
+- **scipy / pywavelets are runtime-only.** The package imports cleanly without them; `OptionalDependency.require` raises the install hint at `process()` call time. Guard optional sub-pipelines with `try/except ImportError` in application bootstrap if the extra may be absent.
 - **pydub unavailable on Python 3.13+.** `Mp3Format`, `AacFormat`, and `M4aFormat` connectors will raise `ImportError` on Python 3.13+. Use `WavFormat` or `FlacFormat` instead.
 - **WelchEstimator: `overlap` must be strictly less than `segment_length`.** Validated at construction; a `ValueError` is raised immediately rather than at run time.
 - **ButterworthFilter `band_type` spelling.** The parameter is `band_type`, not `btype`. Accepted values: `"lowpass"`, `"highpass"`, `"bandpass"`, `"bandstop"`.

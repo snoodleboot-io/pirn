@@ -16,10 +16,10 @@ import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents._internal.json_shape import JsonShape
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 
 
@@ -50,12 +50,16 @@ class QdrantBackendClient(VectorBackendClient):
 
     def _models(self) -> Any:
         """Return the lazily-imported ``qdrant_client.models`` module."""
-        return OptionalImport.require("qdrant", "qdrant_client.models")
+        return OptionalDependency.require(
+            "qdrant_client.models", extra="qdrant", package="pirn-agents"
+        )
 
     async def _get_client(self) -> Any:
         """Build the async client and ensure the collection exists, once."""
         if self._client is None:
-            qdrant_client = OptionalImport.require("qdrant", "qdrant_client")
+            qdrant_client = OptionalDependency.require(
+                "qdrant_client", extra="qdrant", package="pirn-agents"
+            )
             models = self._models()
             api_key = self._credential.reveal() if self._credential is not None else None
             client = qdrant_client.AsyncQdrantClient(location=self._url, api_key=api_key)

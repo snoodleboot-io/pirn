@@ -27,8 +27,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PPGHeartRateExtractor(Knot):
@@ -109,7 +108,7 @@ class PPGHeartRateExtractor(Knot):
         Returns:
             List of dicts with hr_bpm and timestamp_sec for each inter-peak segment.
         """
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         if ppg.size < 4 or fs <= 0:
             return []
         low = 0.5

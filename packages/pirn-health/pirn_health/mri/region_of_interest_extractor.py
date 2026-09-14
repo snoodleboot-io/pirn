@@ -28,8 +28,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class RegionOfInterestExtractor(Knot):
@@ -94,7 +93,7 @@ class RegionOfInterestExtractor(Knot):
         atlas_label_path: str,
         roi_labels: Sequence[int],
     ) -> dict[int, float]:
-        nib = HealthOptionalDependency.require("nibabel", extra="mri")
+        nib = OptionalDependency.require("nibabel", extra="mri", package="pirn-health")
         img = nib.load(nifti_path)
         atlas = nib.load(atlas_label_path)
         intensity: np.ndarray = np.asarray(img.get_fdata(), dtype=float)

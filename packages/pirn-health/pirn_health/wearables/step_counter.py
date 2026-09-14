@@ -26,8 +26,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -82,7 +82,7 @@ class StepCounter(Knot):
         Returns:
             Number of detected steps.
         """
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         if data.ndim > 1:
             magnitude = np.sqrt(np.sum(data**2, axis=0))
         else:

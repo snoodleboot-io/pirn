@@ -19,7 +19,7 @@ a lean orchestrator (DIP):
   estimating cost from a :class:`pirn_agents.llm.model_pricing.ModelPricing`.
 * **Lifecycle** — a pooled async HTTP client vended once by
   :class:`pirn.connectors.connector_base.ConnectorBase` and imported lazily via
-  :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` so ``import pirn_agents`` stays
+  :meth:`~pirn.core.optional_dependency.OptionalDependency.require` so ``import pirn_agents`` stays
   backend-free.
 * **Streaming** — :meth:`stream_chat` yields a unified
   :class:`pirn_agents.llm.stream_delta.StreamDelta` (token + incremental
@@ -45,9 +45,9 @@ from typing import Any
 
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.knot_retry_policy import KnotRetryPolicy
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.llm.http_transport import HttpTransport
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.llm.llm_provider_identity_mixin import LLMProviderIdentityMixin
@@ -158,13 +158,13 @@ class BaseLLMProvider(
     async def _create_client(self) -> Any:
         """Return the injected client, or lazily build a pooled ``httpx`` one.
 
-        The real client is imported through :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` so ``httpx`` is
+        The real client is imported through :meth:`~pirn.core.optional_dependency.OptionalDependency.require` so ``httpx`` is
         never imported at package-import time; tests inject a fake client and
         never reach the import.
         """
         if self._injected_client is not None:
             return self._injected_client
-        httpx = OptionalImport.require("web", "httpx")
+        httpx = OptionalDependency.require("httpx", extra="web", package="pirn-agents")
         return httpx.AsyncClient(timeout=self._timeout)
 
     # -- public API (LLMProvider) ---------------------------------------

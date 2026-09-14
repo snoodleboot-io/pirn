@@ -12,8 +12,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PyEmdBinding:
@@ -24,7 +23,7 @@ class PyEmdBinding:
 
     @classmethod
     def load(cls) -> PyEmdBinding:
-        """Import ``PyEMD`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``PyEMD`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -33,7 +32,7 @@ class PyEmdBinding:
             ImportError: If ``PyEMD`` is not installed; the message names
                 ``pirn-signal[emd]``.
         """
-        return cls(SignalOptionalDependency.require("PyEMD", extra="emd"))
+        return cls(OptionalDependency.require("PyEMD", extra="emd", package="pirn-signal"))
 
     def emd(self, channel: NDArray[np.floating[Any]], max_imf: int) -> NDArray[np.float64]:
         """Empirical mode decomposition of a 1-D signal; returns IMFs shaped ``(imfs, samples)``."""

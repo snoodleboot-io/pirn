@@ -40,8 +40,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SurvivalAnalysisPipeline(Knot):
@@ -126,7 +125,7 @@ class SurvivalAnalysisPipeline(Knot):
         events_b: np.ndarray,
     ) -> float:
         """Log-rank test p-value (two-group)."""
-        stats = HealthOptionalDependency.require("scipy.stats", extra="health")
+        stats = OptionalDependency.require("scipy.stats", extra="health", package="pirn-health")
         all_times = np.unique(np.concatenate([times_a[events_a == 1], times_b[events_b == 1]]))
         obs_a = exp_a = log_rank_var = 0.0
         event_time: float

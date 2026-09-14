@@ -39,8 +39,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class BiasFieldCorrector(Knot):
@@ -92,7 +91,7 @@ class BiasFieldCorrector(Knot):
 
     @staticmethod
     def _apply_n4(nifti_path: str, output_nifti_path: str) -> None:
-        sitk = HealthOptionalDependency.require("SimpleITK", extra="mri")
+        sitk = OptionalDependency.require("SimpleITK", extra="mri", package="pirn-health")
         img = sitk.ReadImage(nifti_path, sitk.sitkFloat32)
         corrector = sitk.N4BiasFieldCorrectionImageFilter()
         corrected = corrector.Execute(img)

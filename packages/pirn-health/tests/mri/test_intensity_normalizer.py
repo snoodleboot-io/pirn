@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.intensity_normalizer import IntensityNormalizer
 
 _CFG = KnotConfig(id="n")
@@ -40,7 +40,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_nib.load.return_value = mock_img
         mock_nib.Nifti1Image.return_value = MagicMock()
         with patch.object(
-            HealthOptionalDependency,
+            OptionalDependency,
             "require",
             side_effect=lambda module, **_: {"nibabel": mock_nib}[module],
         ):

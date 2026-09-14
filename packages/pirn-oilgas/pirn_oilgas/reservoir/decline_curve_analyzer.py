@@ -39,8 +39,8 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
 # Nominal decline initial guess: 15 %/year converted to per-day.
@@ -144,8 +144,8 @@ class DeclineCurveAnalyzer(Knot):
 
     @staticmethod
     def _fit_hyperbolic(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
-        optimize = OilgasOptionalImport.require(
-            "scipy.optimize", "DeclineCurveAnalyzer: hyperbolic fitting"
+        optimize = OptionalDependency.require(
+            "scipy.optimize", extra="oilgas", package="pirn-oilgas"
         )
 
         qi0 = float(rate_array[0]) if rate_array[0] > 0 else 1.0

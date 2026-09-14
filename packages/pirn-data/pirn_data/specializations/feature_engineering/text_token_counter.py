@@ -29,8 +29,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.identifier_validator import IdentifierValidator
 from pirn_data.value_shape import ValueShape
 
@@ -65,7 +65,7 @@ class TextTokenCounter(Knot):
         whitespace splitting — when it is absent.
         """
         try:
-            tiktoken = DataOptionalDependency.require("tiktoken", extra="tiktoken")
+            tiktoken = OptionalDependency.require("tiktoken", extra="tiktoken", package="pirn-data")
         except ImportError:
             return (lambda text: len(text.split())), "whitespace"
         enc = tiktoken.get_encoding(tiktoken_encoding)

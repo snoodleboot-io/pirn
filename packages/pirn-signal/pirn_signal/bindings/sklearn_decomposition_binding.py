@@ -15,8 +15,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SklearnDecompositionBinding:
@@ -27,7 +26,7 @@ class SklearnDecompositionBinding:
 
     @classmethod
     def load(cls) -> SklearnDecompositionBinding:
-        """Import ``sklearn.decomposition`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``sklearn.decomposition`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -36,7 +35,11 @@ class SklearnDecompositionBinding:
             ImportError: If ``sklearn.decomposition`` is not installed; the message names
                 ``pirn-signal[separation]``.
         """
-        return cls(SignalOptionalDependency.require("sklearn.decomposition", extra="separation"))
+        return cls(
+            OptionalDependency.require(
+                "sklearn.decomposition", extra="separation", package="pirn-signal"
+            )
+        )
 
     def fast_ica(
         self,

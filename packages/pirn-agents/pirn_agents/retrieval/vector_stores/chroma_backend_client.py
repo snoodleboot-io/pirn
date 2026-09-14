@@ -15,8 +15,9 @@ import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents._internal.json_shape import JsonShape
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 
 
@@ -38,7 +39,7 @@ class ChromaBackendClient(VectorBackendClient):
     def _get_collection(self) -> Any:
         """Build the client and get-or-create the cosine collection, once."""
         if self._collection is None:
-            chromadb = OptionalImport.require("chroma", "chromadb")
+            chromadb = OptionalDependency.require("chromadb", extra="chroma", package="pirn-agents")
             if self._persist_path is not None:
                 client = chromadb.PersistentClient(path=self._persist_path)
             else:

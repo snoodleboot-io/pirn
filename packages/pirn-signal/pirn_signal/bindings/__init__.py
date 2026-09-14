@@ -3,7 +3,7 @@
 scipy, PyWavelets, EMD-signal, vmdpy, scikit-learn and soundfile ship no type
 stubs, so strict pyright sees every direct call into them as partially unknown.
 Each binding class here obtains its module lazily through
-:class:`pirn_signal.signal_optional_dependency.SignalOptionalDependency` (which
+:meth:`pirn.core.optional_dependency.OptionalDependency.require` (which
 keeps ``import pirn_signal`` free of heavy dependencies and raises the
 optional-extra ``ImportError``), and exposes the calls the knots use as fully
 annotated methods that convert every value read off the module to a precise

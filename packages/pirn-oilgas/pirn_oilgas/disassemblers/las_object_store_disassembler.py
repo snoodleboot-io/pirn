@@ -30,8 +30,8 @@ import numpy as np
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.las_payload import LASPayload
 
 
@@ -45,9 +45,7 @@ class LasObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _encode(payload: LASPayload) -> bytes:
-        lasio = OilgasOptionalImport.require(
-            "lasio", "LasObjectStoreDisassembler: encoding LAS bytes"
-        )
+        lasio = OptionalDependency.require("lasio", extra="oilgas", package="pirn-oilgas")
 
         las = lasio.LASFile()
 

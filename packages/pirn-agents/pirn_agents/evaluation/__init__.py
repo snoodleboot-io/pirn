@@ -29,7 +29,7 @@ an eval run is recorded to the ``RunHistory``/``DataStore`` it runs against and
 target (PIR-872).
 
 Importing this subpackage pulls in no backend; the optional RAGAS/embedding-judge
-backend is imported lazily through :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` behind
+backend is imported lazily through :meth:`~pirn.core.optional_dependency.OptionalDependency.require` behind
 the flat ``ragas`` extra.
 """
 

@@ -25,8 +25,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MotionCorrector(Knot):
@@ -76,9 +75,13 @@ class MotionCorrector(Knot):
 
     @staticmethod
     def _correct_motion(nifti_path: str, output_nifti_path: str) -> None:
-        nib = HealthOptionalDependency.require("nibabel", extra="mri")
-        imaffine = HealthOptionalDependency.require("dipy.align.imaffine", extra="mri")
-        transforms = HealthOptionalDependency.require("dipy.align.transforms", extra="mri")
+        nib = OptionalDependency.require("nibabel", extra="mri", package="pirn-health")
+        imaffine = OptionalDependency.require(
+            "dipy.align.imaffine", extra="mri", package="pirn-health"
+        )
+        transforms = OptionalDependency.require(
+            "dipy.align.transforms", extra="mri", package="pirn-health"
+        )
         img = nib.load(nifti_path)
         data: np.ndarray = np.asarray(img.dataobj)
 

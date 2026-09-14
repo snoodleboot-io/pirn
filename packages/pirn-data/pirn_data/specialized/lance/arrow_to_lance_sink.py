@@ -32,9 +32,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.nodes.sink import Sink
-
-from pirn_data.data_optional_dependency import DataOptionalDependency
 
 
 class ArrowToLanceSink(Sink):
@@ -75,6 +74,8 @@ class ArrowToLanceSink(Sink):
             )
         # Import the ``lance.dataset`` submodule by name: the package attribute of
         # the same name is the ``lance.dataset()`` function, which shadows it.
-        lance_dataset = DataOptionalDependency.require("lance.dataset", extra="lance")
+        lance_dataset = OptionalDependency.require(
+            "lance.dataset", extra="lance", package="pirn-data"
+        )
         lance_dataset.write_dataset(table, path, mode=mode)
         return path

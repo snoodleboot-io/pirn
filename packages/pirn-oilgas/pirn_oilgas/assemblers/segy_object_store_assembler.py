@@ -39,8 +39,8 @@ from typing import Any
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.segy_volume import SegyVolume
 
 
@@ -49,9 +49,7 @@ class SegyObjectStoreAssembler(Assembler):
 
     @staticmethod
     def _decode(body: bytes, volume_id: str) -> SegyVolume:
-        segyio = OilgasOptionalImport.require(
-            "segyio", "SegyObjectStoreAssembler: decoding SEG-Y bytes"
-        )
+        segyio = OptionalDependency.require("segyio", extra="oilgas", package="pirn-oilgas")
 
         with tempfile.NamedTemporaryFile(suffix=".segy", delete=True) as segy_temp_file:
             segy_temp_file.write(body)

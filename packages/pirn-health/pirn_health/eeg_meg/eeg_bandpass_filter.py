@@ -29,8 +29,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
@@ -101,7 +101,7 @@ class EegBandpassFilter(Knot):
 
     @staticmethod
     def _apply_bandpass(data: np.ndarray, low_hz: float, high_hz: float, fs: float) -> np.ndarray:
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         sos: np.ndarray = signal.butter(4, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos")
         filtered: np.ndarray = signal.sosfiltfilt(sos, data, axis=-1)
         return filtered

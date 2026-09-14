@@ -28,8 +28,8 @@ from typing import Any
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.dicom_payload import DICOMPayload
 from pirn_health.types.dicom_series import DICOMSeries
 
@@ -85,6 +85,6 @@ class DicomPacsAssembler(Assembler):
 
     @staticmethod
     def _parse_dicom(body: bytes) -> object:
-        pydicom = HealthOptionalDependency.require("pydicom", extra="health")
+        pydicom = OptionalDependency.require("pydicom", extra="health", package="pirn-health")
         dataset: object = pydicom.dcmread(io.BytesIO(body))
         return dataset

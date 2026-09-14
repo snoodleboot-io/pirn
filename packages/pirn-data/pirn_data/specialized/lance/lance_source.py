@@ -28,9 +28,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.nodes.source import Source
 
-from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.specialized.lance.lance_dataset import LanceDataset
 
 
@@ -60,6 +60,8 @@ class LanceSource(Source):
         if not isinstance(path, str) or not path:
             raise ValueError("LanceSource: path must be a non-empty string")
 
-        lance_dataset = DataOptionalDependency.require("lance.dataset", extra="lance")
+        lance_dataset = OptionalDependency.require(
+            "lance.dataset", extra="lance", package="pirn-data"
+        )
         dataset = lance_dataset.LanceDataset(path)
         return LanceDataset(dataset=dataset, source_uri=path)

@@ -755,8 +755,8 @@ constructor is unchanged.
 
 - **No agents module-level functions remain.** The 19 agents entries of
   `_MODULE_LEVEL_FUNCTION_ALLOWLIST` are gone: each former wrapper is its
-  owning class's static method, with no alias (`OptionalImport.require`,
-  `ApprovalHook.authorize`, `ConnectorLifespan.manage`, `AsTool.wrap`,
+  owning class's static method, with no alias (`ApprovalHook.authorize`,
+  `ConnectorLifespan.manage`, `AsTool.wrap`,
   `ToolDecorator.decorate`, `ReciprocalRankFusion.fuse`, `DecayFunction.score`,
   `ToolTestHarness.assert_tool_schema`/`assert_tool_schema_shape`/`run_tool`/
   `collect_tool_stream`, `Bundles.*_toolset`). The agents conventions baseline is

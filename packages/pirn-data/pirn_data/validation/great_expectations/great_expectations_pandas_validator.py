@@ -61,8 +61,8 @@ from uuid import uuid4
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.quality_check import QualityCheck
 from pirn_data.quality_report import QualityReport
@@ -106,7 +106,9 @@ class GreatExpectationsPandasValidator(Knot):
         # Local import: keeps the module importable even when GE is not
         # installed. The type check above will already have raised TypeError
         # before this line runs in a real pipeline.
-        gx = DataOptionalDependency.require("great_expectations", extra="great-expectations")
+        gx = OptionalDependency.require(
+            "great_expectations", extra="great-expectations", package="pirn-data"
+        )
 
         frame = batch.frame
         row_count = batch.row_count
@@ -116,7 +118,7 @@ class GreatExpectationsPandasValidator(Knot):
         # registered assets. The cost is negligible for in-memory frames.
         # GE's public API is only partially typed (``Mapping[Unknown, Unknown]``
         # parameters, unparameterised generics), so it is read off the module
-        # returned by DataOptionalDependency; the context is the vendor client.
+        # returned by OptionalDependency; the context is the vendor client.
         context = gx.get_context(mode="ephemeral")
         # Names are random to keep ``add_pandas`` calls unique across
         # invocations should the underlying context ever be reused.

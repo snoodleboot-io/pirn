@@ -6,7 +6,7 @@ JSON support uses only the standard library. YAML support is lazily provided
 by the optional ``yaml`` extra (PyYAML); importing this module — and importing
 ``pirn_agents`` as a whole — never pulls in PyYAML, so the base install stays
 backend-free. The YAML backend is imported the first time :meth:`from_yaml` or
-:meth:`to_yaml` is called, via the shared :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` helper, which raises
+:meth:`to_yaml` is called, via the shared :meth:`~pirn.core.optional_dependency.OptionalDependency.require` helper, which raises
 a friendly ``pip install "pirn-agents[yaml]"`` message when it is absent.
 
 One dialect, one return type (ADR agents-speaks-core WS6a). Every ``from_*``
@@ -34,10 +34,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
 from pirn_agents._internal.json_shape import JsonShape
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.tools.filesystem._path_guard import PathGuard
 
@@ -104,7 +104,7 @@ class AgentSpecLoader:
             TypeError: If the top-level YAML value is not a mapping.
             ValueError: If ``text`` is not valid YAML or the mapping is invalid.
         """
-        yaml = OptionalImport.require("yaml", "yaml")
+        yaml = OptionalDependency.require("yaml", extra="yaml", package="pirn-agents")
         try:
             parsed = yaml.safe_load(text)
         except yaml.YAMLError as exc:
@@ -191,5 +191,5 @@ class AgentSpecLoader:
             raise TypeError(
                 f"AgentSpecLoader.to_yaml: spec must be an AgentSpec, got {type(spec).__name__}"
             )
-        yaml = OptionalImport.require("yaml", "yaml")
+        yaml = OptionalDependency.require("yaml", extra="yaml", package="pirn-agents")
         return yaml.safe_dump(spec.to_pipeline_spec().model_dump(mode="json"), sort_keys=True)

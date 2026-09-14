@@ -37,8 +37,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class IntensityNormalizer(Knot):
@@ -97,7 +96,7 @@ class IntensityNormalizer(Knot):
 
     @staticmethod
     def _normalize(nifti_path: str, output_nifti_path: str) -> None:
-        nib = HealthOptionalDependency.require("nibabel", extra="mri")
+        nib = OptionalDependency.require("nibabel", extra="mri", package="pirn-health")
         img = nib.load(nifti_path)
         data: np.ndarray = np.asarray(img.dataobj, dtype=float)
         mean = float(data.mean())

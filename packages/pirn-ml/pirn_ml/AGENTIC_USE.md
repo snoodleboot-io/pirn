@@ -289,7 +289,7 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 
 ## Constraints and gotchas
 
-- **Lazy extras guard.** The core interfaces and types import without optional deps. Modules that use numpy/pandas/scikit-learn call `ExtrasLoader` at module top — the missing-extras error fires on first import of that module, not at install time. This means import errors surface at runtime inside a pipeline run if you forget `pip install pirn[ml]`.
+- **Lazy extras guard.** The core interfaces and types import without optional deps. Knots that need an optional SDK import it inside the method through `OptionalDependency.require(module, extra=..., package="pirn-ml")` — the missing-extra `ImportError` fires when that knot runs, not at install or import time, and names the `pip install "pirn-ml[<extra>]"` command.
 - **`MetricCheck` raises `KeyError` on unknown metric names.** The knot does not silently skip absent metrics — it raises. Ensure the metric key matches exactly what `Evaluator` puts in `EvalReport.metrics`.
 - **`ShadowDeployer` does not surface the challenger result.** Challenger responses are logged to the `LineageStore` but not returned to callers. Do not use `ShadowDeployer` if you need the challenger result in your application logic.
 - **`ModelRegistrar` depends on a `LineageStore` implementation.** There is no default built-in store. Wire in an MLflow, Weights & Biases, or custom `LineageStore` implementation before running.

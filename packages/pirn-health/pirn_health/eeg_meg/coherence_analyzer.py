@@ -25,8 +25,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -107,7 +107,7 @@ class CoherenceAnalyzer(Knot):
     def _band_coherence(
         channel_x: np.ndarray, channel_y: np.ndarray, fs: float, low: float, high: float
     ) -> float:
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         freqs: np.ndarray
         cxy: np.ndarray
         freqs, cxy = signal.coherence(channel_x, channel_y, fs=fs)

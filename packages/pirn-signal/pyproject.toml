@@ -32,11 +32,10 @@ dependencies = ["pirn-core>=0.9.0,<0.10.0"]  # lockstep floor (ADR-6 / constrain
 
 [project.optional-dependencies]
 # Heavy DSP backends — the pure-Python orchestration layer imports without
-# these. Each concrete knot imports its optional dependency lazily, inside
-# the method (or module-level helper) that actually uses it, guarded by
-# try/except ImportError raising a message naming the extra to install
-# (see docs/contributing/domain-knots.md Step 3). There is no loader module;
-# `pirn_signal.extras_loader.ExtrasLoader` does not exist.
+# these. Each binding imports its optional dependency lazily, inside the
+# method that uses it, through pirn.core.optional_dependency.OptionalDependency.require,
+# which raises an ImportError naming the extra to install
+# (see docs/contributing/domain-knots.md Step 3).
 signal     = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10", "vmdpy>=0.2"]
 emd        = ["EMD-signal>=1.6", "scipy>=1.12"]
 separation = ["scikit-learn>=1.3"]

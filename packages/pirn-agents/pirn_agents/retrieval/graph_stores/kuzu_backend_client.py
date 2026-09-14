@@ -21,7 +21,8 @@ import json
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents._internal.optional_import import OptionalImport
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents.retrieval.graph_stores.graph_backend_client import GraphBackendClient
 from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 
@@ -42,7 +43,7 @@ class KuzuBackendClient(GraphBackendClient):
     def _connect(self) -> Any:
         """Build the connection and provision the generic schema once (sync)."""
         if self._connection is None:
-            kuzu = OptionalImport.require("kuzu", "kuzu")
+            kuzu = OptionalDependency.require("kuzu", extra="kuzu", package="pirn-agents")
             database = kuzu.Database(self._db_path)
             connection = kuzu.Connection(database)
             connection.execute(

@@ -31,8 +31,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
@@ -101,7 +101,9 @@ class ArtifactRemover(Knot):
 
     @staticmethod
     def _apply_ica(data: np.ndarray, n_components: int) -> np.ndarray:
-        decomposition = HealthOptionalDependency.require("sklearn.decomposition", extra="health")
+        decomposition = OptionalDependency.require(
+            "sklearn.decomposition", extra="health", package="pirn-health"
+        )
         ica = decomposition.FastICA(n_components=n_components, random_state=0)
         sources: np.ndarray = np.asarray(ica.fit_transform(data.T))
         reconstructed: np.ndarray = np.asarray(ica.inverse_transform(sources))

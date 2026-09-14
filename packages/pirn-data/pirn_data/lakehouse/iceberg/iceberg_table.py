@@ -23,7 +23,8 @@ from datetime import datetime
 from types import ModuleType
 from typing import Any
 
-from pirn_data.data_optional_dependency import DataOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_data.lakehouse.iceberg.iceberg_table_config import (
     IcebergTableConfig,
 )
@@ -185,7 +186,9 @@ class IcebergTable(LakehouseTable):
         if not filter:
             return None
         # Build a pyiceberg expression: AND of EqualTo predicates.
-        expressions = DataOptionalDependency.require("pyiceberg.expressions", extra="iceberg")
+        expressions = OptionalDependency.require(
+            "pyiceberg.expressions", extra="iceberg", package="pirn-data"
+        )
         items = list(filter.items())
         expr = expressions.EqualTo(items[0][0], items[0][1])
         for key, value in items[1:]:
@@ -230,8 +233,8 @@ class IcebergTable(LakehouseTable):
 
     @staticmethod
     def _import_pyiceberg_catalog() -> ModuleType:
-        return DataOptionalDependency.require("pyiceberg.catalog", extra="iceberg")
+        return OptionalDependency.require("pyiceberg.catalog", extra="iceberg", package="pirn-data")
 
     @staticmethod
     def _import_pyarrow() -> ModuleType:
-        return DataOptionalDependency.require("pyarrow", extra="data")
+        return OptionalDependency.require("pyarrow", extra="data", package="pirn-data")

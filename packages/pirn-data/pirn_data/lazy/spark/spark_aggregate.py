@@ -43,8 +43,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.identifier_validator import IdentifierValidator
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 from pirn_data.value_shape import ValueShape
@@ -94,7 +94,9 @@ class SparkAggregate(Knot):
         Returns:
             A new SparkDataFrame wrapping the grouped and aggregated deferred Spark plan.
         """
-        spark_functions = DataOptionalDependency.require("pyspark.sql", extra="spark").functions
+        spark_functions = OptionalDependency.require(
+            "pyspark.sql", extra="spark", package="pirn-data"
+        ).functions
         IdentifierValidator.validate_columns("SparkAggregate.by", by)
         if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(
