@@ -1,18 +1,15 @@
-"""Structured span/callback observability with a pluggable, no-op-default sink.
+"""Agent-call observability through core's own event stream (ADR agents-speaks-core WS4a).
 
-Generalises F1's per-tool-call
-:class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook` into a broader
-span interface that wraps LLM calls, tool invocations, and retrievals alike. A
-:class:`~pirn_agents.observability.tracer.Tracer` starts and finishes
-:class:`~pirn_agents.observability.span.Span`\\ s and reports them to a
-pluggable :class:`~pirn_agents.observability.observability_sink.ObservabilitySink`
-that defaults to a genuine no-op (zero required backend). Concrete sinks — a
-stdlib :class:`~pirn_agents.observability.logging_sink.LoggingSink` and an
-OTel-style :class:`~pirn_agents.observability.otel_sink.OtelSink` behind the
-lazy ``otel`` extra — plug in without the core importing any backend. The F1
-tool hook re-enters this interface via
-:class:`~pirn_agents.observability.span_emitting_tool_invocation_hook.SpanEmittingToolInvocationHook`
-so instrumentation is never duplicated.
+Every LLM/tool/retrieval call site reports through
+:class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`,
+which emits a core ``StatusEvent`` — ``run_id``/``knot_id`` sourced from the
+run itself, ``extra`` carrying whatever span-like fields the call wants to
+report (``kind``, ``model``, ``tokens``, ``cost``, ``latency``, …) — through
+the run's own emitters (``pirn.emitters.log_emitter.LogEmitter``,
+``pirn.emitters.open_telemetry_emitter.OpenTelemetryEmitter``, or any custom
+:class:`~pirn.emitters.emitter.Emitter`). There is no separate sink to plug
+in and nothing to subclass: instrumentation is automatic the moment a call
+runs inside a ``Tapestry``.
 """
 
 __all__: list[str] = []

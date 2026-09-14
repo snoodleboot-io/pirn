@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import Mapping
-from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
@@ -14,36 +12,27 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.tool_use.tool_call_validator import (
     ToolCallValidator,
 )
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 from tests.specializations.conftest import StubTool
 
-
-class StrictSchemaTool(Tool):
-    """Tool with a strict schema requiring a string 'query' field."""
-
-    @property
-    def name(self) -> str:
-        return "strict_tool"
-
-    @property
-    def description(self) -> str:
-        return "tool with strict schema"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "limit": {"type": "integer"},
-            },
-            "required": ["query"],
-            "additionalProperties": False,
-        }
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        return arguments
+#: A schema-declared tool requiring a string 'query' field, no Python
+#: signature to introspect (mirrors a strict, externally-declared schema).
+StrictSchemaTool = ToolFactory.schema_declared_class(
+    "StrictSchemaTool",
+    {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string"},
+            "limit": {"type": "integer"},
+        },
+        "required": ["query"],
+        "additionalProperties": False,
+    },
+    lambda **kwargs: kwargs,
+    description="tool with strict schema",
+    tool_name="strict_tool",
+)
 
 
 class TestToolCallValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
@@ -56,7 +45,7 @@ class TestToolCallValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ToolCallValidator(
                 tool_call=call,
-                tools=[StrictSchemaTool()],
+                tools=[StrictSchemaTool],
                 _config=KnotConfig(id="val"),
             )
         result = await t.run(RunRequest())
@@ -75,7 +64,7 @@ class TestToolCallValidatorRejections(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ToolCallValidator(
                 tool_call=call,
-                tools=[StrictSchemaTool()],
+                tools=[StrictSchemaTool],
                 _config=KnotConfig(id="val"),
             )
         result = await t.run(RunRequest())
@@ -90,7 +79,7 @@ class TestToolCallValidatorRejections(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ToolCallValidator(
                 tool_call=call,
-                tools=[StrictSchemaTool()],
+                tools=[StrictSchemaTool],
                 _config=KnotConfig(id="val"),
             )
         result = await t.run(RunRequest())
@@ -120,7 +109,7 @@ class TestToolCallValidatorRejections(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ToolCallValidator(
                 tool_call=call,
-                tools=[StrictSchemaTool()],
+                tools=[StrictSchemaTool],
                 _config=KnotConfig(id="val"),
             )
         result = await t.run(RunRequest())
