@@ -9,14 +9,14 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.backends._signer import _Signer
 from pirn.backends.local_disk_data_store import LocalDiskDataStore
+from pirn.backends.signer import Signer
 
 _KEY = b"test-signing-key-32-bytes-abcdefg"[:32]
-_SIGNER = _Signer(_KEY)
+_SIGNER = Signer(_KEY)
 
 
-# ------------------------------------------------------------------ _Signer
+# ------------------------------------------------------------------ Signer
 
 
 class _FakeBody:
@@ -55,7 +55,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         with unittest.mock.patch.dict(
             __import__("os").environ, {"PIRN_SIGNING_KEY": base64.b64encode(key).decode()}
         ):
-            signer = _Signer.from_env()
+            signer = Signer.from_env()
             assert signer.sign(b"x") != b"x"
 
     def test_signer_from_env_custom_var(self) -> None:
@@ -63,18 +63,18 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         with unittest.mock.patch.dict(
             __import__("os").environ, {"MY_CUSTOM_KEY": base64.b64encode(key).decode()}
         ):
-            signer = _Signer.from_env("MY_CUSTOM_KEY")
+            signer = Signer.from_env("MY_CUSTOM_KEY")
             assert signer.sign(b"x") != b"x"
 
     def test_signer_from_env_missing_raises(self) -> None:
         with unittest.mock.patch.dict(__import__("os").environ, {}, clear=True):
             with self.assertRaisesRegex(ValueError, "PIRN_SIGNING_KEY"):
-                _Signer.from_env()
+                Signer.from_env()
 
     def test_signer_from_env_empty_raises(self) -> None:
         with unittest.mock.patch.dict(__import__("os").environ, {"PIRN_SIGNING_KEY": ""}):
             with self.assertRaisesRegex(ValueError, "PIRN_SIGNING_KEY"):
-                _Signer.from_env()
+                Signer.from_env()
 
     # ------------------------------------------------------------------ LocalDiskDataStore
 
@@ -291,8 +291,8 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
 
     def test_signer_test_helper_returns_consistent_signer(self) -> None:
         """test_signer() must return a deterministic signer for unit tests."""
-        a = _Signer.test_signer()
-        b = _Signer.test_signer()
+        a = Signer.test_signer()
+        b = Signer.test_signer()
         payload = b"some payload"
         # Same key → same signature → cross-instance verify must succeed.
         signed = a.sign(payload)

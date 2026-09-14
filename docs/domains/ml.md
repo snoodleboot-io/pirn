@@ -36,8 +36,8 @@ ML models are whole-artifact blobs — not row-oriented tables. The connector la
 |--------|-------|-------|---------------------|
 | ONNX | `OnnxFormat` | `pirn[onnx]` | Protobuf parser; no pickle path. `validate=True` (default) runs `onnx.checker.check_model`. Treat untrusted payloads as potentially triggering upstream library bugs. |
 | SafeTensors | `SafetensorsFormat` | `pirn[safetensors]` | RCE-safe by design — no embedded code path during deserialisation. No signer required. `include_data=False` emits only shape/dtype metadata for large models. |
-| Joblib | `JoblibFormat` | `pirn[joblib]` | **Uses pickle internally.** Constructor refuses unsigned construction: pass a `_Signer` (production) or `allow_unsigned=True` (dev/test only). With a signer, payloads are HMAC-SHA256 signed before emission and verified before `joblib.load`. |
-| PyTorch | `PytorchFormat` | `pirn[pytorch]` | `torch.load` with `weights_only=False` is an RCE sink. Constructor defaults `weights_only=True` (safe-mode, restores tensor data only). Full model loading requires a `_Signer` (HMAC-SHA256 verified before deserialisation) or `allow_unsigned=True`. |
+| Joblib | `JoblibFormat` | `pirn[joblib]` | **Uses pickle internally.** Constructor refuses unsigned construction: pass a `Signer` (production) or `allow_unsigned=True` (dev/test only). With a signer, payloads are HMAC-SHA256 signed before emission and verified before `joblib.load`. |
+| PyTorch | `PytorchFormat` | `pirn[pytorch]` | `torch.load` with `weights_only=False` is an RCE sink. Constructor defaults `weights_only=True` (safe-mode, restores tensor data only). Full model loading requires a `Signer` (HMAC-SHA256 verified before deserialisation) or `allow_unsigned=True`. |
 | TF SavedModel | `TfSavedModelFormat` | `pirn[tensorflow]` | Zips the SavedModel directory on encode; extracts to a temp dir on decode. ZIP extraction guards against path-traversal members. Malicious SavedModels may contain arbitrary ops — treat untrusted payloads accordingly. |
 | GGUF | `GgufFormat` | `pirn[gguf]` | llama.cpp quantised LLM weights. Generally robust parser; malformed payloads may trigger upstream bugs. No pickle path. |
 | TFLite | `TfliteFormat` | `pirn[tflite]` | FlatBuffer format; falls back to `tensorflow.lite.Interpreter` if `tflite-runtime` is absent. Malicious models may contain custom ops — treat untrusted payloads accordingly. |
@@ -47,7 +47,7 @@ ML models are whole-artifact blobs — not row-oriented tables. The connector la
 ```python
 from pirn.connectors.file_formats.safetensors_format import SafetensorsFormat
 from pirn.connectors.file_formats.joblib_format import JoblibFormat
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 
 # SafeTensors — no signer needed.
 fmt = SafetensorsFormat(include_data=True)
@@ -55,7 +55,7 @@ records = list(await fmt.read(Path("model.safetensors").read_bytes()))
 # records[0] keys: "tensors", "metadata", "tensor_count"
 
 # Joblib — signer required for production.
-signer = _Signer(secret=b"my-hmac-key")
+signer = Signer(secret=b"my-hmac-key")
 fmt = JoblibFormat(signer=signer)
 payload = await fmt.write([{"object": my_sklearn_pipeline}])
 
@@ -285,9 +285,9 @@ asyncio.run(main())
 from pirn_ml.deployment.model_serializer import ModelSerializer
 from pirn_ml.deployment.model_registrar import ModelRegistrar
 from pirn.connectors.file_formats.joblib_format import JoblibFormat
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 
-signer = _Signer(secret=b"my-secret")
+signer = Signer(secret=b"my-secret")
 
 serializer = ModelSerializer(
     model=model_knot,

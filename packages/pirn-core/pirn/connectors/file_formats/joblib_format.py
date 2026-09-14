@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JoblibFormat`` — joblib-pickled artefact encoder/decoder.
 
 joblib is the de-facto persistence layer for scikit-learn estimators
@@ -10,7 +12,7 @@ This module mirrors the trust-boundary contract used by
 :class:`pirn.backends.base._cloud_object_store._CloudObjectStore`:
 construction REFUSES to proceed without an explicit acknowledgement
 that the caller understands the risk. The caller must either pass a
-:class:`pirn.backends._signer._Signer` (production) or set
+:class:`pirn.backends.signer.Signer` (production) or set
 ``allow_unsigned=True`` (single-tenant dev / test only).
 
 When a signer is configured, payloads are HMAC-SHA256 signed before
@@ -20,7 +22,7 @@ payloads cannot reach :func:`joblib.load`.
 Like ONNX and safetensors, joblib artefacts are whole-object — each
 artefact is one "row".
 
-Install: ``pip install pirn[joblib]``.
+Install: ``pip install "pirn-core[joblib]"``.
 """
 
 from __future__ import annotations
@@ -32,9 +34,10 @@ from typing import TYPE_CHECKING, Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 if TYPE_CHECKING:
-    from pirn.backends._signer import _Signer
+    from pirn.backends.signer import Signer
 
 
 class JoblibFormat(BatchFileFormat):
@@ -53,7 +56,7 @@ class JoblibFormat(BatchFileFormat):
 
     def __init__(
         self,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         if not isinstance(allow_unsigned, bool):
@@ -85,7 +88,7 @@ class JoblibFormat(BatchFileFormat):
         raw = bytes(payload)
         if self._signer is not None:
             raw = self._signer.verify(raw)
-        joblib = self._load_joblib()
+        joblib = OptionalDependency.require("joblib", extra="joblib")
         try:
             obj = joblib.load(io.BytesIO(raw))
         except Exception as exc:
@@ -106,7 +109,7 @@ class JoblibFormat(BatchFileFormat):
         record = materialised[0]
         if "object" not in record:
             raise ValueError("JoblibFormat: record missing required 'object' key")
-        joblib = self._load_joblib()
+        joblib = OptionalDependency.require("joblib", extra="joblib")
         buf = io.BytesIO()
         try:
             joblib.dump(record["object"], buf)
@@ -116,13 +119,3 @@ class JoblibFormat(BatchFileFormat):
         if self._signer is not None:
             payload = self._signer.sign(payload)
         return payload
-
-    @staticmethod
-    def _load_joblib() -> Any:
-        try:
-            import joblib
-        except ImportError as exc:
-            raise ImportError(
-                "JoblibFormat requires joblib. Install with `pip install pirn[joblib]`."
-            ) from exc
-        return joblib

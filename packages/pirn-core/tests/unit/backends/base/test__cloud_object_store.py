@@ -6,8 +6,8 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.backends._signer import _Signer
 from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.signer import Signer
 from pirn.connectors.object_store import ObjectStore
 
 
@@ -52,7 +52,7 @@ class TestCloudObjectStoreUnsignedGuard(unittest.TestCase):
         self.assertIsNotNone(store)
 
     def test_signer_provided_permits_construction(self) -> None:
-        signer = _Signer.test_signer()
+        signer = Signer.test_signer()
         store = _make_concrete_store(signer=signer)
         self.assertIsNotNone(store)
 
@@ -64,7 +64,7 @@ class TestCloudObjectStoreOperations(unittest.IsolatedAsyncioTestCase):
         return _make_concrete_store(allow_unsigned=True)
 
     def _make_signed(self) -> _CloudObjectStore:
-        return _make_concrete_store(signer=_Signer.test_signer())
+        return _make_concrete_store(signer=Signer.test_signer())
 
     async def test_unsigned_round_trip(self) -> None:
         store = self._make_unsigned()
@@ -241,7 +241,7 @@ class TestCloudObjectStoreComposition(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(await self.store.has("sha256:x"))
 
     async def test_signed_round_trip_through_object_store(self) -> None:
-        store = _ComposedStore(signer=_Signer.test_signer())
+        store = _ComposedStore(signer=Signer.test_signer())
         await store.put("sha256:abc", [1, 2])
         self.assertEqual(await store.get("sha256:abc"), [1, 2])
 

@@ -15,11 +15,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pirn.backends._signer import _Signer
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.backends.local_disk_data_store import LocalDiskDataStore
+from pirn.backends.signer import Signer
 from pirn.core.content_hasher import ContentHasher
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
@@ -28,7 +28,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 
 def _disk_store(root: Path) -> LocalDiskDataStore:
     """A signed disk ``DataStore`` — no security default is relaxed."""
-    return LocalDiskDataStore(root, signer=_Signer.test_signer())
+    return LocalDiskDataStore(root, signer=Signer.test_signer())
 
 
 @pytest.fixture

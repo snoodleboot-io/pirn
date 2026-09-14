@@ -10,9 +10,9 @@ import unittest
 class TestLocalDiskDataStorePathTraversal(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         os.environ["PIRN_ENV"] = "test"
-        from pirn.backends._signer import _Signer
+        from pirn.backends.signer import Signer
 
-        self._signer = _Signer.test_signer()
+        self._signer = Signer.test_signer()
 
     def tearDown(self) -> None:
         os.environ.pop("PIRN_ENV", None)

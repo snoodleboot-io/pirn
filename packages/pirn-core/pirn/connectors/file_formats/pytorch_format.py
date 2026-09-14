@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PytorchFormat`` — PyTorch state-dict / model encoder/decoder.
 
 PyTorch artefacts are whole-model pickles (``torch.save`` / ``torch.load``).
@@ -13,7 +15,7 @@ Security: ``torch.load`` with ``weights_only=False`` deserialises
 arbitrary Python objects via ``pickle`` — this is RCE-prone. The
 constructor defaults ``weights_only=True`` (PyTorch's safe-mode loader,
 which only restores tensor data and refuses arbitrary callables). Users
-who need full model loading must supply a :class:`_Signer` so the
+who need full model loading must supply a :class:`Signer` so the
 payload is HMAC-verified before deserialisation, or set
 ``allow_unsigned=True`` to opt out (NOT recommended for untrusted
 inputs).
@@ -22,7 +24,7 @@ When a signer is configured the encoder prepends a 32-byte HMAC-SHA256
 signature; the decoder verifies the signature before invoking
 ``torch.load``.
 
-Install: ``pip install pirn[pytorch]``.
+Install: ``pip install "pirn-core[pytorch]"``.
 """
 
 from __future__ import annotations
@@ -31,10 +33,11 @@ import io
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PytorchFormat(BatchFileFormat):
@@ -57,16 +60,16 @@ class PytorchFormat(BatchFileFormat):
     def __init__(
         self,
         weights_only: bool = True,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         if not isinstance(weights_only, bool):
             raise TypeError(
                 f"PytorchFormat: weights_only must be a bool, got {type(weights_only).__name__}"
             )
-        if signer is not None and not isinstance(signer, _Signer):
+        if signer is not None and not isinstance(signer, Signer):
             raise TypeError(
-                f"PytorchFormat: signer must be a _Signer or None, got {type(signer).__name__}"
+                f"PytorchFormat: signer must be a Signer or None, got {type(signer).__name__}"
             )
         if not isinstance(allow_unsigned, bool):
             raise TypeError(
@@ -92,7 +95,7 @@ class PytorchFormat(BatchFileFormat):
         return self._weights_only
 
     @property
-    def signer(self) -> _Signer | None:
+    def signer(self) -> Signer | None:
         return self._signer
 
     @property
@@ -105,7 +108,7 @@ class PytorchFormat(BatchFileFormat):
         raw = bytes(payload)
         if self._signer is not None:
             raw = self._signer.verify(raw)
-        torch = self._load_torch()
+        torch = OptionalDependency.require("torch", extra="pytorch")
         try:
             state = torch.load(io.BytesIO(raw), weights_only=self._weights_only)
         except Exception as exc:
@@ -130,7 +133,7 @@ class PytorchFormat(BatchFileFormat):
         if "state_dict" not in record:
             raise ValueError("PytorchFormat: record missing required 'state_dict' key")
         state = record["state_dict"]
-        torch = self._load_torch()
+        torch = OptionalDependency.require("torch", extra="pytorch")
         buffer = io.BytesIO()
         try:
             torch.save(state, buffer)
@@ -140,13 +143,3 @@ class PytorchFormat(BatchFileFormat):
         if self._signer is not None:
             raw = self._signer.sign(raw)
         return raw
-
-    @staticmethod
-    def _load_torch() -> Any:
-        try:
-            import torch
-        except ImportError as exc:
-            raise ImportError(
-                "PytorchFormat requires torch. Install with `pip install pirn[pytorch]`."
-            ) from exc
-        return torch

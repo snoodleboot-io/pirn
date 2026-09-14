@@ -13,8 +13,8 @@ import unittest
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.backends._signer import _Signer
 from pirn.backends.azure_blob_data_store import AzureBlobDataStore
+from pirn.backends.signer import Signer
 
 
 def _make_azure_mock(stored: dict[str, bytes]) -> MagicMock:
@@ -71,7 +71,7 @@ class TestAzureBlobDataStoreConstruction(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(store)
 
     def test_accepts_signer(self) -> None:
-        store = AzureBlobDataStore(container="c", signer=_Signer.test_signer())
+        store = AzureBlobDataStore(container="c", signer=Signer.test_signer())
         self.assertIsNotNone(store)
 
     async def test_first_use_raises_without_connection_string_or_account_url(self) -> None:
