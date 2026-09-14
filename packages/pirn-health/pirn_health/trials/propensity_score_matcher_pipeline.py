@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PropensityScoreMatcherPipeline`` — match treated and control cohorts using propensity score matching.
 
 Algorithm:
@@ -32,19 +34,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, SupportsFloat, SupportsIndex
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    from sklearn.linear_model import LogisticRegression
-
-    _HAS_SKLEARN: bool = True
-except ImportError:
-    LogisticRegression = None  # type: ignore[assignment]
-    _HAS_SKLEARN = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class PropensityScoreMatcherPipeline(Knot):
@@ -119,14 +115,26 @@ class PropensityScoreMatcherPipeline(Knot):
 
     @staticmethod
     def _safe_float(raw_value: object) -> float:
+        if isinstance(raw_value, memoryview):
+            raw_value = raw_value.tobytes()
+        if not isinstance(raw_value, (str, bytes, bytearray, SupportsFloat, SupportsIndex)):
+            return 0.0
         try:
-            return float(raw_value)  # type: ignore[arg-type]
+            return float(raw_value)
         except (ValueError, TypeError):
             return 0.0
 
     @staticmethod
     def _smd(treated_vals: np.ndarray, control_vals: np.ndarray) -> float:
-        """Standardized mean difference between two groups."""
+        """Standardized mean difference between two groups.
+
+        The pooled denominator uses sample variances (``ddof=1``), which are
+        undefined for a group of fewer than two values; the SMD is then
+        undefined too and ``nan`` is returned explicitly rather than letting
+        numpy emit ``Degrees of freedom <= 0`` and propagate a ``nan``.
+        """
+        if treated_vals.size < 2 or control_vals.size < 2:
+            return float("nan")
         mean_diff = treated_vals.mean() - control_vals.mean()
         pooled_var = (np.var(treated_vals, ddof=1) + np.var(control_vals, ddof=1)) / 2.0
         if pooled_var == 0.0:
@@ -172,21 +180,19 @@ class PropensityScoreMatcherPipeline(Knot):
 
         ps = np.full(len(cohort), 0.5)
         if len(np.unique(treatment_labels)) > 1:
-            if not _HAS_SKLEARN or LogisticRegression is None:
-                raise ImportError(
-                    "scikit-learn is required for PropensityScoreMatcherPipeline — "
-                    "install with: pip install 'pirn-health[health]'"
-                )
+            linear_model = HealthOptionalDependency.require("sklearn.linear_model", extra="health")
             try:
-                lr = LogisticRegression(max_iter=500, random_state=0)
+                lr = linear_model.LogisticRegression(max_iter=500, random_state=0)
                 lr.fit(covariate_matrix, treatment_labels)
-                ps = lr.predict_proba(covariate_matrix)[:, 1]
+                probabilities: np.ndarray = lr.predict_proba(covariate_matrix)
+                ps = probabilities[:, 1]
             except Exception as exc:
                 raise ValueError(
                     f"PropensityScoreMatcherPipeline: propensity model failed to fit: {exc}"
                 ) from exc
 
         used_controls: set[int] = set()
+        matched_treated_idx: list[int] = []
         matched_pairs: list[dict[str, Any]] = []
         n_matched = 0
 
@@ -211,11 +217,9 @@ class PropensityScoreMatcherPipeline(Knot):
                 }
             )
             used_controls.update(chosen)
+            matched_treated_idx.append(treated_cohort_index)
             n_matched += 1
 
-        matched_treated_idx = [
-            treated_idx[position] for position in range(min(n_matched, len(treated_idx)))
-        ]
         matched_control_idx = list(used_controls)
 
         smd_stats: dict[str, float] = {}

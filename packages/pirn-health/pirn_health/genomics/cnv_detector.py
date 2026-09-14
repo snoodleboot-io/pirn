@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CNVDetector`` — copy-number-variant detector.
 
 Production version uses CNVkit / GATK gCNV; this stub returns an empty

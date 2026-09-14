@@ -50,9 +50,7 @@ class BatchItemResult(PirnOpaqueValue):
     #: :attr:`~pirn.managers.exception_record.ExceptionRecord.exc_type` values
     #: :attr:`timed_out` reads as a timeout. ``Result`` has no timeout variant,
     #: so a timeout is an ``Err`` whose error type names one.
-    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset(
-        {"ToolTimeoutError", "TimeoutError", "KnotTimeoutError"}
-    )
+    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset({"TimeoutError", "KnotTimeoutError"})
 
     index: int
     key: str

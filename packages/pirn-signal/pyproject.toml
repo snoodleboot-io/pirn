@@ -113,10 +113,18 @@ include = ["pirn_signal"]
 strict = [
     "pirn_signal/adaptive",
     "pirn_signal/assemblers",
+    "pirn_signal/audio",
     "pirn_signal/beamforming",
+    "pirn_signal/bindings",
     "pirn_signal/disassemblers",
+    "pirn_signal/filters",
+    "pirn_signal/nonlinear",
+    "pirn_signal/resampling",
+    "pirn_signal/separation",
+    "pirn_signal/spectral",
     "pirn_signal/statistical",
     "pirn_signal/types",
+    "pirn_signal/wavelets",
     "pirn_signal/*.py",
 ]
 pythonVersion = "3.12"

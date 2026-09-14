@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
+from unittest.mock import patch
 
 try:
     import scipy  # noqa: F401
@@ -62,3 +64,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         )
         assert isinstance(out, Mapping)
         assert ("ch0", "ch1") in out
+
+    async def test_raises_install_hint_without_sdk(self) -> None:
+        with patch.dict(sys.modules, {"scipy.signal": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                await _KNOT.process(
+                    signal=_SIGNAL,
+                    channel_pairs=[("ch0", "ch1")],
+                    band_low_hz=8.0,
+                    band_high_hz=13.0,
+                )

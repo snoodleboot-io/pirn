@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
+from unittest.mock import patch
 
 try:
     import scipy  # noqa: F401
@@ -26,9 +28,17 @@ _SIGNAL = HealthSignalPayload(
     metadata=HealthSignalFrame(
         signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512
     ),
-    data=np.random.default_rng(0).standard_normal((2, 512)),
+    # Two non-Gaussian sources (sine, square wave) mixed into two channels: an
+    # identifiable ICA problem, so FastICA converges with n_components == channels.
+    data=np.array([[1.0, 0.6], [0.4, 1.0]])
+    @ np.stack(
+        [
+            np.sin(np.linspace(0.0, 16.0, 512)),
+            np.sign(np.sin(np.linspace(0.0, 23.0, 512))),
+        ]
+    ),
 )
-_KNOT = ArtifactRemover(signal=_SIGNAL, n_components=10, method="infomax", _config=_CFG)
+_KNOT = ArtifactRemover(signal=_SIGNAL, n_components=2, method="infomax", _config=_CFG)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -49,5 +59,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await _KNOT.process(signal=_SIGNAL, n_components=10, method="bogus")
 
     async def test_returns_signal_payload(self) -> None:
-        out = await _KNOT.process(signal=_SIGNAL, n_components=10, method="fastica")
+        out = await _KNOT.process(signal=_SIGNAL, n_components=2, method="fastica")
         assert isinstance(out, HealthSignalPayload)
+        np.testing.assert_allclose(out.data, _SIGNAL.data, atol=1e-8)
+
+    async def test_raises_install_hint_without_sdk(self) -> None:
+        with patch.dict(sys.modules, {"sklearn.decomposition": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                await _KNOT.process(signal=_SIGNAL, n_components=2, method="fastica")

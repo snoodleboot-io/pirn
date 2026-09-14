@@ -15,7 +15,6 @@ from typing import Any
 
 import pytest
 
-from pirn_agents.agent.agent_tool_context import AgentToolContext
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.memory.management.near_duplicate_grouper import NearDuplicateGrouper
 from pirn_agents.specializations.document_processing.chunking.fixed_size_chunking_strategy import (
@@ -38,6 +37,7 @@ from pirn_agents.specializations.rag.graph_rag_pipeline import GraphRAGPipeline
 from pirn_agents.specializations.rewoo.rewoo_pipeline import ReWooPipeline
 from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.tools.agent_tool import AgentTool
+from pirn_agents.tools.agent_tool_call import AgentToolCall
 from pirn_agents.tools.as_tool import AsTool
 
 
@@ -55,20 +55,19 @@ class TestAgentNestingDepthDefaults:
             AgentTool.__init__,
             AsTool.wrap,
             AgentAsToolMixin.as_tool,
+            AgentToolCall.__init__,
+            AgentToolCall.process,
         ],
     )
     def test_max_depth_default_is_eight(self, target: Callable[..., Any]) -> None:
         assert _default_of(target, "max_depth") == 8
-
-    def test_context_field_default_is_eight(self) -> None:
-        assert AgentToolContext().max_depth == 8
 
     def test_chain_agrees_end_to_end(self) -> None:
         depths = {
             _default_of(AgentTool.__init__, "max_depth"),
             _default_of(AsTool.wrap, "max_depth"),
             _default_of(AgentAsToolMixin.as_tool, "max_depth"),
-            AgentToolContext().max_depth,
+            _default_of(AgentToolCall.__init__, "max_depth"),
         }
 
         assert depths == {8}

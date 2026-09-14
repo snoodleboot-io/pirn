@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WsiObjectStoreDisassembler`` — disassemble a :class:`WSITilePayload` into bytes.
 
 Sits between domain knots that produce :class:`~pirn_health.types.wsi_tile_payload.WSITilePayload`
@@ -25,11 +27,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.wsi_tile_payload import WSITilePayload
-
-try:
-    from PIL import Image
-except ImportError:
-    Image = None  # type: ignore[assignment]
 
 
 class WsiObjectStoreDisassembler(Disassembler):
@@ -60,7 +57,7 @@ class WsiObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`WSITilePayload`.
         """
-        if not isinstance(payload, WSITilePayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, WSITilePayload):
             raise TypeError(
                 f"WsiObjectStoreDisassembler: payload must be WSITilePayload, "
                 f"got {type(payload).__name__}"
@@ -69,11 +66,13 @@ class WsiObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _to_png_bytes(payload: WSITilePayload) -> bytes:
-        if Image is None:
+        try:
+            from PIL import Image
+        except ImportError as exc:
             raise ImportError(
-                "Pillow is required for WsiObjectStoreDisassembler — "
+                "WsiObjectStoreDisassembler requires 'PIL' — "
                 "install with: pip install 'pirn-health[health]'"
-            )
+            ) from exc
         img = Image.fromarray(payload.pixels.astype(np.uint8), mode="RGB")
         buf = io.BytesIO()
         img.save(buf, format="PNG")

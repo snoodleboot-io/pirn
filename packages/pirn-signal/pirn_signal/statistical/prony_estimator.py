@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PronyEstimator`` — fit damped sinusoids via Prony's method.
 
 Algorithm:
@@ -78,7 +80,7 @@ class PronyEstimator(Knot):
         Raises:
             ValueError: If component_count is not a positive integer.
         """
-        if not isinstance(component_count, int) or component_count <= 0:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(component_count, int) or component_count <= 0:
             raise ValueError("PronyEstimator: component_count must be a positive integer")
         channels = np.atleast_2d(signal.data).astype(float)
         results = await asyncio.gather(

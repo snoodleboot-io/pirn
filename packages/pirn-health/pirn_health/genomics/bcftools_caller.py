@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BCFtoolsCaller`` — bcftools-based variant caller.
 
 Production version invokes ``bcftools mpileup | bcftools call`` via
@@ -26,6 +28,7 @@ Note:
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -84,27 +87,37 @@ class BCFtoolsCaller(Knot):
                 raise TypeError(f"BCFtoolsCaller: {label} must be a string")
             if not value:
                 raise ValueError(f"BCFtoolsCaller: {label} must be non-empty")
-        mpileup_proc = await asyncio.create_subprocess_exec(
-            "bcftools",
-            "mpileup",
-            "-f",
-            reference_path,
-            bam_path,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        # ``mpileup | call``: an OS pipe connects the two children directly. The
+        # parent closes both ends once the children hold them, so ``call`` sees
+        # EOF when ``mpileup`` exits.
+        pipe_read_fd, pipe_write_fd = os.pipe()
+        try:
+            mpileup_proc = await asyncio.create_subprocess_exec(
+                "bcftools",
+                "mpileup",
+                "-f",
+                reference_path,
+                bam_path,
+                stdout=pipe_write_fd,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            call_proc = await asyncio.create_subprocess_exec(
+                "bcftools",
+                "call",
+                "-mv",
+                "-o",
+                output_vcf_path,
+                stdin=pipe_read_fd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        finally:
+            os.close(pipe_write_fd)
+            os.close(pipe_read_fd)
+        call_output, _mpileup_output = await asyncio.gather(
+            call_proc.communicate(), mpileup_proc.communicate()
         )
-        call_proc = await asyncio.create_subprocess_exec(
-            "bcftools",
-            "call",
-            "-mv",
-            "-o",
-            output_vcf_path,
-            stdin=mpileup_proc.stdout,  # type: ignore[arg-type]
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        __, call_stderr = await call_proc.communicate()
-        await mpileup_proc.wait()
+        call_stderr = call_output[1]
         if mpileup_proc.returncode != 0:
             raise RuntimeError("bcftools mpileup failed")
         if call_proc.returncode != 0:

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CoherenceAnalyzer`` — magnitude-squared coherence between channel pairs.
 
 Algorithm:
@@ -24,15 +26,8 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    from scipy import signal as ss
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    ss = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
 
 
 class CoherenceAnalyzer(Knot):
@@ -112,11 +107,10 @@ class CoherenceAnalyzer(Knot):
     def _band_coherence(
         channel_x: np.ndarray, channel_y: np.ndarray, fs: float, low: float, high: float
     ) -> float:
-        if not _HAS_SCIPY or ss is None:
-            raise ImportError(
-                "scipy is required for CoherenceAnalyzer — install with: pip install 'pirn-health[health]'"
-            )
-        freqs, cxy = ss.coherence(channel_x, channel_y, fs=fs)
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        freqs: np.ndarray
+        cxy: np.ndarray
+        freqs, cxy = signal.coherence(channel_x, channel_y, fs=fs)
         mask = (freqs >= low) & (freqs <= high)
         return float(np.mean(cxy[mask])) if mask.any() else 0.0
 

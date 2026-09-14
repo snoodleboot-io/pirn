@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SleepStageClassifier`` — classify 30-second PSG epochs into sleep stages (W, N1, N2, N3, REM).
 
 Algorithm:
@@ -29,15 +31,8 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    from scipy import signal as ss
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    ss = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
 
 
 class SleepStageClassifier(Knot):
@@ -108,13 +103,12 @@ class SleepStageClassifier(Knot):
 
     @staticmethod
     def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
-        if not _HAS_SCIPY or ss is None:
-            raise ImportError(
-                "scipy is required for SleepStageClassifier — install with: pip install 'pirn-health[health]'"
-            )
-        freqs, psd = ss.welch(epoch, fs=fs)
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        freqs: np.ndarray
+        psd: np.ndarray
+        freqs, psd = signal.welch(epoch, fs=fs)
         mask = (freqs >= low) & (freqs <= high)
-        return float(np.trapz(psd[mask], freqs[mask])) if mask.any() else 0.0
+        return float(np.trapezoid(psd[mask], freqs[mask])) if mask.any() else 0.0
 
     @staticmethod
     def _classify_epoch(epoch: np.ndarray, fs: float) -> str:

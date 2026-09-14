@@ -2,7 +2,7 @@
 
 The depth and cycle guard is core's ``RunNesting`` applied by
 :class:`~pirn_agents.tools.agent_tool_call.AgentToolCall`; budget and provider
-ride :class:`~pirn_agents.agent.agent_tool_context.AgentToolContext` around
+ride :class:`~pirn_agents.agent.agent_tool_policy.AgentToolPolicy` around
 each call.
 """
 
@@ -13,7 +13,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent.agent_tool_context import AgentToolContext
+from pirn_agents.agent.agent_tool_policy import AgentToolPolicy
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
@@ -78,7 +78,7 @@ class TestNestingGuard(unittest.IsolatedAsyncioTestCase):
 
         await AgentTool(agent).run_view({"topic": "t"})
 
-        self.assertIsNone(AgentToolContext.bound())
+        self.assertIsNone(AgentToolPolicy.bound())
 
 
 class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
@@ -92,7 +92,7 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
         ROUTE_REGISTRY["A"] = b.as_tool()  # A -> B (leaf)
         meter = RunBudgetMeter(RunBudget(max_iterations=5))
 
-        with AgentToolContext.bind(AgentToolContext(meter=meter)):
+        with AgentToolPolicy.bind(AgentToolPolicy(meter=meter)):
             result = await a.as_tool().run_view({"task": "go"})
 
         # One iteration spent per nested agent entered, across both levels.
@@ -107,7 +107,7 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
         meter = RunBudgetMeter(RunBudget(max_iterations=1))
         meter.spend_iteration()  # meter now at the cap
 
-        with AgentToolContext.bind(AgentToolContext(meter=meter)):
+        with AgentToolPolicy.bind(AgentToolPolicy(meter=meter)):
             with self.assertRaises(BudgetBreachError):
                 await AgentTool(agent).run_view({"topic": "t"})
         # Cancellation token was flipped by the breach.
@@ -155,7 +155,7 @@ class TestSharedProviderReuse(unittest.IsolatedAsyncioTestCase):
 
         # The ambient context's provider propagates into inner even though
         # inner was built with a different provider.
-        with AgentToolContext.bind(AgentToolContext(provider=pooled)):
+        with AgentToolPolicy.bind(AgentToolPolicy(provider=pooled)):
             await AgentTool(inner).run_view({"topic": "deep"})
 
         self.assertIs(AGENT_CALLS["inner"][0]["llm"], pooled)

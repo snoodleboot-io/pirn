@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IDWTReconstructor`` — inverse discrete wavelet transform.
 
 Algorithm:
@@ -28,9 +30,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.py_wavelets_binding import PyWaveletsBinding
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_payload import WaveletPayload
@@ -93,11 +97,6 @@ class IDWTReconstructor(Knot):
         return SignalPayload(metadata=out_frame, data=reconstructed)
 
     @staticmethod
-    def _run_idwt(coeffs: list[np.ndarray], wavelet: str) -> np.ndarray:
-        try:
-            import pywt  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "IDWTReconstructor requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    def _run_idwt(coeffs: list[np.ndarray], wavelet: str) -> NDArray[np.floating[Any]]:
+        pywt = PyWaveletsBinding.load()
         return pywt.waverec(coeffs, wavelet, axis=-1)

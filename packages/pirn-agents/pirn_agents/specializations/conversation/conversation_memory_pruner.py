@@ -82,15 +82,14 @@ class ConversationMemoryPruner(Knot):
                     f"AgentMessage, got {type(msg).__name__}"
                 )
         result = list(messages)
-        while True:
-            total = sum(len(msg.content) for msg in result)
-            if total <= token_budget:
-                break
-            prunable_index = next(
-                (i for i, msg in enumerate(result) if msg.role != "system"),
-                None,
-            )
-            if prunable_index is None:
-                break
-            result.pop(prunable_index)
+        total = sum(len(msg.content) for msg in result)
+        prunable_index = self._oldest_prunable(result)
+        while total > token_budget and prunable_index is not None:
+            total -= len(result.pop(prunable_index).content)
+            prunable_index = self._oldest_prunable(result)
         return result
+
+    @staticmethod
+    def _oldest_prunable(messages: Sequence[AgentMessage]) -> int | None:
+        """Index of the oldest non-system message, or ``None`` when only system turns remain."""
+        return next((i for i, msg in enumerate(messages) if msg.role != "system"), None)

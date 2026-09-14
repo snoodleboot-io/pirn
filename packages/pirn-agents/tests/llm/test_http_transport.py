@@ -12,10 +12,11 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.knot_retry_policy import KnotRetryPolicy
+
 from pirn_agents.llm.http_transport import HttpTransport
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.rate_limit_error import RateLimitError
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.llm.transient_llm_error import TransientLLMError
 from tests.llm.conftest import FakeAsyncClient, FakeResponse, RecordingSleeper
 
@@ -29,7 +30,7 @@ _HEADERS: dict[str, str] = {
 
 def _make_transport(sleeper: RecordingSleeper | None = None, **policy: Any) -> HttpTransport:
     return HttpTransport(
-        retry_policy=RetryPolicy(**policy) if policy else RetryPolicy(),
+        retry_policy=KnotRetryPolicy(**{"max_attempts": 3, **policy}),
         sleeper=sleeper if sleeper is not None else RecordingSleeper(),
         rng=lambda: 1.0,
     )
@@ -58,7 +59,7 @@ class TestPostAndClassify(unittest.IsolatedAsyncioTestCase):
     async def test_5xx_raises_transient(self) -> None:
         # Arrange
         client = FakeAsyncClient(post_results=[FakeResponse(status_code=503)])
-        transport = _make_transport(max_retries=0)
+        transport = _make_transport(max_attempts=1)
 
         # Act / Assert
         with self.assertRaises(TransientLLMError):
@@ -67,7 +68,7 @@ class TestPostAndClassify(unittest.IsolatedAsyncioTestCase):
     async def test_non_2xx_4xx_raises_http_status(self) -> None:
         # Arrange
         client = FakeAsyncClient(post_results=[FakeResponse(status_code=400)])
-        transport = _make_transport(max_retries=0)
+        transport = _make_transport(max_attempts=1)
 
         # Act / Assert
         with self.assertRaises(LLMHTTPStatusError):
@@ -80,7 +81,7 @@ class TestPostAndClassify(unittest.IsolatedAsyncioTestCase):
 
         ReadTimeout.__module__ = "httpx"
         client = FakeAsyncClient(post_results=[ReadTimeout("timed out")])
-        transport = _make_transport(max_retries=0)
+        transport = _make_transport(max_attempts=1)
 
         # Act / Assert
         with self.assertRaises(TransientLLMError):
@@ -89,7 +90,7 @@ class TestPostAndClassify(unittest.IsolatedAsyncioTestCase):
     async def test_non_httpx_exception_propagates_unwrapped(self) -> None:
         # Arrange
         client = FakeAsyncClient(post_results=[ValueError("bad")])
-        transport = _make_transport(max_retries=0)
+        transport = _make_transport(max_attempts=1)
 
         # Act / Assert
         with self.assertRaises(ValueError):
@@ -140,7 +141,9 @@ class TestRetryLoop(unittest.IsolatedAsyncioTestCase):
             post_results=[FakeResponse(status_code=429), FakeResponse(json_body={})]
         )
         transport = HttpTransport(
-            retry_policy=RetryPolicy(base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False),
+            retry_policy=KnotRetryPolicy(
+                max_attempts=3, base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False
+            ),
             sleeper=sleeper,
             rng=lambda: 1.0,
         )
@@ -156,7 +159,9 @@ class TestRetryLoop(unittest.IsolatedAsyncioTestCase):
         sleeper = RecordingSleeper()
         client = FakeAsyncClient(post_results=[FakeResponse(status_code=429) for _ in range(3)])
         transport = HttpTransport(
-            retry_policy=RetryPolicy(base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False),
+            retry_policy=KnotRetryPolicy(
+                max_attempts=3, base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False
+            ),
             sleeper=sleeper,
             rng=lambda: 1.0,
         )
@@ -190,7 +195,7 @@ class TestSecurityAndHelpers(unittest.IsolatedAsyncioTestCase):
             FakeResponse(status_code=503),
             FakeResponse(status_code=400),
         ]
-        transport = _make_transport(max_retries=0)
+        transport = _make_transport(max_attempts=1)
 
         # Act / Assert: no raised message contains the secret or the auth header.
         for response in cases:

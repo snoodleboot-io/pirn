@@ -1,10 +1,12 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PowerSpectrumEstimator`` — estimate the PSD of a signal payload.
 
 Algorithm:
     1. Receive a HealthSignalPayload and method string.
     2. Validate that signal is a HealthSignalPayload and method is one of welch/multitaper.
     3. Compute the PSD using scipy.signal.welch on the first channel (or mono).
-    4. Integrate PSD over standard frequency bands (delta/theta/alpha/beta/gamma) via numpy.trapz.
+    4. Integrate PSD over standard frequency bands (delta/theta/alpha/beta/gamma) via numpy.trapezoid.
     5. Return the band-power mapping.
 
 Math:
@@ -19,33 +21,26 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    from scipy import signal as ss
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    ss = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
-
-_bands = {
-    "delta": (0.5, 4.0),
-    "theta": (4.0, 8.0),
-    "alpha": (8.0, 13.0),
-    "beta": (13.0, 30.0),
-    "gamma": (30.0, 100.0),
-}
 
 
 class PowerSpectrumEstimator(Knot):
     """Estimate per-band power for a signal payload."""
+
+    _bands: ClassVar[Mapping[str, tuple[float, float]]] = {
+        "delta": (0.5, 4.0),
+        "theta": (4.0, 8.0),
+        "alpha": (8.0, 13.0),
+        "beta": (13.0, 30.0),
+        "gamma": (30.0, 100.0),
+    }
 
     def __init__(
         self,
@@ -91,14 +86,13 @@ class PowerSpectrumEstimator(Knot):
 
     @staticmethod
     def _compute_band_power(data: np.ndarray, fs: float) -> dict[str, float]:
-        if not _HAS_SCIPY or ss is None:
-            raise ImportError(
-                "scipy is required for PowerSpectrumEstimator — install with: pip install 'pirn-health[health]'"
-            )
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
         channel = data[0] if data.ndim > 1 else data
-        freqs, psd = ss.welch(channel, fs=fs, axis=-1)
+        freqs: np.ndarray
+        psd: np.ndarray
+        freqs, psd = signal.welch(channel, fs=fs, axis=-1)
         result: dict[str, float] = {}
-        for band_name, (low, high) in _bands.items():
+        for band_name, (low, high) in PowerSpectrumEstimator._bands.items():
             mask = (freqs >= low) & (freqs <= high)
             result[band_name] = float(np.trapezoid(psd[mask], freqs[mask])) if mask.any() else 0.0
         return result

@@ -50,10 +50,15 @@ async def test_a_fast_item_is_yielded_before_a_slow_sibling_finishes() -> None:
 
 
 async def test_every_item_is_yielded_exactly_once_in_completion_order() -> None:
+    # Completion order is forced, not timed: item 3 finishes first, and each
+    # later item is released only once the stream has yielded the one before
+    # it, so a loaded machine cannot finish two items in the same loop tick.
     order: list[str] = []
+    released = {index: asyncio.Event() for index in range(4)}
+    released[3].set()
 
     async def agent(item: object) -> object:
-        await asyncio.sleep(0.01 * (3 - int(str(item))))
+        await released[int(str(item))].wait()
         order.append(str(item))
         return item
 
@@ -61,9 +66,15 @@ async def test_every_item_is_yielded_exactly_once_in_completion_order() -> None:
         run_item=agent, _config=KnotConfig(id="map-agent"), batch_id="order", concurrency=4
     )
 
-    results = [result async for result in runner.run([0, 1, 2, 3])]
+    results = []
+    async for result in runner.run([0, 1, 2, 3]):
+        results.append(result)
+        following = int(result.key) - 1
+        if following >= 0:
+            released[following].set()
 
     assert sorted(r.key for r in results) == ["0", "1", "2", "3"]
+    assert order == ["3", "2", "1", "0"]
     assert [r.key for r in results] == order
 
 

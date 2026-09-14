@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MudLogAssembler`` — assemble a structured mud log dict from raw JSON bytes.
 
 Sits between :class:`~pirn.connectors.knots.object_store_read_source.ObjectStoreReadSource`

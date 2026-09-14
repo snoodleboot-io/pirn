@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DictionaryLearner`` — sparse-coding dictionary learning.
 
 Algorithm:
@@ -28,9 +30,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.sklearn_decomposition_binding import SklearnDecompositionBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
@@ -107,24 +111,15 @@ class DictionaryLearner(Knot):
                 source_count=atom_count,
                 mixing_matrix_shape=(signal.frame.channel_count, atom_count),
             ),
-            data=np.asarray(codes),
+            data=codes,
         )
 
     @staticmethod
     def _run_dictionary_learning(
-        data: np.ndarray, atom_count: int, sparsity_target: int, max_iterations: int
-    ) -> np.ndarray:
-        try:
-            from sklearn.decomposition import DictionaryLearning  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "DictionaryLearner requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-            ) from exc
-        dl = DictionaryLearning(  # type: ignore[call-overload]
-            n_components=atom_count,
-            alpha=int(sparsity_target),  # stubs expect int
-            max_iter=max_iterations,
-            random_state=0,
-        )
-        codes = dl.fit_transform(data.T)  # shape: (n_samples, atom_count)
+        data: NDArray[np.floating[Any]], atom_count: int, sparsity_target: int, max_iterations: int
+    ) -> NDArray[np.float64]:
+        decomposition = SklearnDecompositionBinding.load()
+        codes = decomposition.dictionary_learning(
+            data.T, atom_count, sparsity_target, max_iterations
+        )  # shape: (n_samples, atom_count)
         return codes.T  # shape: (atom_count, n_samples)

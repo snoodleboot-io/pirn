@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DicomPacsAssembler`` — assemble a :class:`DICOMPayload` from raw DICOM bytes.
 
 Sits between an object store connector (which produces ``bytes``) and downstream
@@ -27,6 +29,7 @@ from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.dicom_payload import DICOMPayload
 from pirn_health.types.dicom_series import DICOMSeries
 
@@ -65,9 +68,9 @@ class DicomPacsAssembler(Assembler):
             ValueError: If ``series_id`` is empty.
             ImportError: If ``pydicom`` is not installed.
         """
-        if not isinstance(body, bytes):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(body, bytes):
             raise TypeError(f"DicomPacsAssembler: body must be bytes, got {type(body).__name__}")
-        if not isinstance(series_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(series_id, str):
             raise TypeError(
                 f"DicomPacsAssembler: series_id must be str, got {type(series_id).__name__}"
             )
@@ -81,12 +84,7 @@ class DicomPacsAssembler(Assembler):
         return DICOMPayload(metadata=series, data=dataset)
 
     @staticmethod
-    def _parse_dicom(body: bytes) -> Any:
-        try:
-            import pydicom  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "DicomPacsAssembler requires 'pydicom'. Install via `pip install pirn-health[health]`."
-            ) from exc
-        sdk: Any = pydicom  # optional SDK: lazily imported, used untyped
-        return sdk.dcmread(io.BytesIO(body))
+    def _parse_dicom(body: bytes) -> object:
+        pydicom = HealthOptionalDependency.require("pydicom", extra="health")
+        dataset: object = pydicom.dcmread(io.BytesIO(body))
+        return dataset

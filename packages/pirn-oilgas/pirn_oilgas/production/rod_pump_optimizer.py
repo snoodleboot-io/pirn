@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RodPumpOptimizer`` — optimize rod pump stroke length and speed for sucker-rod lifted wells.
 
 Algorithm:

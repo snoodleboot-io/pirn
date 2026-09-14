@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BrainMaskExtractor`` — skull-strip a brain MRI.
 
 Uses dipy ``median_otsu`` for robust brain extraction without antspyx.
@@ -24,15 +26,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    import nibabel as nib
-    from dipy.segment.mask import median_otsu
-
-    _HAS_DIPY: bool = True
-except ImportError:
-    nib = None  # type: ignore[assignment]
-    median_otsu = None  # type: ignore[assignment]
-    _HAS_DIPY = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class BrainMaskExtractor(Knot):
@@ -82,12 +76,11 @@ class BrainMaskExtractor(Knot):
 
     @staticmethod
     def _extract_mask(nifti_path: str, output_mask_path: str) -> None:
-        if not _HAS_DIPY or nib is None or median_otsu is None:
-            raise ImportError(
-                "nibabel and dipy are required for BrainMaskExtractor — install with: pip install 'pirn[mri]'"
-            )
+        nib = HealthOptionalDependency.require("nibabel", extra="mri")
+        mask_module = HealthOptionalDependency.require("dipy.segment.mask", extra="mri")
         img = nib.load(nifti_path)
-        data = np.asarray(img.dataobj)
-        _, mask = median_otsu(data)
+        data: np.ndarray = np.asarray(img.dataobj)
+        mask: np.ndarray
+        _, mask = mask_module.median_otsu(data)
         mask_img = nib.Nifti1Image(mask.astype(np.uint8), img.affine, img.header)
         nib.save(mask_img, output_mask_path)

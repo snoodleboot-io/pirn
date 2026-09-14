@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BesselFilter`` — IIR with maximally-linear phase response.
 
 Algorithm:
@@ -29,10 +31,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -76,21 +78,16 @@ class BesselFilter(Knot):
         Raises:
             ValueError: If order or cutoff_hz are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "BesselFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(order, int) or order <= 0:
             raise ValueError("BesselFilter: order must be a positive integer")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
             raise ValueError("BesselFilter: cutoff_hz must be positive")
 
         fs = signal.frame.sample_rate_hz
-        sos = await asyncio.to_thread(ss.bessel, order, cutoff_hz, "low", fs=fs, output="sos")
+        sos = await asyncio.to_thread(ss.bessel_sos, order, cutoff_hz, "low", fs)
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return signal.derive(
             "bessel",
-            np.asarray(filtered),
+            filtered,
         )

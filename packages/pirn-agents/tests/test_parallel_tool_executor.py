@@ -13,6 +13,7 @@ so a directly-awaited ``process()`` no longer exercises anything.
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any, ClassVar
 
 import pytest
@@ -179,6 +180,22 @@ async def test_retry_then_success() -> None:
     assert results[0].result == "recovered"
     rows = await _inner_rows(t, run)
     assert rows["c1"].extra.get("attempts") == 3
+
+
+async def test_retry_backoff_sleeps_between_attempts_on_the_engine() -> None:
+    # Core GovernedDispatch owns the inter-attempt backoff: 0.04 s then 0.08 s
+    # before the third attempt, with no sleep inside the executor itself.
+    toolset = _named(["flaky"], result="recovered")
+    Probe.failures_left["flaky"] = 2
+    calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
+
+    started = time.perf_counter()
+    results, _, _ = await _run(
+        calls, toolset, retry=KnotRetryPolicy(max_attempts=3, base_delay=0.04, jitter=False)
+    )
+
+    assert results[0].status == "ok"
+    assert time.perf_counter() - started >= 0.12
 
 
 async def test_retry_exhausted_returns_error() -> None:

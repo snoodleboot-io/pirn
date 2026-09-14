@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OnsetDetector`` — note / event onset detection.
 
 Algorithm:
@@ -110,7 +112,7 @@ class OnsetDetector(Knot):
     @staticmethod
     def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "OnsetDetector requires 'librosa'. Install via pip install pirn-signal[signal]"

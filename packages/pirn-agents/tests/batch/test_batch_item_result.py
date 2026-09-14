@@ -71,7 +71,7 @@ class TestBatchItemResultOutcome:
         assert result.timed_out
         assert result.error == "deadline exceeded"
 
-    @pytest.mark.parametrize("exc_type", ["ToolTimeoutError", "TimeoutError", "KnotTimeoutError"])
+    @pytest.mark.parametrize("exc_type", ["TimeoutError", "KnotTimeoutError"])
     def test_every_timeout_error_type_is_recognised(self, exc_type: str) -> None:
         result = BatchItemResult(index=0, key="k", outcome=Err(record=_record(exc_type=exc_type)))
         assert result.timed_out

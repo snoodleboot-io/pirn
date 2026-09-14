@@ -40,7 +40,7 @@ class TestOutcomeViews(unittest.TestCase):
         assert result.status == "error"
 
     def test_timeout_status_is_derived_from_the_error_type(self) -> None:
-        for exc_type in ("KnotTimeoutError", "ToolTimeoutError", "TimeoutError"):
+        for exc_type in ("KnotTimeoutError", "TimeoutError"):
             record = ExceptionRecord(
                 run_id="<unbound>",
                 knot_id="k",

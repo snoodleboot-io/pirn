@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CausalRealtimeFilter`` — causal (forward-only) IIR filter for realtime use.
 
 Algorithm:
@@ -42,7 +44,7 @@ class CausalRealtimeFilter(Knot):
         *,
         signal: Knot,
         filter_type: Knot | str,
-        cutoff_hz: Knot | float | tuple,
+        cutoff_hz: Knot | float | tuple[float, float],
         order: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,

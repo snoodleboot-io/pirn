@@ -48,13 +48,13 @@ _PACKAGE_ROOT = Path(__file__).parent.parent / "pirn_agents"
 # A "root" is an exception class whose own immediate bases are all builtins
 # (or another agents exception that is itself unfixed) — i.e. every class
 # below is the class that would need `PirnError` added to its own bases; a
-# subclass of an already-fixed root (`ToolTimeoutError(ToolInvocationError)`,
-# `AgentCycleError(AgentRecursionError)`, ...) is not listed here because it
+# subclass of an already-fixed root (`ToolNotFoundError(ToolInvocationError)`,
+# ...) is not listed here because it
 # inherits `PirnError` transitively the moment its root is fixed, and this
 # ratchet checks the resolved MRO, not immediate bases.
 #
 # WS2 fixed the 8 roots under exceptions/** and security/** (its lane):
-# ToolInvocationError, AgentRecursionError, SandboxDisabledError,
+# ToolInvocationError, AgentRecursionError (since deleted, PIR-872), SandboxDisabledError,
 # UnsupportedModalityError, MissingCassetteEntryError, InjectionDetectedError,
 # McpTrustError, UntrustedDirectiveError. PIR-872 rooted the remaining nine on
 # PirnError (keeping each one's builtin base where callers catch it):
@@ -102,7 +102,7 @@ class TestExceptionRootsFrozen(unittest.TestCase):
             for name in self.classes
             if VocabularyInventory.is_exception_class(name, self.classes)
         ]
-        assert len(exception_classes) >= 15, exception_classes
+        assert len(exception_classes) >= 10, exception_classes
 
     def test_roots_without_pirn_error_are_frozen(self) -> None:
         roots_without_pirn_error = {
@@ -149,7 +149,6 @@ class TestExceptionRootsFrozen(unittest.TestCase):
         """The 8 roots WS2 fixed must actually resolve PirnError, not just be absent above."""
         fixed = [
             "ToolInvocationError",
-            "AgentRecursionError",
             "SandboxDisabledError",
             "UnsupportedModalityError",
             "MissingCassetteEntryError",
@@ -165,10 +164,7 @@ class TestExceptionRootsFrozen(unittest.TestCase):
         for name in (
             "ToolCancelledError",
             "ToolNotFoundError",
-            "ToolTimeoutError",
             "ToolArgumentValidationError",
-            "AgentCycleError",
-            "AgentDepthExceededError",
         ):
             assert VocabularyInventory.roots_on_pirn_error(name, self.classes), name
 

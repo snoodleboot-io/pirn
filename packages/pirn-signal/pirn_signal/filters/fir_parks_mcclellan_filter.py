@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FIRParksMcClellanFilter`` — equiripple FIR via Parks-McClellan algorithm.
 
 Algorithm:
@@ -33,6 +35,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -44,8 +47,8 @@ class FIRParksMcClellanFilter(Knot):
         *,
         signal: Knot,
         num_taps: Knot | int,
-        bands: Knot | tuple,
-        desired: Knot | tuple,
+        bands: Knot | tuple[float, ...],
+        desired: Knot | tuple[float, ...],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -80,12 +83,7 @@ class FIRParksMcClellanFilter(Knot):
         Raises:
             ValueError: If num_taps, bands, or desired are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "FIRParksMcClellanFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(num_taps, int) or num_taps <= 0 or num_taps % 2 == 0:
             raise ValueError("FIRParksMcClellanFilter: num_taps must be a positive odd integer")
         if not isinstance(bands, tuple) or len(bands) < 2 or len(bands) % 2 != 0:
@@ -96,11 +94,11 @@ class FIRParksMcClellanFilter(Knot):
             raise ValueError("FIRParksMcClellanFilter: desired must have one value per band")
 
         fs = signal.frame.sample_rate_hz
-        tap_weights = await asyncio.to_thread(ss.remez, num_taps, list(bands), list(desired), fs=fs)
+        tap_weights = await asyncio.to_thread(ss.remez, num_taps, bands, desired, fs)
         filtered = await asyncio.to_thread(
             ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
         )
         return signal.derive(
             "fir-pm",
-            np.asarray(filtered),
+            filtered,
         )

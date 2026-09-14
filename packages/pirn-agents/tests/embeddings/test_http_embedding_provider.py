@@ -12,7 +12,8 @@ import unittest
 from typing import Any
 from unittest import mock
 
-from pirn_agents.llm.retry_policy import RetryPolicy
+from pirn.core.knot_retry_policy import KnotRetryPolicy
+
 from pirn_agents.retrieval.embeddings.http_embedding_provider import HttpEmbeddingProvider
 
 
@@ -96,7 +97,7 @@ class TestHttpEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
             model="m",
             client=client,
             batch_size=5,
-            retry_policy=RetryPolicy(max_retries=2, base_delay=0.0),
+            retry_policy=KnotRetryPolicy(max_attempts=3, base_delay=0.0),
         )
 
         vectors = await provider.embed(["a", "b"])
