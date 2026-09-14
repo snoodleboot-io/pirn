@@ -7,16 +7,12 @@ backend (``httpx``, ``aiosqlite``) is imported here and importing this module
 stays backend-free; a backend is imported lazily the first time a call that
 needs it runs.
 
-The module-level functions below (``calculator_toolset``, ``web_toolset``,
-etc.) are thin documented wrappers kept for the public call sites recorded
-in ``TOOLS.md`` and ``pirn_agents.builder.agent_presets`` — new code may call
-either form; both resolve to :class:`Bundles`.
 
 Example::
 
-    from pirn_agents.tools.bundles import filesystem_toolset
+    from pirn_agents.tools.bundles import Bundles
 
-    tools = filesystem_toolset(root="/srv/workspace")
+    tools = Bundles.filesystem_toolset(root="/srv/workspace")
     react = ReActLoop(messages=msgs, llm=llm, tools=list(tools), _config=cfg)
 """
 
@@ -172,96 +168,3 @@ class Bundles:
         if include_shell:
             tools.append(ShellTool.bind(executor=executor))
         return Toolset(tools)
-
-
-def calculator_toolset() -> Toolset:
-    """Return a toolset with the zero-dependency :class:`CalculatorTool`.
-
-    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
-    :meth:`Bundles.calculator_toolset`.
-    """
-    return Bundles.calculator_toolset()
-
-
-def web_toolset(
-    *,
-    search_backend: SearchBackend | None = None,
-    allowed_hosts: tuple[str, ...] | None = None,
-    allow_private: bool = False,
-    max_bytes: int = 1_000_000,
-    max_chars: int = 20_000,
-    resolver: Callable[[str], str | Sequence[str]] | None = None,
-) -> Toolset:
-    """Return a web toolset: HTTP fetch, HTML-to-text, and optional web search.
-
-    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
-    :meth:`Bundles.web_toolset`.
-    """
-    return Bundles.web_toolset(
-        search_backend=search_backend,
-        allowed_hosts=allowed_hosts,
-        allow_private=allow_private,
-        max_bytes=max_bytes,
-        max_chars=max_chars,
-        resolver=resolver,
-    )
-
-
-def filesystem_toolset(
-    *,
-    root: str,
-    max_bytes: int = 1_000_000,
-    max_entries: int = 1000,
-    include_write: bool = True,
-) -> Toolset:
-    """Return a filesystem toolset scoped to ``root``.
-
-    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
-    :meth:`Bundles.filesystem_toolset`.
-    """
-    return Bundles.filesystem_toolset(
-        root=root, max_bytes=max_bytes, max_entries=max_entries, include_write=include_write
-    )
-
-
-def data_toolset(
-    *,
-    connector: SqlConnector,
-    read_only: bool = True,
-    max_rows: int = 1000,
-    include_calculator: bool = True,
-) -> Toolset:
-    """Return a data toolset: a guarded ``sql_query`` plus an optional calculator.
-
-    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
-    :meth:`Bundles.data_toolset`.
-    """
-    return Bundles.data_toolset(
-        connector=connector,
-        read_only=read_only,
-        max_rows=max_rows,
-        include_calculator=include_calculator,
-    )
-
-
-def retrieval_toolset(
-    *,
-    store: MemoryStore,
-    llm: LLMProvider | None = None,
-    top_k: int = 5,
-) -> Toolset:
-    """Return a retrieval toolset: a retriever plus an optional RAG tool.
-
-    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
-    :meth:`Bundles.retrieval_toolset`.
-    """
-    return Bundles.retrieval_toolset(store=store, llm=llm, top_k=top_k)
-
-
-def sandbox_toolset(*, executor: SandboxExecutor, include_shell: bool = True) -> Toolset:
-    """Return a sandbox toolset backed by an (opt-in) :class:`SandboxExecutor`.
-
-    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
-    :meth:`Bundles.sandbox_toolset`.
-    """
-    return Bundles.sandbox_toolset(executor=executor, include_shell=include_shell)

@@ -124,17 +124,17 @@ class WebSearchTool(Tool):
 web_search = WebSearchTool.bind(client=my_client)   # a ToolFactory — pass it anywhere a tool is accepted
 ```
 
-For plain functions, use the `@tool` decorator instead of subclassing — it is `@knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
+For plain functions, use the `@ToolDecorator.decorate` decorator instead of subclassing — it is `@knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
 
 ```python
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 
-@tool
+@ToolDecorator.decorate
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web and return a summary of the top results."""
     ...  # your implementation
 
-@tool
+@ToolDecorator.decorate
 def lookup_policy(topic: str) -> str:
     """Look up an internal policy document by topic keyword."""
     return POLICIES.get(topic, "No policy found.")
@@ -143,7 +143,7 @@ def lookup_policy(topic: str) -> str:
 react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy], ...)
 ```
 
-`@tool` produces a `FunctionTool`, a `ToolFactory` over a generated `Tool` class. Use `Tool` subclassing directly when the tool needs bound dependencies (API keys, HTTP clients, connection pools) or wants to declare `permissions` / `streaming`. An agent becomes a tool with `agent.as_tool()` (`AgentTool`), whose nested run is guarded by core's `RunNesting`.
+`@ToolDecorator.decorate` produces a `FunctionTool`, a `ToolFactory` over a generated `Tool` class. Use `Tool` subclassing directly when the tool needs bound dependencies (API keys, HTTP clients, connection pools) or wants to declare `permissions` / `streaming`. An agent becomes a tool with `agent.as_tool()` (`AgentTool`), whose nested run is guarded by core's `RunNesting`.
 
 ### MemoryStore
 

@@ -65,20 +65,20 @@ application layer so pirn stays provider-agnostic. The test suite ships
 `tests/unit/domains/agents/conftest.py`; copy or adapt them for your own stubs
 during development.
 
-### `@tool` decorator
+### `@ToolDecorator.decorate` decorator
 
-For plain functions, use `@tool` instead of subclassing `Tool`. Name, description,
+For plain functions, use `@ToolDecorator.decorate` instead of subclassing `Tool`. Name, description,
 and JSON Schema are derived from the function signature automatically.
 
 ```python
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 
-@tool
+@ToolDecorator.decorate
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web and return a summary of the top results."""
     ...
 
-@tool
+@ToolDecorator.decorate
 def lookup_policy(topic: str) -> str:
     """Look up an internal policy document by topic keyword."""
     return POLICIES.get(topic, "No policy found.")
@@ -591,8 +591,8 @@ or a "swarm" of agents each callable by name.
 
 **Agent-as-tool is first-class** (F7): any `SubTapestry` agent that mixes in
 `AgentAsToolMixin` (the shipped specialist agents do) becomes a `Tool` in one
-call via `agent.as_tool()`, or wrap any agent with the `as_tool(agent)` free
-function. No hand-written adapter, no manual schema:
+call via `agent.as_tool()`, or wrap any agent with the `AsTool.wrap(agent)` static
+method. No hand-written adapter, no manual schema:
 
 - `name`/`description` default from the agent and are overridable.
 - `parameters_schema` is derived from the agent's `process` inputs (falling back
@@ -613,7 +613,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.tools.as_tool import as_tool  # or: agent.as_tool()
+from pirn_agents.tools.as_tool import AsTool  # or: agent.as_tool()
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (
@@ -648,7 +648,7 @@ with Tapestry() as tapestry:
 result = await tapestry.run(RunRequest())
 ```
 
-Equivalently, `as_tool(researcher, name="research")` returns the same
+Equivalently, `AsTool.wrap(researcher, name="research")` returns the same
 `AgentTool`. A swarm is just a `ReActLoop` whose `tools` are several
 `agent.as_tool()` wrappers — the loop hands off to whichever the planner names.
 

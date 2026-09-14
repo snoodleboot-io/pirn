@@ -53,7 +53,7 @@ class RetrieverTool(Tool):
   `ToolFactory.for_call(call)` constructs the tool knot for one `ToolCall`
   inside the current tapestry; `ToolFactory.run_call(call)` runs one call in
   a throwaway tapestry and returns its `Result`.
-* `@tool` on a function is `@knot` plus a declaration; `McpTool` is
+* `@ToolDecorator.decorate` on a function is `@knot` plus a declaration; `McpTool` is
   `KnotFactory.from_schema` over the remote tool's schema; an agent is a tool
   through `AgentTool` (`agent.as_tool()`), whose nesting guard is core's
   `RunNesting`.
@@ -80,16 +80,13 @@ defaults. They only *bind* capabilities, so importing them triggers no backend
 imports:
 
 ```python
-from pirn_agents.tools.bundles import (
-    calculator_toolset, web_toolset, filesystem_toolset,
-    data_toolset, retrieval_toolset, sandbox_toolset,
-)
+from pirn_agents.tools.bundles import Bundles
 
-tools = calculator_toolset() + web_toolset() + filesystem_toolset(root="/srv/workspace")
+tools = Bundles.calculator_toolset() + Bundles.web_toolset() + Bundles.filesystem_toolset(root="/srv/workspace")
 ```
 
 `Toolset` maps a name to a `ToolFactory` (a `Tool` class, a bound factory, a
-`@tool` function or a legacy instance are all normalised through
+`@ToolDecorator.decorate` function or a legacy instance are all normalised through
 `ToolFactory.of`). It supports `+` / `merge` (unique names re-checked),
 `get(name)`, iteration, and `schema()` (provider-neutral declaration list).
 
@@ -100,11 +97,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.tools.bundles import calculator_toolset, retrieval_toolset
+from pirn_agents.tools.bundles import Bundles
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
-toolset = calculator_toolset() + retrieval_toolset(store=my_store)
+toolset = Bundles.calculator_toolset() + Bundles.retrieval_toolset(store=my_store)
 
 with Tapestry() as tapestry:
     ReActLoop(
@@ -203,11 +200,11 @@ Code/command execution is **opt-in and disabled by default**. Tools bound to a
 `enabled=True`:
 
 ```python
-from pirn_agents.tools.bundles import sandbox_toolset
+from pirn_agents.tools.bundles import Bundles
 from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
 
 executor = SandboxExecutor(enabled=True, timeout=5.0, max_output_bytes=65536)
-tools = sandbox_toolset(executor=executor)
+tools = Bundles.sandbox_toolset(executor=executor)
 ```
 
 The default `SubprocessSandboxBackend` enforces a **hard timeout** (killing the

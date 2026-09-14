@@ -21,7 +21,7 @@ from typing import Any
 
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_match import VectorMatch
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
@@ -70,7 +70,7 @@ class PgvectorMemoryStore(VectorMemoryStore):
     async def _get_pool(self) -> Any:
         """Return the connection pool, building it once via ``asyncpg``."""
         if self._pool is None:
-            asyncpg = _require("pgvector", "asyncpg")
+            asyncpg = OptionalImport.require("pgvector", "asyncpg")
             self._pool = await asyncpg.create_pool(self._dsn)
         return self._pool
 

@@ -23,7 +23,7 @@ from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
 from pydantic import Field
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.tools.tool import Tool
 
 
@@ -115,7 +115,7 @@ class HttpRequestTool(Tool):
         endpoint = guard.assert_public_host(url)
         if client is not None:
             return await self._request(client, verb, url, endpoint, max_bytes)
-        httpx = _require("web", "httpx")
+        httpx = OptionalImport.require("web", "httpx")
         limits = httpx.Timeout(timeout, connect=connect_timeout)
         async with httpx.AsyncClient(timeout=limits, follow_redirects=False) as own_client:
             return await self._request(own_client, verb, url, endpoint, max_bytes)

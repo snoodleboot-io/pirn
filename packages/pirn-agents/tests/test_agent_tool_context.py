@@ -8,11 +8,7 @@ from pirn.core.run_nesting import RunNesting
 from pirn.exceptions.nested_run_cycle_error import NestedRunCycleError
 from pirn.exceptions.nesting_depth_exceeded_error import NestingDepthExceededError
 
-from pirn_agents.agent.agent_tool_context import (
-    AgentToolContext,
-    bind_agent_tool_context,
-    current_agent_tool_context,
-)
+from pirn_agents.agent.agent_tool_context import AgentToolContext
 
 
 class TestAgentToolContextIsANestingFrame(unittest.TestCase):
@@ -61,21 +57,21 @@ class TestAgentToolContextIsANestingFrame(unittest.TestCase):
 
 class TestBindContext(unittest.TestCase):
     def test_root_context_is_none(self) -> None:
-        self.assertIsNone(current_agent_tool_context())
+        self.assertIsNone(AgentToolContext.bound())
 
     def test_bind_sets_and_restores(self) -> None:
         ctx = AgentToolContext(depth=1, path=("a",))
 
-        with bind_agent_tool_context(ctx):
-            self.assertIs(current_agent_tool_context(), ctx)
+        with AgentToolContext.bind(ctx):
+            self.assertIs(AgentToolContext.bound(), ctx)
 
-        self.assertIsNone(current_agent_tool_context())
+        self.assertIsNone(AgentToolContext.bound())
 
     def test_bind_restores_even_on_exception(self) -> None:
         ctx = AgentToolContext(depth=1, path=("a",))
 
         with self.assertRaises(ValueError):
-            with bind_agent_tool_context(ctx):
+            with AgentToolContext.bind(ctx):
                 raise ValueError("boom")
 
-        self.assertIsNone(current_agent_tool_context())
+        self.assertIsNone(AgentToolContext.bound())

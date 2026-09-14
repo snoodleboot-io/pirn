@@ -1,7 +1,7 @@
-"""Shared lazy-import helper for optional backend dependencies.
+"""``OptionalImport`` — shared lazy-import helper for optional backend dependencies.
 
 Every connector or tool that needs an optional backend imports it through
-:func:`_require`, which turns a missing backend into a friendly ``ImportError``
+:meth:`~pirn_agents._internal.optional_import.OptionalImport.require`, which turns a missing backend into a friendly ``ImportError``
 that names the exact ``pip install`` command needed to provision it.
 """
 
@@ -11,7 +11,7 @@ import importlib
 from types import ModuleType
 
 
-class _OptionalImport:
+class OptionalImport:
     """Namespace for the shared lazy-import-with-friendly-error helper."""
 
     @staticmethod
@@ -37,13 +37,3 @@ class _OptionalImport:
                 f"{module!r} is required for this feature; install it with: "
                 f'pip install "pirn-agents[{extra}]"'
             ) from exc
-
-
-def _require(extra: str, module: str) -> ModuleType:  # pyright: ignore[reportUnusedFunction]  # imported by the optional-SDK loaders (otel_sink, mcp, retrieval, ...)
-    """Import ``module``, raising a friendly error if its backend is missing.
-
-    Thin wrapper kept for the pinned public import path (see
-    ``tests/test_ws5_s1_import_surface.py``) and its ~20 call sites across the
-    package; see :meth:`_OptionalImport.require`.
-    """
-    return _OptionalImport.require(extra, module)

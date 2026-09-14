@@ -19,7 +19,7 @@ via :meth:`child`, so state never leaks across unrelated calls.
 from __future__ import annotations
 
 from collections.abc import Generator
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 
@@ -138,21 +138,3 @@ class AgentToolContext(RunNesting):
 _current_agent_tool_context: ContextVar[AgentToolContext | None] = ContextVar(
     "_current_agent_tool_context", default=None
 )
-
-
-def current_agent_tool_context() -> AgentToolContext | None:
-    """Return the active :class:`AgentToolContext`, or ``None`` at the root.
-
-    Thin wrapper kept for the documented public import path (see
-    ``tests/test_ws5_s1_import_surface.py``); see :meth:`AgentToolContext.bound`.
-    """
-    return AgentToolContext.bound()
-
-
-def bind_agent_tool_context(context: AgentToolContext) -> AbstractContextManager[None]:
-    """Bind ``context`` as the active context for the duration of the block.
-
-    Thin wrapper kept for the documented public import path (see
-    ``tests/test_ws5_s1_import_surface.py``); see :meth:`AgentToolContext.bind`.
-    """
-    return AgentToolContext.bind(context)

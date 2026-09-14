@@ -1,4 +1,4 @@
-"""Tests for the ``as_tool`` API and mixin (F7-S2)."""
+"""Tests for the ``AsTool.wrap`` API and mixin (F7-S2)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.agent_tool import AgentTool
-from pirn_agents.tools.as_tool import as_tool
+from pirn_agents.tools.as_tool import AsTool
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.agent_tool_doubles import AGENT_CALLS, StubAgent, reset_doubles
@@ -25,7 +25,7 @@ class TestAsToolFunction(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             agent = StubAgent(_config=KnotConfig(id="a"))
 
-        tool = as_tool(agent, name="helper", description="a helper")
+        tool = AsTool.wrap(agent, name="helper", description="a helper")
 
         self.assertIsInstance(tool, AgentTool)
         self.assertEqual(tool.name, "helper")

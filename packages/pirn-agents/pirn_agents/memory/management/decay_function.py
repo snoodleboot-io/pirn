@@ -39,16 +39,7 @@ class DecayFunction:
         """
         if half_life_seconds <= 0:
             raise ValueError(
-                f"decay_score: half_life_seconds must be positive, got {half_life_seconds!r}"
+                f"DecayFunction.score: half_life_seconds must be positive, got {half_life_seconds!r}"
             )
         age = max(0.0, float(age_seconds))
         return float(importance) * (2.0 ** (-age / float(half_life_seconds)))
-
-
-def decay_score(importance: float, age_seconds: float, half_life_seconds: float) -> float:
-    """Return the half-life-decayed value of a memory.
-
-    Thin wrapper kept for the documented public import path (see
-    ``MEMORY_MANAGEMENT.md``); see :meth:`DecayFunction.score`.
-    """
-    return DecayFunction.score(importance, age_seconds, half_life_seconds)

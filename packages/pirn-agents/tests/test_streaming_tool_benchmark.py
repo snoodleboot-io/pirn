@@ -14,7 +14,7 @@ import time
 
 import pytest
 
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 
 
 @pytest.mark.benchmark
@@ -22,14 +22,14 @@ async def test_streaming_first_output_beats_full_result() -> None:
     n = 8
     per_chunk = 0.02
 
-    @tool
+    @ToolDecorator.decorate
     async def streamer(count: int) -> str:
         """Yield ``count`` chunks, one every ``per_chunk`` seconds."""
         for i in range(count):
             await asyncio.sleep(per_chunk)
             yield f"chunk{i}"
 
-    @tool
+    @ToolDecorator.decorate
     async def batched(count: int) -> list[str]:
         """Compute every chunk before returning the whole list."""
         out: list[str] = []

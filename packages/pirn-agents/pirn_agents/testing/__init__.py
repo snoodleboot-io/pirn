@@ -4,9 +4,8 @@ Public surface:
 
 * :class:`StubTool` — a configurable sync/async/streaming/stateful tool double.
 * :class:`ToolTestHarness` — bundles a tool with schema + invocation assertions.
-* :func:`make_stub_tool` — :class:`StubTool` factory.
-* :func:`assert_tool_schema` / :func:`assert_schema_shape` — schema assertions.
-* :func:`invoke_tool` / :func:`collect_tool_stream` — invocation drivers.
+* :meth:`~pirn_agents.testing.tool_test_harness.ToolTestHarness.assert_tool_schema` / :meth:`~pirn_agents.testing.tool_test_harness.ToolTestHarness.assert_tool_schema_shape` — schema assertions.
+* :meth:`~pirn_agents.testing.tool_test_harness.ToolTestHarness.invoke_tool` / :meth:`~pirn_agents.testing.tool_test_harness.ToolTestHarness.collect_tool_stream` — invocation drivers.
 """
 
 from __future__ import annotations

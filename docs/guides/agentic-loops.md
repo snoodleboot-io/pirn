@@ -230,7 +230,7 @@ This is the **supported** escape: the outer dispatcher carries the entire nested
 
 ### Do not set a dispatcher on an *inner* tapestry
 
-Setting a per-**inner**-tapestry dispatcher (for example a `ThreadDispatcher` on a `SubTapestry`/`LoopSubTapestry`'s own inner tapestry) is **not supported and is unsafe** for agent-as-tool workloads.  The agent-as-tool machinery binds an `AgentToolContext` (a core `RunNesting` frame plus agents-only budget/provider policy; see ADR agents-speaks-core WS0/WS1) into a `contextvars` context (read by `current_agent_tool_context()` in `pirn_agents/agent/agent_tool_context.py`).  An inner dispatcher crosses the thread boundary *after* that bind, and `loop.run_in_executor` — unlike `asyncio.to_thread` — does **not** copy the context into the worker thread.  The inner knot then sees no context, so the agent-as-tool call falls back to a fresh **root** `AgentToolContext`:
+Setting a per-**inner**-tapestry dispatcher (for example a `ThreadDispatcher` on a `SubTapestry`/`LoopSubTapestry`'s own inner tapestry) is **not supported and is unsafe** for agent-as-tool workloads.  The agent-as-tool machinery binds an `AgentToolContext` (a core `RunNesting` frame plus agents-only budget/provider policy; see ADR agents-speaks-core WS0/WS1) into a `contextvars` context (read by `AgentToolContext.bound()` in `pirn_agents/agent/agent_tool_context.py`).  An inner dispatcher crosses the thread boundary *after* that bind, and `loop.run_in_executor` — unlike `asyncio.to_thread` — does **not** copy the context into the worker thread.  The inner knot then sees no context, so the agent-as-tool call falls back to a fresh **root** `AgentToolContext`:
 
 ```python
 # pirn_agents/tools/agent_tool_call.py, AgentToolCall.__call__

@@ -19,7 +19,7 @@ from typing import Any
 
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.graph_stores.graph_backend_client import GraphBackendClient
 from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 
@@ -52,7 +52,7 @@ class Neo4jBackendClient(GraphBackendClient):
     async def _get_driver(self) -> Any:
         """Build the async driver once, lazily importing ``neo4j``."""
         if self._driver is None:
-            neo4j = _require("neo4j", "neo4j")
+            neo4j = OptionalImport.require("neo4j", "neo4j")
             auth = None
             if self._username is not None and self._credential is not None:
                 auth = (self._username, self._credential.reveal())

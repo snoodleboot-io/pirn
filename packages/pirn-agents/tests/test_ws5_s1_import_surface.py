@@ -19,29 +19,26 @@ import importlib
 import pytest
 
 # (new_module_path, public_symbol_name) rows that the S1 move must satisfy.
-# Every public (non-underscore) class/function each moved module defines is
-# characterized here -- including the extra context accessors, the async
-# authorization helper, and the decorator functions -- plus the two
-# intentionally-underscored modules and the one symbol that stays at root.
+# Every public class each moved module defines is characterized here (the
+# former module-level accessors/decorators are static methods on these classes,
+# PIR-872) -- plus the intentionally-underscored module and the one symbol that
+# stays at root.
 _S1_IMPORT_SURFACE: list[tuple[str, str]] = [
     # agent domain subpackage
     ("pirn_agents.agent.agent_introspector", "AgentIntrospector"),
     ("pirn_agents.agent.agent_response_mapper", "AgentResponseMapper"),
     ("pirn_agents.agent.agent_tool_context", "AgentToolContext"),
-    ("pirn_agents.agent.agent_tool_context", "current_agent_tool_context"),
-    ("pirn_agents.agent.agent_tool_context", "bind_agent_tool_context"),
     ("pirn_agents.agent.parallel_tool_executor", "ParallelToolExecutor"),
     ("pirn_agents.agent.approval_hook", "ApprovalHook"),
-    ("pirn_agents.agent.approval_hook", "authorize_tool_call"),
     # tools domain subpackage
     ("pirn_agents.tools.tool", "Tool"),
     ("pirn_agents.tools.tool_registry", "ToolRegistry"),
     ("pirn_agents.tools.toolset", "Toolset"),
     ("pirn_agents.tools.function_tool", "FunctionTool"),
     ("pirn_agents.tools.agent_tool", "AgentTool"),
-    ("pirn_agents.tools.as_tool", "as_tool"),
+    ("pirn_agents.tools.as_tool", "AsTool"),
     ("pirn_agents.tools.agent_as_tool_mixin", "AgentAsToolMixin"),
-    ("pirn_agents.tools.tool_decorator", "tool"),
+    ("pirn_agents.tools.tool_decorator", "ToolDecorator"),
     ("pirn_agents.tools.tool_call_codec", "ToolCallCodec"),
     ("pirn_agents.tools.tool_permissions", "ToolPermissions"),
     ("pirn_agents.tools.streaming_tool_call_parser", "StreamingToolCallParser"),
@@ -49,15 +46,15 @@ _S1_IMPORT_SURFACE: list[tuple[str, str]] = [
     ("pirn_agents.llm.llm_provider", "LLMProvider"),
     ("pirn_agents.llm.provider_adapter", "ProviderAdapter"),
     # connectors domain subpackage
-    ("pirn_agents.connectors.connector_lifespan", "connector_lifespan"),
+    ("pirn_agents.connectors.connector_lifespan", "ConnectorLifespan"),
     # embeddings domain subpackage
     ("pirn_agents.retrieval.embeddings.embedding_provider", "EmbeddingProvider"),
     # memory domain subpackage
     ("pirn_agents.memory.stores.memory_store", "MemoryStore"),
     # security domain subpackage (intentionally underscored module)
     ("pirn_agents.security._safe_pattern_compiler", "SafePatternCompiler"),
-    # internal helper subpackage (intentionally underscored module + symbol)
-    ("pirn_agents._internal._require", "_require"),
+    # internal helper subpackage
+    ("pirn_agents._internal.optional_import", "OptionalImport"),
     # NOT moved: remains importable at the package root.
     ("pirn_agents.capability_probe", "CapabilityProbe"),
 ]

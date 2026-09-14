@@ -1,10 +1,10 @@
-"""Unit tests for :func:`connector_lifespan` deterministic teardown (F16-S5)."""
+"""Unit tests for :meth:`~pirn_agents.connectors.connector_lifespan.ConnectorLifespan.manage` deterministic teardown (F16-S5)."""
 
 from __future__ import annotations
 
 import pytest
 
-from pirn_agents.connectors.connector_lifespan import connector_lifespan
+from pirn_agents.connectors.connector_lifespan import ConnectorLifespan
 
 
 class _AsyncClosable:
@@ -29,14 +29,14 @@ class TestConnectorLifespan:
     async def test_yields_connectors(self) -> None:
         log: list[str] = []
         a = _AsyncClosable(log, "a")
-        async with connector_lifespan(a) as vended:
+        async with ConnectorLifespan.manage(a) as vended:
             assert vended == (a,)
 
     async def test_closes_all_in_reverse_order_on_success(self) -> None:
         log: list[str] = []
         a = _AsyncClosable(log, "a")
         b = _SyncClosable(log, "b")
-        async with connector_lifespan(a, b):
+        async with ConnectorLifespan.manage(a, b):
             pass
         assert log == ["b", "a"]
 
@@ -45,14 +45,14 @@ class TestConnectorLifespan:
         a = _AsyncClosable(log, "a")
         b = _AsyncClosable(log, "b")
         with pytest.raises(RuntimeError, match="boom"):
-            async with connector_lifespan(a, b):
+            async with ConnectorLifespan.manage(a, b):
                 raise RuntimeError("boom")
         assert log == ["b", "a"]
 
     async def test_ignores_objects_without_close(self) -> None:
         log: list[str] = []
         a = _AsyncClosable(log, "a")
-        async with connector_lifespan(object(), a):
+        async with ConnectorLifespan.manage(object(), a):
             pass
         assert log == ["a"]
 
@@ -66,7 +66,7 @@ class TestConnectorLifespan:
         a = _AsyncClosable(log, "a")
         failing = _Failing()
         with pytest.raises(ValueError, match="close failed"):
-            async with connector_lifespan(a, failing):
+            async with ConnectorLifespan.manage(a, failing):
                 pass
         # 'a' still closed even though the later-constructed 'failing' raised.
         assert log == ["a"]

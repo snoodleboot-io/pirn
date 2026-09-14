@@ -2,13 +2,13 @@
 
 Subclass this alongside your agent's pipeline base to expose the ergonomic
 ``agent.as_tool(...)`` API. The method simply delegates to the
-:func:`~pirn_agents.tools.as_tool.as_tool` free function, so the class adds no
+:meth:`~pirn_agents.tools.as_tool.AsTool.wrap` free function, so the class adds no
 state and stays compatible with the agent's existing construction.
 
 The ``SubTapestry`` requirement is expressed by *inheritance* rather than by an
 assertion. Because :class:`AgentAsToolMixin` derives from
 :class:`~pirn.nodes.sub_tapestry.SubTapestry`, ``self`` structurally is the
-agent type :func:`as_tool` accepts, so no ``typing.cast`` is needed to satisfy
+agent type :meth:`~pirn_agents.tools.as_tool.AsTool.wrap` accepts, so no ``typing.cast`` is needed to satisfy
 the type checker and no mixer can opt out of the contract. It declares no
 ``__init__`` and no ``process``, so it contributes nothing to construction: a
 mixer's ``super().__init__`` chain still reaches ``SubTapestry.__init__`` exactly
@@ -29,7 +29,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
-from pirn_agents.tools.as_tool import as_tool
+from pirn_agents.tools.as_tool import AsTool
 from pirn_agents.tools.tool_declaration import ToolDeclaration
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ class AgentAsToolMixin(SubTapestry):
         tool; the declaration — name, description, and the caller-facing
         subset of its ``process`` inputs — is what the model sees.
         """
-        return as_tool(self).declaration()
+        return AsTool.wrap(self).declaration()
 
     def as_tool(
         self,
@@ -67,9 +67,9 @@ class AgentAsToolMixin(SubTapestry):
     ) -> AgentTool:
         """Return an :class:`AgentTool` wrapping this agent.
 
-        See :func:`~pirn_agents.tools.as_tool.as_tool` for the argument semantics.
+        See :meth:`~pirn_agents.tools.as_tool.AsTool.wrap` for the argument semantics.
         """
-        return as_tool(
+        return AsTool.wrap(
             self,
             name=name,
             description=description,

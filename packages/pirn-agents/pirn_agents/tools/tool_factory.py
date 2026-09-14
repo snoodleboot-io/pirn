@@ -5,7 +5,7 @@ The ADR "agents speaks core" (WS1) makes the *class* the capability and an
 :class:`~pirn_agents.tools.toolset.Toolset`, as a knot input named ``tools``,
 in a registry — and a bare class cannot carry the dependencies a call never
 supplies (a filesystem root, a database connector).  ``ToolFactory`` is that
-value: a :class:`~pirn.core.knot_factory.KnotFactory` (``@tool`` is ``@knot``
+value: a :class:`~pirn.core.knot_factory.KnotFactory` (``@ToolDecorator.decorate`` is ``@knot``
 plus a declaration) over any ``Knot`` class, with the inputs :meth:`bind`
 pre-fills, and the model-facing envelope read off the class.
 
@@ -136,7 +136,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         """Return *candidate* as a :class:`ToolFactory`.
 
         Accepts a factory (returned as is), a ``KnotFactory`` (``@knot``,
-        ``@tool``), a ``Knot`` class, or a configured ``Knot`` instance (its
+        ``@ToolDecorator.decorate``), a ``Knot`` class, or a configured ``Knot`` instance (its
         literal inputs and defaulted parameters become the binding).
 
         Raises:

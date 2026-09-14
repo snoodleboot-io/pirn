@@ -3,7 +3,7 @@
 This subpackage ships the batching base provider plus provider-neutral
 adapters (an HTTP/OpenAI-compatible adapter and a local sentence-transformer
 adapter). Importing it pulls in no backend: every optional dependency is lazily
-imported at the point of use via :func:`pirn_agents._internal._require._require`.
+imported at the point of use via :meth:`~pirn_agents._internal.optional_import.OptionalImport.require`.
 """
 
 from __future__ import annotations

@@ -45,7 +45,7 @@ _S4_IMPORT_SURFACE: list[tuple[str, str]] = [
     ("pirn_agents.retrieval.graph_rag.node_embedding_index", "NodeEmbeddingIndex"),
     # stays at the retrieval root
     ("pirn_agents.retrieval.bm25_index", "Bm25Index"),
-    ("pirn_agents.retrieval.reciprocal_rank_fusion", "reciprocal_rank_fusion"),
+    ("pirn_agents.retrieval.reciprocal_rank_fusion", "ReciprocalRankFusion"),
     ("pirn_agents.retrieval.hybrid_retriever", "HybridRetriever"),
     # NEW shared base introduced by S4
     ("pirn_agents.retrieval.hybrid_retriever_base", "HybridRetrieverBase"),
