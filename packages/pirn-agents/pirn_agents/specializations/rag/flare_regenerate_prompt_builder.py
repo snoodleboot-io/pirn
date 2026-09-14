@@ -1,6 +1,6 @@
 """``FlareRegeneratePromptBuilder`` — build the grounded-rewrite prompt.
 
-Internal API. See ``_flare_loop.py``.
+Internal API. See ``flare_loop.py``.
 """
 
 from __future__ import annotations

@@ -30,13 +30,13 @@ from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.retrieval.graph_rag.entity_relation_extractor import EntityRelationExtractor
 from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.security.llm_injection_classifier import LlmInjectionClassifier
-from pirn_agents.specializations.document_processing._chunk_summariser import _ChunkSummariser
-from pirn_agents.specializations.document_processing._chunk_translator import _ChunkTranslator
-from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
-    _QARetrieveAndAnswer,
-)
-from pirn_agents.specializations.document_processing._summary_reducer import _SummaryReducer
+from pirn_agents.specializations.document_processing.chunk_summariser import ChunkSummariser
+from pirn_agents.specializations.document_processing.chunk_translator import ChunkTranslator
 from pirn_agents.specializations.document_processing.metadata_extractor import MetadataExtractor
+from pirn_agents.specializations.document_processing.qa_retrieve_and_answer import (
+    QARetrieveAndAnswer,
+)
+from pirn_agents.specializations.document_processing.summary_reducer import SummaryReducer
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import CandidateGenerator
 from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
 from pirn_agents.specializations.guardrails.citation_grounder import CitationGrounder
@@ -60,11 +60,11 @@ from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
 from pirn_agents.specializations.routing.capability_router import CapabilityRouter
 from pirn_agents.specializations.routing.intent_router import IntentRouter
 from pirn_agents.specializations.self_ask.self_ask_pipeline import SelfAskPipeline
-from pirn_agents.specializations.specialized_agents._analysis_step import _AnalysisStep
-from pirn_agents.specializations.specialized_agents._code_generator import _CodeGenerator
-from pirn_agents.specializations.specialized_agents._sql_generator import _SQLGenerator
+from pirn_agents.specializations.specialized_agents.analysis_step import AnalysisStep
 from pirn_agents.specializations.specialized_agents.browser_agent import BrowserAgent
+from pirn_agents.specializations.specialized_agents.code_generator import CodeGenerator
 from pirn_agents.specializations.specialized_agents.research_agent import ResearchAgent
+from pirn_agents.specializations.specialized_agents.sql_generator import SQLGenerator
 from pirn_agents.specializations.structured_output.enum_classifier_attempt import (
     EnumClassifierAttempt,
 )
@@ -214,7 +214,7 @@ class DocumentProcessingPromptPins(unittest.IsolatedAsyncioTestCase):
     async def test_chunk_translator_system_prompt(self) -> None:
         llm = StubLLMProvider(responses=["hola"])
         with Tapestry() as t:
-            _ChunkTranslator(
+            ChunkTranslator(
                 chunks=["hello"],
                 target_language="Spanish",
                 llm=llm,
@@ -230,7 +230,7 @@ class DocumentProcessingPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_chunk_summariser_system(self) -> None:
         llm = StubLLMProvider(responses=["s1"])
-        knot = _bare(_ChunkSummariser)
+        knot = _bare(ChunkSummariser)
         await knot.process(chunk="a", position="Chunk 1 of 2", llm=llm)
         assert llm.calls[0][0]["content"] == (
             "Summarise the supplied document chunk in 3-5 sentences. "
@@ -244,13 +244,13 @@ class DocumentProcessingPromptPins(unittest.IsolatedAsyncioTestCase):
         "simplify away the index" shortcut would have shipped silently.
         """
         llm = StubLLMProvider(responses=["s1"])
-        knot = _bare(_ChunkSummariser)
+        knot = _bare(ChunkSummariser)
         await knot.process(chunk="a", position="Chunk 1 of 2", llm=llm)
         assert llm.calls[0][1]["content"] == "Chunk 1 of 2.\n\na"
 
     async def test_summary_reducer_system(self) -> None:
         llm = StubLLMProvider(responses=["combined"])
-        knot = _bare(_SummaryReducer)
+        knot = _bare(SummaryReducer)
         await knot.process(summaries=["s1", "s2"], llm=llm)
         assert llm.calls[-1][0]["content"] == (
             "Combine the following per-chunk summaries into one "
@@ -261,7 +261,7 @@ class DocumentProcessingPromptPins(unittest.IsolatedAsyncioTestCase):
     async def test_qa_retrieve_and_answer_answer_system(self) -> None:
         llm = StubLLMProvider(responses=["42"])
         embedder = StubEmbeddingProvider(dimension=2, vectors=[[1.0, 0.0], [1.0, 0.0]])
-        knot = _bare(_QARetrieveAndAnswer)
+        knot = _bare(QARetrieveAndAnswer)
         await knot.process(
             chunks=["ctx"],
             question="What?",
@@ -572,7 +572,7 @@ class SpecializedAgentPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_analysis_step_system_prompt(self) -> None:
         llm = StubLLMProvider(responses=["analysis"])
-        knot = _bare(_AnalysisStep)
+        knot = _bare(AnalysisStep)
         await knot.process(
             question="how many?",
             sql_response=AgentResponse(content="rows"),
@@ -586,7 +586,7 @@ class SpecializedAgentPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_code_generator_system_prompt(self) -> None:
         llm = StubLLMProvider(responses=["code"])
-        knot = _bare(_CodeGenerator)
+        knot = _bare(CodeGenerator)
         await knot.process(task="sort a list", llm=llm, language="C++")
         assert llm.calls[0][0]["content"] == (
             "You are a senior C++ engineer. Reply with "
@@ -596,7 +596,7 @@ class SpecializedAgentPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_sql_generator_system_prompt_without_schema(self) -> None:
         llm = StubLLMProvider(responses=["SELECT 1"])
-        knot = _bare(_SQLGenerator)
+        knot = _bare(SQLGenerator)
         await knot.process(question="how many?", llm=llm, schema_description="")
         assert llm.calls[0][0]["content"] == (
             "You are a SQL writing assistant.\n"
@@ -609,7 +609,7 @@ class SpecializedAgentPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_sql_generator_system_prompt_with_schema(self) -> None:
         llm = StubLLMProvider(responses=["SELECT 1"])
-        knot = _bare(_SQLGenerator)
+        knot = _bare(SQLGenerator)
         await knot.process(
             question="how many?",
             llm=llm,

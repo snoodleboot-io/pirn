@@ -41,7 +41,6 @@ _S6_IMPORT_SURFACE: list[tuple[str, str]] = [
     ("pirn_agents.planning.plan", "Plan"),
     # specializations
     ("pirn_agents.specializations.rag.relevance_check", "RelevanceCheck"),
-    ("pirn_agents.specializations.multi_agent._response_echo", "_ResponseEcho"),
 ]
 
 # OLD flat module paths that the S6 move must remove entirely.

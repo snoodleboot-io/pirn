@@ -1,4 +1,4 @@
-"""Security tests for :class:`_DocumentSource` (path traversal + SSRF)."""
+"""Security tests for :class:`DocumentSource` (path traversal + SSRF)."""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.document_processing._document_source import (
-    _DocumentSource,
+from pirn_agents.specializations.document_processing.document_source import (
+    DocumentSource,
 )
 
 
-def _build_loader() -> _DocumentSource:
+def _build_loader() -> DocumentSource:
     with Tapestry():
-        return _DocumentSource(
+        return DocumentSource(
             source="placeholder",
             _config=KnotConfig(id="source"),
         )

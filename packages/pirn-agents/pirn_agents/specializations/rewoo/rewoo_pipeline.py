@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ReWooPipeline`` — the decoupled plan / parallel-execute / synthesise ReWOO loop.
 
 A :class:`SubTapestry` that wires, as a static inner tapestry:

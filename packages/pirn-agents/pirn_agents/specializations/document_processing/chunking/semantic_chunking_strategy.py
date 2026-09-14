@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SemanticChunkingStrategy`` — embedding-similarity boundaries (F25-S2 / PIR-605).
 
 Segments the text into sentences, embeds each via a caller-supplied

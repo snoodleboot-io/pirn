@@ -69,7 +69,7 @@ class BigqueryPool(DatabaseConnectionPool):
         parameters: Iterable[Any] | None = None,
     ) -> Any:
         """Run a parameterised statement and wait for completion."""
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         job_config = self._build_job_config(parameters)
         return await asyncio.to_thread(self._sync_execute, client, query, job_config)
@@ -85,7 +85,7 @@ class BigqueryPool(DatabaseConnectionPool):
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
         """Run a parameterised SELECT and return all rows as tuples."""
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         job_config = self._build_job_config(parameters)
         return await asyncio.to_thread(self._sync_fetch_all, client, query, job_config)
@@ -101,7 +101,7 @@ class BigqueryPool(DatabaseConnectionPool):
         parameter_seq: Iterable[Iterable[Any]],
     ) -> None:
         """Run the same statement once per parameter row."""
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
         await asyncio.to_thread(self._sync_execute_many, client, query, rows)

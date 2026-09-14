@@ -83,6 +83,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.security.secret_redactor import SecretRedactor
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_rejection import ToolCallRejection
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -107,18 +108,14 @@ async def _observation_assembler(
     tool_call_message: AgentMessage,
     call_id: str,
     action_name: str,
-    outcome: Any,
+    outcome: Ok[Any] | Err | Skipped,
 ) -> tuple[AgentMessage, ...]:
     """Terminal: turn the tool knot's ``Result`` into the step's messages.
 
     Wired with ``RECEIVE_ERRORS`` so ``outcome`` is the call's raw
     ``Ok | Err | Skipped``; the :class:`ToolResult` view renders it.
     """
-    view = (
-        ToolResult.from_result(call_id, outcome)
-        if isinstance(outcome, (Ok, Err, Skipped))
-        else ToolResult(call_id=call_id, outcome=Ok(value=outcome))
-    )
+    view = ToolResult.from_result(call_id, outcome)
     content = (
         str(view.result)
         if view.error is None
@@ -222,7 +219,7 @@ class ReActStepExecutor(AgentPipeline):
         prompt = self._render_prompt(context, factories)
         chat_messages = [{"role": "user", "content": prompt}]
         raw = await RecordedLlmCall.chat(knot_id=self.knot_id, llm=llm, messages=chat_messages)
-        thought_text = self._extract_text(raw)
+        thought_text = LlmResponseText().extract(raw)
         thought = AgentMessage(role="assistant", content=thought_text)
         if self._final_answer_marker in thought_text:
             return _constant_messages(value=(thought,), _config=KnotConfig(id="final-answer"))
@@ -288,24 +285,3 @@ class ReActStepExecutor(AgentPipeline):
             elif line.startswith(self._action_input_marker):
                 action_input = line[len(self._action_input_marker) :].strip()
         return action_name, action_input
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)

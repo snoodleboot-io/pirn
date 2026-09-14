@@ -1,6 +1,6 @@
 """``PydanticValidatorState`` — the value threaded through the extraction-retry loop.
 
-Internal API. See ``_pydantic_validator_loop.py``.
+Internal API. See ``pydantic_validator_loop.py``.
 """
 
 from __future__ import annotations

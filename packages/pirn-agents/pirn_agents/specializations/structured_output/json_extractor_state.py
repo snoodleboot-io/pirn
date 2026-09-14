@@ -1,6 +1,6 @@
 """``JsonExtractorState`` — the value threaded through the extraction-retry loop.
 
-Internal API. See ``_json_extractor_loop.py``.
+Internal API. See ``json_extractor_loop.py``.
 """
 
 from __future__ import annotations

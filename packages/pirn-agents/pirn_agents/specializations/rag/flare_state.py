@@ -1,6 +1,6 @@
 """``FlareState`` — the value threaded through the FLARE sentence-generation loop.
 
-Internal API. See ``_flare_loop.py``.
+Internal API. See ``flare_loop.py``.
 """
 
 from __future__ import annotations

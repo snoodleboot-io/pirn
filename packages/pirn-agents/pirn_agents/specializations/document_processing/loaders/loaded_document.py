@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``LoadedDocument`` — the normalized document every loader emits (F25-S1).
 
 A provider-neutral, frozen carrier for the text (and, for structured formats,
@@ -11,7 +13,7 @@ CSV/JSON) and leave :attr:`blocks` ``None``. Image/audio/binary loaders — e.g.
 :class:`~pirn_agents.specializations.document_processing.loaders.media_loader.MediaLoader`
 — emit the same :class:`LoadedDocument` shape with a typed
 :attr:`blocks` sequence (and a text projection in :attr:`text` for
-backward-compatible text-only consumers). The extension point is the ``Loader``
+text-only consumers). The extension point is the ``Loader``
 interface; :attr:`blocks` keeps the multimodal payload first-class rather than
 smuggled through scalar :attr:`metadata`.
 """
@@ -47,12 +49,11 @@ class LoadedDocument(PirnOpaqueValue):
         prose or iterate the records.
     blocks:
         Typed multimodal content blocks (image/audio/file/text) for non-text
-        sources; ``None`` for a plain text document (the backward-compatible
-        default).
+        sources; ``None`` for a plain text document (the default).
     """
 
     text: str
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
     source_id: str | None = None
     records: tuple[Mapping[str, Any], ...] | None = None
     blocks: tuple[ContentBlock, ...] | None = None

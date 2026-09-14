@@ -5,7 +5,7 @@ through N reviewer agents in order, each receiving the previous
 agent's output as its input. Returns the final revised response.
 
 Reviewers accept a ``response: AgentResponse`` and produce a revised one. Each
-round runs through :class:`_ReviewerInvocation`, which itself delegates
+round runs through :class:`ReviewerInvocation`, which itself delegates
 through :meth:`SpecialistHandle.run` — the reviewer's
 ``__call__``, never its ``process()`` (a :class:`SubTapestry`'s ``process()``
 only *builds* the sink knot of its inner pipeline; calling it directly used to
@@ -14,11 +14,11 @@ mean every review was silently discarded, see PIR-769).
 Algorithm
 ---------
 1. Validate inputs.
-2. Drive the reviewer sequence with a :class:`_RoundRobinLoop`
+2. Drive the reviewer sequence with a :class:`RoundRobinLoop`
    (``LoopSubTapestry``): each round is one real, individually-traceable
-   ``_ReviewerInvocation`` knot rather than a step inside a hand-rolled Python
+   ``ReviewerInvocation`` knot rather than a step inside a hand-rolled Python
    ``for`` loop (ADR agents-speaks-core WS5a).
-3. Extract the final revised response with :class:`_RoundRobinResponseExtractor`.
+3. Extract the final revised response with :class:`RoundRobinResponseExtractor`.
 
 Math
 ----
@@ -38,11 +38,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent._round_robin_loop import _RoundRobinLoop
-from pirn_agents.specializations.multi_agent._round_robin_response_extractor import (
-    _RoundRobinResponseExtractor,
+from pirn_agents.specializations.multi_agent.round_robin_loop import RoundRobinLoop
+from pirn_agents.specializations.multi_agent.round_robin_response_extractor import (
+    RoundRobinResponseExtractor,
 )
-from pirn_agents.specializations.multi_agent._round_robin_state import _RoundRobinState
+from pirn_agents.specializations.multi_agent.round_robin_state import RoundRobinState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -84,15 +84,15 @@ class RoundRobinReview(AgentPipeline):
 
         initial = Parameter(
             "rrr_state",
-            _RoundRobinState,
-            default=_RoundRobinState(response=response, index=0),
+            RoundRobinState,
+            default=RoundRobinState(response=response, index=0),
         )
-        loop = _RoundRobinLoop(
+        loop = RoundRobinLoop(
             reviewers=reviewer_list,
             state=initial,
             _config=KnotConfig(id="rrr_loop"),
         )
-        return _RoundRobinResponseExtractor(
+        return RoundRobinResponseExtractor(
             state=loop,
             _config=KnotConfig(id="final"),
         )

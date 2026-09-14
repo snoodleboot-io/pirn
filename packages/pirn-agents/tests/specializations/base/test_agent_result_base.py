@@ -14,7 +14,7 @@ These tests pin the substitutability contract the rebase must preserve:
 
 * the base is a non-dataclass ``Payload``/``PirnOpaqueValue`` subclass, and
 * every concrete is a genuine ``AgentResult`` / ``Payload`` / ``PirnOpaqueValue``,
-  overrides ``_pirn_audit_dict``, exposes its pre-ADR field names as read-only
+  overrides ``_pirn_audit_dict``, exposes its named fields as read-only
   properties (hard-coded per class so the assertion cannot go vacuous), and
   compares equal to another instance built from the same field values.
 
@@ -168,7 +168,7 @@ def test_agent_result_is_payload_and_opaque_value_and_not_a_dataclass() -> None:
 
 def test_agent_result_requires_metadata_and_data_to_construct() -> None:
     # Arrange / Act / Assert: the base is a plain generic Payload -- it takes
-    # no zero-arg construction, unlike the pre-ADR raising-hook base.
+    # no zero-arg construction.
     with pytest.raises(TypeError):
         AgentResult()  # type: ignore[call-arg]
 
@@ -233,8 +233,7 @@ def test_result_init_signature_preserves_pre_adr_field_order(
         name for name in inspect.signature(cls.__init__).parameters if name != "self"
     )
 
-    # Assert: the rebase introduces no parameter-order or naming drift, so
-    # every existing keyword-argument call site keeps compiling.
+    # Assert: the constructor takes exactly the named fields, in order.
     assert actual_params == expected_params
 
 
@@ -247,7 +246,7 @@ def test_result_exposes_every_field_as_a_read_only_property(
     # Arrange.
     cls = _load(module_path, class_name)
 
-    # Act / Assert: every pre-ADR field name is a property with no setter.
+    # Act / Assert: every named field is a property with no setter.
     for name in expected_params:
         attr = inspect.getattr_static(cls, name)
         assert isinstance(attr, property), f"{class_name}.{name} is not a property"

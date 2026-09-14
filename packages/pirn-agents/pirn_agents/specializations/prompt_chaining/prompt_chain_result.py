@@ -14,10 +14,9 @@ class PromptChainResult(AgentResult[PromptChainFrame, str]):
     ``PromptChainResult`` is ``Payload[PromptChainFrame, str]`` (PIR-868,
     following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
     last link's output (the overall result), and ``metadata`` is the
-    :class:`PromptChainFrame` carrying every link's output in order. The
-    pre-ADR field names (``outputs``, ``final``) stay available as
-    read-only properties, so every existing construction and
-    attribute-access call site keeps compiling unchanged.
+    :class:`PromptChainFrame` carrying every link's output in order. The constructor takes
+    the pattern's named fields (``outputs``, ``final``), and each is also a read-only
+    property.
     """
 
     def __init__(self, outputs: tuple[str, ...], final: str) -> None:
@@ -33,6 +32,6 @@ class PromptChainResult(AgentResult[PromptChainFrame, str]):
         return self._data
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["final"] = self.final
         return audit

@@ -76,7 +76,7 @@ AWAITS_CHILD_PROCESS: frozenset[str] = frozenset()
 #: Returns a `Source` defined inside `process()` that closes over an
 #: already-computed value. The engine then "runs" a graph of one knot whose job
 #: is to hand back an answer Python already had. Empty: `LatsSearch` was the
-#: last member — see `_LatsResultExtractor` (ADR agents-speaks-core WS5b).
+#: last member — see `LatsResultExtractor` (ADR agents-speaks-core WS5b).
 #: Kept as an assertion (not deleted) so a future inline `Source` regresses
 #: loudly.
 RETURNS_INLINE_SOURCE: frozenset[str] = frozenset()
@@ -105,8 +105,8 @@ AWAITS_INVOKE: frozenset[str] = frozenset()
 #: engine schedule N sibling knots concurrently (the `Aggregator` fan-out
 #: shape; see `tools/tool_invocation.py`'s module docstring). PIR-867 fixed
 #: the three that predated this lane: `HybridRetriever`'s dense/lexical arms
-#: and `_ChunkEmbedderStore`'s per-chunk writes are each their own knot wired
-#: into an `Aggregator`; `_IngestionRunner`'s per-document ETL is too, with a
+#: and `ChunkEmbedderStore`'s per-chunk writes are each their own knot wired
+#: into an `Aggregator`; `IngestionRunner`'s per-document ETL is too, with a
 #: `ConcurrencyLimits` group cap (`MapAgent`'s lever) replacing the hand-held
 #: `asyncio.Semaphore`. Kept as a `frozenset()` assertion so a future
 #: instance regresses loudly.
@@ -115,10 +115,10 @@ USES_ASYNCIO_GATHER: frozenset[str] = frozenset()
 #: A `for`/`while` loop whose body directly awaits an LLM or tool call
 #: (`.chat(`, `.complete(`, `.invoke(`, `.search(`) instead of the engine
 #: fanning sibling knots out or a `LoopSubTapestry` iterating them. PIR-867
-#: fixed the three that remained: `_ChunkTranslator`/`FactClaimVerifier` fan
+#: fixed the three that remained: `ChunkTranslator`/`FactClaimVerifier` fan
 #: out one knot per independent item into an `Aggregator`; `PlanExecutor`'s
 #: steps genuinely depend on prior results, so it wired a `LoopSubTapestry`
-#: (`_PlanStepLoop`) instead. Kept as a `frozenset()` assertion so a future
+#: (`PlanStepLoop`) instead. Kept as a `frozenset()` assertion so a future
 #: instance regresses loudly.
 LOOP_AWAITS_LLM_OR_TOOL_CALL: frozenset[str] = frozenset()
 

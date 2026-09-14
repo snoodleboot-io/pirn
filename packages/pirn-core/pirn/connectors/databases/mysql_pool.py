@@ -102,7 +102,7 @@ class MySQLPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         params = list(parameters or ())
         connection = await pool.acquire()
@@ -130,7 +130,7 @@ class MySQLPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         params = list(parameters or ())
         connection = await pool.acquire()
@@ -158,7 +158,7 @@ class MySQLPool(DatabaseConnectionPool):
         query: str,
         parameter_seq: Iterable[Iterable[Any]],
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         rows = [list(p) for p in parameter_seq]
         connection = await pool.acquire()

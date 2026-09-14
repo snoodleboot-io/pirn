@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SQLAgent`` — natural-language to SQL with safe execution.
 
 A :class:`SubTapestry` that asks an LLM to translate a natural-language
@@ -26,8 +28,8 @@ Algorithm:
     1. Receive ``question`` (str), ``llm``, ``pool``, and
        ``schema_description`` as plain values.
     2. Validate that ``question`` is a non-empty string.
-    3. Build an inner :class:`Tapestry` containing :class:`_SQLGenerator`,
-       :class:`_SQLExecutor`, and :class:`_SQLResponseFormatter`.
+    3. Build an inner :class:`Tapestry` containing :class:`SQLGenerator`,
+       :class:`SQLExecutor`, and :class:`SQLResponseFormatter`.
     4. Run the inner tapestry and extract the ``AgentResponse`` output.
 
 Math:
@@ -49,14 +51,14 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.specialized_agents._sql_executor import (
-    _SQLExecutor,
+from pirn_agents.specializations.specialized_agents.sql_executor import (
+    SQLExecutor,
 )
-from pirn_agents.specializations.specialized_agents._sql_generator import (
-    _SQLGenerator,
+from pirn_agents.specializations.specialized_agents.sql_generator import (
+    SQLGenerator,
 )
-from pirn_agents.specializations.specialized_agents._sql_response_formatter import (
-    _SQLResponseFormatter,
+from pirn_agents.specializations.specialized_agents.sql_response_formatter import (
+    SQLResponseFormatter,
 )
 
 
@@ -68,7 +70,7 @@ class SQLAgent(AgentPipeline):
     #: upstream knot can flip it: ``SQLAgent`` is read-only and
     #: :class:`~pirn_agents.specializations.specialized_agents.read_write_sql_agent.ReadWriteSQLAgent`
     #: is the one subclass that may write.
-    _executor_class: ClassVar[type[_SQLExecutor]] = _SQLExecutor
+    _executor_class: ClassVar[type[SQLExecutor]] = SQLExecutor
 
     def __init__(
         self,
@@ -114,7 +116,7 @@ class SQLAgent(AgentPipeline):
         """
         if not isinstance(question, str) or not question:
             raise TypeError(f"SQLAgent: question must be a non-empty string, got {question!r}")
-        sql = _SQLGenerator(
+        sql = SQLGenerator(
             question=question,
             llm=llm,
             schema_description=schema_description,
@@ -125,7 +127,7 @@ class SQLAgent(AgentPipeline):
             pool=pool,
             _config=KnotConfig(id="execute_sql"),
         )
-        return _SQLResponseFormatter(
+        return SQLResponseFormatter(
             sql=sql,
             rows=rows,
             _config=KnotConfig(id="format_response"),

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SpecialistHandle`` — a delegated specialist, invoked through ``__call__``, never ``process()``.
 
 Four multi-agent pipelines delegate to specialists that are themselves
@@ -15,7 +17,7 @@ success. See PIR-769.
 
 A handle is also how a specialist reaches a knot that invokes it
 (:class:`~pirn_agents.specializations.multi_agent.specialist_invocation.SpecialistInvocation`,
-:class:`~pirn_agents.specializations.multi_agent._reviewer_invocation._ReviewerInvocation`).
+:class:`~pirn_agents.specializations.multi_agent.reviewer_invocation.ReviewerInvocation`).
 A ``SubTapestry`` passed to a knot constructor directly would be partitioned
 into the knot's *parents* and resolved as an input — but the specialist is an
 opaque callee the knot runs with its own inputs, not an upstream value. The
@@ -26,8 +28,9 @@ so it is an ordinary declared input that reaches ``process()`` like any other
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeGuard
 
 from pirn.core.ok import Ok
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -57,6 +60,42 @@ class SpecialistHandle(PirnOpaqueValue):
                 f"SpecialistHandle: specialist must be a SubTapestry, "
                 f"got {type(self.specialist).__name__}"
             )
+
+    @staticmethod
+    def by_name(specialists: object, *, owner: str) -> dict[str, SubTapestry]:
+        """Validate a ``{name: specialist}`` registry and return it as a typed dict.
+
+        Args:
+            specialists: The runtime-bound registry a multi-agent pipeline received.
+            owner: The pipeline's class name, prefixed to every error message.
+
+        Returns:
+            The registry, in its original order.
+
+        Raises:
+            ValueError: If ``specialists`` is not a mapping or is empty.
+            TypeError: If a name is not a string or a specialist is not a ``SubTapestry``.
+        """
+        if not SpecialistHandle._is_mapping(specialists) or not specialists:
+            raise ValueError(f"{owner}: specialists must be a non-empty mapping")
+        registry: dict[str, SubTapestry] = {}
+        for name, specialist in specialists.items():
+            if not isinstance(name, str):
+                raise TypeError(
+                    f"{owner}: specialist names must be strings, got {type(name).__name__}"
+                )
+            if not isinstance(specialist, SubTapestry):
+                raise TypeError(
+                    f"{owner}: specialist {name!r} must be a SubTapestry, "
+                    f"got {type(specialist).__name__}"
+                )
+            registry[name] = specialist
+        return registry
+
+    @staticmethod
+    def _is_mapping(value: object) -> TypeGuard[Mapping[object, object]]:
+        """Narrow a runtime-bound registry to a mapping."""
+        return isinstance(value, Mapping)
 
     async def run(self, **inputs: Any) -> Any:
         """Run the specialist to completion and return the value it produced.

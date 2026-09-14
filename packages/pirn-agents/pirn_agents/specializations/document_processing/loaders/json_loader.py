@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, TypeGuard
 
 from pirn_agents.specializations.document_processing.loaders.loaded_document import (
     LoadedDocument,
@@ -64,10 +64,25 @@ class JsonLoader(Loader):
         )
 
     @staticmethod
-    def _to_records(parsed: Any) -> tuple[Mapping[str, Any], ...]:
+    def _to_records(parsed: object) -> tuple[Mapping[str, Any], ...]:
         """Normalize a parsed JSON value into a tuple of record mappings."""
-        if isinstance(parsed, list):
-            return tuple(item if isinstance(item, dict) else {"value": item} for item in parsed)
-        if isinstance(parsed, dict):
-            return (parsed,)
-        return ({"value": parsed},)
+        if JsonLoader._is_array(parsed):
+            return tuple(JsonLoader._to_record(item) for item in parsed)
+        return (JsonLoader._to_record(parsed),)
+
+    @staticmethod
+    def _to_record(value: object) -> Mapping[str, Any]:
+        """Keep a JSON object as the record; wrap any other value as ``{"value": ...}``."""
+        if JsonLoader._is_object(value):
+            return value
+        return {"value": value}
+
+    @staticmethod
+    def _is_array(value: object) -> TypeGuard[list[object]]:
+        """Narrow a decoded JSON value to a JSON array."""
+        return isinstance(value, list)
+
+    @staticmethod
+    def _is_object(value: object) -> TypeGuard[dict[str, Any]]:
+        """Narrow a decoded JSON value to a JSON object (string keys by the JSON grammar)."""
+        return isinstance(value, dict)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SelfAskPipeline`` — Self-Ask sub-question decomposition.
 
 A :class:`SubTapestry` that:
@@ -5,13 +7,13 @@ A :class:`SubTapestry` that:
 1. Asks the LLM to decompose the task into follow-up sub-questions (one per
    ``- `` line).
 2. Answers each sub-question with the LLM in turn, via
-   :class:`~pirn_agents.specializations.self_ask._self_ask_loop._SelfAskLoop`
+   :class:`~pirn_agents.specializations.self_ask.self_ask_loop.SelfAskLoop`
    (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`) so each
    sub-answer is a real, individually-traceable engine knot rather than a
    step inside a hand-rolled Python ``for`` loop (ADR agents-speaks-core
    WS5b).
 3. Composes a final answer from the sub-question/answer pairs via
-   :class:`~pirn_agents.specializations.self_ask._self_ask_composer._SelfAskComposer`.
+   :class:`~pirn_agents.specializations.self_ask.self_ask_composer.SelfAskComposer`.
 
 The number of sub-questions is naturally bounded by the decomposition; an empty
 decomposition falls back to answering the task directly. Returns a typed
@@ -34,9 +36,9 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.specializations.self_ask._self_ask_composer import _SelfAskComposer
-from pirn_agents.specializations.self_ask._self_ask_loop import _SelfAskLoop
-from pirn_agents.specializations.self_ask._self_ask_state import _SelfAskState
+from pirn_agents.specializations.self_ask.self_ask_composer import SelfAskComposer
+from pirn_agents.specializations.self_ask.self_ask_loop import SelfAskLoop
+from pirn_agents.specializations.self_ask.self_ask_state import SelfAskState
 
 
 class SelfAskPipeline(AgentPipeline):
@@ -120,16 +122,16 @@ class SelfAskPipeline(AgentPipeline):
 
         initial = Parameter(
             "self_ask_state",
-            _SelfAskState,
-            default=_SelfAskState(subquestions=tuple(subquestions), index=0, subanswers=()),
+            SelfAskState,
+            default=SelfAskState(subquestions=tuple(subquestions), index=0, subanswers=()),
         )
-        loop = _SelfAskLoop(
+        loop = SelfAskLoop(
             llm=llm,
             subanswer_system=type(self)._subanswer_system.resolve(),
             state=initial,
             _config=KnotConfig(id="self_ask_loop"),
         )
-        return _SelfAskComposer(
+        return SelfAskComposer(
             task=task,
             state=loop,
             llm=llm,

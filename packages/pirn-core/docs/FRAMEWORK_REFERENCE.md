@@ -286,7 +286,7 @@ example of the boundary this ADR draws.
 gained `to_result()`/`from_result()` bridges; `pirn_agents.resilience.FailoverAttempt`
 → `Result` per candidate, replacing the `FailoverOutcome` enum (deleted, PIR-872; a circuit-open candidate is `Skipped(reason="circuit_open")`, and `RetryClassification` became `RetrySafetyClassifier.is_safe() -> bool`); `ModelCascadeRouter`/
 `FallbackChain`/`FailoverChain`'s fold-accumulator chains now run as a
-`LoopSubTapestry` (`_CascadeLoop`/`_FallbackLoop`/`FailoverLoop`) that stops
+`LoopSubTapestry` (`CascadeLoop`/`FallbackLoop`/`FailoverLoop`) that stops
 scheduling once the chain locks, rather than a static unrolled chain that
 still built a knot per candidate past the lock point. 8 of the 18 agents
 exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.PirnError`
@@ -403,7 +403,7 @@ fan-out (`Emitter.on_knot_result` fires the instant each knot settles, so
 Deleted (PIR-864): `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
 `_FanoutRunner` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator`).
 
-PIR-867 moved `document_processing/_ingestion_runner.py` (`IngestionPipeline`'s
+PIR-867 moved `document_processing/ingestion_runner.py` (`IngestionPipeline`'s
 internal ETL runner) and `multi_agent/orchestrator_workers.py` off a bare
 `asyncio.Semaphore(max_concurrency)` shared across their per-item knots (held
 across the real await) onto `KnotConfig(concurrency_group=)` on the per-item
@@ -524,15 +524,15 @@ construction; `HybridGraphRetriever.process()` receives the traversal's
 resolved `Subgraph` like any other parent's output.
 
 Three more `LOOP_AWAITS_LLM_OR_TOOL_CALL` sites fixed in PIR-867:
-`_ChunkTranslator` (`specializations/document_processing/`) and
+`ChunkTranslator` (`specializations/document_processing/`) and
 `FactClaimVerifier` (`specializations/guardrails/`) translate/verify
 independent items — chunk N's translation and claim N's search never depend
 on item N-1's outcome — so each now fans out one per-item knot
-(`_ChunkTranslation` / `_ClaimVerification`) into an `Aggregator`, in the
+(`ChunkTranslation` / `ClaimVerification`) into an `Aggregator`, in the
 `ParallelToolCaller` style, instead of awaiting `llm.chat`/`store.search` in a
 hand-rolled `for` loop. `PlanExecutor` (`specializations/plan_and_execute/`)
 is different: step N's prompt genuinely includes every prior step's result,
-so it wires a `LoopSubTapestry` (`_PlanStepLoop`) instead — the state
+so it wires a `LoopSubTapestry` (`PlanStepLoop`) instead — the state
 threaded across iterations is the running tuple of step results.
 
 Three more `USES_ASYNCIO_GATHER` sites fixed in PIR-867: `HybridRetriever`
@@ -543,36 +543,36 @@ internally via `asyncio.to_thread`) into an `Aggregator`, so it is a
 plain `Retriever`/`Knot` base since `HybridGraphRetriever` still needs that
 shape, so `HybridRetriever` picks up `SubTapestry` itself
 (`class HybridRetriever(SubTapestry, HybridRetrieverBase)`).
-`_ChunkEmbedderStore` (`specializations/document_processing/`) wires one
-`_ChunkStoreWrite` per chunk into an `Aggregator` (the batched embedding call
+`ChunkEmbedderStore` (`specializations/document_processing/`) wires one
+`ChunkStoreWrite` per chunk into an `Aggregator` (the batched embedding call
 itself stays a single call — batching is the reason the embedder gets every
-chunk at once). `_IngestionRunner` (`specializations/document_processing/`)
-wires one `_DocumentIngest` per source document into an `Aggregator`, with a
+chunk at once). `IngestionRunner` (`specializations/document_processing/`)
+wires one `DocumentIngest` per source document into an `Aggregator`, with a
 `ConcurrencyLimits` group cap set via the `_inner_concurrency()` hook
 (`MapAgent`'s own lever) replacing the hand-held `asyncio.Semaphore`; each
-document's failure is still isolated inside `_DocumentIngest` and folded into
+document's failure is still isolated inside `DocumentIngest` and folded into
 the `IngestionReport` rather than raised, so isolation survives the move to
 the engine's own scheduling.
 
-`AWAITS_INVOKE` re-checked in PIR-867 (superseded by PIR-872, below): `specializations/routing/_attempt_tier.py::_AttemptTier`
+`AWAITS_INVOKE` re-checked in PIR-867 (superseded by PIR-872, below): `specializations/routing/attempt_tier.py::AttemptTier`
 awaited `CascadeTier.invoke` (the cascade's own bare-callable provider seam,
 not a `Tool`) directly. There is no tool knot to substitute — the fix is the
 same shape `ToolInvocation` plays for tool calls: a dedicated vending knot,
 `_TierInvocation`, whose only body is the call, wired as a real parent;
-`_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its `Ok`/`Err`
-outcome into the cascade's state. `_AttemptTier` itself became an
+`TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its `Ok`/`Err`
+outcome into the cascade's state. `AttemptTier` itself became an
 `AgentPipeline` (only the pre-call locked/spend-cap decisions stay
 synchronous, since they decide whether to build the call at all).
-`AWAITS_INVOKE` then named `_TierInvocation` instead of `_AttemptTier`.
+`AWAITS_INVOKE` then named `_TierInvocation` instead of `AttemptTier`.
 **PIR-872** removed that entry too: a cascade tier *is* a model call, so
-`CascadeTier` carries an `LLMProvider` and `_AttemptTier` wires the shared
+`CascadeTier` carries an `LLMProvider` and `AttemptTier` wires the shared
 `LLMChatCall` knot over it; `CascadeTier.invoke` and `_TierInvocation` are
 deleted and nothing awaits an invoke inside `process()`.
 
 `GatedAgentResponse` (the `CHECK_ROLE` shadow — a knot joining a value with a
 `Gate` so a single-parent gate could feed a multi-input knot) is deleted
-(PIR-872): `_EvaluatorOptimizerLoop` gates the candidate itself with
-`Gate(input=candidate, check=_CandidateRejectedCheck(accepted))`, and
+(PIR-872): `EvaluatorOptimizerLoop` gates the candidate itself with
+`Gate(input=candidate, check=CandidateRejectedCheck(accepted))`, and
 `AcceptCheck` is a `Check`. `ConversationMemoryPruner`'s `while True`
 (`HAND_ROLLED_WHILE_TRUE_RETRY`) was a pruning loop, not a retry; it now loops
 on its real condition.
@@ -587,18 +587,18 @@ call under an `Aggregator` with `KnotConfig(retry=, timeout=,
 concurrency_group="tools")`, so `GovernedDispatch` owns the inter-attempt
 backoff (PIR-872).
 
-**Resolved (PIR-872): `rag/indexing/_raptor_assembler.py`'s clustering loop.**
+**Resolved (PIR-872): `rag/indexing/raptor_assembler.py`'s clustering loop.**
 It stays a deliberate ETL exception (atomic read-check-transform-write cycle
 against the vector store: a content-hash dedup short-circuit and a single
 final upsert that must see a consistent store), but each level's cluster
-summaries now run as a nested run of one `_RaptorSummary` knot per cluster
+summaries now run as a nested run of one `RaptorSummary` knot per cluster
 joined by an `Aggregator`, so every LLM summary call has its own lineage row,
 `Result` and admission. What made this a coupling problem before —
 `_run_inner` and its hooks lived only on `SubTapestry`, whose `__call__`
 requires `process()` to return a sink `Knot` — is gone: core's new
 `NestedRunKnot` (§3.2) is that machinery without the sink contract, and
 `SubTapestry` is now a `NestedRunKnot` that adds it.
-`_RaptorAssembler(Assembler, NestedRunKnot)` keeps returning its `RaptorTree`
+`RaptorAssembler(Assembler, NestedRunKnot)` keeps returning its `RaptorTree`
 value directly.
 
 **Resolved since (PIR-865):** approval denial is a core `Skipped`, not a
@@ -726,8 +726,8 @@ objects (`EvaluatorOptimizerResult`, `LatsResult`, `OrchestratorWorkersResult`,
 `Payload` base; pre-ADR field names stay readable as properties.
 `document_processing/_document_loader.py`'s ingestor (reading files/HTTP
 inside `process()`) is deleted per the assembler/disassembler pattern and
-replaced by `_DocumentSource` (a `Source` knot modeled on
-`ObjectStoreReadSource`, bytes out) feeding `_DocumentAssembler` (an
+replaced by `DocumentSource` (a `Source` knot modeled on
+`ObjectStoreReadSource`, bytes out) feeding `DocumentAssembler` (an
 `Assembler`, bytes in, no I/O); `DocumentIngestionPipeline`'s public
 constructor is unchanged.
 
@@ -744,7 +744,7 @@ constructor is unchanged.
   `process()` catch-all is `**_`; the six unmarked closures are static methods.
 - **Knot Rules 1 and 4 hold without exceptions.** `MapAgent` wires every setting
   as a declared input and validates in `process()`; a delegated specialist
-  reaches `SpecialistInvocation`/`_ReviewerInvocation` as a `SpecialistHandle`
+  reaches `SpecialistInvocation`/`ReviewerInvocation` as a `SpecialistHandle`
   (a non-`Knot` `PirnOpaqueValue`, so an ordinary input rather than a parent);
   the SQL write policy is a `ClassVar` on distinct classes (`SQLAgent` read-only,
   `ReadWriteSQLAgent` writes) instead of instance state, so no upstream knot can

@@ -16,10 +16,8 @@ class ReWooResult(AgentResult[ReWooFrame, str]):
     ``ReWooResult`` is ``Payload[ReWooFrame, str]`` (PIR-868, following the
     ADR agents-speaks-core WS6b pattern) — ``data`` is the synthesised final
     answer text, and ``metadata`` is the :class:`ReWooFrame` carrying the
-    up-front plan and the gathered tool results. The pre-ADR field names
-    (``answer``, ``plan``, ``results``) stay available as read-only
-    properties, so every existing construction and attribute-access call
-    site keeps compiling unchanged.
+    up-front plan and the gathered tool results. The constructor takes the pattern's named
+    fields (``answer``, ``plan``, ``results``), and each is also a read-only property.
     """
 
     def __init__(
@@ -41,6 +39,6 @@ class ReWooResult(AgentResult[ReWooFrame, str]):
         return self._metadata.results
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["answer"] = self.answer
         return audit

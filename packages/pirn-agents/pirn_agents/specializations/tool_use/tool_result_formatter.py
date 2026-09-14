@@ -17,7 +17,8 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import Any, TypeGuard
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -56,14 +57,17 @@ class ToolResultFormatter(Knot):
         return f"Tool call '{tool_result.call_id}' returned: {result_repr}"
 
     @staticmethod
-    def _format_result(result: Any) -> str:
+    def _format_result(result: object) -> str:
         if isinstance(result, str):
             return result
-        if isinstance(result, (dict, list)):
-            import json
-
+        if ToolResultFormatter._is_json_container(result):
             try:
                 return json.dumps(result, indent=2)
             except (TypeError, ValueError):
                 return str(result)
         return str(result)
+
+    @staticmethod
+    def _is_json_container(value: object) -> TypeGuard[dict[str, object] | list[object]]:
+        """Narrow a tool result to the shapes rendered as indented JSON."""
+        return isinstance(value, (dict, list))

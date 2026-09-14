@@ -64,7 +64,7 @@ class DatabricksPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_execute, client, query, params)
@@ -83,7 +83,7 @@ class DatabricksPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
@@ -102,7 +102,7 @@ class DatabricksPool(DatabaseConnectionPool):
         query: str,
         parameter_seq: Iterable[Iterable[Any]],
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
         return await asyncio.to_thread(self._sync_execute_many, client, query, rows)

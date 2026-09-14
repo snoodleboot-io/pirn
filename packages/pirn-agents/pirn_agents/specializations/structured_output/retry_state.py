@@ -1,6 +1,6 @@
 """``RetryState`` — the value threaded through the parse-retry loop.
 
-Internal API. See ``_retry_on_parse_failure_loop.py``.
+Internal API. See ``retry_on_parse_failure_loop.py``.
 """
 
 from __future__ import annotations

@@ -28,18 +28,18 @@ pirn_agents/specializations/document_processing/
 ├── document_translation_pipeline.py   DocumentTranslationPipeline  — chunk + translate per-chunk + reassemble
 │
 │  ── Internal helpers ──
-├── _document_source.py                 (Source: read path/URL bytes, SSRF/path guards)
-├── _document_assembler.py              (Assembler: decode bytes to text, no I/O)
-├── document_chunker.py                (split document into chunks)
-├── _chunk_embedder_store.py           (embed + persist chunks)
-├── _chunk_translator.py               (translate a single chunk)
-├── _load_and_chunk.py                 (loader + chunker combined)
-├── _chunk_positions.py                (map: "Chunk i of n" labels for the ZipMap)
-├── _chunk_summariser.py               (map: summarize one chunk)
-├── _summary_reducer.py                (reduce: combine per-chunk summaries)
-├── _qa_load_and_chunk.py              (QA: load, chunk, retrieve)
-├── _qa_retrieve_and_answer.py         (QA: retrieve chunks, call LLM)
-└── _translation_load_and_chunk.py     (translation: load, chunk)
+├── document_source.py                 (Source: read path/URL bytes, SSRF/path guards)
+├── document_assembler.py              (Assembler: decode bytes to text, no I/O)
+├── document_chunker.py               (split document into chunks)
+├── chunk_embedder_store.py           (embed + persist chunks)
+├── chunk_translator.py               (translate a single chunk)
+├── load_and_chunk.py                 (loader + chunker combined)
+├── chunk_positions.py                (map: "Chunk i of n" labels for the ZipMap)
+├── chunk_summariser.py               (map: summarize one chunk)
+├── summary_reducer.py                (reduce: combine per-chunk summaries)
+├── qa_load_and_chunk.py              (QA: load, chunk, retrieve)
+├── qa_retrieve_and_answer.py         (QA: retrieve chunks, call LLM)
+└── translation_load_and_chunk.py     (translation: load, chunk)
 ```
 
 ---

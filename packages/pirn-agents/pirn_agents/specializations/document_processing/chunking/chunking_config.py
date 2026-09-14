@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ChunkingConfig`` — the default chunk geometry for document processing."""
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Tests for the column-aware core-pool subclasses (PIR-693).
 
 ``ColumnAwareSqlitePool`` / ``ColumnAwarePostgresPool`` reuse core's pooling and
-its ``_reject_inline_interpolation`` injection guard, adding only column-aware
+its ``reject_inline_interpolation`` injection guard, adding only column-aware
 reads. Offline: an injected connection (sqlite) / pool (postgres) makes
 ``acquire`` return the double without opening a real backend.
 """
