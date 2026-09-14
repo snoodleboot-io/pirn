@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import AsyncIterator
 from typing import Any
 
 from pirn.connectors.object_storage.s3_config import S3Config
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class S3Store(ObjectStore):
@@ -109,9 +111,28 @@ class S3Store(ObjectStore):
         return True
 
     def is_not_found(self, exc: BaseException) -> bool:
-        name = type(exc).__name__
-        text = str(exc)
-        return "NoSuchKey" in name or "NoSuchKey" in text or "NotFound" in name or "404" in text
+        """``True`` only for a botocore ``ClientError`` whose error code means "no such key".
+
+        ``get_object`` reports ``NoSuchKey``; ``head_object`` has no body, so
+        it reports the bare status ``404`` (``NotFound`` on some S3-compatible
+        servers). Message text is never inspected — a key or hash containing
+        ``404`` is not a missing object. botocore is looked up rather than
+        imported: an exception of its type cannot exist unless it is loaded.
+        """
+        exceptions_module = sys.modules.get("botocore.exceptions")
+        if exceptions_module is None:
+            return False
+        client_error_type: type[BaseException] = exceptions_module.ClientError
+        if not isinstance(exc, client_error_type):
+            return False
+        # ClientError.response is the parsed error document (botocore is untyped here).
+        response: object = getattr(exc, "response", None)
+        if not ShapeGuard.is_str_keyed_mapping(response):
+            return False
+        error = response.get("Error")
+        if not ShapeGuard.is_str_keyed_mapping(error):
+            return False
+        return error.get("Code") in ("NoSuchKey", "404", "NotFound")
 
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         client = await self._ensure_client()

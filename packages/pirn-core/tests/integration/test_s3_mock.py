@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import pickle
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
 
 import pytest
 
 from pirn.backends.s3_data_store import S3DataStore
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 # ---------------------------------------------------- fake S3 client
 
@@ -24,8 +26,10 @@ class _FakeS3Body:
         return chunk
 
 
-class _NoSuchKey(Exception):
-    pass
+@pytest.fixture(autouse=True)
+def _sdk_errors() -> Iterator[None]:
+    with SdkErrors.installed():
+        yield
 
 
 class _FakeS3Client:
@@ -38,12 +42,12 @@ class _FakeS3Client:
 
     async def get_object(self, *, Bucket: str, Key: str) -> dict:
         if Key not in self.objects:
-            raise _NoSuchKey("NoSuchKey")
+            raise SdkErrors.s3("NoSuchKey")
         return {"Body": _FakeS3Body(self.objects[Key])}
 
     async def head_object(self, *, Bucket: str, Key: str) -> dict:
         if Key not in self.objects:
-            raise _NoSuchKey("NoSuchKey")
+            raise SdkErrors.s3("NoSuchKey")
         return {"ContentLength": len(self.objects[Key])}
 
     async def delete_object(self, *, Bucket: str, Key: str) -> dict:

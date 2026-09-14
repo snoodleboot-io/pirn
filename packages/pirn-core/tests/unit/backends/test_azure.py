@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends.azure_blob_data_store import AzureBlobDataStore
 from pirn.backends.signer import Signer
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 
 def _make_azure_mock(stored: dict[str, bytes]) -> MagicMock:
@@ -26,14 +27,9 @@ def _make_azure_mock(stored: dict[str, bytes]) -> MagicMock:
         async def _upload(data: bytes, overwrite: bool = False) -> None:
             stored[blob] = data
 
-        class _BlobNotFound(Exception):
-            pass
-
-        _BlobNotFound.__name__ = "BlobNotFound"
-
         async def _download() -> AsyncMock:
             if blob not in stored:
-                raise _BlobNotFound("BlobNotFound: blob does not exist")
+                raise SdkErrors.azure_not_found()
             data = stored[blob]
             stream = AsyncMock()
 
@@ -95,6 +91,7 @@ class TestAzureBlobDataStoreObjectKey(unittest.TestCase):
 
 class TestAzureBlobDataStoreCRUD(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        self.enterContext(SdkErrors.installed())
         self.stored: dict[str, bytes] = {}
         self.mock_svc = _make_azure_mock(self.stored)
         self.store = AzureBlobDataStore(
