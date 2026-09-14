@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.postgres.lazy_pool import LazyPool
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
+
+if TYPE_CHECKING:
+    from pirn.core.run_result import RunResult
 
 
 class PostgresHistory(RunHistory):
@@ -151,7 +154,7 @@ class PostgresHistory(RunHistory):
         await conn.execute("ALTER TABLE runs ADD COLUMN IF NOT EXISTS parent_knot_id TEXT")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)")
 
-    async def record_run(self, result: Any) -> None:
+    async def record_run(self, result: RunResult) -> None:
         """Persist a run result and all associated lineage records.
 
         All writes execute inside a single transaction; the run row and
@@ -238,7 +241,7 @@ class PostgresHistory(RunHistory):
                             input_rows,
                         )
 
-    async def get_run(self, run_id: str) -> Any:
+    async def get_run(self, run_id: str) -> RunResult | None:
         """Fetch a single run by id.
 
         Args:
@@ -334,7 +337,7 @@ class PostgresHistory(RunHistory):
             )
         return KnotLineage.model_validate_json(row["payload_json"]) if row is not None else None
 
-    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+    async def query_runs_by_actor(self, actor: str) -> list[RunResult]:
         """Return all runs triggered by ``actor``.
 
         Args:
@@ -351,7 +354,7 @@ class PostgresHistory(RunHistory):
 
         return [RunResult.model_validate_json(r["payload_json"]) for r in rows]
 
-    async def children_of(self, run_id: str) -> list[Any]:
+    async def children_of(self, run_id: str) -> list[RunResult]:
         """Return all runs whose ``parent_run_id`` matches ``run_id``.
 
         Args:
