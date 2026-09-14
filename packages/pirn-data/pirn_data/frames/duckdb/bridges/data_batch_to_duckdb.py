@@ -27,7 +27,7 @@ Algorithm:
     conn = connection or duckdb.connect(":memory:")
     if not batch.rows:
         return DuckdbDataBatch(relation=conn.sql("SELECT NULL AS _empty WHERE FALSE"), ...)
-    frame = pl.DataFrame(list(batch.rows))
+    frame = polars.DataFrame(list(batch.rows))
     arrow = frame.to_arrow()
     view  = f"_pirn_rows_{id(arrow):x}"
     conn.register(view, arrow)
@@ -48,9 +48,9 @@ from __future__ import annotations
 from typing import Any
 
 import duckdb
-import polars as pl
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.duckdb.duckdb_connection import DuckDBConnection
@@ -116,7 +116,8 @@ class DataBatchToDuckdb(Knot):
         # nullable for missing). DuckDB ingests the resulting Arrow
         # table — registered under a unique view name so multiple
         # bridges on the same connection don't collide.
-        frame = pl.DataFrame(list(batch.rows))
+        polars = OptionalDependency.require("polars", extra="polars", package="pirn-data")
+        frame = polars.DataFrame(list(batch.rows))
         arrow_table = frame.to_arrow()
         view_name = f"_pirn_rows_{id(arrow_table):x}"
         connection.register(view_name, arrow_table)

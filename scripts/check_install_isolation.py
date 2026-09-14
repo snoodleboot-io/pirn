@@ -12,8 +12,17 @@ ADR-3) and **nothing** from the other domains. This is the per-package
 replacement for the monolith's 50+ extras-isolation steps and the runtime
 counterpart to the static import-graph gate (``check_import_graph.py``).
 
-For ``pirn-core`` it additionally asserts the no-backend-at-import property:
-a bare ``import pirn`` must not import any heavy backend package (C2).
+For every package it then imports the package and EVERY submodule in its
+tree (``import <pkg>`` already does this through the sweet_tea registry fill)
+and asserts two things (C2 / SCD-07):
+
+* every submodule imports in the clean env — a module that imports an
+  optional backend at module scope cannot, so it is reported;
+* no backend on the package's denylist ended up in ``sys.modules``. The
+  denylist is :data:`_BACKEND_DENYLIST` minus the import names of the
+  package's hard-dependency closure (read from the installed distribution
+  metadata, so pirn-core's own hard dependencies such as numpy count as hard
+  for every package).
 
 Exit status is non-zero on the first violation, with a human-readable reason.
 """
@@ -24,6 +33,7 @@ import argparse
 import importlib
 import importlib.metadata
 import pkgutil
+import re
 import sys
 
 # Declared dependency closure per package: the COMPLETE set of `pirn-*`
@@ -52,33 +62,87 @@ _IMPORT_NAME: dict[str, str] = {
     "pirn-oilgas": "pirn_oilgas",
 }
 
-# Heavy backend top-level modules that must NOT be imported by a bare
-# `import pirn` (C2 / SCD-07). A representative denylist — importing any one of
-# these at core-import time means a backend dependency leaked out of its lazy
-# guard. Kept in sync with the connector/domain extras in pirn-core.
+# Top-level import names of the optional backends behind the packages' extras
+# (C2 / SCD-07). Importing a package and its whole submodule tree must not import
+# any of these unless it is a hard dependency of that package; importing one
+# means a backend leaked out of its lazy guard. Kept in sync with the extras in
+# every package's pyproject.toml.
 _BACKEND_DENYLIST: frozenset[str] = frozenset(
     {
-        "asyncpg",
+        # pirn-core connector / backend extras
         "aioboto3",
-        "boto3",
         "aiokafka",
+        "asyncpg",
+        "boto3",
         "confluent_kafka",
-        "zstandard",
-        "lz4",
-        "snappy",
-        "numpy",
-        "pandas",
-        "scipy",
-        "pyarrow",
-        "polars",
-        "sklearn",
-        "torch",
-        "tensorflow",
         "h5py",
+        "lz4",
+        "numpy",
+        "snappy",
         "zarr",
-        "segyio",
+        "zstandard",
+        # pirn-agents extras
+        "aiosqlite",
+        "anthropic",
+        "bs4",
+        "chromadb",
+        "docx",
+        "httpx",
+        "kuzu",
+        "mcp",
+        "neo4j",
+        "openai",
+        "opentelemetry",
+        "outlines",
+        "pgvector",
+        "pypdf",
+        "qdrant_client",
+        "ragas",
+        "sentence_transformers",
+        # pirn-data extras
+        "awkward",
+        "dask",
+        "datafusion",
+        "deltalake",
+        "duckdb",
+        "eland",
+        "great_expectations",
+        "ibis",
+        "lance",
+        "modin",
+        "pandas",
+        "pandera",
+        "polars",
+        "pyarrow",
+        "pyiceberg",
+        "pyspark",
+        "ray",
+        "tiktoken",
+        "xarray",
+        # pirn-health extras
+        "SimpleITK",
+        "dipy",
+        "mne",
         "nibabel",
         "pydicom",
+        "pyfaidx",
+        "pysam",
+        # pirn-ml extras
+        "joblib",
+        "sklearn",
+        "tensorflow",
+        "torch",
+        # pirn-oilgas extras
+        "lasio",
+        "resfo",
+        "segyio",
+        # pirn-signal extras
+        "PyEMD",
+        "librosa",
+        "pywt",
+        "scipy",
+        "soundfile",
+        "vmdpy",
     }
 )
 
@@ -123,62 +187,53 @@ def _check_imports(package: str) -> list[str]:
     return []
 
 
-def _check_no_backend_at_core_import() -> list[str]:
-    """Assert a bare ``import pirn`` imported no heavy backend (C2)."""
+def _hard_dependency_closure(distribution: str) -> set[str]:
+    """Normalized names of ``distribution`` and every hard (non-extra) dependency, transitively."""
 
-    importlib.import_module("pirn")
-    leaked = sorted(_BACKEND_DENYLIST & set(sys.modules))
-    if leaked:
-        return [
-            "pirn-core: `import pirn` imported backend package(s) that must stay "
-            f"lazy: {leaked} (C2 / SCD-07)"
-        ]
-    return []
+    seen: set[str] = set()
+    stack = [distribution]
+    while stack:
+        name = stack.pop()
+        key = re.sub(r"[-_.]+", "-", name).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            requirements = importlib.metadata.requires(name) or []
+        except importlib.metadata.PackageNotFoundError:
+            continue
+        for requirement in requirements:
+            if re.search(r"\bextra\s*==", requirement):
+                continue
+            match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", requirement)
+            if match is not None:
+                stack.append(match.group(1))
+    return seen
 
 
 def _backend_denylist_for(package: str) -> frozenset[str]:
-    """Return the backend top-level modules that must NOT be imported for ``package``.
+    """Backend top-level modules that must NOT be imported for ``package``.
 
-    ``pirn-core`` uses the broad heavy-backend denylist checked at bare-import
-    time (:data:`_BACKEND_DENYLIST`). ``pirn-agents`` ships a small base wheel
-    and lazily imports its optional connector backends, so importing *any*
-    submodule must not eagerly pull one in — those backend top-level modules are
-    forbidden. Packages without a specific entry fall back to the core denylist.
+    :data:`_BACKEND_DENYLIST` minus the top-level import names provided by the
+    package's installed hard-dependency closure — so ``numpy``, a pirn-core
+    hard dependency, is allowed for every package, and a backend a package
+    declares as a hard dependency is allowed for that package.
     """
-    per_package: dict[str, frozenset[str]] = {
-        "pirn-agents": frozenset(
-            {
-                "httpx",
-                "openai",
-                "anthropic",
-                "qdrant_client",
-                "mcp",
-                "sentence_transformers",
-                "asyncpg",
-                "pgvector",
-                "chromadb",
-                "neo4j",
-                "kuzu",
-                "aiosqlite",
-                "aioboto3",
-                "boto3",
-                "opentelemetry",
-                "outlines",
-                "pypdf",
-                "docx",
-                "bs4",
-                "ragas",
-            }
-        ),
+    closure = _hard_dependency_closure(package)
+    provided = {
+        top
+        for top, distributions in importlib.metadata.packages_distributions().items()
+        if any(re.sub(r"[-_.]+", "-", d).lower() in closure for d in distributions)
     }
-    return per_package.get(package, _BACKEND_DENYLIST)
+    return _BACKEND_DENYLIST - provided
 
 
 def _check_no_backend_after_submodule_walk(import_name: str, denylist: frozenset[str]) -> list[str]:
     """Import every submodule of ``import_name`` and assert no backend leaked.
 
     Imports the top-level package, then uses :func:`pkgutil.walk_packages` to
-    import EVERY submodule in its tree. Each import is guarded; a submodule that
+    import EVERY submodule in its tree (what ``import <pkg>``'s registry fill
+    does, minus its skip-on-ImportError leniency). Each import is guarded; a submodule that
     fails to import is reported as a violation (rather than skipped) so real
     breakage — including a backend that is eagerly (not lazily) imported and thus
     unresolvable in the clean base env — surfaces. Finally asserts that none of
@@ -232,13 +287,9 @@ def main() -> int:
     violations = _check_closure(package)
     import_violations = _check_imports(package)
     violations += import_violations
-    # The no-backend check imports `pirn`; only meaningful if the import worked.
-    if package == "pirn-core" and not import_violations:
-        violations += _check_no_backend_at_core_import()
-    # pirn-agents additionally walks its full submodule tree and asserts no
-    # optional connector backend leaks out of its lazy guard (C2). Additive:
-    # pirn-core and the other domains keep their existing behavior unchanged.
-    if package == "pirn-agents" and not import_violations:
+    # Every package walks its full submodule tree and asserts no optional
+    # backend leaks out of its lazy guard (C2); only meaningful if the import worked.
+    if not import_violations:
         violations += _check_no_backend_after_submodule_walk(
             _IMPORT_NAME[package], _backend_denylist_for(package)
         )

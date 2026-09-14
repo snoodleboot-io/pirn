@@ -351,7 +351,10 @@ jobs:
 
   # ===========================================================================
   # Clean-env install-isolation (SCD-25). Install ONLY the package's wheel from
-  # the wheelhouse and assert the resolved pirn-* tree equals the declared closure.
+  # the wheelhouse, assert the resolved pirn-* tree equals the declared closure,
+  # then import EVERY submodule of the package: each must import without any
+  # extra, and no optional backend outside the package's hard-dependency closure
+  # may end up imported (scripts/check_install_isolation.py, every package).
   # ===========================================================================
   install-isolation:
     name: Install isolation (${{ matrix.package }})
