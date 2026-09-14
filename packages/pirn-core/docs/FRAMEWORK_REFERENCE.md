@@ -380,11 +380,17 @@ Deprecated: `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
 **Still open:** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
 `ConcurrencyConfig` still hold their own `asyncio.Semaphore`-shaped pools,
 called directly by `agent/parallel_tool_executor.py`, `evaluation/run_eval.py`,
-and three `specializations/` pipelines — `document_processing/ingestion_pipeline.py`,
-`multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`. Migrating
-their *enforcement* to `LimitedAdmissionGate` needs those call sites moved
-onto a knot-scoped concurrency group first, or there are two enforcement
-paths rather than one.
+and `rewoo/rewoo_pipeline.py`. Migrating their *enforcement* to
+`LimitedAdmissionGate` needs those call sites moved onto a knot-scoped
+concurrency group first, or there are two enforcement paths rather than one.
+PIR-867 did that move for the two `specializations/` pipelines this list used
+to also name: `document_processing/_ingestion_runner.py` (`IngestionPipeline`'s
+internal ETL runner) and `multi_agent/orchestrator_workers.py` both built a
+bare `asyncio.Semaphore(max_concurrency)` shared across their per-item knots
+and held it across the real await; both now use `KnotConfig(concurrency_group=)`
+on the per-item knots + a `ConcurrencyLimits` group cap set via
+`_inner_concurrency()` — the same lever `MapAgent` uses — so the bound is the
+admission gate's own budget, not a second, private one it cannot see.
 
 `caching/prompt_cache.py::PromptCache` — RESOLVED (PIR-868). Entries now
 live in a core `InMemoryDataStore` keyed by content hash, exactly like
