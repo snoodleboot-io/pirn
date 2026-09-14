@@ -13,10 +13,10 @@ from collections.abc import Iterable
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.connectors.databases._bigquery_stub_job_config import (
+from pirn.connectors.databases.bigquery_config import BigqueryConfig
+from pirn.connectors.databases.bigquery_stub_job_config import (
     BigqueryStubJobConfig,
 )
-from pirn.connectors.databases.bigquery_config import BigqueryConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.optional_dependency import OptionalDependency
 

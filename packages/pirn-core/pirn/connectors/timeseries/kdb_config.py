@@ -12,8 +12,8 @@ from pirn.connectors.connection_config_decorator import ConnectionConfigDecorato
 class KdbConfig(ConnectionConfig):
     """Configuration for a kdb+ connection.
 
-    Uses ``pykx`` (preferred) or ``qpython`` (fallback) under the hood, both
-    wrapped in ``asyncio.to_thread`` for async compatibility.
+    Uses ``pykx`` under the hood, wrapped in ``asyncio.to_thread`` for
+    async compatibility.
     """
 
     host: str = "localhost"

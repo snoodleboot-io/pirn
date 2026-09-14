@@ -1,4 +1,4 @@
-"""Async kdb+ pool backed by :mod:`pykx` (with :mod:`qpython` fallback)."""
+"""Async kdb+ pool backed by :mod:`pykx`."""
 
 from __future__ import annotations
 
@@ -116,29 +116,12 @@ class KdbPool(DatabaseConnectionPool):
     @staticmethod
     def _connect_sync(config: KdbConfig) -> Any:
         """Synchronous connection attempt; called inside :func:`asyncio.to_thread`."""
-        try:
-            pykx = OptionalDependency.require("pykx", extra="kdb")
-        except ImportError as pykx_err:
-            logging.getLogger(__name__).debug(
-                "kdb: pykx not available (%s), trying qpython", pykx_err
-            )
-        else:
-            return pykx.SyncQConnection(
-                host=config.host,
-                port=config.port,
-                username=config.username or None,
-                password=config.password or None,
-                timeout=config.timeout,
-                tls=config.tls,
-            )
-
-        qconnection = OptionalDependency.require("qpython.qconnection", extra="kdb")
-        conn = qconnection.QConnection(
+        pykx = OptionalDependency.require("pykx", extra="kdb")
+        return pykx.SyncQConnection(
             host=config.host,
             port=config.port,
             username=config.username or None,
             password=config.password or None,
             timeout=config.timeout,
+            tls=config.tls,
         )
-        conn.open()
-        return conn

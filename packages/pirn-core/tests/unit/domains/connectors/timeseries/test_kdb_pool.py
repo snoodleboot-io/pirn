@@ -16,7 +16,7 @@ from pirn.connectors.timeseries.kdb_pool import KdbPool
 
 
 class FakeKdbConnection:
-    """Mirrors the sync kdb+ connection surface (pykx / qpython)."""
+    """Mirrors the sync kdb+ connection surface (pykx)."""
 
     def __init__(self, responses: dict[str, Any] | None = None) -> None:
         self.calls: list[tuple[str, tuple[Any, ...]]] = []

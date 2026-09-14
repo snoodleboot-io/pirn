@@ -71,7 +71,7 @@ pirn-explore   = "pirn.viz._explore_cli:ExploreCli.main"
 sqlite = ["aiosqlite>=0.19"]
 duckdb = ["duckdb>=0.10"]
 postgres = ["asyncpg>=0.31"]
-valkey = ["valkey-glide>=2.3"]
+valkey = ["valkey-glide>=2.3", "valkey>=6.0"]  # glide for backends/emitters/transport; valkey for ValkeyStreamBroker
 s3 = ["aioboto3>=12.0"]
 gcs = ["gcloud-aio-storage>=9.0"]
 azure = ["azure-storage-blob>=12.0"]
@@ -85,7 +85,11 @@ celery = ["celery>=5.3", "redis>=5.0"]
 # Triggers / emitters.
 kafka = ["aiokafka>=0.13.0"]
 http = ["httpx>=0.26", "starlette>=0.36"]
-otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
+otel = [
+    "opentelemetry-api>=1.20",
+    "opentelemetry-sdk>=1.20",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20",
+]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Domain knot libraries — each domain is its own distribution (pirn_<domain>).
@@ -156,6 +160,20 @@ grafana   = ["httpx>=0.26"]
 google-analytics = ["google-analytics-data>=0.18"]
 mixpanel  = ["mixpanel>=4.10"]
 amplitude = ["amplitude-analytics>=1.1"]
+# Document, graph and time-series stores, messaging and HDFS (pirn/connectors).
+mongodb   = ["motor>=3.0"]
+arangodb  = ["python-arango>=8.0"]
+couchdb   = ["aiocouch>=3.0"]
+couchbase = ["couchbase>=4.1"]
+cosmosdb  = ["azure-cosmos>=4.5"]
+firestore = ["google-cloud-firestore>=2.11"]
+neo4j     = ["neo4j>=5.0"]
+memgraph  = ["gqlalchemy>=1.4"]
+orientdb  = ["pyorient>=1.5.5"]
+influxdb  = ["influxdb-client[async]>=1.30"]
+kdb       = ["pykx>=2.0"]
+slack     = ["slack-sdk>=3.19"]
+hdfs      = ["requests>=2.31"]                  # WebHDFS mode; native mode uses the arrow extra
 
 # Compression codecs for CompressedFileFormat (pirn/connectors/
 # file_formats/codecs/). gzip and bzip2 are stdlib — no extra needed.
@@ -174,7 +192,7 @@ fits    = ["astropy>=7.2.0"]
 grib    = ["cfgrib>=0.9.15.1"]
 dlis    = ["dlisio>=1.0.4"]
 hl7     = ["hl7>=0.4.5"]
-audio   = ["pydub>=0.25.1"]
+audio   = ["pydub>=0.25.1", "soundfile>=0.12"]
 spss    = ["pyreadstat>=1.3.4"]
 root    = ["uproot>=5.7.4"]
 
@@ -212,7 +230,7 @@ joblib      = ["joblib>=1.4"]
 pytorch     = ["torch>=2.0"]
 tensorflow  = ["tensorflow>=2.21; python_version<'3.14'"]
 gguf        = ["gguf>=0.10"]
-tflite      = ["ai-edge-litert>=2.1; python_version<'3.14'"]
+tflite      = ["ai-edge-litert>=2.1; python_version<'3.14'", "tflite-runtime>=2.14; python_version<'3.12'"]
 
 # BI / data-catalog connectors (pirn/connectors/bi_catalog/).
 # dbt artifacts is stdlib-only — no extra needed.
@@ -238,7 +256,7 @@ all-db = [
     # Oracle (oracledb) is intentionally NOT in all-db so the convenience
     # aggregate stays installable in environments without Oracle Instant
     # Client / wheels for every (Python, OS) combination. Users who need
-    # Oracle install ``pirn[oracle]`` directly.
+    # Oracle install ``pirn-core[oracle]`` directly.
 ]
 all-storage = [
     "aioboto3>=12.0",
@@ -251,6 +269,7 @@ all-stream = [
     "aio-pika>=9.0",
     "azure-servicebus>=7.0",
     "valkey-glide>=2.0",
+    "valkey>=6.0",
 ]
 all-saas = [
     "simple-salesforce>=1.12",
@@ -265,6 +284,7 @@ all-observability = [
     "opentelemetry-sdk>=1.20",
     "datadog-api-client>=2.0",
     "prometheus-client>=0.19",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20",
 ]
 # Opt-in monolith-ergonomics convenience (ADR-5 Option C): pull every domain
 # distribution in one shot: `pip install pirn-core[all-domains]`. This is NOT a base dependency —
@@ -287,6 +307,7 @@ all = [
     "duckdb>=0.10",
     "asyncpg>=0.31",
     "valkey-glide>=2.3",
+    "valkey>=6.0",
     "aioboto3>=12.0",
     "gcloud-aio-storage>=9.0",
     "azure-storage-blob>=12.0",
@@ -300,6 +321,7 @@ all = [
     "starlette>=0.36",
     "opentelemetry-api>=1.20",
     "opentelemetry-sdk>=1.20",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20",
     # additional connectors
     "aiomysql>=0.2",
     "google-cloud-bigquery>=3.0",
@@ -308,7 +330,7 @@ all = [
     "databricks-sql-connector>=3.0",
     "aioodbc>=0.5",
     # Oracle excluded from "all" for the same reason as "all-db" — see comment
-    # there. Install ``pirn[oracle]`` directly when needed.
+    # there. Install ``pirn-core[oracle]`` directly when needed.
     "google-cloud-pubsub>=2.0",
     "aio-pika>=9.0",
     "azure-servicebus>=7.0",

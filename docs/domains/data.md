@@ -253,9 +253,9 @@ Supported codecs:
 |-------|-------------|-------|
 | `"gzip"` | none (stdlib) | Always available. |
 | `"bzip2"` | none (stdlib) | Always available. |
-| `"zstd"` | `pirn[zstd]` | Requires `zstandard`. |
-| `"snappy"` | `pirn[snappy]` | Requires `python-snappy`. |
-| `"lz4"` | `pirn[lz4]` | Requires `lz4`. |
+| `"zstd"` | `pirn-core[zstd]` | Requires `zstandard`. |
+| `"snappy"` | `pirn-core[snappy]` | Requires `python-snappy`. |
+| `"lz4"` | `pirn-core[lz4]` | Requires `lz4`. |
 
 ### ArchiveFileFormat
 
@@ -269,7 +269,7 @@ archive = ArchiveFileFormat(CsvFormat(), archive_type="tar.gz")
 # or: archive_type="zip" | "tar" | "tar.bz2" | "tar.zst"
 ```
 
-`tar.zst` requires `pirn[zstd]`. The `streaming` property is always `False` for `ArchiveFileFormat` because the full archive must be buffered.
+`tar.zst` requires `pirn-core[zstd]`. The `streaming` property is always `False` for `ArchiveFileFormat` because the full archive must be buffered.
 
 ### Format Reference Table
 
@@ -283,144 +283,144 @@ All ~98 formats grouped by category. Read (R) and Write (W) indicate supported o
 | TSV | `TsvFormat` | ✓ | ✓ | ✓ | none |
 | JSON | `JsonFormat` | ✓ | ✓ | ✓ | none |
 | JSON Lines | `JsonlFormat` | ✓ | ✓ | ✓ | none |
-| Parquet | `ParquetFormat` | ✓ | ✓ | ✓ | `pirn[data]` (pyarrow) |
-| Apache ORC | `OrcFormat` | ✓ | ✓ | — | `pirn[orc]` |
-| Apache Avro | `AvroFormat` | ✓ | ✓ | — | `pirn[avro]` |
-| Apache Arrow IPC | `ArrowIpcFormat` | ✓ | ✓ | ✓ | `pirn[data]` (pyarrow) |
-| Apache Feather v2 | `FeatherFormat` | ✓ | ✓ | — | `pirn[feather]` |
-| XLSX | `XlsxFormat` | ✓ | ✓ | — | `pirn[xlsx]` |
-| ODS | `OdsFormat` | ✓ | ✓ | — | `pirn[ods]` |
+| Parquet | `ParquetFormat` | ✓ | ✓ | ✓ | `pirn-core[parquet]` (pyarrow) |
+| Apache ORC | `OrcFormat` | ✓ | ✓ | — | `pirn-core[orc]` |
+| Apache Avro | `AvroFormat` | ✓ | ✓ | — | `pirn-core[avro]` |
+| Apache Arrow IPC | `ArrowIpcFormat` | ✓ | ✓ | ✓ | `pirn-core[arrow]` (pyarrow) |
+| Apache Feather v2 | `FeatherFormat` | ✓ | ✓ | — | `pirn-core[feather]` |
+| XLSX | `XlsxFormat` | ✓ | ✓ | — | `pirn-core[xlsx]` |
+| ODS | `OdsFormat` | ✓ | ✓ | — | `pirn-core[ods]` |
 
 #### Scientific / Numerical
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| HDF5 | `Hdf5Format` | ✓ | ✓ | — | `pirn[hdf5]` |
-| Zarr | `ZarrFormat` | ✓ | ✓ | — | `pirn[zarr]` |
-| MATLAB .mat | `MatlabMatFormat` | ✓ | ✓ | — | `pirn[matlab]` |
-| NetCDF (classic) | `NetcdfFormat` | ✓ | ✓ | — | `pirn[netcdf]` |
-| NetCDF4 | `Netcdf4Format` | ✓ | ✓ | — | `pirn[netcdf]` |
-| FITS (astronomy) | `FitsFormat` | ✓ | ✓ | — | `pirn[astronomy]` |
-| ASDF | `AsdfFormat` | ✓ | ✓ | — | `pirn[astronomy]` |
-| NumPy .npy | `NumpyNpyFormat` | ✓ | ✓ | — | `pirn[ml]` |
-| NumPy .npz | `NumpyNpzFormat` | ✓ | ✓ | — | `pirn[ml]` |
-| MzML (mass spec) | `MzmlFormat` | ✓ | ✓ | — | `pirn[physics]` |
-| ROOT (particle physics) | `RootFormat` | ✓ | — | — | `pirn[physics]` |
+| HDF5 | `Hdf5Format` | ✓ | ✓ | — | `pirn-core[hdf5]` |
+| Zarr | `ZarrFormat` | ✓ | ✓ | — | `pirn-core[zarr]` |
+| MATLAB .mat | `MatlabMatFormat` | ✓ | ✓ | — | `pirn-core[matlab]` |
+| NetCDF (classic) | `NetcdfFormat` | ✓ | ✓ | — | `pirn-core[netcdf]` |
+| NetCDF4 | `Netcdf4Format` | ✓ | ✓ | — | `pirn-core[netcdf]` |
+| FITS (astronomy) | `FitsFormat` | ✓ | ✓ | — | `pirn-core[fits]` |
+| ASDF | `AsdfFormat` | ✓ | ✓ | — | `pirn-core[asdf]` |
+| NumPy .npy | `NumpyNpyFormat` | ✓ | ✓ | — | none (base install) |
+| NumPy .npz | `NumpyNpzFormat` | ✓ | ✓ | — | none (base install) |
+| MzML (mass spec) | `MzmlFormat` | ✓ | ✓ | — | `pirn-core[pyteomics]` / `pirn-core[html]` |
+| ROOT (particle physics) | `RootFormat` | ✓ | — | — | `pirn-core[root]` |
 
 #### Documents
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| PDF | `PdfFormat` | ✓ | ✓ | — | `pirn[pdf]` |
-| DOCX | `DocxFormat` | ✓ | ✓ | — | `pirn[docx]` |
-| PPTX | `PptxFormat` | ✓ | ✓ | — | `pirn[pptx]` |
-| HTML | `HtmlFormat` | ✓ | ✓ | — | `pirn[html]` |
-| Markdown | `MarkdownFormat` | ✓ | ✓ | ✓ | `pirn[markdown]` |
-| EPUB | `EpubFormat` | ✓ | ✓ | — | `pirn[epub]` |
-| RTF | `RtfFormat` | ✓ | ✓ | — | `pirn[rtf]` |
+| PDF | `PdfFormat` | ✓ | ✓ | — | `pirn-core[pdf]` |
+| DOCX | `DocxFormat` | ✓ | ✓ | — | `pirn-core[docx]` |
+| PPTX | `PptxFormat` | ✓ | ✓ | — | `pirn-core[pptx]` |
+| HTML | `HtmlFormat` | ✓ | ✓ | — | `pirn-core[html]` |
+| Markdown | `MarkdownFormat` | ✓ | ✓ | ✓ | `pirn-core[markdown]` |
+| EPUB | `EpubFormat` | ✓ | ✓ | — | `pirn-core[epub]` |
+| RTF | `RtfFormat` | ✓ | ✓ | — | `pirn-core[rtf]` |
 | Plain text | `PlainTextFormat` | ✓ | ✓ | ✓ | none |
 
 #### Genomics
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| FASTA | `FastaFormat` | ✓ | ✓ | ✓ | `pirn[genomics]` |
+| FASTA | `FastaFormat` | ✓ | ✓ | ✓ | none (base install) |
 | FASTQ | `FastqFormat` | ✓ | ✓ | ✓ | none (stdlib parse path) |
-| VCF | `VcfFormat` | ✓ | ✓ | ✓ | `pirn[genomics]` |
-| BCF | `BcfFormat` | ✓ | ✓ | — | `pirn[genomics]` |
-| BAM | `BamFormat` | ✓ | ✓ | — | `pirn[genomics]` |
-| CRAM | `CramFormat` | ✓ | ✓ | — | `pirn[genomics]` |
-| SAM | `SamFormat` | ✓ | ✓ | ✓ | `pirn[genomics]` |
+| VCF | `VcfFormat` | ✓ | ✓ | ✓ | none (base install) |
+| BCF | `BcfFormat` | ✓ | ✓ | — | `pirn-health[genomics]` |
+| BAM | `BamFormat` | ✓ | ✓ | — | `pirn-health[genomics]` |
+| CRAM | `CramFormat` | ✓ | ✓ | — | `pirn-health[genomics]` |
+| SAM | `SamFormat` | ✓ | ✓ | ✓ | `pirn-health[genomics]` |
 
 #### Geospatial
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| Shapefile | `ShapefileFormat` | ✓ | ✓ | — | `pirn[shapefile]` |
-| GeoJSON | `GeoJsonFormat` | ✓ | ✓ | ✓ | `pirn[geojson]` |
-| KML | `KmlFormat` | ✓ | ✓ | — | `pirn[kml]` |
-| GeoTIFF | `GeotiffFormat` | ✓ | ✓ | — | `pirn[geotiff]` |
-| GeoPackage | `GeopackageFormat` | ✓ | ✓ | — | `pirn[geopackage]` |
+| Shapefile | `ShapefileFormat` | ✓ | ✓ | — | `pirn-core[shapefile]` |
+| GeoJSON | `GeoJsonFormat` | ✓ | ✓ | ✓ | none (base install) |
+| KML | `KmlFormat` | ✓ | ✓ | — | `pirn-core[kml]` |
+| GeoTIFF | `GeotiffFormat` | ✓ | ✓ | — | `pirn-core[geotiff]` |
+| GeoPackage | `GeopackageFormat` | ✓ | ✓ | — | `pirn-core[geopackage]` |
 
 #### ML Artifacts
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| ONNX | `OnnxFormat` | ✓ | ✓ | — | `pirn[onnx]` |
-| SafeTensors | `SafetensorsFormat` | ✓ | ✓ | — | `pirn[safetensors]` |
-| Joblib | `JoblibFormat` | ✓ | ✓ | — | `pirn[joblib]` |
-| PyTorch (.pt/.pth) | `PytorchFormat` | ✓ | ✓ | — | `pirn[pytorch]` |
-| TensorFlow SavedModel | `TfSavedModelFormat` | ✓ | ✓ | — | `pirn[tensorflow]` |
-| TFLite | `TfliteFormat` | ✓ | ✓ | — | `pirn[tflite]` |
-| GGUF | `GgufFormat` | ✓ | ✓ | — | `pirn[gguf]` |
+| ONNX | `OnnxFormat` | ✓ | ✓ | — | `pirn-core[onnx]` |
+| SafeTensors | `SafetensorsFormat` | ✓ | ✓ | — | `pirn-core[safetensors]` |
+| Joblib | `JoblibFormat` | ✓ | ✓ | — | `pirn-core[joblib]` |
+| PyTorch (.pt/.pth) | `PytorchFormat` | ✓ | ✓ | — | `pirn-core[pytorch]` |
+| TensorFlow SavedModel | `TfSavedModelFormat` | ✓ | ✓ | — | `pirn-core[tensorflow]` |
+| TFLite | `TfliteFormat` | ✓ | ✓ | — | `pirn-core[tflite]` / `pirn-core[tensorflow]` |
+| GGUF | `GgufFormat` | ✓ | ✓ | — | `pirn-core[gguf]` |
 
 #### Images
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| PNG | `PngFormat` | ✓ | ✓ | — | `pirn[image]` |
-| JPEG | `JpegFormat` | ✓ | ✓ | — | `pirn[image]` |
-| WebP | `WebpFormat` | ✓ | ✓ | — | `pirn[image]` |
-| HEIC | `HeicFormat` | ✓ | ✓ | — | `pirn[heic]` |
-| TIFF (multi-page) | `TiffFormat` | ✓ | ✓ | — | `pirn[tiff]` |
+| PNG | `PngFormat` | ✓ | ✓ | — | `pirn-core[image]` |
+| JPEG | `JpegFormat` | ✓ | ✓ | — | `pirn-core[image]` |
+| WebP | `WebpFormat` | ✓ | ✓ | — | `pirn-core[image]` |
+| HEIC | `HeicFormat` | ✓ | ✓ | — | `pirn-core[heic]` |
+| TIFF (multi-page) | `TiffFormat` | ✓ | ✓ | — | `pirn-core[tiff]` |
 
 #### Healthcare — Imaging
 
 | Format | Class | R | W | Streaming | PHI Safety | Extra |
 |--------|-------|---|---|-----------|-----------|-------|
-| DICOM | `DicomFormat` | ✓ | ✓ | — | PatientID hashed; name/dob/address dropped | `pirn[dicom]` |
-| Whole-slide (OpenSlide) | `OpenSlideFormat` | ✓ | — | — | — | `pirn[health]` |
-| NIfTI | `NiftiFormat` | ✓ | ✓ | — | — | `pirn[health]` |
+| DICOM | `DicomFormat` | ✓ | ✓ | — | PatientID hashed; name/dob/address dropped | `pirn-health[health]` |
+| Whole-slide (OpenSlide) | `OpenSlideFormat` | ✓ | — | — | — | `pirn-health[health]` |
+| NIfTI | `NiftiFormat` | ✓ | ✓ | — | — | `pirn-health[health]` |
 
 #### Healthcare — Clinical
 
 | Format | Class | R | W | Streaming | PHI Safety | Extra |
 |--------|-------|---|---|-----------|-----------|-------|
-| HL7 v2 | `Hl7v2Format` | ✓ | ✓ | — | PID.3/5/7/11/18/19/20 redacted | `pirn[health]` |
-| FHIR JSON | `FhirJsonFormat` | ✓ | ✓ | — | PHI fields sanitised | `pirn[health]` |
-| FHIR XML | `FhirXmlFormat` | ✓ | ✓ | — | PHI fields sanitised | `pirn[health]` |
-| CDA XML | `CdaXmlFormat` | ✓ | ✓ | — | PHI stripped | `pirn[health]` |
-| Define-XML (CDISC) | `DefineXmlFormat` | ✓ | ✓ | — | — | `pirn[health]` |
-| SDTM XPT (SAS transport) | `SdtmXptFormat` | ✓ | ✓ | — | — | `pirn[health]` |
+| HL7 v2 | `Hl7v2Format` | ✓ | ✓ | — | PID.3/5/7/11/18/19/20 redacted | `pirn-core[hl7]` |
+| FHIR JSON | `FhirJsonFormat` | ✓ | ✓ | — | PHI fields sanitised | `pirn-health[health]` |
+| FHIR XML | `FhirXmlFormat` | ✓ | ✓ | — | PHI fields sanitised | `pirn-health[health]` / `pirn-core[html]` |
+| CDA XML | `CdaXmlFormat` | ✓ | ✓ | — | PHI stripped | `pirn-health[health]` / `pirn-core[html]` |
+| Define-XML (CDISC) | `DefineXmlFormat` | ✓ | ✓ | — | — | `pirn-health[health]` / `pirn-core[html]` |
+| SDTM XPT (SAS transport) | `SdtmXptFormat` | ✓ | ✓ | — | — | `pirn-core[spss]` / `pirn-data[data]` |
 
 #### Healthcare — Biosignal
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| EDF | `EdfFormat` | ✓ | ✓ | — | `pirn[health]` |
-| EDF+ | `EdfPlusFormat` | ✓ | ✓ | — | `pirn[health]` |
-| BDF | `BdfFormat` | ✓ | ✓ | — | `pirn[health]` |
-| BrainVision | `BrainVisionFormat` | ✓ | ✓ | — | `pirn[health]` |
-| BIDS dataset | `BidsDatasetFormat` | ✓ | ✓ | — | `pirn[health]` |
+| EDF | `EdfFormat` | ✓ | ✓ | — | `pirn-health[health]` |
+| EDF+ | `EdfPlusFormat` | ✓ | ✓ | — | none (base install) |
+| BDF | `BdfFormat` | ✓ | ✓ | — | `pirn-health[health]` |
+| BrainVision | `BrainVisionFormat` | ✓ | ✓ | — | `pirn-health[health]` |
+| BIDS dataset | `BidsDatasetFormat` | ✓ | ✓ | — | `pirn-core[bids]` |
 
 #### Audio
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| WAV | `WavFormat` | ✓ | ✓ | — | `pirn[audio]` |
-| MP3 | `Mp3Format` | ✓ | ✓ | — | `pirn[audio]` + ffmpeg |
-| AAC | `AacFormat` | ✓ | ✓ | — | `pirn[audio]` + ffmpeg |
-| OGG | `OggFormat` | ✓ | ✓ | — | `pirn[audio]` |
-| FLAC | `FlacFormat` | ✓ | ✓ | — | `pirn[audio]` |
-| M4A | `M4aFormat` | ✓ | ✓ | — | `pirn[audio]` + ffmpeg |
+| WAV | `WavFormat` | ✓ | ✓ | — | none (base install) |
+| MP3 | `Mp3Format` | ✓ | ✓ | — | `pirn-core[audio]` + ffmpeg |
+| AAC | `AacFormat` | ✓ | ✓ | — | `pirn-core[audio]` + ffmpeg |
+| OGG | `OggFormat` | ✓ | ✓ | — | `pirn-core[audio]` |
+| FLAC | `FlacFormat` | ✓ | ✓ | — | `pirn-core[audio]` |
+| M4A | `M4aFormat` | ✓ | ✓ | — | `pirn-core[audio]` + ffmpeg |
 
 #### Oil & Gas
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| SEG-Y | `SegyFormat` | ✓ | ✓ | — | `pirn[oilgas]` |
-| SEG-D | `SegdFormat` | ✓ | — | — | `pirn[oilgas]` |
-| DLIS (well logs) | `DlisFormat` | ✓ | — | — | `pirn[oilgas]` |
-| LAS (well logs) | `LasFormat` | ✓ | ✓ | — | `pirn[oilgas]` |
-| WITSML | `WitsmlFormat` | ✓ | ✓ | — | `pirn[oilgas]` |
-| PRODML | `ProdmlFormat` | ✓ | ✓ | — | `pirn[oilgas]` |
-| RESQML | `ResqmlFormat` | ✓ | ✓ | — | `pirn[oilgas]` |
+| SEG-Y | `SegyFormat` | ✓ | ✓ | — | `pirn-oilgas[oilgas]` |
+| SEG-D | `SegdFormat` | ✓ | — | — | none (base install) |
+| DLIS (well logs) | `DlisFormat` | ✓ | — | — | `pirn-core[dlis]` |
+| LAS (well logs) | `LasFormat` | ✓ | ✓ | — | `pirn-oilgas[oilgas]` |
+| WITSML | `WitsmlFormat` | ✓ | ✓ | — | `pirn-oilgas[oilgas]` / `pirn-core[html]` |
+| PRODML | `ProdmlFormat` | ✓ | ✓ | — | `pirn-oilgas[oilgas]` / `pirn-core[html]` |
+| RESQML | `ResqmlFormat` | ✓ | ✓ | — | `pirn-oilgas[oilgas]` / `pirn-core[html]` |
 
 #### Weather / Atmospheric
 
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
-| GRIB | `GribFormat` | ✓ | — | — | `pirn[weather]` |
+| GRIB | `GribFormat` | ✓ | — | — | `pirn-core[grib]` |
 
 #### Compression Codecs
 
@@ -430,9 +430,9 @@ Codecs are not standalone formats; compose them via `CompressedFileFormat`.
 |-------|-------|-------|
 | gzip | `GzipCodec` | none (stdlib) |
 | bzip2 | `Bzip2Codec` | none (stdlib) |
-| zstd | `ZstdCodec` | `pirn[zstd]` |
-| snappy | `SnappyCodec` | `pirn[snappy]` |
-| lz4 | `Lz4Codec` | `pirn[lz4]` |
+| zstd | `ZstdCodec` | `pirn-core[zstd]` |
+| snappy | `SnappyCodec` | `pirn-core[snappy]` |
+| lz4 | `Lz4Codec` | `pirn-core[lz4]` |
 
 #### Archives
 
@@ -441,7 +441,7 @@ Codecs are not standalone formats; compose them via `CompressedFileFormat`.
 | `tar` | `ArchiveFileFormat(..., archive_type="tar")` | any `FileFormat` | — |
 | `tar.gz` | `ArchiveFileFormat(..., archive_type="tar.gz")` | any `FileFormat` | — |
 | `tar.bz2` | `ArchiveFileFormat(..., archive_type="tar.bz2")` | any `FileFormat` | — |
-| `tar.zst` | `ArchiveFileFormat(..., archive_type="tar.zst")` | any `FileFormat` | `pirn[zstd]` |
+| `tar.zst` | `ArchiveFileFormat(..., archive_type="tar.zst")` | any `FileFormat` | `pirn-core[zstd]` |
 | `zip` | `ArchiveFileFormat(..., archive_type="zip")` | any `FileFormat` | — |
 
 #### Lakehouse Table Formats
