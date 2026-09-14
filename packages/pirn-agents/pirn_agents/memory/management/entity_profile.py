@@ -21,6 +21,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.memory.management.profile_key import ProfileKey
 
@@ -54,7 +55,7 @@ class EntityProfile(PirnOpaqueValue):
             raise TypeError(
                 f"EntityProfile: key must be a ProfileKey, got {type(self.key).__name__}"
             )
-        if not isinstance(self.fields, Mapping):
+        if not JsonShape.is_mapping(self.fields):
             raise TypeError("EntityProfile: fields must be a Mapping")
         if not isinstance(self.provenance, MemoryProvenance):
             raise TypeError("EntityProfile: provenance must be a MemoryProvenance")
@@ -86,7 +87,7 @@ class EntityProfile(PirnOpaqueValue):
         Raises:
             TypeError: If ``payload`` is not a mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"EntityProfile.from_payload: payload must be a Mapping, "
                 f"got {type(payload).__name__}"

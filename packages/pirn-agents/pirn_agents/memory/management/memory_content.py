@@ -49,7 +49,7 @@ class MemoryContent(PirnOpaqueValue):
     id: str
     kind: MemoryKind
     content: str
-    tags: Mapping[str, Any] = field(default_factory=dict)
+    tags: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id:

@@ -40,6 +40,7 @@ from typing import Any
 
 from pirn.core.payload import Payload
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.memory.management.memory_content import MemoryContent
 from pirn_agents.memory.management.memory_kind import MemoryKind
 from pirn_agents.memory.management.memory_kind_guard import MemoryKindGuard
@@ -258,7 +259,7 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         Raises:
             TypeError: If ``payload`` is not a mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"MemoryRecord.from_payload: payload must be a Mapping, "
                 f"got {type(payload).__name__}"

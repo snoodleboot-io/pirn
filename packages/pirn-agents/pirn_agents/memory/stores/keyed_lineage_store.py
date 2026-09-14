@@ -11,9 +11,9 @@ table when the engine already gives every knot a stable, queryable identity.
 The mapping:
 
 * **write** — a caller-chosen ``f"{namespace}:{key}"`` becomes a
-  ``KnotConfig.id``; :meth:`put` runs it as a single-knot ``Tapestry`` (the
-  same shape :class:`~pirn_agents.determinism.cassette_recorder.CassetteRecorder`
-  uses for a cassette key). The engine content-addresses the value into
+  ``KnotConfig.id``; :meth:`put` runs a single core ``Parameter`` knot under
+  that id, defaulted to the value, as a one-knot ``Tapestry``. The engine
+  content-addresses the value into
   ``DataStore`` and records one ``KnotLineage`` row — no separate keyed write.
 * **read** — "the current value under this key" is
   ``RunHistory.query_latest_lineage_by_knot_id(f"{namespace}:{key}")`` (core's
@@ -38,18 +38,16 @@ What this does **not** give you, and why:
 
 from __future__ import annotations
 
-import functools
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-
-from pirn_agents.determinism._thunk_source import _ThunkSource
 
 
 class KeyedLineageStore(PirnOpaqueValue):
@@ -163,9 +161,7 @@ class KeyedLineageStore(PirnOpaqueValue):
         identity = self.identity(namespace, key)
 
         with Tapestry(history=self._history, data_store=self._data_store) as tapestry:
-            _ThunkSource(_config=KnotConfig(id=identity)).bind(
-                functools.partial(KeyedLineageStore._resolved, value)
-            )
+            Parameter(identity, Any, default=value, _config=KnotConfig(id=identity))
             await tapestry.run(RunRequest())
         return identity
 
@@ -218,8 +214,3 @@ class KeyedLineageStore(PirnOpaqueValue):
         same.
         """
         await self.put(namespace=namespace, key=key, value=type(self)._tombstone)
-
-    @staticmethod
-    async def _resolved(value: Any) -> Any:
-        """Return ``value`` — bound with ``functools.partial`` as the write's zero-arg thunk."""
-        return value
