@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MultiOmicsIntegrator`` — integrate RNA + DNA + epigenomic features.
 
 Production version uses MOFA / DIABLO / iCluster; this stub validates

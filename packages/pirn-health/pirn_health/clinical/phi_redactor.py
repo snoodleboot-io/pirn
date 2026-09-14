@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PHIRedactor`` — return a copy of a :class:`ClinicalRecord` with PHI removed.
 
 Patient ids and encounter ids are replaced with stable opaque tokens so
@@ -27,7 +29,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_health.clinical.phi_hasher import _PhiHasher
+from pirn_health.clinical.phi_hasher import PhiHasher
 from pirn_health.types.clinical_record import ClinicalRecord
 
 
@@ -71,8 +73,8 @@ class PHIRedactor(Knot):
             raise ValueError("PHIRedactor: salt must be non-empty")
 
         return ClinicalRecord(
-            patient_id=_PhiHasher.hash_identifier(salt, record.patient_id),
-            encounter_id=_PhiHasher.hash_identifier(salt, record.encounter_id),
+            patient_id=PhiHasher.hash_identifier(salt, record.patient_id),
+            encounter_id=PhiHasher.hash_identifier(salt, record.encounter_id),
             observation_codes=record.observation_codes,
             observed_at=record.observed_at,
             source_system=record.source_system,

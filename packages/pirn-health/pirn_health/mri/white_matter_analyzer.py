@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WhiteMatterAnalyzer`` — white-matter integrity / FA / MD analysis.
 
 Production version uses dipy + nibabel for DTI fitting.
@@ -29,17 +31,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    import nibabel as nib
-    from dipy.core.gradients import gradient_table
-    from dipy.reconst.dti import TensorModel
-
-    _HAS_DIPY: bool = True
-except ImportError:
-    nib = None  # type: ignore[assignment]
-    gradient_table = None  # type: ignore[assignment]
-    TensorModel = None  # type: ignore[assignment]
-    _HAS_DIPY = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class WhiteMatterAnalyzer(Knot):
@@ -110,20 +102,18 @@ class WhiteMatterAnalyzer(Knot):
         bval_path: str,
         tracts: list[str],
     ) -> dict[str, dict[str, float]]:
-        if not _HAS_DIPY or nib is None or gradient_table is None or TensorModel is None:
-            raise ImportError(
-                "dipy and nibabel are required for WhiteMatterAnalyzer — "
-                "install with: pip install 'pirn[mri]'"
-            )
+        nib = HealthOptionalDependency.require("nibabel", extra="mri")
+        gradients = HealthOptionalDependency.require("dipy.core.gradients", extra="mri")
+        dti = HealthOptionalDependency.require("dipy.reconst.dti", extra="mri")
         img = nib.load(dwi_nifti_path)
-        data = np.asarray(img.dataobj, dtype=float)
-        bvecs = np.loadtxt(bvec_path)
-        bvals = np.loadtxt(bval_path)
-        gtab = gradient_table(bvals, bvecs=bvecs)
-        model = TensorModel(gtab)
+        data: np.ndarray = np.asarray(img.dataobj, dtype=float)
+        bvecs: np.ndarray = np.loadtxt(bvec_path)
+        bvals: np.ndarray = np.loadtxt(bval_path)
+        gtab = gradients.gradient_table(bvals, bvecs=bvecs)
+        model = dti.TensorModel(gtab)
         fit = model.fit(data)
-        fa = np.asarray(fit.fa)
-        md = np.asarray(fit.md)
+        fa: np.ndarray = np.asarray(fit.fa)
+        md: np.ndarray = np.asarray(fit.md)
         mean_fa = float(np.nanmean(fa))
         mean_md = float(np.nanmean(md))
         return {tract: {"fa": mean_fa, "md": mean_md} for tract in tracts}

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StepCounter`` — derive step count from accelerometer data.
 
 Algorithm:
@@ -25,15 +27,8 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    import scipy.signal
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    scipy = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
 
 
 class StepCounter(Knot):
@@ -87,10 +82,7 @@ class StepCounter(Knot):
         Returns:
             Number of detected steps.
         """
-        if not _HAS_SCIPY or scipy is None:
-            raise ImportError(
-                "scipy is required for StepCounter — install with: pip install 'pirn-health[health]'"
-            )
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
         if data.ndim > 1:
             magnitude = np.sqrt(np.sum(data**2, axis=0))
         else:
@@ -99,5 +91,6 @@ class StepCounter(Knot):
             return 0
         threshold = 0.5 * float(np.std(magnitude)) + float(np.mean(magnitude))
         min_distance = max(1, int(0.5 * fs))
-        peaks, _ = scipy.signal.find_peaks(magnitude, height=threshold, distance=min_distance)
+        peaks: np.ndarray
+        peaks, _ = signal.find_peaks(magnitude, height=threshold, distance=min_distance)
         return int(peaks.size)

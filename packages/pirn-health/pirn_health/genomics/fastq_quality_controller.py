@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FastqQualityController`` — FASTQ quality-control summary.
 
 Parses FASTQ records using the stdlib and computes mean Phred quality score

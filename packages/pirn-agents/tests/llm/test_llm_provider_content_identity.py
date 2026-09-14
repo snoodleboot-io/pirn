@@ -19,6 +19,7 @@ from typing import Any, ClassVar
 from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.run_request import RunRequest
 from pirn.recording.replay_mismatch_error import ReplayMismatchError
@@ -30,7 +31,6 @@ from pirn_agents.llm.anthropic_messages_provider import AnthropicMessagesProvide
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
-from pirn_agents.llm.retry_policy import RetryPolicy
 from tests.llm.test_base_llm_provider import StubLLMProvider
 
 PROVIDERS: tuple[type[BaseLLMProvider], ...] = (OpenAICompatibleProvider, AnthropicMessagesProvider)
@@ -58,11 +58,10 @@ class _DiscountedPricing(ModelPricing):
         return 0.0
 
 
-@dataclass(frozen=True)
-class _PatientRetryPolicy(RetryPolicy):
+class _PatientRetryPolicy(KnotRetryPolicy):
     """A retry-policy subclass whose backoff is not what its fields say."""
 
-    def backoff_delay(self, attempt: int, *, rng: Any = None) -> float:
+    def backoff_delay(self, retry_index: int, *, rng: Any = None) -> float:
         return 0.0
 
 
@@ -139,7 +138,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
                 },
                 "timeout": 12.5,
                 "retry_policy": {
-                    "max_retries": 2,
+                    "max_attempts": 3,
                     "base_delay": 0.05,
                     "max_delay": 2.0,
                     "multiplier": 2.0,
@@ -184,12 +183,12 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
         # Arrange
         reference = content_hash(OpenAICompatibleProvider(model="m", base_url="https://a/v1"))
         policies = (
-            RetryPolicy(max_retries=5),
-            RetryPolicy(base_delay=1.0),
-            RetryPolicy(max_delay=9.0),
-            RetryPolicy(multiplier=3.0),
-            RetryPolicy(jitter=False),
-            RetryPolicy(max_retry_after=1.0),
+            KnotRetryPolicy(max_attempts=6),
+            KnotRetryPolicy(max_attempts=3, base_delay=1.0),
+            KnotRetryPolicy(max_attempts=3, max_delay=9.0),
+            KnotRetryPolicy(max_attempts=3, multiplier=3.0),
+            KnotRetryPolicy(max_attempts=3, jitter=False),
+            KnotRetryPolicy(max_attempts=3, max_retry_after=1.0),
         )
 
         for policy in policies:
@@ -245,21 +244,21 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
             model="m",
             base_url="https://a/v1",
             pricing=ModelPricing(input_per_million=1.0),
-            retry_policy=RetryPolicy(max_retries=2),
+            retry_policy=KnotRetryPolicy(max_attempts=3),
         )
         before = content_hash(provider)
         running_cost = provider._mapper.estimate_cost({"input_tokens": 1_000_000})
 
         # Act
         provider._pricing = ModelPricing(input_per_million=99.0)
-        provider._retry_policy = RetryPolicy(max_retries=0)
+        provider._retry_policy = KnotRetryPolicy(max_attempts=1)
 
         # Assert — cost and retries still come from the built collaborators, and so does the hash.
         assert provider._mapper.estimate_cost({"input_tokens": 1_000_000}) == running_cost
-        assert provider._transport.retry_policy == RetryPolicy(max_retries=2)
+        assert provider._transport.retry_policy == KnotRetryPolicy(max_attempts=3)
         assert content_hash(provider) == before
         assert provider.__pirn_canonical__()["config"]["pricing"]["input_per_million"] == 1.0
-        assert provider.__pirn_canonical__()["config"]["retry_policy"]["max_retries"] == 2
+        assert provider.__pirn_canonical__()["config"]["retry_policy"]["max_attempts"] == 3
 
     def test_a_replaced_mapper_falls_back(self) -> None:
         # Arrange
@@ -375,7 +374,7 @@ class TestProvidersFallBackToIdentity(unittest.TestCase):
         # Arrange
         provider = OpenAICompatibleProvider(model="m", base_url="https://a/v1")
         provider._transport = type("_Transport", (type(provider._transport),), {})(
-            retry_policy=RetryPolicy(), sleeper=asyncio.sleep, rng=None
+            retry_policy=KnotRetryPolicy(max_attempts=3), sleeper=asyncio.sleep, rng=None
         )
 
         # Act / Assert
@@ -399,8 +398,11 @@ class TestProvidersFallBackToIdentity(unittest.TestCase):
             "bool max tokens": {"default_max_tokens": True},
             "float max tokens": {"default_max_tokens": 1.5},
             "string price": {"pricing": ModelPricing(input_per_million="1")},  # type: ignore[arg-type]
-            "string retries": {"retry_policy": RetryPolicy(max_retries="2")},  # type: ignore[arg-type]
-            "int jitter": {"retry_policy": RetryPolicy(jitter=1)},  # type: ignore[arg-type]
+            "string attempts": {"retry_policy": KnotRetryPolicy.model_construct(max_attempts="3")},
+            "int jitter": {"retry_policy": KnotRetryPolicy.model_construct(jitter=1)},
+            "retry predicate": {
+                "retry_policy": KnotRetryPolicy(max_attempts=3, is_retryable=lambda _r: True)
+            },
         }
         for label, kwargs in values.items():
             with self.subTest(value=label):

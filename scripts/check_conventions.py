@@ -158,12 +158,6 @@ _MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
     "pirn-agents:pirn_agents._internal._require:_require": (
         "optional-extra import guard pinned by the S1 import-surface contract"
     ),
-    "pirn-agents:pirn_agents.agent.agent_tool_context:current_agent_tool_context": (
-        "ambient accessor for the agent tool context; S1 import-surface contract"
-    ),
-    "pirn-agents:pirn_agents.agent.agent_tool_context:bind_agent_tool_context": (
-        "context binder paired with current_agent_tool_context; S1 import-surface contract"
-    ),
     "pirn-agents:pirn_agents.agent.approval_hook:authorize_tool_call": (
         "async authorization helper; S1 import-surface contract"
     ),

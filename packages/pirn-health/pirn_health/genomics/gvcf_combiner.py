@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GVCFCombiner`` — combine per-sample GVCFs into a multi-sample GVCF.
 
 Production version uses ``GATK CombineGVCFs`` or

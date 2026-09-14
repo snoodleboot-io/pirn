@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HL7v2MessageParser`` — parse a raw HL7v2 string into a clinical record.
 
 Production version would use ``hl7apy`` or ``python-hl7`` to parse the

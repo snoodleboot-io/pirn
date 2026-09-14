@@ -8,7 +8,7 @@ type signature and delivers none of it. The same failure mode has narrower
 cousins on any `Knot`: awaiting a tool's `invoke()` or an LLM's `chat()`
 directly, fanning calls out with `asyncio.gather` instead of the engine's own
 concurrent scheduling, or retrying with a hand-rolled `while True` instead of
-`RetryPolicy.run()` — each one produces a value with no lineage row, no
+core's `KnotConfig(retry=)` / `KnotRetryPolicy.run()` — each one produces a value with no lineage row, no
 `Ok|Err|Skipped`, and nothing the engine can schedule, cache, or replay.
 
 The two shapes are indistinguishable by inspection, which is the actual problem:
@@ -27,12 +27,10 @@ static checks below cover what runtime enforcement cannot.
 ## Why this is a ratchet, not a clean assertion
 
 Fixing a bypass is a per-knot design job — WS7 did five, PIR-856 did three
-more (`ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`; a fourth,
-`ParallelToolExecutor`, is a deliberate deferral: its retry/timeout richness
-needs real inter-attempt backoff sleep, which `LoopSubTapestry`'s synchronous
-`step`/`fold` contract cannot express without either dropping the backoff or a
-core-level change outside this ticket) — so the honest guard is one that
-freezes the inventory rather than pretending it is empty.
+more (`ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`), and
+`ParallelToolExecutor` runs one tool knot per call under an `Aggregator` with
+core's `GovernedDispatch` owning per-call retry backoff and timeout — so the
+guard freezes the inventory by exact equality, and every set is now empty.
 
 The allowlists are asserted by **exact equality**, deliberately:
 
@@ -96,20 +94,12 @@ UNRUN_TAPESTRY: frozenset[str] = frozenset()
 #: doesn't even trip this detector (it wires the tool as a knot the engine
 #: runs via `process()`, never touching `.invoke()` itself), so it isn't
 #: listed. PIR-856 fixed three call sites (`ParallelToolCaller`, `ToolChain`,
-#: `ReActStepExecutor`). PIR-867 re-checked `_AttemptTier`: `CascadeTier.invoke`
-#: is a bare provider callable, not a `Tool`, so there is no tool knot to
-#: construct instead — the fix is `specializations/routing/_tier_invocation.py::_TierInvocation`,
-#: a dedicated vending knot whose only body is this call, wired as a real
-#: parent of `_AttemptTier`'s inner pipeline (`_tier_attempt_fold.py::_TierAttemptFold`
-#: folds its `Ok`/`Err` outcome, via `error_policy=RECEIVE_ERRORS`, into the
-#: cascade's state). `_TierInvocation` is the sanctioned entry now, the same
-#: role `ToolInvocation` plays for tool calls — the call is made exactly
-#: once, inside the one knot whose job is to make it.
-AWAITS_INVOKE = frozenset(
-    {
-        "specializations/routing/_tier_invocation.py::_TierInvocation",
-    }
-)
+#: `ReActStepExecutor`). PIR-872 removed the last one: a cascade tier is a model
+#: call, so `CascadeTier` carries an `LLMProvider` and `_AttemptTier` wires the
+#: shared `LLMChatCall` knot for it — `CascadeTier.invoke` and its
+#: `_TierInvocation` wrapper are deleted. Kept as a `frozenset()` assertion so a
+#: future instance regresses loudly.
+AWAITS_INVOKE: frozenset[str] = frozenset()
 
 #: `asyncio.gather(...)` used to fan calls out by hand instead of letting the
 #: engine schedule N sibling knots concurrently (the `Aggregator` fan-out
@@ -132,14 +122,12 @@ USES_ASYNCIO_GATHER: frozenset[str] = frozenset()
 #: instance regresses loudly.
 LOOP_AWAITS_LLM_OR_TOOL_CALL: frozenset[str] = frozenset()
 
-#: A literal `while True:` retry loop instead of composing `RetryPolicy.run()`
+#: A literal `while True:` retry loop instead of composing core's `KnotRetryPolicy.run()`
 #: (PIR-856 retrofitted the four `pirn_agents`-owned instances that existed
 #: before this ticket; this is what remains).
-HAND_ROLLED_WHILE_TRUE_RETRY = frozenset(
-    {
-        "specializations/conversation/conversation_memory_pruner.py::ConversationMemoryPruner",
-    }
-)
+#: PIR-872: the last member, `ConversationMemoryPruner`, was never a retry — its
+#: `while True` was a pruning loop, now written with its real condition.
+HAND_ROLLED_WHILE_TRUE_RETRY: frozenset[str] = frozenset()
 
 
 class TestNoNewEngineBypass(unittest.TestCase):

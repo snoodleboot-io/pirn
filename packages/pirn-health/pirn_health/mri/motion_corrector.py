@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MotionCorrector`` — rigid-body motion correction on an MRI volume.
 
 Uses dipy ``motion_correction`` for volume-to-volume realignment without antspyx.
@@ -24,18 +26,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    import nibabel as nib
-    from dipy.align.imaffine import AffineRegistration, MutualInformationMetric
-    from dipy.align.transforms import RigidTransform3D
-
-    _HAS_DIPY: bool = True
-except ImportError:
-    nib = None  # type: ignore[assignment]
-    AffineRegistration = None  # type: ignore[assignment]
-    MutualInformationMetric = None  # type: ignore[assignment]
-    RigidTransform3D = None  # type: ignore[assignment]
-    _HAS_DIPY = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class MotionCorrector(Knot):
@@ -85,39 +76,30 @@ class MotionCorrector(Knot):
 
     @staticmethod
     def _correct_motion(nifti_path: str, output_nifti_path: str) -> None:
-        if (
-            not _HAS_DIPY
-            or nib is None
-            or MutualInformationMetric is None
-            or AffineRegistration is None
-            or RigidTransform3D is None
-        ):
-            raise ImportError(
-                "nibabel and dipy are required for MotionCorrector — install with: pip install 'pirn[mri]'"
-            )
-        assert MutualInformationMetric is not None
-        assert AffineRegistration is not None
-        assert RigidTransform3D is not None
+        nib = HealthOptionalDependency.require("nibabel", extra="mri")
+        imaffine = HealthOptionalDependency.require("dipy.align.imaffine", extra="mri")
+        transforms = HealthOptionalDependency.require("dipy.align.transforms", extra="mri")
         img = nib.load(nifti_path)
-        data = np.asarray(img.dataobj)
+        data: np.ndarray = np.asarray(img.dataobj)
 
         if data.ndim == 3:
             nib.save(img, output_nifti_path)
             return
 
-        affine = img.affine
-        reference = data[..., 0]
-        corrected = np.empty_like(data)
+        affine: np.ndarray = np.asarray(img.affine)
+        reference: np.ndarray = data[..., 0]
+        corrected: np.ndarray = np.empty_like(data)
         corrected[..., 0] = reference
 
-        metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
-        affreg = AffineRegistration(
+        metric = imaffine.MutualInformationMetric(nbins=32, sampling_proportion=None)
+        affreg = imaffine.AffineRegistration(
             metric=metric, level_iters=[10000, 1000, 100], sigmas=[3.0, 1.0, 0.0], factors=[4, 2, 1]
         )
-        transform = RigidTransform3D()
+        transform = transforms.RigidTransform3D()
 
-        for vol in range(1, data.shape[-1]):
-            moving = data[..., vol]
+        volume_count: int = data.shape[-1]
+        for vol in range(1, volume_count):
+            moving: np.ndarray = data[..., vol]
             mapping = affreg.optimize(
                 reference,
                 moving,

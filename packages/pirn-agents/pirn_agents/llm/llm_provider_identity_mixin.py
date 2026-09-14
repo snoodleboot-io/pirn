@@ -20,11 +20,12 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.knot_retry_policy import KnotRetryPolicy
+
 from pirn_agents.llm.endpoint_identity import EndpointIdentity
 from pirn_agents.llm.http_transport import HttpTransport
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.response_mapper import ResponseMapper
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.tools.definition_reference import DefinitionReference
 
 
@@ -40,7 +41,7 @@ class LLMProviderIdentityMixin:
     _timeout: float
     _model: str
     _enable_prompt_cache: bool
-    _retry_policy: RetryPolicy
+    _retry_policy: KnotRetryPolicy
 
     def content_identity(self) -> Mapping[str, Any] | None:
         """Return the secret-free config that determines this provider's responses, or ``None``.
@@ -168,16 +169,19 @@ class LLMProviderIdentityMixin:
         return fields
 
     @staticmethod
-    def _retry_policy_identity(policy: RetryPolicy) -> dict[str, float | int | bool] | None:
+    def _retry_policy_identity(policy: KnotRetryPolicy) -> dict[str, float | int | bool] | None:
         """Return the retry policy's fields, or ``None`` if it cannot be named.
 
-        Only an exact :class:`RetryPolicy` with plain values is named; a subclass may
+        Only an exact :class:`KnotRetryPolicy` with plain values and no predicate
+        is named; a subclass, or an ``is_retryable``/``retry_after`` callable, may
         back off or give up differently from what its fields say.
         """
-        if type(policy) is not RetryPolicy:
+        if type(policy) is not KnotRetryPolicy:
+            return None
+        if policy.is_retryable is not None or policy.retry_after is not None:
             return None
         numbers = {
-            "max_retries": policy.max_retries,
+            "max_attempts": policy.max_attempts,
             "base_delay": policy.base_delay,
             "max_delay": policy.max_delay,
             "multiplier": policy.multiplier,

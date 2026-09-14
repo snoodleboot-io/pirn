@@ -29,8 +29,6 @@ def _sample_dataset() -> pydicom.Dataset:
     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
     ds = FileDataset("in-memory.dcm", {}, file_meta=file_meta, preamble=b"\x00" * 128)
     ds.PatientID = "P123"
-    ds.is_little_endian = True
-    ds.is_implicit_VR = False
     return ds
 
 

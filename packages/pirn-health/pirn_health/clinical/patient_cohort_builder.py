@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PatientCohortBuilder`` — compose multiple eligibility filters.
 
 Pipeline: feed an initial record set through several
@@ -27,7 +29,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_health.clinical._pass_through import _PassThrough
+from pirn_health.clinical.clinical_record_pass_through import ClinicalRecordPassThrough
 from pirn_health.clinical.clinical_trial_eligibility_filter import (
     ClinicalTrialEligibilityFilter,
 )
@@ -82,7 +84,7 @@ class PatientCohortBuilder(SubTapestry):
                 raise TypeError(
                     f"PatientCohortBuilder: stage {stage_name!r} criteria must be a Mapping"
                 )
-        seed = _PassThrough(
+        seed = ClinicalRecordPassThrough(
             records=tuple(records),
             _config=KnotConfig(id="cohort-seed"),
         )

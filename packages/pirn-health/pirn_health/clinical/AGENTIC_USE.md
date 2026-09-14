@@ -16,7 +16,7 @@ pirn_health/clinical/
 ├── clinical_data_quality_check.py       ClinicalDataQualityCheck         — quality check; raises ClinicalDataQualityError on failure
 ├── clinical_nlp_extractor.py            ClinicalNLPExtractor             — NLP extraction of clinical entities from free text
 ├── clinical_trial_eligibility_filter.py ClinicalTrialEligibilityFilter   — filters patients against trial inclusion/exclusion criteria
-├── _dedup_rx_cuis.py                    (internal)                        — RxNorm CUI deduplication helper; not a public knot
+├── clinical_record_pass_through.py      ClinicalRecordPassThrough        — identity knot seeding PatientCohortBuilder's filter chain
 ├── diagnosis_code_rollup.py             DiagnosisCodeRollup              — rolls ICD-10 leaf codes up to ancestor categories
 ├── encounter_timeline_assembler.py      EncounterTimelineAssembler       — builds chronological encounter timelines per patient
 ├── hl7v2_message_parser.py              HL7v2MessageParser               — parses decoded HL7v2 records into domain events
@@ -27,7 +27,9 @@ pirn_health/clinical/
 ├── note_section_splitter.py             NoteSectionSplitter              — splits clinical note text into labelled sections
 ├── patient_cohort_builder.py            PatientCohortBuilder             — assembles cohorts from filtered encounter records
 ├── problem_list_extractor.py            ProblemListExtractor             — extracts active problem list from encounter records
+├── phi_hasher.py                        PhiHasher                        — salted SHA-256 identifier hashing shared by PHIRedactor and FhirPatientAssembler
 ├── readmission_risk_scorer.py           ReadmissionRiskScorer            — scores 30-day readmission risk (LACE+ model)
+├── rx_cui_deduplicator.py               RxCuiDeduplicator                — order-preserving RxCUI dedup stage of MedicationReconciliationPipeline
 ├── rx_norm_mapper.py                    RxNormMapper                     — maps drug identifiers to RxNorm CUIs
 ├── snomed_hierarchy_expander.py         SnomedHierarchyExpander          — expands SNOMED CT concepts to descendant codes
 ├── social_determinants_extractor.py     SocialDeterminantsExtractor      — extracts SDOH factors from clinical notes
@@ -90,7 +92,7 @@ cohort = result.outputs["cohort"]
 
 - `ClinicalNLPExtractor` and `SocialDeterminantsExtractor` load a spaCy model on first call; ensure `en_core_sci_lg` (or configured equivalent) is installed and accessible on the worker.
 - `ICD10CodeValidator` ships a bundled ICD-10-CM code set. The bundled release year is fixed at package build time; update `pirn[clinical]` to get a newer release.
-- `_dedup_rx_cuis.py` is an internal helper module, not a public knot. Do not import or wire it directly.
+- `RxCuiDeduplicator` (`rx_cui_deduplicator.py`) is the dedup stage `MedicationReconciliationPipeline` wires internally; wire the pipeline rather than the stage unless you already hold normalised RxCUIs.
 - `ClinicalDataQualityCheck` raises `ClinicalDataQualityError` — catch it at the tapestry call site if partial cohort results are acceptable.
 - `EncounterTimelineAssembler` sorts by encounter date; records missing a date field are placed at the end of the timeline with a warning emitted to the knot logger, not a raised exception.
 - Install: `pip install pirn[clinical]`
