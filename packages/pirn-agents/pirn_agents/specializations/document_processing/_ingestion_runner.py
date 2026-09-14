@@ -49,6 +49,10 @@ class _IngestionRunner(AgentPipeline):
     """Fetch every source document and wire one ingest knot per document."""
 
     _concurrency_group: ClassVar[str] = "ingest_docs"
+    # Recomputed by `process()` on every run; the class-level values only
+    # make the attributes readable before the first `process()` call.
+    _mutable_live_documents: int = 0
+    _mutable_max_concurrency: int = 1
 
     def __init__(
         self,
@@ -61,11 +65,6 @@ class _IngestionRunner(AgentPipeline):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        # Read by `_inner_concurrency` after `process()` recomputes them for
-        # this run; initialised here only so the attributes exist before the
-        # first `process()` call (mirrors `MapAgent.__init__`).
-        self._mutable_live_documents = 0
-        self._mutable_max_concurrency = 1
         super().__init__(
             source_connector=source_connector,
             loader=loader,

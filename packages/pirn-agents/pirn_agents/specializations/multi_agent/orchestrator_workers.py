@@ -77,6 +77,10 @@ class OrchestratorWorkers(AgentPipeline):
     """Dynamically spawn one bounded worker per task, via F7 agents-as-tools."""
 
     _concurrency_group: ClassVar[str] = "orchestrator_workers"
+    # Recomputed by `process()` on every run; the class-level values only
+    # make the attributes readable before the first `process()` call.
+    _mutable_live_workers: int = 0
+    _mutable_max_concurrency: int = 1
 
     def __init__(
         self,
@@ -87,11 +91,6 @@ class OrchestratorWorkers(AgentPipeline):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        # Read by `_inner_concurrency` after `process()` recomputes them for
-        # this run; initialised here only so the attributes exist before the
-        # first `process()` call (mirrors `MapAgent.__init__`).
-        self._mutable_live_workers = 0
-        self._mutable_max_concurrency = 1
         super().__init__(
             tasks=tasks,
             worker=worker,
