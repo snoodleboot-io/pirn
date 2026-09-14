@@ -256,6 +256,10 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 - `ToolResult.from_result(gated=)` — the approval skip reason arrives on the `Skipped` itself.
 - `_RaptorAssembler._summarize` — `_RaptorSummary._summarize`.
 
+#### Agents specializations: pass-through knot (PIR-872)
+
+- `pirn_agents.specializations.multi_agent._response_echo._ResponseEcho` — a knot that returned its input unchanged and had no caller left; `RoundRobinReview`'s final response is its real sink, `_RoundRobinResponseExtractor`.
+
 #### `pirn-agents` shadows of the core retry, timeout, nesting and check seams (PIR-872)
 
 Deleted outright (no shims); every caller, test and doc moved in the same change.
