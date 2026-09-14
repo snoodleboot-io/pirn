@@ -1,11 +1,13 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HybridRetriever`` — concurrent dense + lexical retrieval fused with RRF.
 
 A :class:`~pirn.nodes.sub_tapestry.SubTapestry` that retrieves from a dense
 :class:`~pirn_agents.retrieval.vector_stores.vector_memory_store.VectorMemoryStore` and a
 lexical :class:`~pirn_agents.retrieval.bm25_index.Bm25Index` **concurrently**,
 then fuses the two rankings with Reciprocal Rank Fusion. Each arm is its own
-knot (:class:`~pirn_agents.retrieval._dense_ids._DenseIds`,
-:class:`~pirn_agents.retrieval._lexical_ids._LexicalIds`) wired into an
+knot (:class:`~pirn_agents.retrieval.dense_ids.DenseIds`,
+:class:`~pirn_agents.retrieval.lexical_ids.LexicalIds`) wired into an
 :class:`~pirn.nodes.aggregator.Aggregator`, so the engine schedules both arms
 concurrently instead of a hand-rolled ``asyncio.gather`` (PIR-867) — dense
 retrieval is async I/O and BM25 scoring is CPU-bound, so the lexical arm still
@@ -13,8 +15,8 @@ offloads to a worker thread internally, exactly as before.
 
 Algorithm:
     1. Validate ``lexical``, ``top_k``, and ``candidate_multiplier``.
-    2. Wire a ``_DenseIds`` knot (embeds ``query`` and queries the dense
-       store) and a ``_LexicalIds`` knot (BM25 search on a worker thread) as
+    2. Wire a ``DenseIds`` knot (embeds ``query`` and queries the dense
+       store) and a ``LexicalIds`` knot (BM25 search on a worker thread) as
        the parents of an ``Aggregator``.
     3. The combine fuses the two ranked id lists with
        :meth:`~pirn_agents.retrieval.reciprocal_rank_fusion.ReciprocalRankFusion.fuse`.
@@ -46,16 +48,16 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.retrieval._dense_ids import _DenseIds
-from pirn_agents.retrieval._lexical_ids import _LexicalIds
 from pirn_agents.retrieval.bm25_index import Bm25Index
+from pirn_agents.retrieval.dense_ids import DenseIds
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
+from pirn_agents.retrieval.lexical_ids import LexicalIds
 from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 
 
-class HybridRetriever(SubTapestry, HybridRetrieverBase):
+class HybridRetriever(SubTapestry, HybridRetrieverBase[Knot]):
     """Fuse dense and lexical retrieval concurrently via Reciprocal Rank Fusion."""
 
     def __init__(
@@ -83,12 +85,7 @@ class HybridRetriever(SubTapestry, HybridRetrieverBase):
             **kwargs,
         )
 
-    # HybridRetrieverBase.process() is annotated -> list[Mapping[str, Any]] (the
-    # retriever family's umbrella contract); SubTapestry.process() is -> Knot.
-    # This concrete is a SubTapestry now, so its true contract is -> Knot, same
-    # shape mismatch Gate.process() carries against Knot.process() and silences
-    # the same way.
-    async def process(  # type: ignore[override]
+    async def process(
         self,
         query: str,
         store: VectorMemoryStore,
@@ -133,10 +130,10 @@ class HybridRetriever(SubTapestry, HybridRetrieverBase):
                 f"got {candidate_multiplier!r}"
             )
         fetch = top_k * candidate_multiplier
-        dense = _DenseIds(
+        dense = DenseIds(
             store=store, embedder=embedder, query=query, fetch=fetch, _config=KnotConfig(id="dense")
         )
-        lexical_ids = _LexicalIds(
+        lexical_ids = LexicalIds(
             lexical=lexical, query=query, fetch=fetch, _config=KnotConfig(id="lexical")
         )
         return Aggregator(

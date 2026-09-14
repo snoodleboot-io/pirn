@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ProfileKey`` — the provider-neutral session-key abstraction for profiles.
 
 A profile is durable state keyed to a *subject* (a user or an entity), not to any

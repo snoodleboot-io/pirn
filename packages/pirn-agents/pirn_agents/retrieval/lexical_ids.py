@@ -1,4 +1,4 @@
-"""``_LexicalIds`` — rank the BM25 lexical arm's candidate ids on a worker thread.
+"""``LexicalIds`` — rank the BM25 lexical arm's candidate ids on a worker thread.
 
 Internal per-arm knot for
 :class:`~pirn_agents.retrieval.hybrid_retriever.HybridRetriever`'s fan-out
@@ -26,7 +26,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.bm25_index import Bm25Index
 
 
-class _LexicalIds(Knot):
+class LexicalIds(Knot):
     """Search the BM25 index on a worker thread and return the top ``fetch`` ids."""
 
     def __init__(
@@ -48,9 +48,9 @@ class _LexicalIds(Knot):
         """
         if not isinstance(lexical, Bm25Index):
             raise TypeError(
-                f"_LexicalIds: lexical must be a Bm25Index, got {type(lexical).__name__}"
+                f"LexicalIds: lexical must be a Bm25Index, got {type(lexical).__name__}"
             )
-        return await asyncio.to_thread(_LexicalIds._search, lexical, query, fetch)
+        return await asyncio.to_thread(LexicalIds._search, lexical, query, fetch)
 
     @staticmethod
     def _search(lexical: Bm25Index, query: str, fetch: int) -> list[str]:

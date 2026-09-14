@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GraphNeighbor`` — one (edge, node) pair returned by a neighborhood step.
 
 The neutral read unit every

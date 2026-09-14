@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryContent`` — the domain-data half of a memory ``Payload``.
 
 ADR "agents speaks core" WS3 makes
@@ -8,8 +10,8 @@ class is the ``D`` — the stable id, kind, text content, and free-form tags a
 writer knot actually produced. Splitting the two lets generic code program
 against ``.metadata`` / ``.data`` (the ``Payload`` contract every domain
 follows — see ``pirn_signal.types.signal_payload.SignalPayload``) while
-``MemoryRecord`` keeps its existing domain-readable aliases (``.id``,
-``.kind``, ``.content``, ...) for every current caller.
+``MemoryRecord`` also exposes the domain-readable properties (``.id``,
+``.kind``, ``.content``, ...) its constructor takes.
 """
 
 from __future__ import annotations
@@ -47,7 +49,7 @@ class MemoryContent(PirnOpaqueValue):
     id: str
     kind: MemoryKind
     content: str
-    tags: Mapping[str, Any] = field(default_factory=dict)
+    tags: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id:

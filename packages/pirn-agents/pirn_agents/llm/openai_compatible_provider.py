@@ -18,6 +18,7 @@ import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.http_structured_output_provider import HttpStructuredOutputProvider
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.llm.openai_compatible_multimodal_adapter import (
@@ -85,7 +86,7 @@ class OpenAICompatibleProvider(HttpStructuredOutputProvider):
         """Shape guided-decoding fields under ``extra_body`` from a constraint."""
         extra_body: dict[str, Any] = {}
         json_schema = constraint.get("json_schema")
-        if isinstance(json_schema, Mapping):
+        if JsonShape.is_mapping(json_schema):
             extra_body["guided_json"] = dict(json_schema)
         regex = constraint.get("regex")
         if isinstance(regex, str):
@@ -138,7 +139,7 @@ class OpenAICompatibleProvider(HttpStructuredOutputProvider):
         return self._first_message(data)
 
     def _finish_reason(self, data: Mapping[str, Any]) -> str:
-        choices = data.get("choices") or []
+        choices: list[Any] = data.get("choices") or []
         if not choices:
             return FinishReason.STOP.value
         return self._map_finish_reason(choices[0].get("finish_reason"))
@@ -154,16 +155,17 @@ class OpenAICompatibleProvider(HttpStructuredOutputProvider):
             if body == "[DONE]":
                 break
             chunk = json.loads(body)
-            choices = chunk.get("choices") or []
-            delta_obj = choices[0].get("delta") or {} if choices else {}
+            choices: list[Any] = chunk.get("choices") or []
+            delta_obj: Mapping[str, Any] = choices[0].get("delta") or {} if choices else {}
             finish_raw = choices[0].get("finish_reason") if choices else None
             # Normalise identically to the buffered path — a streamed run must
             # not surface a different finish reason than a non-streamed one.
             finish = None if finish_raw is None else self._map_finish_reason(finish_raw)
             usage_raw = chunk.get("usage")
             usage = self._normalise_usage(usage_raw) if usage_raw else None
-            for tool_delta in delta_obj.get("tool_calls") or []:
-                function = tool_delta.get("function") or {}
+            tool_deltas: list[Any] = delta_obj.get("tool_calls") or []
+            for tool_delta in tool_deltas:
+                function: Mapping[str, Any] = tool_delta.get("function") or {}
                 yield StreamDelta(
                     tool_call={
                         "index": tool_delta.get("index", 0),
@@ -208,20 +210,20 @@ class OpenAICompatibleProvider(HttpStructuredOutputProvider):
 
     @staticmethod
     def _first_message(data: Mapping[str, Any]) -> Mapping[str, Any]:
-        choices = data.get("choices") or []
+        choices: list[Any] = data.get("choices") or []
         if not choices:
             return {}
         message = choices[0].get("message")
-        return message if isinstance(message, Mapping) else {}
+        return message if JsonShape.is_mapping(message) else {}
 
     @staticmethod
     def _normalise_usage(usage_raw: Any) -> dict[str, int]:
-        usage: Mapping[str, Any] = usage_raw if isinstance(usage_raw, Mapping) else {}
+        usage: Mapping[str, Any] = usage_raw if JsonShape.is_mapping(usage_raw) else {}
         normalised: dict[str, int] = {
             "input_tokens": int(usage.get("prompt_tokens", 0)),
             "output_tokens": int(usage.get("completion_tokens", 0)),
         }
         details = usage.get("prompt_tokens_details")
-        if isinstance(details, Mapping) and "cached_tokens" in details:
+        if JsonShape.is_mapping(details) and "cached_tokens" in details:
             normalised["cached_input_tokens"] = int(details.get("cached_tokens", 0))
         return normalised

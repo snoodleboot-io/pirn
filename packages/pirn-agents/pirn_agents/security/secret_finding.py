@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SecretFinding`` — a single detected secret, without the secret itself.
 
 A frozen record naming *what kind* of secret was found (``"dsn"``, ``"aws_key"``,

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LowValueEvictionPolicy`` — keep the top-``capacity`` most valuable memories.
 
 When the store exceeds a capacity budget this policy evicts the lowest-value

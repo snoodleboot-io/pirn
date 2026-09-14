@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Bm25Index`` — a pure-Python Okapi BM25 lexical index (OD-2).
 
 A dependency-free lexical retriever: documents are tokenised, term/document

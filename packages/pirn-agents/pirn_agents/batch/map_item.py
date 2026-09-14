@@ -1,4 +1,4 @@
-"""``_MapItem`` — one batch item as a real, engine-scheduled knot.
+"""``MapItem`` — one batch item as a real, engine-scheduled knot.
 
 ADR agents-speaks-core, WS4b: the unit ``MapAgent`` used to dispatch itself
 (a bare coroutine inside ``asyncio.wait``) becomes one knot per item, so
@@ -26,7 +26,7 @@ from pirn.core.knot import Knot
 from pirn_agents.batch.rate_limit_signal import RateLimitSignal
 
 
-class _MapItem(Knot):
+class MapItem(Knot):
     """Runs one batch item through the injected per-item callable.
 
     Inputs (all config values — this knot has no ``Knot`` parents):

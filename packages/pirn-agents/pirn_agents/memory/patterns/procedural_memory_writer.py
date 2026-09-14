@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ProceduralMemoryWriter`` — persist a (task, response) recipe.
 
 Inner stage knot used by :class:`ProceduralMemoryPipeline`. The

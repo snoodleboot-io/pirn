@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``UntrustedContent`` — a delimited, provenance-tagged untrusted payload.
 
 An :class:`UntrustedContent` is the frozen result of wrapping a raw tool / RAG /

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SessionIdentity`` — the stable identity + lifecycle stamp of a session.
 
 This is the durable-session identity F14 owns and the plug point the F27 memory
@@ -10,12 +12,13 @@ session machinery.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+from pirn_agents._internal.json_shape import JsonShape
 
 
 @dataclass(frozen=True)
@@ -51,7 +54,7 @@ class SessionIdentity(PirnOpaqueValue):
         Raises:
             TypeError: If ``payload`` is not a Mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"SessionIdentity.from_payload: payload must be a Mapping, "
                 f"got {type(payload).__name__}"

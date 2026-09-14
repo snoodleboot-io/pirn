@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Reciprocal Rank Fusion of several ranked id lists.
 
 RRF merges rankings from heterogeneous retrievers (e.g. dense vs. lexical)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``KeyedLineageStore`` — a caller-chosen key is a knot id, not a KV slot.
 
 ADR "agents speaks core" WS3 part 4. Retires the reason
@@ -9,7 +11,9 @@ table when the engine already gives every knot a stable, queryable identity.
 The mapping:
 
 * **write** — a caller-chosen ``f"{namespace}:{key}"`` becomes a
-  ``KnotConfig.id``; :meth:`put` runs it as a single-knot ``Tapestry``. The engine content-addresses the value into
+  ``KnotConfig.id``; :meth:`put` runs a single core ``Parameter`` knot under
+  that id, defaulted to the value, as a one-knot ``Tapestry``. The engine
+  content-addresses the value into
   ``DataStore`` and records one ``KnotLineage`` row — no separate keyed write.
 * **read** — "the current value under this key" is
   ``RunHistory.query_latest_lineage_by_knot_id(f"{namespace}:{key}")`` (core's
@@ -28,24 +32,21 @@ What this does **not** give you, and why:
   ``RunHistory`` query either — lineage is looked up by an exact knot id, not
   listed by prefix. A caller that needs to enumerate keys still needs an
   explicit index (this was the gap ``MemoryStoreKeyIndex`` filled for its one
-  consumer, ``PersistedSessionStore``, itself a deprecated shim deleted with
-  it in PIR-864).
+  consumer, ``PersistedSessionStore``; both are deleted, PIR-864).
 """
 
 from __future__ import annotations
 
-import functools
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-
-from pirn_agents.determinism._thunk_source import _ThunkSource
 
 
 class KeyedLineageStore(PirnOpaqueValue):
@@ -159,9 +160,7 @@ class KeyedLineageStore(PirnOpaqueValue):
         identity = self.identity(namespace, key)
 
         with Tapestry(history=self._history, data_store=self._data_store) as tapestry:
-            _ThunkSource(_config=KnotConfig(id=identity)).bind(
-                functools.partial(KeyedLineageStore._resolved, value)
-            )
+            Parameter(identity, Any, default=value, _config=KnotConfig(id=identity))
             await tapestry.run(RunRequest())
         return identity
 
@@ -214,8 +213,3 @@ class KeyedLineageStore(PirnOpaqueValue):
         same.
         """
         await self.put(namespace=namespace, key=key, value=type(self)._tombstone)
-
-    @staticmethod
-    async def _resolved(value: Any) -> Any:
-        """Return ``value`` — bound with ``functools.partial`` as the write's zero-arg thunk."""
-        return value

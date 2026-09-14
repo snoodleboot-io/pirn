@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpToolset`` — discover an MCP server's tools and build a ``Toolset``.
 
 Discovery calls ``tools/list`` through the client, wraps each descriptor in an

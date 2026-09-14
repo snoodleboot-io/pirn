@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryLineageRecall`` — recall memory records straight from core's lineage.
 
 ADR "agents speaks core" WS3's forward recall path. A writer knot (see
@@ -14,7 +16,7 @@ records those invocations produced.
 
 This does not replace :class:`~pirn_agents.memory.memory_retriever.MemoryRetriever`
 or ``EpisodicMemoryRetriever`` — those still serve the ``MemoryStore``-backed
-path (a vector/graph index, or the deprecated key-value facade), which is the
+path (a vector/graph index, or the ``DataStoreMemoryStore`` key-value adapter), which is the
 only place *similarity* search lives. This knot answers a different question:
 "every record this writer node has ever produced", independent of any keyed
 store at all.

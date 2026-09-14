@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FailoverChain`` — try ordered candidates until one succeeds.
 
 Walks an ordered list of :class:`FailoverCandidate` values, returning the first
@@ -17,11 +19,11 @@ The chain is expressed as a graph rather than a hand-rolled
 ``for candidate in candidates`` loop: ``candidates`` is a resolved value known
 in full by the time ``process()`` runs, so its length is not data-dependent —
 unlike an agentic loop — but the chain is still driven by a
-:class:`~pirn_agents.resilience._failover_loop._FailoverLoop`
+:class:`~pirn_agents.resilience.failover_loop.FailoverLoop`
 (``LoopSubTapestry``, ADR agents-speaks-core WS5b) rather than a static
 unroll: once a candidate succeeds, the loop stops, so a candidate past that
 point is never even scheduled. Each attempted
-:class:`~pirn_agents.resilience._attempt_candidate._AttemptCandidate` still
+:class:`~pirn_agents.resilience.attempt_candidate.AttemptCandidate` still
 gets its own engine ``Result``, history record, and lineage (where the
 original hid all of them behind one knot's hand-rolled loop).
 
@@ -29,7 +31,7 @@ Algorithm:
     1. Validate ``candidates`` (non-empty, all :class:`FailoverCandidate`) and
        ``breakers`` (a :class:`CircuitBreakerRegistry` or ``None``).
     2. Build the initial (unattempted, unsucceeded) :class:`FailoverResult`.
-    3. Drive one ``_AttemptCandidate`` per attempted candidate: each checks
+    3. Drive one ``AttemptCandidate`` per attempted candidate: each checks
        whether the accumulated result already succeeded (stops the loop),
        else consults the candidate's circuit breaker (skip on open), runs the
        operation under its optional timeout, records the outcome into the
@@ -51,9 +53,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.resilience._failover_loop import _FailoverLoop
 from pirn_agents.resilience.circuit_breaker_registry import CircuitBreakerRegistry
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
+from pirn_agents.resilience.failover_loop import FailoverLoop
 from pirn_agents.resilience.failover_result import FailoverResult
 
 
@@ -128,7 +130,7 @@ class FailoverChain(SubTapestry):
             FailoverResult,
             default=FailoverResult(succeeded=False, chosen=None, value=None, attempts=()),
         )
-        return _FailoverLoop(
+        return FailoverLoop(
             candidates=ordered,
             breakers=breakers,
             state=initial,

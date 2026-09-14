@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SemanticMemoryPipeline`` — extract facts via LLM and persist them.
 
 A :class:`SubTapestry` that composes:

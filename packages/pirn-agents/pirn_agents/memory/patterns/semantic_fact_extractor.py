@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SemanticFactExtractor`` — extract discrete factual claims via an LLM.
 
 Inner stage knot used by :class:`SemanticMemoryPipeline`. Renders the
@@ -31,6 +33,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
@@ -108,13 +111,13 @@ class SemanticFactExtractor(Knot):
     def _extract_text(raw: Any) -> str:
         if isinstance(raw, str):
             return raw
-        if isinstance(raw, dict):
+        if JsonShape.is_dict(raw):
             content = raw.get("content")
             if isinstance(content, str):
                 return content
-            if isinstance(content, list) and content:
+            if JsonShape.is_list(content) and content:
                 first = content[0]
-                if isinstance(first, dict):
+                if JsonShape.is_dict(first):
                     text = first.get("text")
                     if isinstance(text, str):
                         return text
