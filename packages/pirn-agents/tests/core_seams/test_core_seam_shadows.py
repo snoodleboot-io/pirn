@@ -34,7 +34,6 @@ from tests.core_seams.core_seam_shadow_inventory import CoreSeamShadowInventory
 RETRY_TIMEOUT = frozenset(
     {
         "exceptions/tool_timeout_error.py::ToolTimeoutError",
-        "llm/retry_policy.py::RetryPolicy",
     }
 )
 
@@ -84,14 +83,13 @@ class TestCoreSeamShadowsAreFrozen(unittest.TestCase):
         }
 
     def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
-        total = sum(len(labels) for labels in self.found.values())
-        # PIR-866 removed 2 admission_feedback shadows (BackpressureSemaphore,
-        # Bulkhead -> AdmissionGate subclasses; 18 -> 16). PIR-864 then deleted
-        # AgentInvoker (nesting), all of input_schema, and all of
-        # admission_feedback outright: 16 -> 7 (retry_timeout=2, nesting=3,
-        # check_role=1, async_loop_step=1).
-        assert total >= 7, self.found
+        """A guard that finds nothing passes for the wrong reason.
+
+        Every seam inventory is empty now (PIR-872 migrated the last shadows),
+        so the walk proves it ran by the classes it inspected, not by what it
+        found; ``TestDetectorIsDiscriminating`` proves the detector still fires.
+        """
+        assert len(CoreSeamShadowInventory.top_level_classes()) >= 500
 
     def test_retry_and_timeout_shadows_are_frozen(self) -> None:
         self._assert_frozen("retry_timeout", RETRY_TIMEOUT)

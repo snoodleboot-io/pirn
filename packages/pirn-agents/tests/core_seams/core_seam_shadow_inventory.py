@@ -103,20 +103,27 @@ class CoreSeamShadowInventory:
                 return False
         return True
 
-    @classmethod
-    def discover(cls) -> dict[str, frozenset[str]]:
-        """Return ``{seam: {"relative/path.py::ClassName", ...}}`` over ``pirn_agents``."""
+    @staticmethod
+    def top_level_classes() -> dict[str, ast.ClassDef]:
+        """Return every top-level class in ``pirn_agents`` as ``{"path.py::Name": node}``."""
         root = Path(pirn_agents.__path__[0])
-        found: dict[str, set[str]] = {seam: set() for seam in cls.SEAMS}
+        classes: dict[str, ast.ClassDef] = {}
         for path in sorted(root.rglob("*.py")):
             if any(part in {"tests", "__pycache__"} for part in path.parts):
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             relative = path.relative_to(root).as_posix()
             for node in tree.body:
-                if not isinstance(node, ast.ClassDef):
-                    continue
-                for seam in cls.SEAMS:
-                    if cls.is_shadow(node, seam):
-                        found[seam].add(f"{relative}::{node.name}")
+                if isinstance(node, ast.ClassDef):
+                    classes[f"{relative}::{node.name}"] = node
+        return classes
+
+    @classmethod
+    def discover(cls) -> dict[str, frozenset[str]]:
+        """Return ``{seam: {"relative/path.py::ClassName", ...}}`` over ``pirn_agents``."""
+        found: dict[str, set[str]] = {seam: set() for seam in cls.SEAMS}
+        for label, node in cls.top_level_classes().items():
+            for seam in cls.SEAMS:
+                if cls.is_shadow(node, seam):
+                    found[seam].add(label)
         return {seam: frozenset(labels) for seam, labels in found.items()}

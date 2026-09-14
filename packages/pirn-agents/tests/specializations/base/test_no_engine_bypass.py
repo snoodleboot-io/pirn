@@ -8,7 +8,7 @@ type signature and delivers none of it. The same failure mode has narrower
 cousins on any `Knot`: awaiting a tool's `invoke()` or an LLM's `chat()`
 directly, fanning calls out with `asyncio.gather` instead of the engine's own
 concurrent scheduling, or retrying with a hand-rolled `while True` instead of
-`RetryPolicy.run()` — each one produces a value with no lineage row, no
+core's `KnotConfig(retry=)` / `KnotRetryPolicy.run()` — each one produces a value with no lineage row, no
 `Ok|Err|Skipped`, and nothing the engine can schedule, cache, or replay.
 
 The two shapes are indistinguishable by inspection, which is the actual problem:
@@ -132,7 +132,7 @@ USES_ASYNCIO_GATHER: frozenset[str] = frozenset()
 #: instance regresses loudly.
 LOOP_AWAITS_LLM_OR_TOOL_CALL: frozenset[str] = frozenset()
 
-#: A literal `while True:` retry loop instead of composing `RetryPolicy.run()`
+#: A literal `while True:` retry loop instead of composing core's `KnotRetryPolicy.run()`
 #: (PIR-856 retrofitted the four `pirn_agents`-owned instances that existed
 #: before this ticket; this is what remains).
 HAND_ROLLED_WHILE_TRUE_RETRY = frozenset(

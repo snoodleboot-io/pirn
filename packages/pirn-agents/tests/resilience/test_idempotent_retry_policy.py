@@ -9,8 +9,8 @@ to the backend, and the retry budget is honoured.
 from __future__ import annotations
 
 import pytest
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.resilience.idempotency_key_assigner import IdempotencyKeyAssigner
 from pirn_agents.resilience.idempotent_retry_policy import IdempotentRetryPolicy
 from pirn_agents.resilience.retry_safety_classifier import RetrySafetyClassifier
@@ -24,9 +24,9 @@ class _RecordingSleep:
         self.calls.append(seconds)
 
 
-def _policy(*, sleep: _RecordingSleep, max_retries: int = 2) -> IdempotentRetryPolicy:
+def _policy(*, sleep: _RecordingSleep, max_attempts: int = 3) -> IdempotentRetryPolicy:
     return IdempotentRetryPolicy(
-        backoff=RetryPolicy(max_retries=max_retries, base_delay=0.1, jitter=False),
+        backoff=KnotRetryPolicy(max_attempts=max_attempts, base_delay=0.1, jitter=False),
         sleep=sleep,
     )
 
@@ -37,7 +37,7 @@ class TestConstruction:
             IdempotentRetryPolicy(classifier=object())  # type: ignore[arg-type]
 
     def test_rejects_bad_backoff(self) -> None:
-        with pytest.raises(TypeError, match="RetryPolicy"):
+        with pytest.raises(TypeError, match="KnotRetryPolicy"):
             IdempotentRetryPolicy(backoff=object())  # type: ignore[arg-type]
 
 
@@ -100,7 +100,7 @@ class TestBudget:
             raise TimeoutError("always down")
 
         with pytest.raises(TimeoutError):
-            await _policy(sleep=sleep, max_retries=2).run(
+            await _policy(sleep=sleep, max_attempts=3).run(
                 operation="charge", arguments={}, call=call
             )
         assert attempts["n"] == 3  # initial + 2 retries
@@ -111,7 +111,7 @@ class TestBudget:
         policy = IdempotentRetryPolicy(
             classifier=RetrySafetyClassifier(safe_exceptions=(KeyError,)),
             assigner=IdempotencyKeyAssigner(namespace="run"),
-            backoff=RetryPolicy(max_retries=1, base_delay=0.05, jitter=False),
+            backoff=KnotRetryPolicy(max_attempts=2, base_delay=0.05, jitter=False),
             sleep=sleep,
         )
         seen: list[str] = []

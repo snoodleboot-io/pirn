@@ -16,8 +16,9 @@ import asyncio
 from collections.abc import Callable, Sequence
 from typing import Any
 
+from pirn.core.knot_retry_policy import KnotRetryPolicy
+
 from pirn_agents._internal._require import _require
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.retrieval.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
@@ -29,7 +30,7 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         *,
         model_name: str,
         batch_size: int = 32,
-        retry_policy: RetryPolicy | None = None,
+        retry_policy: KnotRetryPolicy | None = None,
         model_factory: Callable[[], Any] | None = None,
     ) -> None:
         """Initialise the local embedding adapter.
@@ -38,7 +39,7 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
             model_name: Name/path of the sentence-transformer model to load.
             batch_size: Texts per ``encode`` call (see the base provider).
             retry_policy: Per-batch retry/backoff schedule (see the base
-                provider); defaults to ``RetryPolicy(max_retries=0)`` since
+                provider); defaults to ``KnotRetryPolicy()`` (a single attempt) since
                 local inference is deterministic and non-transient.
             model_factory: Optional zero-arg factory returning a pre-built model
                 object exposing ``encode``. When supplied it replaces the lazy
@@ -47,7 +48,7 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         """
         super().__init__(
             batch_size=batch_size,
-            retry_policy=retry_policy if retry_policy is not None else RetryPolicy(max_retries=0),
+            retry_policy=retry_policy if retry_policy is not None else KnotRetryPolicy(),
             model=model_name,
         )
         self._model_name: str = model_name

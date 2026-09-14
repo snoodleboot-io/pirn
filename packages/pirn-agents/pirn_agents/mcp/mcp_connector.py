@@ -5,12 +5,13 @@ Wrapping an :class:`~pirn_agents.mcp.mcp_client.McpClient` in
 free: the session is built once on first use and reused for the whole run (the
 pooling lever), and :meth:`close` tears it down deterministically. On top of that
 this connector adds *self-healing*: :meth:`session` returns the live client, and
-if the transport has dropped it reconnects with exponential, jittered backoff via
-a freshly-built transport — so callers get one long-lived session with no
+if the transport has dropped it reconnects under a core
+:class:`~pirn.core.knot_retry_policy.KnotRetryPolicy` (exponential, capped, full
+jitter) via a freshly-built transport — so callers get one long-lived session with no
 per-call reconnect, and a blip is absorbed transparently.
 
 A ``transport_factory`` (not a live transport) is injected so each reconnect
-attempt starts from a clean transport; ``sleep`` and ``jitter`` are injectable so
+attempt starts from a clean transport; ``sleep`` and ``rng`` are injectable so
 backoff timing is deterministic under test. The ``mcp`` backend stays lazy — it
 is only touched when a concrete transport actually opens.
 """
@@ -18,13 +19,12 @@ is only touched when a concrete transport actually opens.
 from __future__ import annotations
 
 import asyncio
-import random
 from collections.abc import Awaitable, Callable
 
 from pirn.connectors.connector_base import ConnectorBase
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_transport import McpTransport
@@ -40,10 +40,8 @@ class McpConnector(ConnectorBase):
         client_name: str = "pirn-agents",
         client_version: str = "0.9.0",
         protocol_version: str = "2025-06-18",
-        max_reconnect_attempts: int = 5,
-        backoff_base: float = 0.05,
-        backoff_cap: float = 2.0,
-        jitter: Callable[[], float] | None = None,
+        reconnect: KnotRetryPolicy | None = None,
+        rng: Callable[[], float] | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
         credential: CredentialRef | None = None,
     ) -> None:
@@ -54,19 +52,19 @@ class McpConnector(ConnectorBase):
                 :class:`McpTransport` for each (re)connect.
             client_name/client_version/protocol_version: Forwarded to the
                 :class:`McpClient` handshake.
-            max_reconnect_attempts: Total connect attempts before giving up
-                (must be >= 1).
-            backoff_base: Base delay (seconds) for the exponential schedule.
-            backoff_cap: Upper bound (seconds) on the exponential term.
-            jitter: Zero-arg callable returning extra seconds added to each
-                delay; defaults to ``U[0, backoff_base)``.
+            reconnect: The reconnect schedule — ``max_attempts`` connect
+                attempts in total, backing off exponentially between them.
+                Defaults to ``KnotRetryPolicy(max_attempts=5, base_delay=0.05,
+                max_delay=2.0)``.
+            rng: Zero-arg jitter draw in ``[0, 1)`` forwarded to the policy;
+                defaults to :func:`random.random`.
             sleep: Awaitable sleep used between attempts; defaults to
                 :func:`asyncio.sleep` (injectable for deterministic tests).
             credential: Optional credential reference (F2 scrubbing).
 
         Raises:
-            TypeError: If ``transport_factory`` is not callable.
-            ValueError: If ``max_reconnect_attempts`` is less than 1.
+            TypeError: If ``transport_factory`` is not callable, or
+                ``reconnect`` is not a :class:`KnotRetryPolicy`.
         """
         super().__init__(credential=credential)
         if not callable(transport_factory):
@@ -74,18 +72,21 @@ class McpConnector(ConnectorBase):
                 "McpConnector: transport_factory must be callable, "
                 f"got {type(transport_factory).__name__}"
             )
-        if max_reconnect_attempts < 1:
-            raise ValueError(
-                f"McpConnector: max_reconnect_attempts must be >= 1, got {max_reconnect_attempts}"
+        policy = (
+            reconnect
+            if reconnect is not None
+            else KnotRetryPolicy(max_attempts=5, base_delay=0.05, max_delay=2.0)
+        )
+        if not isinstance(policy, KnotRetryPolicy):
+            raise TypeError(
+                f"McpConnector: reconnect must be a KnotRetryPolicy, got {type(reconnect).__name__}"
             )
         self._transport_factory: Callable[[], McpTransport] = transport_factory
         self._client_name: str = client_name
         self._client_version: str = client_version
         self._protocol_version: str = protocol_version
-        self._max_reconnect_attempts: int = max_reconnect_attempts
-        self._backoff_base: float = backoff_base
-        self._backoff_cap: float = backoff_cap
-        self._jitter: Callable[[], float] = jitter if jitter is not None else self._default_jitter
+        self._reconnect: KnotRetryPolicy = policy
+        self._rng: Callable[[], float] | None = rng
         self._sleep: Callable[[float], Awaitable[None]] = (
             sleep if sleep is not None else asyncio.sleep
         )
@@ -125,44 +126,27 @@ class McpConnector(ConnectorBase):
     async def _connect_with_backoff(self) -> McpClient:
         """Attempt to (re)build the session, sleeping between failed attempts.
 
-        The retry loop itself is
-        :meth:`~pirn_agents.llm.retry_policy.RetryPolicy.run` (PIR-856), with
-        ``max_reconnect_attempts`` mapped onto a one-off
-        :class:`~pirn_agents.llm.retry_policy.RetryPolicy` (retries = attempts
-        - 1). The delay schedule is supplied via ``delay_for`` rather than the
-        policy's own multiplicative full jitter, so this connector's existing
-        additive-jitter formula (:meth:`_delay_for`) is unchanged.
+        The retry loop is core's
+        :meth:`~pirn.core.knot_retry_policy.KnotRetryPolicy.run` over
+        :meth:`_attempt_connect`, on the ``reconnect`` schedule.
 
         Raises:
             McpError: If every attempt fails; chains the last underlying error.
         """
-
-        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
-        async def _attempt(_attempt: int) -> McpClient:
-            self._client = None
-            try:
-                return await self._get_client()
-            except Exception:
-                self._client = None
-                raise
-
-        policy = RetryPolicy(max_retries=self._max_reconnect_attempts - 1)
         try:
-            return await policy.run(
-                _attempt,
-                delay_for=lambda attempt, _exc: self._delay_for(attempt),
-                sleep=self._sleep,
+            return await self._reconnect.run(
+                self._attempt_connect, call_id="mcp_connect", sleep=self._sleep, rng=self._rng
             )
         except Exception as exc:
             raise McpError(
-                f"McpConnector: reconnect exhausted after {self._max_reconnect_attempts} attempt(s)"
+                f"McpConnector: reconnect exhausted after {self._reconnect.max_attempts} attempt(s)"
             ) from exc
 
-    def _delay_for(self, attempt: int) -> float:
-        """Return the backoff delay for a zero-based ``attempt`` index."""
-        capped = min(self._backoff_cap, self._backoff_base * (2**attempt))
-        return capped + self._jitter()
-
-    def _default_jitter(self) -> float:
-        """Return default jitter drawn from ``U[0, backoff_base)`` seconds."""
-        return random.random() * self._backoff_base
+    async def _attempt_connect(self) -> McpClient:
+        """One connect attempt from a clean slate; a failure leaves no client behind."""
+        self._client = None
+        try:
+            return await self._get_client()
+        except Exception:
+            self._client = None
+            raise

@@ -14,6 +14,16 @@ dispatcher hands back, including the process-boundary ones (Ray, Dask,
 Celery) where the exception object never crosses back, so a policy written
 against the record behaves identically wherever the knot runs.
 
+The same schedule also drives retries that are *not* knot dispatches — a
+transport POST, an embedding batch, a session reconnect — through
+:meth:`KnotRetryPolicy.run`, so a package never carries a second backoff
+implementation for calls made below the knot boundary.  ``run`` decides with
+the same ``should_retry`` / ``delay_before_retry`` pair ``GovernedDispatch``
+uses, over an ``ExceptionRecord`` built from the live exception; a caller that
+must classify the live exception itself (an ``isinstance`` check, a
+``Retry-After`` attribute) passes ``retry_on`` / ``retry_after_hint``, which
+narrow the policy's own predicates rather than replace them.
+
 Algorithm:
     Given ``n`` attempts already made (``n >= 1``) and the record ``r`` of
     the failed attempt:
@@ -51,13 +61,16 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 import random
-from collections.abc import Callable
-from typing import Annotated, Any
+from collections.abc import Awaitable, Callable
+from typing import Annotated, Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from pirn.managers.exception_record import ExceptionRecord
+
+T = TypeVar("T")
 
 
 class KnotRetryPolicy(BaseModel):
@@ -147,6 +160,74 @@ class KnotRetryPolicy(BaseModel):
         if hint is not None:
             return min(float(hint), self.max_retry_after)
         return self.backoff_delay(retry_index, rng=rng)
+
+    async def run(
+        self,
+        attempt: Callable[[], Awaitable[T]],
+        *,
+        call_id: str = "call",
+        retry_on: Callable[[Exception], bool] | None = None,
+        retry_after_hint: Callable[[Exception], float | None] | None = None,
+        sleep: Callable[[float], Awaitable[None]] | None = None,
+        rng: Callable[[], float] | None = None,
+    ) -> T:
+        """Await *attempt* until it succeeds or this policy stops retrying it.
+
+        The non-knot entry point to the schedule ``GovernedDispatch`` applies
+        to knots: for a call made below the knot boundary (an HTTP request, a
+        provider batch, a reconnect) where there is no ``Err`` to re-dispatch.
+
+        Algorithm:
+            1. ``attempts += 1``; await ``attempt()`` and return its value on
+               success.
+            2. :class:`asyncio.CancelledError` propagates at once — a
+               cancellation is never retried (it is not an ``Exception``).
+            3. On an ``Exception`` ``exc``: re-raise it when ``retry_on`` is
+               given and rejects it; build ``record =
+               ExceptionRecord.for_knot(call_id, exc)`` and re-raise when
+               ``should_retry(attempts, record)`` is ``False``.
+            4. Sleep ``min(hint, max_retry_after)`` when ``retry_after_hint``
+               yields a hint for ``exc``, else
+               ``delay_before_retry(attempts - 1, record)``; go to 1.
+
+        Args:
+            attempt: Zero-argument async callable performing one attempt.
+            call_id: Names the call in the ``ExceptionRecord`` the policy's
+                own predicates see.
+            retry_on: Predicate over the live exception; ``None`` defers
+                entirely to :attr:`is_retryable`.
+            retry_after_hint: Extracts a delay hint (seconds) from the live
+                exception; ``None`` defers to :attr:`retry_after`.
+            sleep: Async sleep between attempts; defaults to
+                :func:`asyncio.sleep`.  Injected by tests.
+            rng: Jitter source forwarded to :meth:`backoff_delay`.
+
+        Returns:
+            The value of the first attempt that succeeds.
+
+        Raises:
+            Exception: The last attempt's exception, unchanged, once the
+                policy stops retrying.
+        """
+        sleeper = sleep if sleep is not None else asyncio.sleep
+        attempts = 0
+        while True:
+            attempts += 1
+            try:
+                return await attempt()
+            except Exception as exc:
+                if retry_on is not None and not retry_on(exc):
+                    raise
+                record = ExceptionRecord.for_knot(call_id, exc)
+                if not self.should_retry(attempts, record):
+                    raise
+                hint = retry_after_hint(exc) if retry_after_hint is not None else None
+                delay = (
+                    min(float(hint), self.max_retry_after)
+                    if hint is not None
+                    else self.delay_before_retry(attempts - 1, record, rng=rng)
+                )
+            await sleeper(delay)
 
     def __repr__(self) -> str:
         fields: dict[str, Any] = self.model_dump()
