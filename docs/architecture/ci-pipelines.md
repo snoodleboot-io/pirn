@@ -215,17 +215,17 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-ml | `pirn_ml/training` | 28 |  |
 | pirn-ml | `pirn_ml/specializations` | 258 |  |
 | pirn-oilgas | `pirn_oilgas/*.py` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/assemblers` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/disassemblers` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/geospatial` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/integrity` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/production` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/protocols` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/reservoir` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/seismic` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/types` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/well` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/workflows` | 0 | yes |
-| pirn-oilgas | `pirn_oilgas/production` | 30 |  |
-| pirn-oilgas | `pirn_oilgas/reservoir` | 31 |  |
-| pirn-oilgas | `pirn_oilgas/seismic` | 32 |  |
-| pirn-oilgas | `pirn_oilgas/assemblers` | 45 |  |
 | pirn-signal | `pirn_signal/*.py` | 0 | yes |
 | pirn-signal | `pirn_signal/adaptive` | 0 | yes |
 | pirn-signal | `pirn_signal/assemblers` | 0 | yes |
@@ -242,7 +242,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/filters` | 151 |  |
 
 Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 514,
-pirn-health 0, pirn-ml 286, pirn-oilgas 138, pirn-signal 465. The dominant
+pirn-health 0, pirn-ml 286, pirn-oilgas 0, pirn-signal 465. The dominant
 remaining categories are `reportUnknownMemberType` / `reportUnknownVariableType`
 on untyped third-party returns (cloud SDKs, `cloudpickle`, DB drivers,
 numpy-heavy domain code), `reportMissingTypeStubs`, `reportPrivateUsage` on

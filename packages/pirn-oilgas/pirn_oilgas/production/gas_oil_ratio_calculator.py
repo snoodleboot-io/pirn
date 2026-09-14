@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GasOilRatioCalculator`` — compute GOR from oil- and gas-rate series.
 
 Algorithm:

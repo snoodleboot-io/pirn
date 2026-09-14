@@ -17,9 +17,6 @@ Available extras: `oilgas`.
 
 **Registration (ADR-4):** `import pirn_oilgas` self-registers the oil & gas domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
 
-!!! warning "Legacy `pirn.domains.oilgas` is deprecated"
-    The old `pirn.domains.oilgas` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_oilgas`). Migrate to `pirn_oilgas` — see the [migration guide](../guides/migrating-to-split-packages.md).
-
 ---
 
 ## Format Reference

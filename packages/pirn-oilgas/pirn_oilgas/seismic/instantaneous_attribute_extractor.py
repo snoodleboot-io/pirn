@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``InstantaneousAttributeExtractor`` — compute Hilbert-transform-based instantaneous seismic attributes.
 
 Algorithm:
@@ -34,6 +36,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 
 
 class InstantaneousAttributeExtractor(Knot):
@@ -72,13 +76,9 @@ class InstantaneousAttributeExtractor(Knot):
         Returns:
             Dict with one key per requested attribute, each value is list[float].
         """
-        try:
-            from scipy.signal import hilbert
-        except ImportError as exc:
-            raise ImportError(
-                "InstantaneousAttributeExtractor: computing instantaneous attributes "
-                "requires scipy — install pirn-oilgas[oilgas]"
-            ) from exc
+        signal = OilgasOptionalImport.require(
+            "scipy.signal", "InstantaneousAttributeExtractor: computing instantaneous attributes"
+        )
 
         valid_attributes: frozenset[str] = frozenset(
             {"amplitude", "phase", "frequency", "bandwidth", "q_factor"}
@@ -97,7 +97,7 @@ class InstantaneousAttributeExtractor(Knot):
         result: dict[str, list[float]] = {}
         if len(arr) == 0:
             return {attr: [] for attr in attributes}
-        analytic: np.ndarray = np.asarray(hilbert(arr))
+        analytic: np.ndarray = np.asarray(signal.hilbert(arr), dtype=np.complex128)
         amp = np.abs(analytic)
         phase = np.unwrap(np.angle(analytic))
         inst_freq = np.diff(phase, prepend=phase[0]) / (2.0 * np.pi * dt)
