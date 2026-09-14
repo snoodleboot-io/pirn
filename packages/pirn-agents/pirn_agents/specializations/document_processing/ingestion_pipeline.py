@@ -30,7 +30,6 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._ingestion_runner import _IngestionRunner
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
@@ -56,7 +55,7 @@ class IngestionPipeline(AgentPipeline):
         chunking_strategy: Knot | ChunkingStrategy,
         upserter: Knot | IncrementalUpserter,
         _config: KnotConfig,
-        max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency,
+        max_concurrency: Knot | int = 8,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -75,7 +74,7 @@ class IngestionPipeline(AgentPipeline):
         loader: Loader,
         chunking_strategy: ChunkingStrategy,
         upserter: IncrementalUpserter,
-        max_concurrency: int = ConcurrencyConfig.max_concurrency,
+        max_concurrency: int = 8,
         **_: Any,
     ) -> Knot:
         """Build the inner ETL runner and return it as the pipeline's sink.
@@ -86,8 +85,7 @@ class IngestionPipeline(AgentPipeline):
             chunking_strategy: The strategy splitting document text into chunks.
             upserter: The incremental upserter embedding/storing only deltas.
             max_concurrency: Maximum documents processed simultaneously;
-                defaults to the shared :class:`~pirn_agents.performance.concurrency_config.ConcurrencyConfig`
-                posture.
+                defaults to 8.
 
         Returns:
             The terminal :class:`_IngestionRunner` knot whose output is the

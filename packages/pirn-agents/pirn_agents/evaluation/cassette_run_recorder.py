@@ -1,6 +1,6 @@
 """``CassetteRunRecorder`` — the F29 cassette-backed :class:`RunRecorder` (closes F12's seam).
 
-F12's :func:`~pirn_agents.evaluation.run_eval.run_eval` routes every target
+F12's :meth:`~pirn_agents.evaluation.run_eval.RunEval.run` routes every target
 invocation through the :class:`~pirn_agents.evaluation.run_recorder.RunRecorder`
 seam, defaulting to the live
 :class:`~pirn_agents.evaluation.null_run_recorder.NullRunRecorder`. This class is

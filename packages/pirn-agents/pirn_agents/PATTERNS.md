@@ -1195,26 +1195,34 @@ accepts an optional `RunBudgetMeter` (or builds one from a `RunBudget`) and
 calls the same `spend_*` / `checkpoint` methods, so budget semantics never
 diverge between patterns.
 
-### ConcurrencyConfig + BackpressureSemaphore — shared bounded concurrency
+### Shared bounded concurrency — `KnotConfig(concurrency_group=)` + `ConcurrencyLimits`
 
-`ConcurrencyConfig` is the one knob object (max concurrency, optional queue
-depth, acquire timeout) executors and provider call sites consume instead of
-hard-coding an `asyncio.Semaphore(8)`. `BackpressureSemaphore` turns it into a
-limiter whose `slot()` context manager queues by default (never fails) and
-sheds load with a typed `asyncio.QueueFull` only when an explicit
-`max_queue_depth` is set. `ParallelToolExecutor`'s internal
-`asyncio.Semaphore(max_concurrency)` is exactly `ConcurrencyConfig.max_concurrency`
-— a wiring would replace that line with `BackpressureSemaphore(config).slot()`
-around each dispatch, no other change.
+Bounded concurrency for knots that call the same backend is core's own
+admission budget, not a private pool: declare `concurrency_group=<backend>`
+on every knot that calls the backend, and cap that group with
+`ConcurrencyLimits(groups={<backend>: n})` on the run (or the enclosing
+`SubTapestry`'s `_inner_concurrency()` hook). Two independently-built
+pipelines whose knots name the same group are metered by the run's one
+shared budget, not one budget each — see
+`tests/performance/test_shared_concurrency_group.py` for a real `Tapestry`
+run proving it.
 
 ```python
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
-from pirn_agents.performance.backpressure_semaphore import BackpressureSemaphore
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
 
-limiter = BackpressureSemaphore(ConcurrencyConfig(max_concurrency=4, max_queue_depth=32))
-async with limiter.slot():        # queues under load; QueueFull past the depth bound
-    await call_provider(...)
+with Tapestry(concurrency=ConcurrencyLimits(groups={"search": 4})) as t:
+    SearchTool.bind(client=my_client)(
+        query="dicom", _config=KnotConfig(id="c1", concurrency_group="search")
+    )
+    # a second knot naming concurrency_group="search" shares the same cap
 ```
+
+The former `ConcurrencyConfig`/`BackpressureSemaphore` (a shared config value
+plus a limiter wrapping a private pool, for a caller with no `Tapestry` to
+attach a group to) and `Bulkhead`/`BulkheadConfig` (the same shape, one pool
+per backend) were one-cycle shims over this pattern and are deleted (PIR-864).
 
 ### Caching — content-addressed result cache + semantic + prompt-cache passthrough
 

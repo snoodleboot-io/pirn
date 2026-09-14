@@ -378,14 +378,13 @@ rag = NaiveRAGPipeline(
 
 Before ADR "agents speaks core" WS4b/PIR-866, per-backend concurrency
 isolation was three private classes holding their own `asyncio.Semaphore`:
-`pirn_agents.performance.concurrency_config.ConcurrencyConfig` (sizing),
-`pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore` (one
-bounded pool), and `pirn_agents.resilience.bulkhead.Bulkhead` (one pool per
-backend, keyed lazily) — none of it visible to the core engine's own
-`AdmissionGate`.
+`ConcurrencyConfig` (sizing), `BackpressureSemaphore` (one bounded pool), and
+`Bulkhead` (one pool per backend, keyed lazily) — none of it visible to the
+core engine's own `AdmissionGate`. PIR-866 made all three thin, engine-backed
+shims for one deprecation cycle; PIR-864 deletes them outright.
 
-**A pipeline wired through the engine should not reach for these classes at
-all.** Declare `KnotConfig(concurrency_group=<backend>)` on the knots that
+**A pipeline wired through the engine does not reach for a concurrency class
+at all.** Declare `KnotConfig(concurrency_group=<backend>)` on the knots that
 call a backend and `ConcurrencyLimits(groups={<backend>: n, ...})` on the
 run: every knot in that group is metered together by one shared
 `AdmissionGate`, whether they come from one pipeline or several (see
@@ -394,27 +393,15 @@ two independently-built pipelines bounded by one shared group). This is
 exactly the isolation `Bulkhead` used to promise, produced by the engine
 that already schedules everything else.
 
-All three classes are kept for one deprecation cycle as thin, engine-backed
-shims — each construction warns `DeprecationWarning` — and none holds an
-`asyncio.Semaphore` of its own any more:
-
-- `ConcurrencyConfig.to_concurrency_limits(group=...)` and
-  `BulkheadConfig.to_concurrency_limits()` return the exact
-  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` a real run
-  would declare for the same posture. Both stay plain frozen dataclasses
-  rather than `ConcurrencyLimits` subclasses: `agent/parallel_tool_executor.py`
-  and three `specializations/` pipelines read `ConcurrencyConfig.max_concurrency`
-  as a **class-level** literal default, which a pydantic `BaseModel`
-  subclass cannot support.
-- `BackpressureSemaphore` and `Bulkhead` are now subclasses of core's
-  `pirn.engine.admission.admission_gate.AdmissionGate`, delegating every
-  admission decision to a real
-  `pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate`
-  through the shared, private
-  `pirn_agents.performance._backpressure_gate._BackpressureGate` — the one
-  place `max_queue_depth`/`acquire_timeout` (backpressure knobs core's
-  `AdmissionGate` has no equivalent for outside a running `Tapestry`) are
-  still implemented directly.
+One caller has no `Tapestry` to attach a group to:
+`evaluation/run_eval.py::RunEval.run` is a bare `asyncio.gather` loop, not an
+engine run, so it now bounds its per-item concurrency with a plain
+`asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8)
+instead of the deleted `BackpressureSemaphore`/`ConcurrencyConfig` pair —
+the `max_queue_depth`/`acquire_timeout` backpressure knobs those shims
+carried (meaningful only outside a running `Tapestry`) have no replacement
+here; wiring this runner onto the engine itself would restore an equivalent,
+core-native backpressure story, and is a larger change than PIR-864's scope.
 
 ## Idempotency keys (resilience)
 

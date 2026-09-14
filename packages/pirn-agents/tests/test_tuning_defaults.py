@@ -18,7 +18,6 @@ import pytest
 from pirn_agents.agent.agent_tool_context import AgentToolContext
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.memory.management.near_duplicate_grouper import NearDuplicateGrouper
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.document_processing.chunking.fixed_size_chunking_strategy import (
     FixedSizeChunkingStrategy,
 )
@@ -77,9 +76,6 @@ class TestAgentNestingDepthDefaults:
 
 class TestConcurrencyDefaults:
     """``max_concurrency`` — the shared bounded-concurrency posture."""
-
-    def test_config_default(self) -> None:
-        assert ConcurrencyConfig().max_concurrency == 8
 
     @pytest.mark.parametrize(
         "target",

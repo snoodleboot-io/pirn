@@ -32,7 +32,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rewoo.rewoo_planner import ReWooPlanner
 from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
@@ -49,7 +48,7 @@ class ReWooPipeline(AgentPipeline):
         goal: Knot | str,
         llm: Knot | LLMProvider,
         tools: Knot | Sequence[Any],
-        max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency,
+        max_concurrency: Knot | int = 8,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -67,7 +66,7 @@ class ReWooPipeline(AgentPipeline):
         goal: str,
         llm: LLMProvider,
         tools: Sequence[ToolFactory],
-        max_concurrency: int = ConcurrencyConfig.max_concurrency,
+        max_concurrency: int = 8,
         **_: Any,
     ) -> Knot:
         """Wire the ReWOO inner pipeline and return its synthesiser sink.
@@ -77,8 +76,7 @@ class ReWooPipeline(AgentPipeline):
             llm: Provider shared by the planner and synthesiser.
             tools: Tools the plan may call; assembled into a :class:`Toolset`.
             max_concurrency: Bound on simultaneously in-flight tool calls;
-                defaults to the shared :class:`~pirn_agents.performance.concurrency_config.ConcurrencyConfig`
-                posture.
+                defaults to 8.
 
         Returns:
             The :class:`ReWooSynthesizer` sink whose output is the

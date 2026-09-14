@@ -61,7 +61,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent._assemble_orchestrator_workers_result import (
     _AssembleOrchestratorWorkersResult,
@@ -87,7 +86,7 @@ class OrchestratorWorkers(AgentPipeline):
         *,
         tasks: Knot | Sequence[str],
         worker: Knot | Any,
-        max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency,
+        max_concurrency: Knot | int = 8,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -115,7 +114,7 @@ class OrchestratorWorkers(AgentPipeline):
         self,
         tasks: Sequence[str],
         worker: ToolFactory,
-        max_concurrency: int = ConcurrencyConfig.max_concurrency,
+        max_concurrency: int = 8,
         **_: Any,
     ) -> Knot:
         """Fan out workers over ``tasks`` and return the aggregating sink knot.
@@ -124,8 +123,7 @@ class OrchestratorWorkers(AgentPipeline):
             tasks: The task-list items; worker count scales with its length.
             worker: The F7 agent-as-tool (or any :class:`Tool`) each task runs on.
             max_concurrency: Upper bound on simultaneously running workers;
-                defaults to the shared :class:`~pirn_agents.performance.concurrency_config.ConcurrencyConfig`
-                posture.
+                defaults to 8.
 
         Returns:
             The sink knot whose output is an :class:`OrchestratorWorkersResult`.

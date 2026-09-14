@@ -9,10 +9,13 @@ tool, or network from taking down a whole run:
       that reroutes on error, timeout, or open circuit,
     * a shared async
       :class:`~pirn_agents.resilience.token_bucket_rate_limiter.TokenBucketRateLimiter`,
-    * a :class:`~pirn_agents.resilience.bulkhead.Bulkhead` that isolates
-      concurrency into per-backend pools, and
     * idempotency-key assignment plus safe-retry classification for mutating
       tool calls.
+
+Per-backend concurrency isolation is core's own ``KnotConfig(concurrency_group=...)``
++ ``ConcurrencyLimits(groups={...})`` now; the former ``Bulkhead``/
+``BulkheadConfig`` one-cycle shims that wrapped a private pool per backend
+are deleted (PIR-864).
 
 Every class lives one-per-module and is imported from its concrete module path;
 nothing here imports a backend, so ``import pirn_agents`` stays backend-free.
