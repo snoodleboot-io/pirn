@@ -30,7 +30,7 @@ class CalibrationReport(PirnOpaqueValue):
     agreement: float
     mean_abs_error: float
     n: int
-    detail: Mapping[str, Any] = field(default_factory=dict)
+    detail: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def to_json(self, *, indent: int | None = 2) -> str:
         """Serialise the report to a stable, machine-readable JSON string."""

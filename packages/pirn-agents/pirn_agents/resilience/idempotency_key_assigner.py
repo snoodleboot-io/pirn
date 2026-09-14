@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IdempotencyKeyAssigner`` — derive caller-stable idempotency keys.
 
 ADR agents-speaks-core WS2 part 2 — **breaking key-format change, sanctioned**:
@@ -9,8 +11,6 @@ in-flight idempotent requests before/during the deploy** — a retry that lands
 after the upgrade computes a different key than its first attempt registered,
 so the backend sees a new operation and applies the mutation twice. See
 "Idempotency keys" in ``docs/domains/agents.md`` for the operational note.
-``legacy_key()`` reproduced a pre-upgrade key for reconciliation across the
-drain window; that one-cycle bridge is now deleted (PIR-864).
 
 ``ContentHasher.hash`` has no repr-based fallback for a value with no canonical form
 (no ``__pirn_canonical__``, no pydantic core schema) — unlike the
@@ -35,6 +35,8 @@ from typing import Any
 
 from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
+
+from pirn_agents._internal.json_shape import JsonShape
 
 
 class IdempotencyKeyAssigner:
@@ -120,9 +122,9 @@ class IdempotencyKeyAssigner:
                 address, not content, so a retry could never derive the same
                 key from an equal-but-distinct instance.
         """
-        if isinstance(value, Mapping):
+        if JsonShape.is_any_mapping(value):
             return {k: cls._normalise(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple)):
+        if JsonShape.is_list_or_tuple(value):
             return [cls._normalise(v) for v in value]
         try:
             ContentHasher.hash(value, strict=True)

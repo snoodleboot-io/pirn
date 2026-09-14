@@ -19,7 +19,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 #### `RunEval` on the engine; eval determinism is core replay (PIR-872)
 
-- `RunEval.run` runs one `_EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
+- `RunEval.run` runs one `EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
 - `ToolTestHarness.run_tool` (and the instance `run`) drives a call through `Tapestry.run` — approval gate included — instead of `ToolFactory.run_call`'s bare-call path.
 
 #### A `Check` names the skip reason its `Gate` propagates (PIR-872)
@@ -50,7 +50,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 #### pirn-agents on the WS0b seams
 
 - `MapAgent` no longer assigns its inner tapestry's private `_concurrency` / `_dispatcher` / `_admission_observers` (`_apply_run_settings` is gone); it overrides `SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` instead, and `tests/core_seams/test_execution_plane_reach_through.py` ratchets the reach-through inventory at empty.
-- `MapAgent.run()` yields each `BatchItemResult` the instant its item settles again (resumed items first, then completion order), via the new `_BatchItemStreamer` emitter over `Emitter.on_knot_result`; the streamed result carries the item's attempt count and latency from its lineage row. Closing the stream early or cancelling its consumer cancels the run.
+- `MapAgent.run()` yields each `BatchItemResult` the instant its item settles again (resumed items first, then completion order), via the new `BatchItemStreamer` emitter over `Emitter.on_knot_result`; the streamed result carries the item's attempt count and latency from its lineage row. Closing the stream early or cancelling its consumer cancels the run.
 
 #### `@tool` decorator and scalar auto-coercion
 
@@ -357,6 +357,42 @@ pirn is alpha: a replaced name is deleted in the same change, never deprecated
 | `InMemoryDataStore.DEFAULT_MAX_VALUES` | `InMemoryDataStore.default_max_values` |
 | `InMemoryHistory.DEFAULT_MAX_RUNS` | `InMemoryHistory.default_max_runs` |
 | `InvocationIdentity.UNCOMPARABLE_MARKER` | `InvocationIdentity.uncomparable_marker` |
+| `pirn_agents.evaluation._callable_identity._CallableIdentity` | `pirn_agents.evaluation.callable_identity.CallableIdentity` |
+| `pirn_agents.evaluation._eval_subject._EvalSubject` | `pirn_agents.evaluation.eval_subject.EvalSubject` |
+| `pirn_agents.evaluation._eval_case._EvalCase` | `pirn_agents.evaluation.eval_case.EvalCase` |
+| `pirn_agents.tools.calculator._safe_evaluator._SafeEvaluator` | `pirn_agents.tools.calculator.safe_evaluator.SafeEvaluator` |
+| `pirn_agents.tools.web._text_extractor._TextExtractor` | `pirn_agents.tools.web.text_extractor.TextExtractor` |
+| `Tool._call_reported_by_container.set(...)` / `.get()` (read outside `Tool`) | `with Tool.container_reports_call():` / `Tool.call_reported_by_container()` |
+
+The pirn-agents `determinism`, `evaluation` and `tools` subpackages are pyright
+strict. `ToolCallCodec.encode_results` and `ToolCallCodec.views` take only
+`{call_id: Ok | Err | Skipped}`; the sequence-of-`ToolResult` input is deleted.
+`SqliteConnector._clear_credentials` (never called) is deleted. `ToolFactory`
+gained `with_parameters(parameters)` (a copy declaring a different `parameters`
+schema) and reads a knot class's input contract through `Tool.framework_kwarg_names()`,
+`Tool.declared_input_schema(cls)` and `Tool.input_annotations(cls)`.
+`ToolDecorator.decorate` is overloaded (bare form returns a `FunctionTool`, the
+parametrised form a decorator) and takes the function positionally only.
+`RunTrace`/`TraceEvent`/`TraceDiff`/`ToolDeclaration.from_payload` are typed
+`Mapping[str, Any]` (the runtime `TypeError` guard stays); an `EvalSubject`
+metric is typed to return `MetricResult | Awaitable[MetricResult]`.
+| `pirn_agents._internal._json_shape._JsonShape` | `pirn_agents._internal.json_shape.JsonShape` |
+| `pirn_agents.batch._map_item._MapItem` | `pirn_agents.batch.map_item.MapItem` |
+| `pirn_agents.batch._batch_item_streamer._BatchItemStreamer` | `pirn_agents.batch.batch_item_streamer.BatchItemStreamer` |
+| `pirn_agents.builder._constant_thunk._ConstantThunk` | `pirn_agents.builder.constant_thunk.ConstantThunk` |
+| `pirn_agents.resilience._attempt_candidate._AttemptCandidate` | `pirn_agents.resilience.attempt_candidate.AttemptCandidate` |
+| `pirn_agents.resilience._failover_loop._FailoverLoop` | `pirn_agents.resilience.failover_loop.FailoverLoop` |
+| `pirn_agents.retrieval._dense_ids._DenseIds` | `pirn_agents.retrieval.dense_ids.DenseIds` |
+| `pirn_agents.retrieval._lexical_ids._LexicalIds` | `pirn_agents.retrieval.lexical_ids.LexicalIds` |
+| `AgentBuilder._component_label` / `_component_labels` | `AgentBuilder.component_label` / `component_labels` |
+
+`HybridRetrieverBase` is generic in its `process()` return type:
+`HybridGraphRetriever` is a `HybridRetrieverBase[list[Mapping[str, Any]]]` and the
+`SubTapestry` `HybridRetriever` a `HybridRetrieverBase[Knot]`.
+`KeyedLineageStore.put` records its value through a core `Parameter` knot.
+The pirn-agents `batch`, `builder`, `context`, `input`, `llm`, `mcp`, `memory`,
+`prompt`, `resilience`, `retrieval`, `security`, `sessions` and `types`
+subpackages are pyright strict.
 
 `Knot.process` and `SubTapestry.process` declare their catch-all as `**_`, and
 the conventions gate no longer applies the knot-subclass rules to pirn-core's

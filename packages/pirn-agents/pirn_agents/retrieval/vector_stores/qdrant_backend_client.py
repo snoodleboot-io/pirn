@@ -18,6 +18,7 @@ from typing import Any
 
 from pirn.security.credential_ref import CredentialRef
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 
@@ -81,7 +82,7 @@ class QdrantBackendClient(VectorBackendClient):
         conditions: list[Any] = []
         for key, expected in metadata_filter.items():
             field = f"metadata.{key}"
-            if isinstance(expected, list | tuple | set):
+            if JsonShape.is_list_tuple_or_set(expected):
                 match = models.MatchAny(any=list(expected))
             else:
                 match = models.MatchValue(value=expected)
@@ -124,7 +125,7 @@ class QdrantBackendClient(VectorBackendClient):
         )
         hits: list[Mapping[str, Any]] = []
         for scored in response.points:
-            payload = scored.payload or {}
+            payload: Mapping[str, Any] = scored.payload or {}
             hits.append(
                 {
                     "id": payload.get("_id"),
@@ -147,7 +148,7 @@ class QdrantBackendClient(VectorBackendClient):
         if not records:
             return None
         record = records[0]
-        payload = record.payload or {}
+        payload: Mapping[str, Any] = record.payload or {}
         return {
             "id": payload.get("_id", key),
             "vector": list(record.vector or []),

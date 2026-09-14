@@ -1,4 +1,4 @@
-"""``_TextExtractor`` — zero-dependency HTML-to-text extraction.
+"""``TextExtractor`` — zero-dependency HTML-to-text extraction.
 
 A small :class:`~html.parser.HTMLParser` subclass that drops ``<script>`` and
 ``<style>`` bodies, emits text for everything else, inserts newlines around block
@@ -11,7 +11,7 @@ from __future__ import annotations
 from html.parser import HTMLParser
 
 
-class _TextExtractor(HTMLParser):
+class TextExtractor(HTMLParser):
     """Collect visible text from an HTML document, skipping script/style."""
 
     def __init__(self) -> None:

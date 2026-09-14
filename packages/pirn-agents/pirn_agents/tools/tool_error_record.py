@@ -11,7 +11,7 @@ no redaction of its own, and core's ``traceback_filter`` seam
 This class is the one place tool records are scrubbed.  Since the ADR
 "agents speaks core" (WS1) made a tool a knot, :meth:`scrubbed_record` runs on
 the tool knot's own ``__call__`` for every ``Err`` it produces, so every
-invocation path — the engine, a fan-out, the deprecated ``invoke`` shim — is
+invocation path — the engine, a fan-out, ``ToolFactory.run_call`` — is
 covered by construction rather than by each executor remembering to call it.
 The engine's re-registration of a placeholder record preserves the scrubbed
 ``message`` and ``traceback_text`` (it re-registers through

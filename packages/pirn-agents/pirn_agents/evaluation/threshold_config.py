@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ThresholdConfig`` — the set of per-metric thresholds a run must clear."""
 
 from __future__ import annotations
@@ -80,5 +82,10 @@ class ThresholdConfig(PirnOpaqueValue):
         }
         return json.dumps(payload, indent=indent, sort_keys=True)
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[dict[str, Any]]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {"thresholds": [t._pirn_audit_dict() for t in self.thresholds]}
+        return {"thresholds": self._audit_all(self.thresholds)}

@@ -33,7 +33,7 @@ class VectorRecord(PirnOpaqueValue):
 
     id: str
     vector: tuple[float, ...]
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
     document: str | None = None
 
     @classmethod

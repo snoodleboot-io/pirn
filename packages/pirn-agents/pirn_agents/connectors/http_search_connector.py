@@ -20,9 +20,7 @@ from typing import Any
 
 from pirn.connectors.http_connector import HttpConnector
 
-from pirn_agents._internal._json_shape import (
-    _JsonShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.tools.web.search_backend import SearchBackend
 
 
@@ -92,11 +90,11 @@ class HttpSearchConnector(SearchBackend):
         response = await self._http.request("GET", self._endpoint, params=params)
         payload: Any = response.json()
         items: Any = (
-            payload.get(self._results_key, []) if _JsonShape.is_mapping(payload) else payload
+            payload.get(self._results_key, []) if JsonShape.is_mapping(payload) else payload
         )
         results: list[dict[str, str]] = []
         for item in list(items)[:max_results]:
-            mapping: Mapping[str, Any] = item if _JsonShape.is_mapping(item) else {}
+            mapping: Mapping[str, Any] = item if JsonShape.is_mapping(item) else {}
             results.append(
                 {
                     "title": str(mapping.get(self._title_key, "")),

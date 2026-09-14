@@ -1,6 +1,6 @@
 """A recorded eval replays only for the same code, not just the same names (PIR-872).
 
-The target and metrics are identified by their code (``_CallableIdentity``), so an
+The target and metrics are identified by their code (``CallableIdentity``), so an
 edited body under an unchanged ``module.qualname`` refuses to replay, an unchanged
 function replays even as a fresh function object, and a ``functools.partial``
 with different bound arguments refuses.
@@ -18,7 +18,7 @@ from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.recording.replay_mismatch_error import ReplayMismatchError
 from pirn.recording.replay_session import ReplaySession
 
-from pirn_agents.evaluation._callable_identity import _CallableIdentity
+from pirn_agents.evaluation.callable_identity import CallableIdentity
 from pirn_agents.evaluation.eval_dataset import EvalDataset
 from pirn_agents.evaluation.eval_item import EvalItem
 from pirn_agents.evaluation.eval_report import EvalReport
@@ -103,7 +103,7 @@ class TestReplayIdentityFollowsTheCode(unittest.IsolatedAsyncioTestCase):
         calls: list[str] = []
         recorded_target = _Sources.build(_Sources.target_v1, "target", calls=calls)
         edited_target = _Sources.build(_Sources.target_v2, "target", calls=calls)
-        assert _CallableIdentity._name(recorded_target) == _CallableIdentity._name(edited_target)
+        assert CallableIdentity._name(recorded_target) == CallableIdentity._name(edited_target)
         history, store, _ = await self._record(recorded_target, {"length": _Scale.length})
 
         # Act / Assert
@@ -166,36 +166,36 @@ class TestCallableIdentity(unittest.TestCase):
     def test_a_lambda_edit_changes_the_identity(self) -> None:
         first = _Sources.build("f = lambda x: x + 1\n", "f")
         second = _Sources.build("f = lambda x: x + 2\n", "f")
-        assert _CallableIdentity.of(first) != _CallableIdentity.of(second)
+        assert CallableIdentity.of(first) != CallableIdentity.of(second)
 
     def test_a_nested_function_edit_changes_the_identity(self) -> None:
         source = "def outer():\n    def inner():\n        return {value}\n    return inner()\n"
         first = _Sources.build(source.format(value=1), "outer")
         second = _Sources.build(source.format(value=2), "outer")
-        assert _CallableIdentity.of(first) != _CallableIdentity.of(second)
+        assert CallableIdentity.of(first) != CallableIdentity.of(second)
 
     def test_closure_values_are_part_of_the_identity(self) -> None:
         source = "def make(n):\n    def use(x):\n        return x + n\n    return use\n"
         make = _Sources.build(source, "make")
-        assert _CallableIdentity.of(make(1)) != _CallableIdentity.of(make(2))
-        assert _CallableIdentity.of(make(1)) == _CallableIdentity.of(make(1))
+        assert CallableIdentity.of(make(1)) != CallableIdentity.of(make(2))
+        assert CallableIdentity.of(make(1)) == CallableIdentity.of(make(1))
 
     def test_defaults_are_part_of_the_identity(self) -> None:
         first = _Sources.build("def f(x, k=1):\n    return x\n", "f")
         second = _Sources.build("def f(x, k=2):\n    return x\n", "f")
-        assert _CallableIdentity.of(first) != _CallableIdentity.of(second)
+        assert CallableIdentity.of(first) != CallableIdentity.of(second)
 
     def test_a_bound_method_names_its_code(self) -> None:
-        identity = _CallableIdentity.of(_Adder(1).add)
+        identity = CallableIdentity.of(_Adder(1).add)
         assert "method" in identity
         assert "code" in identity["method"]
 
     def test_a_callable_object_is_identified_by_its_call_code(self) -> None:
-        identity = _CallableIdentity.of(_Adder(1))
+        identity = CallableIdentity.of(_Adder(1))
         assert "code" in identity["call"]
 
     def test_a_c_builtin_falls_back_to_its_name(self) -> None:
-        assert _CallableIdentity.of(len) == {"name": "builtins.len"}
+        assert CallableIdentity.of(len) == {"name": "builtins.len"}
 
     def test_a_self_referencing_closure_terminates(self) -> None:
         source = (
@@ -205,7 +205,7 @@ class TestCallableIdentity(unittest.TestCase):
             "    return again\n"
         )
         again = _Sources.build(source, "make")()
-        assert _CallableIdentity.of(again) == _CallableIdentity.of(again)
+        assert CallableIdentity.of(again) == CallableIdentity.of(again)
 
 
 if __name__ == "__main__":

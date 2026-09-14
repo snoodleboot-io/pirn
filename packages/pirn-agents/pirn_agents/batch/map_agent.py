@@ -1,8 +1,10 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MapAgent`` — map an agent over a dataset through core's own scheduler.
 
 ADR agents-speaks-core, WS4b. ``MapAgent`` is a
 :class:`~pirn.nodes.sub_tapestry.SubTapestry` whose inner graph is one
-:class:`~pirn_agents.batch._map_item._MapItem` knot per input item, joined by
+:class:`~pirn_agents.batch.map_item.MapItem` knot per input item, joined by
 a core :class:`~pirn.nodes.aggregator.Aggregator`:
 
 * **Per-item isolation** is ``KnotConfig(error_policy=RECEIVE_ERRORS)`` on the
@@ -39,7 +41,7 @@ graph. Two ways to use it, matching the two things a ``Knot`` can be:
 2. **Standalone streaming** — :meth:`run` builds a throwaway ``Tapestry``,
    runs the same item/aggregator graph, and yields each ``BatchItemResult``
    **the instant its item settles**, before the join completes — an
-   :class:`~pirn_agents.batch._batch_item_streamer._BatchItemStreamer`
+   :class:`~pirn_agents.batch.batch_item_streamer.BatchItemStreamer`
    emitter turns core's ``Emitter.on_knot_result`` (ADR WS0b) into the
    stream, so the ``Err``'s full ``ExceptionRecord``, the attempt count and
    the latency ride along from the lineage row. It reads the settings the
@@ -73,10 +75,10 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
-from pirn_agents.batch._batch_item_streamer import _BatchItemStreamer
-from pirn_agents.batch._map_item import _MapItem
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
 from pirn_agents.batch.batch_item_result import BatchItemResult
+from pirn_agents.batch.batch_item_streamer import BatchItemStreamer
+from pirn_agents.batch.map_item import MapItem
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
 
 
@@ -193,7 +195,7 @@ class MapAgent(SubTapestry):
         constructor names their real types): core's ``Dispatcher`` and
         ``AdmissionObserver`` bases carry no pydantic core schema, and ``Knot``
         builds a ``TypeAdapter`` for every annotated ``process()`` parameter
-        (see ``_MapItem``'s docstring for the same constraint). They are
+        (see ``MapItem``'s docstring for the same constraint). They are
         checked with ``isinstance`` instead.
 
         Returns:
@@ -264,7 +266,7 @@ class MapAgent(SubTapestry):
         """Run the agent over ``inputs``, yielding each item's result as it settles.
 
         Builds a throwaway ``Tapestry`` with a
-        :class:`~pirn_agents.batch._batch_item_streamer._BatchItemStreamer`
+        :class:`~pirn_agents.batch.batch_item_streamer.BatchItemStreamer`
         emitter attached, starts the item/aggregator graph as a task, and
         yields a ``BatchItemResult`` the moment core's
         ``Emitter.on_knot_result`` reports the item knot settled (ADR WS0b) —
@@ -330,7 +332,7 @@ class MapAgent(SubTapestry):
                 key = MapAgent._key_for(key_fn, index, item)
                 live[MapAgent._item_knot_id(batch_id, key)] = (index, key)
         queue: asyncio.Queue[BatchItemResult | None] = asyncio.Queue()
-        streamer = _BatchItemStreamer(items_by_knot_id=live, queue=queue)
+        streamer = BatchItemStreamer(items_by_knot_id=live, queue=queue)
         run_tapestry = Tapestry(
             history=history,
             data_store=settings["data_store"],
@@ -507,7 +509,7 @@ class MapAgent(SubTapestry):
                 continue
             key = MapAgent._key_for(key_fn, index, item)
             parent_key = f"p{index}"
-            parents[parent_key] = _MapItem(
+            parents[parent_key] = MapItem(
                 item=item,
                 run_item=run_item,
                 rate_limiter=rate_limiter,

@@ -21,8 +21,8 @@ and the declaration is ``Knot.input_json_schema()`` rendered from the same
 hints.  Both sync and async functions are accepted; an async-generator
 function becomes a *streaming* tool whose call returns the drained chunks.
 
-The decorator also has a **rich, parametrised form** that stays fully backward
-compatible with the bare ``@ToolDecorator.decorate`` above::
+The decorator also has a **rich, parametrised form** alongside the bare
+``@ToolDecorator.decorate`` above::
 
     from pydantic import BaseModel, Field
 
@@ -61,7 +61,7 @@ import inspect
 from collections.abc import Callable, Mapping
 from dataclasses import is_dataclass
 from inspect import isasyncgenfunction, iscoroutinefunction
-from typing import Any, get_type_hints
+from typing import Any, get_type_hints, overload
 
 from pydantic import BaseModel, PydanticSchemaGenerationError, TypeAdapter
 
@@ -79,7 +79,7 @@ class ToolDecorator:
         *,
         name: str | None,
         description: str | None,
-        args_model: type | None,
+        args_model: type[object] | None,
         arg_docs: Mapping[str, str] | None,
         examples: Mapping[str, Any] | None,
         permissions: ToolPermissions,
@@ -179,7 +179,9 @@ class ToolDecorator:
         # (knot-design-rules.md, Rule 2); core checks for it on the wrapper
         # itself, so the published signature has to show it.
         parameters.append(inspect.Parameter("_", inspect.Parameter.VAR_KEYWORD))
-        process.__signature__ = inspect.Signature(parameters)  # type: ignore[attr-defined]
+        # ``inspect.signature`` reads ``__signature__`` from the function's
+        # attribute dict, which is where attribute assignment would put it.
+        process.__dict__["__signature__"] = inspect.Signature(parameters)
         # A streaming function's return hint types one chunk; the call's value
         # is the drained list, so the hint is dropped rather than misapplied.
         process.__annotations__ = {
@@ -204,26 +206,17 @@ class ToolDecorator:
             if examples and key in examples:
                 fragment["examples"] = [examples[key]]
         parameters["properties"] = properties
-        noted = FunctionTool(
-            factory.knot_class,
-            fn=factory.fn,
-            return_schema=factory.return_schema,
-            state=factory.state,
-            is_stateful=factory.stateful,
-            stream_fn=factory._stream_fn,
-        )
-        noted._parameters = parameters
-        return noted
+        return factory.with_parameters(parameters)
 
     @staticmethod
-    def _is_arg_model(spec: Any) -> bool:
+    def _is_arg_model(spec: object) -> bool:
         """Return whether ``spec`` is a usable pydantic model or dataclass type."""
         if isinstance(spec, type) and issubclass(spec, BaseModel):
             return True
         return isinstance(spec, type) and is_dataclass(spec)
 
     @staticmethod
-    def _model_json_schema(model: type) -> dict[str, Any]:
+    def _model_json_schema(model: type[object]) -> dict[str, Any]:
         """Return the JSON schema for a pydantic model or dataclass ``model``."""
         if issubclass(model, BaseModel):
             schema = dict(model.model_json_schema())
@@ -233,7 +226,7 @@ class ToolDecorator:
         return schema
 
     @staticmethod
-    def _model_validator(model: type) -> Callable[[Mapping[str, Any]], Any]:
+    def _model_validator(model: type[object]) -> Callable[[Mapping[str, Any]], Any]:
         """Return a callable that validates/coerces a mapping into ``model``."""
         if issubclass(model, BaseModel):
             return functools.partial(ToolDecorator._validate_with_model, model)
@@ -268,13 +261,36 @@ class ToolDecorator:
         fragment.pop("title", None)
         return fragment or None
 
+    @overload
+    @staticmethod
+    def decorate(fn: Callable[..., Any], /) -> FunctionTool: ...
+
+    @overload
     @staticmethod
     def decorate(
-        fn: Callable[..., Any] | None = None,
+        fn: None = None,
+        /,
         *,
         name: str | None = None,
         description: str | None = None,
-        args_model: type | None = None,
+        args_model: type[object] | None = None,
+        arg_docs: Mapping[str, str] | None = None,
+        examples: Mapping[str, Any] | None = None,
+        scope: str | None = None,
+        mutating: bool = False,
+        approval_required: bool = False,
+        cost_hint: float | None = None,
+        state: Any | None = None,
+    ) -> Callable[[Callable[..., Any]], FunctionTool]: ...
+
+    @staticmethod
+    def decorate(
+        fn: Callable[..., Any] | None = None,
+        /,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        args_model: type[object] | None = None,
         arg_docs: Mapping[str, str] | None = None,
         examples: Mapping[str, Any] | None = None,
         scope: str | None = None,

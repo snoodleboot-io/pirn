@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpTrustPolicy`` — allow-list + scope + approval gate for MCP tool calls.
 
 The policy is the single guard an agent runs before dispatching a call to a tool

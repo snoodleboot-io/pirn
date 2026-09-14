@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PromptBinding`` — the indirection that makes a built-in prompt tunable.
 
 Every prompt literal shipped inside ``pirn_agents`` is declared as a

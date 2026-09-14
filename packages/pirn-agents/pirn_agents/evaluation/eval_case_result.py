@@ -29,7 +29,7 @@ class EvalCaseResult(PirnOpaqueValue):
     item_id: str
     metrics: Mapping[str, float]
     passed: bool | None = None
-    detail: Mapping[str, Any] = field(default_factory=dict)
+    detail: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BackendGraphStore`` — shared :class:`GraphStore` over a neutral backend client.
 
 Both the Neo4j and Kuzu adapters share identical value translation

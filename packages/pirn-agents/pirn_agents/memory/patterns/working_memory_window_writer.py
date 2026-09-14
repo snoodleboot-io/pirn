@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WorkingMemoryWindowWriter`` — sliding-window write to a MemoryStore.
 
 Inner stage knot used by :class:`WorkingMemoryPipeline`. Reads the
@@ -28,6 +30,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.memory.memory_writer_base import MemoryWriterBase
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.types.messaging.agent_message import AgentMessage
@@ -91,7 +94,7 @@ class WorkingMemoryWindowWriter(MemoryWriterBase):
         prior: tuple[AgentMessage, ...] = ()
         if existing is not None:
             stored = existing.get("messages")
-            if isinstance(stored, (list, tuple)):
+            if JsonShape.is_list_or_tuple(stored):
                 collected: list[AgentMessage] = []
                 for entry in stored:
                     if isinstance(entry, AgentMessage):

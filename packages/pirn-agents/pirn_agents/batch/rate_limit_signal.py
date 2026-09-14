@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RateLimitSignal`` — a provider-neutral throttle signal for the batch engine."""
 
 from __future__ import annotations

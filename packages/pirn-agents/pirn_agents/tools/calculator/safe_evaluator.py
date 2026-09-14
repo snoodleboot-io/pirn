@@ -1,6 +1,8 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Restricted ``ast``-based arithmetic evaluator (zero third-party deps).
 
-:meth:`_SafeEvaluator.evaluate` parses an expression into an AST and walks it with
+:meth:`SafeEvaluator.evaluate` parses an expression into an AST and walks it with
 a strict node whitelist, so it evaluates ordinary arithmetic *without* ever calling
 ``eval``/``exec`` and without exposing attribute access, subscripting, names, or
 arbitrary calls. Every construct that could reach the host — ``__import__``,
@@ -27,11 +29,12 @@ from collections.abc import Callable
 from typing import Any
 
 
-class _SafeEvaluator:
+class SafeEvaluator:
     """Namespace for the whitelisted-AST arithmetic evaluator.
 
-    Private (leading underscore): the only supported entry point for callers
-    outside this subpackage is :class:`~pirn_agents.tools.calculator.calculator_tool.CalculatorTool`.
+    The tool-facing entry point is
+    :class:`~pirn_agents.tools.calculator.calculator_tool.CalculatorTool`;
+    :meth:`evaluate` is the evaluator itself, with no engine around it.
     """
 
     @staticmethod
@@ -64,13 +67,13 @@ class _SafeEvaluator:
             raise ValueError(
                 f"calculator: could not parse expression {expression!r}: {exc.msg}"
             ) from exc
-        return _SafeEvaluator._eval_node(tree.body)
+        return SafeEvaluator._eval_node(tree.body)
 
     @staticmethod
     def _eval_node(node: ast.AST) -> Any:
         """Recursively evaluate a whitelisted AST node, rejecting anything else."""
-        binary_ops = _SafeEvaluator._binary_operators()
-        unary_ops = _SafeEvaluator._unary_operators()
+        binary_ops = SafeEvaluator._binary_operators()
+        unary_ops = SafeEvaluator._unary_operators()
 
         if isinstance(node, ast.Constant):
             if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
@@ -80,23 +83,23 @@ class _SafeEvaluator:
             handler = unary_ops.get(type(node.op))
             if handler is None:
                 raise ValueError(f"calculator: unsupported unary operator {type(node.op).__name__}")
-            return handler(_SafeEvaluator._eval_node(node.operand))
+            return handler(SafeEvaluator._eval_node(node.operand))
         if isinstance(node, ast.BinOp):
             handler = binary_ops.get(type(node.op))
             if handler is None:
                 raise ValueError(f"calculator: unsupported operator {type(node.op).__name__}")
-            left = _SafeEvaluator._eval_node(node.left)
-            right = _SafeEvaluator._eval_node(node.right)
+            left = SafeEvaluator._eval_node(node.left)
+            right = SafeEvaluator._eval_node(node.right)
             if isinstance(node.op, ast.Pow):
-                _SafeEvaluator._guard_power(right)
+                SafeEvaluator._guard_power(right)
             return handler(left, right)
         if isinstance(node, ast.Name):
-            constants = _SafeEvaluator._named_constants()
+            constants = SafeEvaluator._named_constants()
             if node.id in constants:
                 return constants[node.id]
             raise ValueError(f"calculator: unknown name {node.id!r}")
         if isinstance(node, ast.Call):
-            return _SafeEvaluator._eval_call(node)
+            return SafeEvaluator._eval_call(node)
         raise ValueError(f"calculator: unsupported expression element {type(node).__name__}")
 
     @staticmethod
@@ -106,11 +109,11 @@ class _SafeEvaluator:
             raise ValueError("calculator: keyword arguments are not allowed")
         if not isinstance(node.func, ast.Name):
             raise ValueError("calculator: only direct calls to whitelisted functions are allowed")
-        functions = _SafeEvaluator._allowed_functions()
+        functions = SafeEvaluator._allowed_functions()
         func = functions.get(node.func.id)
         if func is None:
             raise ValueError(f"calculator: function {node.func.id!r} is not allowed")
-        args = [_SafeEvaluator._eval_node(arg) for arg in node.args]
+        args = [SafeEvaluator._eval_node(arg) for arg in node.args]
         return func(*args)
 
     @staticmethod
@@ -120,16 +123,31 @@ class _SafeEvaluator:
             raise ValueError("calculator: exponent too large (magnitude > 1000)")
 
     @staticmethod
+    def _divide(left: float, right: float) -> float:
+        """``left / right``; a zero divisor raises ``ZeroDivisionError``."""
+        return left / right
+
+    @staticmethod
+    def _floor_divide(left: float, right: float) -> float:
+        """``left // right``; a zero divisor raises ``ZeroDivisionError``."""
+        return left // right
+
+    @staticmethod
+    def _power(base: float, exponent: float) -> Any:
+        """``base ** exponent`` (a negative base to a fractional power is complex)."""
+        return base**exponent
+
+    @staticmethod
     def _binary_operators() -> dict[type[ast.operator], Callable[[Any, Any], Any]]:
         """Map binary AST operator types to their pure numeric implementations."""
         return {
             ast.Add: operator.add,
             ast.Sub: operator.sub,
             ast.Mult: operator.mul,
-            ast.Div: operator.truediv,
-            ast.FloorDiv: operator.floordiv,
+            ast.Div: SafeEvaluator._divide,
+            ast.FloorDiv: SafeEvaluator._floor_divide,
             ast.Mod: operator.mod,
-            ast.Pow: operator.pow,
+            ast.Pow: SafeEvaluator._power,
         }
 
     @staticmethod

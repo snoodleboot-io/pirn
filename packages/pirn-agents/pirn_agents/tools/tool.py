@@ -45,10 +45,11 @@ and times out through ``KnotConfig``.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import re
 import time
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Generator, Mapping
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -120,7 +121,7 @@ class Tool(Knot):
         observable on the run's emitters without a hook.  A ``Skipped`` outcome
         is not a call and is not reported, and a container that reports the
         call itself (``ToolInvocation``, attributing it to the outer run)
-        claims the report through :attr:`_call_reported_by_container`.
+        claims the report through :meth:`container_reports_call`.
         """
         start = time.perf_counter()
         result = await super().__call__(parent_results)
@@ -132,9 +133,28 @@ class Tool(Knot):
             await self._record_call(ok=True, latency=latency)
         return result
 
+    @staticmethod
+    @contextlib.contextmanager
+    def container_reports_call() -> Generator[None, None, None]:
+        """Within the block, a container (``ToolInvocation``) reports the call itself.
+
+        A tool knot run inside the block emits no ``"tool"`` event of its own,
+        so one call yields one event, attributed to the container.
+        """
+        token = Tool._call_reported_by_container.set(True)
+        try:
+            yield
+        finally:
+            Tool._call_reported_by_container.reset(token)
+
+    @staticmethod
+    def call_reported_by_container() -> bool:
+        """Whether a container is reporting the current call (see :meth:`container_reports_call`)."""
+        return Tool._call_reported_by_container.get()
+
     async def _record_call(self, *, ok: bool, latency: float, detail: str | None = None) -> None:
         """Emit this call's outcome as one ``"tool"`` event (a no-op outside a run)."""
-        if Tool._call_reported_by_container.get():
+        if Tool.call_reported_by_container():
             return
         await AgentCallRecorder.record(
             knot_id=self.knot_id,
@@ -145,6 +165,29 @@ class Tool(Knot):
             tool_name=self.declared_name(),
             call_id=self.knot_id,
         )
+
+    # ------------------------------------------------------------ knot introspection
+    #
+    # A capability wraps *any* knot class (``ToolFactory``, ``AgentTool``), and
+    # reading its input contract means reading the knot machinery core keeps
+    # for ``Knot`` subclasses. ``Tool`` is the agents layer's ``Knot`` subclass,
+    # so the wrappers ask it rather than reaching into ``Knot`` themselves.
+
+    @staticmethod
+    def framework_kwarg_names() -> frozenset[str]:
+        """The construction kwargs core reserves for the framework (``_config``, ``tapestry``)."""
+        return Knot.reserved_kwargs()
+
+    @staticmethod
+    def declared_input_schema(knot_class: type[Knot]) -> Mapping[str, Any] | None:
+        """The JSON schema declaring ``knot_class``'s inputs, or ``None`` when its signature does."""
+        return knot_class._input_schema_override
+
+    @staticmethod
+    def input_annotations(knot_class: type[Knot]) -> dict[str, Any]:
+        """Name -> the annotation core validates each signature-declared ``process()`` input with."""
+        signature = inspect.signature(knot_class.process)
+        return knot_class._input_annotations(signature, knot_class._process_hints(signature))
 
     # ------------------------------------------------------------ envelope
 

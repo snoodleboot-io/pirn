@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GraphEdge`` — one upsertable (id, source, target, type, properties) edge.
 
 The neutral write/read unit every
@@ -38,7 +40,7 @@ class GraphEdge(PirnOpaqueValue):
     source_id: str
     target_id: str
     type: str
-    properties: Mapping[str, Any] = field(default_factory=dict)
+    properties: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     @classmethod
     def create(

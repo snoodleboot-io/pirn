@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``InjectionVerdict`` — the outcome of screening content for prompt injection.
 
 A frozen value carrying whether the content was ``flagged``, a ``score`` in
