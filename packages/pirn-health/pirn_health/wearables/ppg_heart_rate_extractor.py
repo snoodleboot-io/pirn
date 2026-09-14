@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PPGHeartRateExtractor`` — extract heart rate from PPG waveform data.
 
 Algorithm:

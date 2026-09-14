@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentReferences`` — bind the labels in an :class:`AgentSpec` to live objects.
 
 A spec is data: it names its LLM provider, memory store, tools and components by

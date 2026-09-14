@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Salesforce SaaS connector wrapping the synchronous ``simple-salesforce`` SDK.
 
 ``simple-salesforce`` is synchronous; calls run in a worker thread via

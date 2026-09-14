@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SentenceSplitter`` — naive backend-free sentence/claim splitter."""
 
 from __future__ import annotations

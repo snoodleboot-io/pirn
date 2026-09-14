@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CircuitBreakerConfig`` — thresholds governing a breaker's transitions."""
 
 from __future__ import annotations

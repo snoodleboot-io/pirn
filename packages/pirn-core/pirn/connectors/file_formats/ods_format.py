@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OdsFormat`` — OpenDocument Spreadsheet (``.ods``) encoder/decoder.
 
 Built directly on ``odfpy``: ``OpenDocumentSpreadsheet``, ``Table``,

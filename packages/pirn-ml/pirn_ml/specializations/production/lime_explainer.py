@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LIMEExplainer`` — Knot that generates LIME explanations for
 individual predictions and returns per-feature importance for each
 explained instance.

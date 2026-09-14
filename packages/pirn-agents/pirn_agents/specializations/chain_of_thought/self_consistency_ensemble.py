@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SelfConsistencyEnsemble`` — majority-vote aggregation over N parallel LLM samples.
 
 Algorithm:

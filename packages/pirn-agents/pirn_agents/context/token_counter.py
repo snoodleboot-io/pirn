@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TokenCounter`` — cached, provider-aware token counting for budgeting.
 
 Wraps a pluggable :class:`~pirn_agents.context.token_estimator.TokenEstimator`

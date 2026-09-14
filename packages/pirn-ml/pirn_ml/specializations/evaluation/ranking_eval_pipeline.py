@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RankingEvalPipeline`` — SubTapestry for ranking model evaluation.
 
 Computes NDCG@k, MRR, and MAP@k for a ranking model on a held-out split.

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSeriesCrossValidator`` — expanding-window time series cross-validation.
 
 Each fold adds one period of training data and evaluates on the next

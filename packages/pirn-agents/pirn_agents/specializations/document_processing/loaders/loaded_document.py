@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``LoadedDocument`` — the normalized document every loader emits (F25-S1).
 
 A provider-neutral, frozen carrier for the text (and, for structured formats,

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ICARobustDecomposer`` — robust ICA variant for outlier-heavy data.
 
 Algorithm:

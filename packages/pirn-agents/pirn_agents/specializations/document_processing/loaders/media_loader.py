@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``MediaLoader`` — load binary media (image/audio/file) into blocks (F15-S4).
 
 The multimodal counterpart to the text loaders: it wraps the raw bytes of one

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ObjectStoreWriteSink`` — a pirn :class:`Sink` that writes bytes to any
 :class:`ObjectStore` backend at a configured key.
 

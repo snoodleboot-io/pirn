@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FlowlinePressureModeler`` — predict flowline pressure drop from rates.
 
 Algorithm:

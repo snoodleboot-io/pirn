@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RandomizedTrialAnalyzer`` — perform ITT and per-protocol analyses for a randomized controlled trial.
 
 Algorithm:

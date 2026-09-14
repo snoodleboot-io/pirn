@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DifferentialExpressionAnalyzer`` — case/control DE analysis.
 
 Production version wraps DESeq2 / edgeR / limma-voom (R) or PyDESeq2.

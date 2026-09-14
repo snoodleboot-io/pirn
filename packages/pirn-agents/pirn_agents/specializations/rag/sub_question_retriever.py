@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SubQuestionRetriever`` — concurrent per-sub-question retrieval + union.
 
 The retrieval stage of sub-question RAG. Each sub-question is searched against

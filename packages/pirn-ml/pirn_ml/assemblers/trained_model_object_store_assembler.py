@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrainedModelObjectStoreAssembler`` — assemble a :class:`TrainedModelPayload` from raw model bytes.
 
 Sits between an object-store read connector (which produces ``bytes``) and

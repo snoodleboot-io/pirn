@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrainedModelObjectStoreDisassembler`` — serialise a :class:`TrainedModelPayload` to raw bytes.
 
 Sits between domain knots that produce a :class:`TrainedModelPayload` and an

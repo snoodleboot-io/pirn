@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HashEncoder`` — hash categorical values into a fixed-size binary vector.
 
 Implements the feature-hashing trick: each category is hashed into one

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FileBlock`` — the file/document variant of the content-block union (F15-S1)."""
 
 from __future__ import annotations

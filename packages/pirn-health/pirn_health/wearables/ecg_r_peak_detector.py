@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ECGRPeakDetector`` — detect R-peaks in an ECG signal using Pan-Tompkins.
 
 Algorithm:

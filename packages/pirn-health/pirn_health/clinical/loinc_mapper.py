@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LOINCMapper`` — translate lab-test names to LOINC codes via static map.
 
 Production deployments would call the LOINC search API or look up the

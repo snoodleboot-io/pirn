@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TissueSegmenter`` — separate tissue from background on WSI tiles.
 
 Uses Otsu thresholding in grayscale space to compute tissue fraction per tile.

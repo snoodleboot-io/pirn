@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PdfFormat`` — Portable Document Format (PDF) encoder/decoder.
 
 Reads use ``pypdf`` to extract per-page text; writes use ``reportlab`` to

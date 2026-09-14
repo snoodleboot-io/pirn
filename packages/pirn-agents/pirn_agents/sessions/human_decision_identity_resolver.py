@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HumanDecisionIdentityResolver`` — record a resume run's actor as the decider."""
 
 from __future__ import annotations

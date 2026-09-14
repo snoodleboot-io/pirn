@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HeicFormat`` — High Efficiency Image Container (HEIC/HEIF) encoder/decoder.
 
 Reads and writes use ``pillow-heif`` (which registers HEIF support

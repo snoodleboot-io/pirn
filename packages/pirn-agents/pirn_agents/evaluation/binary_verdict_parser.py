@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BinaryVerdictParser`` — read a yes/no judgement from a judge's free text."""
 
 from __future__ import annotations

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FaultProximityAnalyzer`` — compute distance from each well to the nearest mapped fault.
 
 Algorithm:

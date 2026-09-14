@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TfliteFormat`` — TensorFlow Lite (FlatBuffer) model encoder/decoder.
 
 TFLite artefacts are FlatBuffer-encoded model containers used for

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Restricted ``ast``-based arithmetic evaluator (zero third-party deps).
 
 :meth:`SafeEvaluator.evaluate` parses an expression into an AST and walks it with

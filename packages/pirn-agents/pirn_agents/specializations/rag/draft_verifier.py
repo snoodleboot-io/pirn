@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``DraftVerifier`` — check a speculative draft against retrieved evidence.
 
 The verification stage of Speculative RAG. It takes the fast draft and the

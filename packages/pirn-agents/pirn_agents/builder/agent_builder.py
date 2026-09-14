@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentBuilder`` — fluent, chainable facade that generates a knot graph.
 
 ``AgentBuilder`` collects the pieces of an agent — an LLM provider, tools, a

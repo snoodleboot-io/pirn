@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MessageBrokerPublishSink`` — a pirn :class:`Sink` that publishes its
 parent's bytes payload to a configured topic on any :class:`MessageBroker`
 backend.

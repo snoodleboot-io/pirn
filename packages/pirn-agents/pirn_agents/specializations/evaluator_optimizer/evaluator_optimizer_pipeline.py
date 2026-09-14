@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``EvaluatorOptimizerPipeline`` — generator + LLM-judge + scored accept gate.
 
 A :class:`SubTapestry` that loops, up to ``max_iterations`` times:

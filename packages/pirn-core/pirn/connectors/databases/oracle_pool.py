@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Connection pool wrapper around the synchronous :mod:`oracledb` driver.
 
 The Oracle Python driver (``python-oracledb``) is synchronous; calls run

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EvalReportDatabaseDisassembler`` — flatten a :class:`EvalReportPayload` to database rows.
 
 Sits between domain knots that produce an :class:`EvalReportPayload` and a

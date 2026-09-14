@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PathologyFeatureExtractor`` — compose per-tile pathology features.
 
 Production version assembles morphometric, intensity, and texture

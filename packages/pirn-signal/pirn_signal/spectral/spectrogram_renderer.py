@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SpectrogramRenderer`` — render a spectrogram from a STFT/PSD.
 
 Algorithm:

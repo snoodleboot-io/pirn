@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ContextualCompressor`` — trim retrieved docs to the query-relevant span.
 
 Contextual compression shrinks each retrieved document down to only the spans

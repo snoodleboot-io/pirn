@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpSessionPool`` — vend one long-lived MCP session per server across a run.
 
 The pool maps a stable server *key* to a single

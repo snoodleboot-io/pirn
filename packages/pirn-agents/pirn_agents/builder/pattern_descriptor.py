@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PatternDescriptor`` — what the registry knows about one agentic pattern.
 
 A descriptor is the registry's row: a public pattern *name*, the

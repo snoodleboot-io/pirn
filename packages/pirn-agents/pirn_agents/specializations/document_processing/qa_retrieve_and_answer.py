@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``QARetrieveAndAnswer`` — internal helper Knot for :class:`DocumentQAPipeline`.
 
 Embeds the chunks plus the question, ranks chunks by cosine similarity,

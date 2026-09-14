@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StdioTransport`` — MCP JSON-RPC over a stdio subprocess (``[mcp]`` extra).
 
 The thin JSON-RPC core (:class:`~pirn_agents.mcp.mcp_client.McpClient`) owns the

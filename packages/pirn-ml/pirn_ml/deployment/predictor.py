@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Predictor`` — load a model id from the lineage store + object store
 and emit predictions for a feature set.
 

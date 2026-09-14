@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SQLGenerator`` — internal helper Knot for :class:`SQLAgent`.
 
 Asks the LLM to emit a single SQL statement for a natural-language

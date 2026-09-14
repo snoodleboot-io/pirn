@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GroupKFoldCrossValidator`` — K-fold cross-validation that keeps all
 samples from the same group in the same fold.
 

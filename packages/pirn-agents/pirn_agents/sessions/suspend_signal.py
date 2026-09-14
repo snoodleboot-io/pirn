@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SuspendSignal`` — the resumable handle read back from a suspended run."""
 
 from __future__ import annotations

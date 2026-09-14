@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SemiSupervisedTrainer`` — train on labeled data, predict pseudo-labels
 for unlabeled data, then retrain on the combined set.
 

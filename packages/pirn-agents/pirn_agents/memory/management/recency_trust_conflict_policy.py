@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RecencyTrustConflictPolicy`` — most-recent wins, ties broken by trust.
 
 The default, documented conflict-resolution policy for consolidation: the

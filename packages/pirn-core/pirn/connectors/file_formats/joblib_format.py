@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JoblibFormat`` — joblib-pickled artefact encoder/decoder.
 
 joblib is the de-facto persistence layer for scikit-learn estimators

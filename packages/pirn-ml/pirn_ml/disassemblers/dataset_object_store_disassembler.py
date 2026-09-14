@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatasetObjectStoreDisassembler`` — serialise a :class:`DatasetPayload` to numpy npz bytes.
 
 Sits between domain knots that produce a :class:`DatasetPayload` and an

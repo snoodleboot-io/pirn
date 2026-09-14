@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``EnumClassifierPipeline`` — pick one label from a fixed set.
 
 A :class:`SubTapestry` that asks the LLM to choose a single label from

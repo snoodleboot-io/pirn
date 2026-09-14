@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MneSignalObjectStoreDisassembler`` — shared bytes serialisation for MNE-backed signal disassemblers.
 
 :class:`~pirn_health.disassemblers.eeg_object_store_disassembler.EegObjectStoreDisassembler`

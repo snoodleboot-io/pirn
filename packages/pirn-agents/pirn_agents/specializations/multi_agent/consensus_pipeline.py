@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ConsensusPipeline`` — fuse multiple :class:`AgentResponse`s.
 
 Naming note (ADR agents-speaks-core WS5a/WS5b): this class was named

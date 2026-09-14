@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NetcdfFormat`` — NetCDF-4 batch encoder/decoder.
 
 NetCDF-4 is HDF5-on-the-wire with a self-describing scientific schema

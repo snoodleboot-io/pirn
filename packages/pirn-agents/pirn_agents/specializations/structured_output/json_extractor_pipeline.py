@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``JsonExtractorPipeline`` — schema-targeted JSON extraction with retry.
 
 A :class:`SubTapestry` that asks an :class:`LLMProvider` to produce

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``InMemoryGraphStore`` — the zero-dependency adjacency-list reference store.
 
 The default :class:`GraphStore` for tests and examples: it needs no external

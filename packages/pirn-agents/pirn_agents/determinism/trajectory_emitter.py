@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrajectoryEmitter`` — capture a run's trajectory from the engine itself.
 
 ADR "agents speaks core" WS3 part 3. Rather than every call site remembering

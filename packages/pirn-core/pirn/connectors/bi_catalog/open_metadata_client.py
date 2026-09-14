@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the OpenMetadata REST API.
 
 Uses ``httpx.AsyncClient`` with a bearer-token ``Authorization`` header

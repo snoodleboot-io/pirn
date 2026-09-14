@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GasChromatographyAnalyzer`` — parse GC analysis results to compute component mole fractions and heating value.
 
 Algorithm:

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ContextPrecisionMetric`` — rank-weighted precision of retrieved contexts."""
 
 from __future__ import annotations

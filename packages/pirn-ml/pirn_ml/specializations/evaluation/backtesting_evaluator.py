@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BacktestingEvaluator`` — Knot that evaluates a forecasting model on
 rolling historical windows, returning per-window and aggregate metrics.
 

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ConstrainedDecodingMapper`` — schema → grammar/regex-constrained request.
 
 The S3 building block for local providers (vLLM/Ollama style) that expose

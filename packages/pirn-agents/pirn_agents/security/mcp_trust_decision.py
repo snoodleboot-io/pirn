@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpTrustDecision`` — the outcome of evaluating an MCP call against policy.
 
 A frozen record of whether a ``server`` / ``tool`` call is ``allowed`` under the

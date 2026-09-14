@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FFTAnalyzer`` — forward FFT producing a one-sided complex spectrum.
 
 Algorithm:

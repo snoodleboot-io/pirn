@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RAGSynthesizer`` — synthesize a grounded answer from retrieved documents.
 
 Takes retrieved documents plus the original query, calls the LLM to produce

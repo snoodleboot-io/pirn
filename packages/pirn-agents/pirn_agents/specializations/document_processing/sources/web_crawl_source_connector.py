@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``WebCrawlSourceConnector`` — pull documents by crawling URLs (F25-S3 / PIR-613).
 
 Built on the F16 :class:`~pirn.connectors.http_connector.HttpConnector`

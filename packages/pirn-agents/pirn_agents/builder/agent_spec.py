@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentSpec`` — declarative, serialisable description of an agent graph.
 
 An :class:`AgentSpec` is the config-driven counterpart of the fluent

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``AutoMergingRetriever`` — merge retrieved leaves up to their parent.
 
 The retrieval half of auto-merging. It retrieves leaf chunks, groups them by

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StreamableHttpTransport`` — MCP JSON-RPC over streamable HTTP (``[mcp]`` extra).
 
 Mirrors :class:`~pirn_agents.mcp.stdio_transport.StdioTransport` but drives a

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OpenSlideFormat`` — Whole-slide imaging (WSI) batch decoder.
 
 OpenSlide supports a variety of WSI formats (SVS, NDPI, SCN, TIFF

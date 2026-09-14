@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RaptorRetriever`` — collapsed-tree retrieval over a RAPTOR index.
 
 RAPTOR supports "collapsed tree" retrieval: rather than descending the tree, all

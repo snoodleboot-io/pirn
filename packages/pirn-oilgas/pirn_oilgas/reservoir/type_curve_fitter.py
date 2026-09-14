@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TypeCurveFitter`` — fit a type curve to a population of well-rate series.
 
 Algorithm:

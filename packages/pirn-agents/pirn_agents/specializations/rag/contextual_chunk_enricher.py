@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ContextualChunkEnricher`` — prepend document context to each chunk.
 
 Anthropic's *contextual retrieval*: before indexing, each chunk is prefixed with

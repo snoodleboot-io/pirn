@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ZarrFormat`` — Zarr v3 zip-store batch encoder/decoder.
 
 Zarr is natively a *directory* layout (one file per chunk). For

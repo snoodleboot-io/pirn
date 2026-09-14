@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``UntrustedContentWrapper`` — delimit + provenance-tag untrusted payloads.
 
 The wrapper turns a raw tool / RAG / MCP payload into an

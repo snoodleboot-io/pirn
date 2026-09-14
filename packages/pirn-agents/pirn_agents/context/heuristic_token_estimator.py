@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HeuristicTokenEstimator`` — a backend-free default token estimator.
 
 Estimates tokens as ``ceil(len(text) / chars_per_token)``. The default ratio of

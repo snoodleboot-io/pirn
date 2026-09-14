@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PptxFormat`` — Microsoft PowerPoint ``.pptx`` (Office Open XML) encoder/decoder.
 
 Reads and writes use ``python-pptx``. ``.pptx`` is a zipped XML bundle:

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``MultiHopRAGPipeline`` — multi-hop retrieval-augmented generation.
 
 Decomposes the question into sub-questions, retrieves context for each,

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CollaborativeFilteringPipeline`` — matrix factorisation (ALS/SVD)
 on user-item interactions, returning trained model and top-K recommendations.
 

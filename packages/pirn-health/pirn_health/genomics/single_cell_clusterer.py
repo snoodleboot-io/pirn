@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SingleCellClusterer`` — single-cell clustering (Leiden / Louvain).
 
 Production version wraps ``scanpy`` / ``scvi-tools``; this stub

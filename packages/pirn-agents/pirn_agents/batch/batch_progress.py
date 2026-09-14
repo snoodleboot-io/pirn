@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BatchProgress`` — the per-fire summary of a batch run's completed items.
 
 A pure summary value: ``TriggeredBatch`` returns one per fire, naming the item

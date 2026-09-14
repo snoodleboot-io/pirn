@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BrainMaskExtractor`` — skull-strip a brain MRI.
 
 Uses dipy ``median_otsu`` for robust brain extraction without antspyx.

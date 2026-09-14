@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ToolFactory`` — a tool capability as a value: a knot class plus what is bound to it.
 
 The ADR "agents speaks core" (WS1) makes the *class* the capability and an

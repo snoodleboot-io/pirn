@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RelevanceCheck`` — keep retrieved docs above a relevance threshold.
 
 Scores each retrieved entry against the query (a simple

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryRecord`` — one typed, provenance-carrying unit of agent memory.
 
 The single value object every F27 memory-management piece reads and writes.

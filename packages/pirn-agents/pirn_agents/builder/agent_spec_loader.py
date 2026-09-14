@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentSpecLoader`` — parse/serialise :class:`AgentSpec` from JSON and YAML.
 
 JSON support uses only the standard library. YAML support is lazily provided

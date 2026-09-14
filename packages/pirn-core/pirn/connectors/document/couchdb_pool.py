@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async CouchDB pool backed by :mod:`aiocouch`."""
 
 from __future__ import annotations

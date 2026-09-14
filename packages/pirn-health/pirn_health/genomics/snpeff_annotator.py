@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SnpEffAnnotator`` — SnpEff variant-effect annotator.
 
 Production version invokes ``snpEff`` via subprocess; this stub

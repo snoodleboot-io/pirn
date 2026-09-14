@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatureStore`` — write feature rows from a :class:`SplitManifest` to a
 :class:`FeatureStoreProvider`.
 

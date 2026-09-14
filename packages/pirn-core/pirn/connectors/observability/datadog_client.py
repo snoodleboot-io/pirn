@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the synchronous ``datadog-api-client`` SDK.
 
 The Datadog SDK is synchronous; calls run in a worker thread via

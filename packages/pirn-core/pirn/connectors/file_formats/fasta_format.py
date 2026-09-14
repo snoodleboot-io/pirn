@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FastaFormat`` — FASTA sequence encoder/decoder.
 
 FASTA is a simple text format used in bioinformatics: each record is a

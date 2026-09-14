@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MulticlassClassificationPipeline`` — end-to-end multiclass
 classification SubTapestry. Uses macro-averaged variants of the canonical
 classification metrics so the report is meaningful across more than two

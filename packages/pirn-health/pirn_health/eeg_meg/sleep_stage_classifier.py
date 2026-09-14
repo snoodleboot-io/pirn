@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SleepStageClassifier`` — classify 30-second PSG epochs into sleep stages (W, N1, N2, N3, REM).
 
 Algorithm:

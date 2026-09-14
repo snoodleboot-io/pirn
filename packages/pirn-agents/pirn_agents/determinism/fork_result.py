@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ForkResult`` — the outcome of forking a run chain at a recorded point."""
 
 from __future__ import annotations

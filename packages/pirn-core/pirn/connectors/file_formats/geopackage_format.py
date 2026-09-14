@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GeopackageFormat`` — GeoPackage (``.gpkg``) encoder/decoder.
 
 Backed by ``fiona`` (which wraps OGR). GeoPackage is a SQLite database

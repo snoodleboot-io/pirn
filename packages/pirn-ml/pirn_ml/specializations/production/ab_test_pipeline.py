@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ABTestPipeline`` — SubTapestry that compares two models on a held-out
 test split with a paired t-test on the configured primary metric.
 

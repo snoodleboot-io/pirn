@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PytorchFormat`` — PyTorch state-dict / model encoder/decoder.
 
 PyTorch artefacts are whole-model pickles (``torch.save`` / ``torch.load``).

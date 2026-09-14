@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SessionChain`` — a session is a chain of engine runs, not a stored blob.
 
 ADR "agents speaks core" WS3 part 2. A session is one turn's ``Tapestry.run()``

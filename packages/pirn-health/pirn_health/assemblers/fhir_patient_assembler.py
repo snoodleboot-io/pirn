@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FhirPatientAssembler`` — assemble :class:`ClinicalRecord` objects from FHIR dicts.
 
 Sits between a connector that materialises FHIR Patient JSON bundles (as

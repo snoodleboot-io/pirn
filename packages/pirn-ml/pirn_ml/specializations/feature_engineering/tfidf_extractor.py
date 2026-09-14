@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TFIDFExtractor`` — compute TF-IDF features for a text column.
 
 Appends ``tfidf_<i>`` feature names for each of the ``max_features``

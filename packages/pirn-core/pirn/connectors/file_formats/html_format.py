@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HtmlFormat`` — HTML encoder/decoder.
 
 Reads use ``beautifulsoup4`` with the ``lxml`` parser; writes emit a

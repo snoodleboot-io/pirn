@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EpisodicMemoryPipeline`` — store a conversation episode.
 
 A :class:`SubTapestry` that wraps :class:`EpisodicEpisodeWriter` so

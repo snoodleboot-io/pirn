@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``XlsxFormat`` — Microsoft Excel ``.xlsx`` (Office Open XML) encoder/decoder.
 
 Reads use ``openpyxl`` in ``read_only=True`` / ``data_only=True`` mode:

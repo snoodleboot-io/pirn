@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SparkWriteSink`` — terminal sink that materialises a deferred
 Spark plan to disk via ``DataFrame.write``.
 

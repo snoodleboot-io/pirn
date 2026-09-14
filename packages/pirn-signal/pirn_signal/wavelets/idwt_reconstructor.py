@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IDWTReconstructor`` — inverse discrete wavelet transform.
 
 Algorithm:

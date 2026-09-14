@@ -70,7 +70,7 @@ class OutputParser(Knot):
             TypeError: If response is not a Mapping.
             ValueError: If response contains no recognisable content or choices field.
         """
-        if not isinstance(response, Mapping):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(response, Mapping):
             raise TypeError(
                 f"OutputParser: response must be a Mapping, got {type(response).__name__}"
             )

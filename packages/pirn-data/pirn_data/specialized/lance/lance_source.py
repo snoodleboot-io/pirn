@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LanceSource`` — Tier-4 source knot that opens a Lance dataset on disk.
 
 Calls :func:`lance.dataset` against the configured path at run time and

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SQLAgent`` — natural-language to SQL with safe execution.
 
 A :class:`SubTapestry` that asks an LLM to translate a natural-language

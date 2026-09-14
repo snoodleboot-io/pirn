@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Azure Service Bus :class:`MessageBroker` backed by ``azure-servicebus``."""
 
 from __future__ import annotations

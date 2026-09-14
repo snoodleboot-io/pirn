@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FrozenClock`` — a deterministic :class:`Clock` fixed at an epoch instant."""
 
 from __future__ import annotations

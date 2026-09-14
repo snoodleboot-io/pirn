@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SelfAskPipeline`` — Self-Ask sub-question decomposition.
 
 A :class:`SubTapestry` that:

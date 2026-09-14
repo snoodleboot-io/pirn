@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SessionSummarizer`` — compress conversation history when it exceeds a token threshold.
 
 Counts approximate tokens in the conversation history. When the total

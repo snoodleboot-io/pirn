@@ -99,7 +99,7 @@ class StreamingS3Store(S3Store):
         part_number = 1
         try:
             async for chunk in body:
-                if not isinstance(chunk, (bytes, bytearray)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+                if not isinstance(chunk, (bytes, bytearray)):
                     raise TypeError(
                         f"StreamingS3Store.put: body iterator must yield bytes; "
                         f"got {type(chunk).__name__}"

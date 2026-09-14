@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Gate — predicate-driven pass-through.
 
 A ``Gate`` takes one parent and a decision.  If the decision is open, the

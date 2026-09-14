@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PromptTemplateRegistry`` — a namespaced, versioned registry of templates.
 
 Modelled on the tool registry's lookup layer: templates register under a

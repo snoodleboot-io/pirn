@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound caller input: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OptionalDependency`` — the one lazy importer for optional third-party backends.
 
 pirn keeps every optional backend (cloud SDKs, database drivers, file-format

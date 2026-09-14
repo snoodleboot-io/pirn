@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentSummarizerPipeline`` — map-reduce document summarisation.
 
 A :class:`SubTapestry` that loads a document, splits it into chunks, asks

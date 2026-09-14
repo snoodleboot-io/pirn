@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``PydanticValidatorPipeline`` — JSON extraction + pydantic validation.
 
 A :class:`SubTapestry` that wraps :class:`JsonExtractorPipeline`, feeds

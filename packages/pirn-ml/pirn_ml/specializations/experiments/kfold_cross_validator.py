@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``KFoldCrossValidator`` — plain K-fold cross-validation.
 
 Splits the upstream :class:`DatasetManifest` into K folds, trains and evaluates

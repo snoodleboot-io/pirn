@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FreshnessCheck`` — assesses whether the most-recent timestamp in a
 :class:`DataBatch` is no older than ``max_age``.
 

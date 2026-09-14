@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatafusionFilter`` — Tier-2 row predicate using either a SQL
 predicate string or a callable producing a DataFusion expression.
 

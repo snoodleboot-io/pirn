@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RAGPromptBuilder`` — fold retrieved context into a prompt string.
 
 Takes a free-form query plus a list of retrieved memory entries and

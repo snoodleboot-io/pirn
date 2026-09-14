@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BayesianSearchTuner`` — Bayesian hyperparameter search.
 
 Wraps :class:`HyperparamSearch` with ``strategy="bayesian"``. The number

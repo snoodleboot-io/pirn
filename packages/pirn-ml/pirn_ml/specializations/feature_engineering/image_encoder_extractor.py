@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ImageEncoderExtractor`` — append a ``<image_column>_embedding``
 feature to every partition of a :class:`SplitManifest` via an
 :class:`ImageEncoderProvider`.

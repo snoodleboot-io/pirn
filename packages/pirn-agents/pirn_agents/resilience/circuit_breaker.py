@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CircuitBreaker`` — a per-endpoint closed/open/half-open state machine.
 
 The breaker guards calls to a single endpoint. In CLOSED it lets calls through

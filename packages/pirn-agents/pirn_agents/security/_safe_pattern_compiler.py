@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Shared regex compilation and matching utilities for agent guardrails.
 
 Guards against ReDoS by enforcing a maximum pattern length before compilation,

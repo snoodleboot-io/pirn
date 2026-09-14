@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Shopify SaaS connector wrapping the synchronous ``ShopifyAPI`` SDK.
 
 ShopifyAPI follows ActiveResource patterns and exposes a low-level

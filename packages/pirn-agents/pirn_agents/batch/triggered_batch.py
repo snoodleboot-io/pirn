@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TriggeredBatch`` — run a batch once per trigger fire (F28-S5 / PIR-584).
 
 Binds a core :class:`pirn.triggers.trigger.Trigger` to a

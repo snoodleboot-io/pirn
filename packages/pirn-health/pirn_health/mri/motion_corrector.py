@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MotionCorrector`` — rigid-body motion correction on an MRI volume.
 
 Uses dipy ``motion_correction`` for volume-to-volume realignment without antspyx.

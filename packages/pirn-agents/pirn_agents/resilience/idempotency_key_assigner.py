@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IdempotencyKeyAssigner`` — derive caller-stable idempotency keys.
 
 ADR agents-speaks-core WS2 part 2 — **breaking key-format change, sanctioned**:

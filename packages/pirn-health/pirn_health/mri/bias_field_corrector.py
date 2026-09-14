@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BiasFieldCorrector`` — N4 bias-field correction.
 
 Production version uses ANTs N4BiasFieldCorrection or

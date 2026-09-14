@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WitsmlDrillingMonitor`` — parse WITSML drilling data and monitor real-time drilling KPIs.
 
 Algorithm:

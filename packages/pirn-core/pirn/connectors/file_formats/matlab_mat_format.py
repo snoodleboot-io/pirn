@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MatlabMatFormat`` — MATLAB ``.mat`` batch encoder/decoder.
 
 Uses ``scipy.io.loadmat`` / ``scipy.io.savemat`` (MAT-file v5; v7.3 is

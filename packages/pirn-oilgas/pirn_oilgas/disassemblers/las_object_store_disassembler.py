@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LasObjectStoreDisassembler`` — serialize a :class:`LASPayload` to raw LAS bytes.
 
 Sits between upstream domain knots that produce

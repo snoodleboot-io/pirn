@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DicomPacsAssembler`` — assemble a :class:`DICOMPayload` from raw DICOM bytes.
 
 Sits between an object store connector (which produces ``bytes``) and downstream

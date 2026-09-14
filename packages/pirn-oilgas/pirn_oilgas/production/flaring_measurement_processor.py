@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FlaringMeasurementProcessor`` — process flaring measurement data to compute total gas flared and emissions.
 
 Algorithm:

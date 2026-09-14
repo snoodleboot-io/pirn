@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BCFtoolsCaller`` — bcftools-based variant caller.
 
 Production version invokes ``bcftools mpileup | bcftools call`` via

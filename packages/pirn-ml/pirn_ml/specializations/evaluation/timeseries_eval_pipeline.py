@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSeriesEvalPipeline`` — SubTapestry for forecasting evaluation.
 
 Computes MAPE, sMAPE, and MASE for a time-series forecasting model.

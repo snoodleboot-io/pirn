@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RunResumer`` — rehydrate a session's current read model from its run chain.
 
 ADR "agents speaks core" WS3 part 2. A session's first turn is run with its

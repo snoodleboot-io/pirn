@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LagAppendKnot`` — internal core knot used by
 :class:`LagFeatureGenerator` to append lag-feature names to every
 partition of a :class:`SplitManifest`.

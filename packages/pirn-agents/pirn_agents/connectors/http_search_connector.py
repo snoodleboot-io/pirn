@@ -65,7 +65,7 @@ class HttpSearchConnector(SearchBackend):
         # on HttpConnector's pooling, auth-header and retry behaviour, none of
         # which a bare structural type would promise. Revisit under PIR-792,
         # which is where a core HTTP abstraction would come from.
-        if not isinstance(http, HttpConnector):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(http, HttpConnector):
             raise TypeError(
                 f"HttpSearchConnector: http must be an HttpConnector, got {type(http).__name__}"
             )

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BatchInferencePipeline`` — SubTapestry that loads a model from the
 registry, runs inference on a dataset in batches, and writes predictions
 to a sink.

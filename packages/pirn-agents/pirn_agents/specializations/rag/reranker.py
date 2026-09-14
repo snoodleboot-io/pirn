@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``Reranker`` — LLM-based relevance re-ranking of retrieved documents.
 
 Takes a list of retrieved documents and a query, scores the relevance of each

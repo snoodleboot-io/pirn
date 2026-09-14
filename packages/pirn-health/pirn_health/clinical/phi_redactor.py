@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PHIRedactor`` — return a copy of a :class:`ClinicalRecord` with PHI removed.
 
 Patient ids and encounter ids are replaced with stable opaque tokens so

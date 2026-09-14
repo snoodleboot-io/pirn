@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WorkingMemoryWindowWriter`` — sliding-window write to a MemoryStore.
 
 Inner stage knot used by :class:`WorkingMemoryPipeline`. Reads the

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PgvectorMemoryStore`` — a pgvector-backed :class:`VectorMemoryStore`.
 
 Persists vectors in a Postgres table using the `pgvector` extension, driven by

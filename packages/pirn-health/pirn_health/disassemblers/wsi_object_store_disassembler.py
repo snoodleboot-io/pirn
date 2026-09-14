@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WsiObjectStoreDisassembler`` — disassemble a :class:`WSITilePayload` into bytes.
 
 Sits between domain knots that produce :class:`~pirn_health.types.wsi_tile_payload.WSITilePayload`

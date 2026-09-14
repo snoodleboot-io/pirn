@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ProvenanceTag`` — where a piece of untrusted content came from.
 
 A :class:`ProvenanceTag` is the immutable origin + trust label attached to every

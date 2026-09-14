@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ParallelSpecialistFanOut`` — invoke multiple specialists concurrently.
 
 A :class:`SubTapestry` that fans out a single task string to every registered

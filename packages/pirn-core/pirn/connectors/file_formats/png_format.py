@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PngFormat`` — Portable Network Graphics (PNG) encoder/decoder.
 
 Reads and writes use ``Pillow``. PNG is a single-image raster container

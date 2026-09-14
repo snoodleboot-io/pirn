@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PowerSpectrumEstimator`` — estimate the PSD of a signal payload.
 
 Algorithm:

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatabaseQuerySource`` — a pirn :class:`Source` that runs a parameterised
 SELECT against any :class:`DatabaseConnectionPool` backend and returns rows.
 

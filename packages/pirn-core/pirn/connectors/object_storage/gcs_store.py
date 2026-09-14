@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Google Cloud Storage :class:`ObjectStore` backed by :mod:`gcloud-aio-storage`."""
 
 from __future__ import annotations

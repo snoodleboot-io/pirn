@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatureSelector`` — keep the top-K features in a :class:`SplitManifest`.
 
 The actual scoring is deferred to a later runtime phase. At this layer

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LesionSegmenter`` — lesion-segmentation model inference.
 
 Production version uses an nnU-Net / MONAI deep model. This stub

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``FusionRetriever`` — concurrent multi-query retrieval fused with RRF.
 
 The retrieval stage of RAG-Fusion. Given a list of query variants, it searches

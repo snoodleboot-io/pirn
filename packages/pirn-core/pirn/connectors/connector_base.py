@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ConnectorBase`` — base class for connectors holding a pooled backend client.
 
 A connector wraps live client state (an HTTP session, a vector-store client, a

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """OpenTelemetry tracer/emitter wrapper.
 
 Unlike the rest of the observability connectors,

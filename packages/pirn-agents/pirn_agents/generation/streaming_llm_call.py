@@ -80,7 +80,7 @@ class StreamingLLMCall(Knot):
         # awaited — which the interface's own ``async def`` declaration invited
         # — and that raises ``TypeError`` against any real provider; only test
         # doubles that returned an iterator from a coroutine made it work.
-        if model is not None and (not isinstance(model, str) or not model):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if model is not None and (not isinstance(model, str) or not model):
             raise ValueError(
                 f"StreamingLLMCall: model must be a non-empty string or None, got {model!r}"
             )

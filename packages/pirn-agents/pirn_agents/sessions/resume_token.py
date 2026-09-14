@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ResumeToken`` — the resumable handle yielded when a run suspends for HITL."""
 
 from __future__ import annotations

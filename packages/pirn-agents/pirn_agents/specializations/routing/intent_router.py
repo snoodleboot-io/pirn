@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``IntentRouter`` — classify user message intent via LLM.
 
 A :class:`Knot` that sends the user message plus the configured

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FailoverCandidate`` — one named, timeout-bounded operation in a chain."""
 
 from __future__ import annotations

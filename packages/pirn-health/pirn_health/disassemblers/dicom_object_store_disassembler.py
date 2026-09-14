@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DicomObjectStoreDisassembler`` — disassemble a :class:`DICOMPayload` into bytes.
 
 Sits between domain knots that produce :class:`~pirn_health.types.dicom_payload.DICOMPayload`

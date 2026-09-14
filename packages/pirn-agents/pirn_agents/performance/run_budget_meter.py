@@ -49,7 +49,7 @@ class RunBudgetMeter:
         Raises:
             TypeError: If ``budget`` is not a :class:`RunBudget`.
         """
-        if not isinstance(budget, RunBudget):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(budget, RunBudget):
             raise TypeError(
                 f"RunBudgetMeter: budget must be a RunBudget, got {type(budget).__name__}"
             )

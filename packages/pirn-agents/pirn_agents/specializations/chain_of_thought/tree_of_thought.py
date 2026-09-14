@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``TreeOfThought`` — beam-search-style reasoning with LLM-scored candidates.
 
 Algorithm:

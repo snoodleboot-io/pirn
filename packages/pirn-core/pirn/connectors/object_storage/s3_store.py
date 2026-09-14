@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """S3-compatible :class:`ObjectStore` backed by :mod:`aioboto3`."""
 
 from __future__ import annotations

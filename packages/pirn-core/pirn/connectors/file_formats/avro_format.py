@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AvroFormat`` — Apache Avro batch encoder/decoder.
 
 Uses the ``fastavro`` library. Avro container files include the schema

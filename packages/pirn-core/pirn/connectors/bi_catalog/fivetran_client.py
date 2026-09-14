@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Fivetran REST API.
 
 Uses ``httpx.AsyncClient`` with HTTP Basic auth (``api_key`` / ``api_secret``).

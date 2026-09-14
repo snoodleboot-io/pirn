@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``EmbeddingIndexer`` — embed text chunks and store them in a MemoryStore.
 
 A :class:`Knot` that takes a list of text chunk strings, calls an

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ElandSource`` — Tier-4 source Knot that opens an Elasticsearch index
 through an ``eland.DataFrame``.
 

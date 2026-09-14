@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RetryOnParseFailure`` — retry LLM structured-output requests on parse error.
 
 A :class:`SubTapestry` that attempts to produce a valid structured

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ChampionChallengerCheck`` — compare a challenger model against the
 current champion on a shared test split and check downstream by an
 improvement threshold on a primary metric.

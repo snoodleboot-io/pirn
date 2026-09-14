@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DirectorySource`` — read every file under a prefix.
 
 Lists object keys via ``ObjectStore.list(prefix)``, decodes each via

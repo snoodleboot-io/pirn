@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ContextBudget`` — a token budget with optional reserved headroom."""
 
 from __future__ import annotations

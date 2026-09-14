@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PerformanceTriggeredRetrainer`` — SubTapestry that monitors a live
 metric and triggers a retraining run when it drops below a threshold,
 returning the new model reference.

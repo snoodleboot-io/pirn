@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ResidualAnalyzer`` — Knot that computes regression residuals, a
 histogram, Q-Q plot data, Durbin-Watson statistic, and a
 heteroscedasticity flag.

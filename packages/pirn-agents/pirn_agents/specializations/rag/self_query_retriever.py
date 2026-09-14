@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SelfQueryRetriever`` — vector search under an extracted metadata filter.
 
 The retrieval stage of self-query RAG. It embeds the semantic query and issues a

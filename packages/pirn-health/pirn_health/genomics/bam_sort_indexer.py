@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BAMSortIndexer`` — sort and index a BAM file by coordinate or read name.
 
 Algorithm:

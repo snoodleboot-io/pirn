@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpConnector`` — a pooled, self-healing MCP session for the pirn graph.
 
 Wrapping an :class:`~pirn_agents.mcp.mcp_client.McpClient` in

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentSpecCodec`` — round-trips an :class:`AgentBuilder` through :class:`AgentSpec`.
 
 Extracted from :class:`~pirn_agents.builder.agent_builder.AgentBuilder` (PIR-856,

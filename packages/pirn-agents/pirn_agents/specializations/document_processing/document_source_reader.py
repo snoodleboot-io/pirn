@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentSourceReader`` — the single guarded reader for document sources.
 
 Every document-processing loader reads its ``source`` through this collaborator so

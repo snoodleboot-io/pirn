@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``BrowserAgent`` — ReAct loop driving a browser-automation tool.
 
 A :class:`SubTapestry` that composes :class:`ReActLoop` with a single

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SemanticFactWriter`` — store extracted facts as searchable entries.
 
 Inner stage knot used by :class:`SemanticMemoryPipeline`. Each fact is

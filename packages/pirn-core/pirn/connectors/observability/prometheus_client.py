@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Prometheus HTTP query API.
 
 Prometheus exposes a JSON HTTP API at ``/api/v1/query``,

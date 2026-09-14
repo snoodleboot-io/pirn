@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CellSegmenter`` — segment individual cells from whole-slide image tiles.
 
 Algorithm:

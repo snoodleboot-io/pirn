@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EegNotchFilter`` — notch-filter at a specific frequency (e.g. 50/60 Hz).
 
 Algorithm:

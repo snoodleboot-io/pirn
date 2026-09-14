@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``IterativeRetriever`` — bounded recursive retrieve-and-refine loop.
 
 Iterative (a.k.a. recursive) retrieval retrieves, inspects what came back, and —

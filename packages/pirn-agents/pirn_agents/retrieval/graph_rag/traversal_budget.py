@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TraversalBudget`` — the depth / fanout / size bounds on a graph traversal.
 
 A frozen, hashable value that bounds how far and how wide
