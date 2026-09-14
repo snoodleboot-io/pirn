@@ -113,6 +113,20 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # Deprecated alias (ADR agents-speaks-core WS5b): reachable only under
         # its replacement name ConsensusPipeline, which is what is registered.
         "pirn_agents.specializations.multi_agent.consensus_aggregator.ConsensusAggregator",
+        # PIR-867: newly AgentPipeline (was a plain Knot before its bypass fix)
+        # — private fan-out bodies another pipeline drives internally.
+        "pirn_agents.specializations.document_processing._chunk_embedder_store._ChunkEmbedderStore",
+        "pirn_agents.specializations.document_processing._chunk_translator._ChunkTranslator",
+        "pirn_agents.specializations.document_processing._ingestion_runner._IngestionRunner",
+        "pirn_agents.specializations.plan_and_execute._plan_step_loop._PlanStepLoop",
+        "pirn_agents.specializations.routing._attempt_tier._AttemptTier",
+        # PIR-867: public but composed-internally, the same shape as
+        # ReActStepExecutor's exclusion above — reachable only through the
+        # pipeline that wires it (FactCheck registers as "fact_check";
+        # plan-and-execute has no composed pipeline registered at all, so
+        # PlanExecutor stays a directly-usable component, not a named pattern).
+        "pirn_agents.specializations.guardrails.fact_claim_verifier.FactClaimVerifier",
+        "pirn_agents.specializations.plan_and_execute.plan_executor.PlanExecutor",
     }
 )
 
@@ -202,6 +216,22 @@ _ITERATION_STEPS = frozenset(
     }
 )
 
+#: Public classes excluded not because a constructor parameter needs a driving
+#: loop (that is ``_ITERATION_STEPS``), but because they are reachable only
+#: through the pipeline that composes them: a caller can construct and run
+#: either directly (nothing about the constructor forces otherwise), but the
+#: registry names the composed pipeline instead — ``FactCheck`` ("fact_check")
+#: for ``FactClaimVerifier``, and no composed plan-and-execute pipeline is
+#: registered at all for ``PlanExecutor`` (PIR-867: both became ``AgentPipeline``
+#: only when their engine-bypasses were fixed, so neither was ever "discovered"
+#: — and therefore never needed this exclusion — before).
+_COMPOSED_STAGES = frozenset(
+    {
+        "pirn_agents.specializations.guardrails.fact_claim_verifier.FactClaimVerifier",
+        "pirn_agents.specializations.plan_and_execute.plan_executor.PlanExecutor",
+    }
+)
+
 #: Deprecated ``*Gate`` alias classes (PIR-856, Knot Design Rule 7): each is a
 #: thin subclass kept importable for one cycle; the registry names the
 #: replacement ``*Check`` class, so the alias itself is never reachable by name.
@@ -256,15 +286,25 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "pirn_agents.specializations.rag._complex_rag_arm._ComplexRagArm",
             "pirn_agents.specializations.routing._cascade_loop._CascadeLoop",
             "pirn_agents.specializations.routing._fallback_loop._FallbackLoop",
+            "pirn_agents.specializations.document_processing._chunk_embedder_store"
+            "._ChunkEmbedderStore",
+            "pirn_agents.specializations.document_processing._chunk_translator._ChunkTranslator",
+            "pirn_agents.specializations.document_processing._ingestion_runner._IngestionRunner",
+            "pirn_agents.specializations.plan_and_execute._plan_step_loop._PlanStepLoop",
+            "pirn_agents.specializations.routing._attempt_tier._AttemptTier",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,
-    # private loop body, or named iteration step.
+    # private loop body, named iteration step, composed-stage, or deprecated
+    # alias/rename.
     bases = {_qualified(AgentPipeline), _qualified(AgentLoopPipeline)}
-    # Every exclusion falls into exactly one justified category: base,
-    # private loop body, named iteration step, or deprecated alias/rename.
     assert _EXPECTED_EXCLUSIONS == (
-        bases | set(private) | _ITERATION_STEPS | _DEPRECATED_ALIASES | _DEPRECATED_RENAMES
+        bases
+        | set(private)
+        | _ITERATION_STEPS
+        | _COMPOSED_STAGES
+        | _DEPRECATED_ALIASES
+        | _DEPRECATED_RENAMES
     )
     for alias in _DEPRECATED_ALIASES:
         assert alias.rsplit(".", 1)[1].endswith("Gate")
