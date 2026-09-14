@@ -42,11 +42,7 @@ from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.tools.bundles import (
-    calculator_toolset,
-    filesystem_toolset,
-    web_toolset,
-)
+from pirn_agents.tools.bundles import Bundles
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -143,7 +139,7 @@ class AgentPresets:
             input: The research question — a string or a message sequence.
             tools: Override tool set; defaults to a backend-free web toolset
                 (HTTP fetch + HTML-to-text). Pass a search-backed
-                :func:`web_toolset` or your own tools to extend it.
+                :meth:`~pirn_agents.tools.bundles.Bundles.web_toolset` or your own tools to extend it.
             max_iterations: ReAct iteration cap.
             name: Optional explicit knot-id name.
 
@@ -165,7 +161,7 @@ class AgentPresets:
         name: str | None = None,
     ) -> AgentBuilder:
         """Configure the research recipe; see :meth:`research` for the arguments."""
-        selected = web_toolset() if tools is None else tools
+        selected = Bundles.web_toolset() if tools is None else tools
         preset = cls._preset_spec("research")
         options = {**preset.options, "max_iterations": max_iterations}
         builder = (
@@ -264,8 +260,8 @@ class AgentPresets:
     ) -> AgentBuilder:
         """Configure the coding recipe; see :meth:`coding` for the arguments."""
         if tools is None:
-            selected: Toolset | Sequence[Any] = filesystem_toolset(root=root).merge(
-                calculator_toolset()
+            selected: Toolset | Sequence[Any] = Bundles.filesystem_toolset(root=root).merge(
+                Bundles.calculator_toolset()
             )
         else:
             selected = tools

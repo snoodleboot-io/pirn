@@ -73,7 +73,7 @@ class TestSharedMachinery(unittest.IsolatedAsyncioTestCase):
 
 class TestPattern16DocExample(unittest.IsolatedAsyncioTestCase):
     async def test_research_agent_as_tool_in_react_loop(self) -> None:
-        # Mirrors the rewritten Pattern 16: a ResearchAgent exposed via as_tool()
+        # Mirrors the rewritten Pattern 16: a ResearchAgent exposed via AsTool.wrap()
         # and driven by an outer ReAct loop.
         outer_llm = StubLLMProvider(
             [

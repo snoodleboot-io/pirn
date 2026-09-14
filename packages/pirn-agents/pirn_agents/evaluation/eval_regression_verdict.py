@@ -1,4 +1,4 @@
-"""``GateResult`` — the pass/fail verdict of a regression gate, with a diff."""
+"""``EvalRegressionVerdict`` — the pass/fail verdict of an eval regression check, with a diff."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 @dataclass(frozen=True)
-class GateResult(PirnOpaqueValue):
-    """Whether an eval run cleared its regression gate, plus every breach.
+class EvalRegressionVerdict(PirnOpaqueValue):
+    """Whether an eval run cleared its regression check, plus every breach.
 
     Emits a human-readable Markdown diff (for the CI job log / PR comment) and a
     machine-readable JSON form. Each breach names the metric, its measured value,
@@ -41,13 +41,13 @@ class GateResult(PirnOpaqueValue):
         """
         if isinstance(self.breaches, (str, bytes)) or not isinstance(self.breaches, Sequence):
             raise TypeError(
-                f"GateResult.breaches must be a sequence of mappings, "
+                f"EvalRegressionVerdict.breaches must be a sequence of mappings, "
                 f"got {type(self.breaches).__name__}"
             )
         object.__setattr__(self, "breaches", tuple(self.breaches))
 
     def to_json(self, *, indent: int | None = 2) -> str:
-        """Serialise the gate result to a stable, machine-readable JSON string."""
+        """Serialise the verdict to a stable, machine-readable JSON string."""
         return json.dumps(
             {
                 "passed": self.passed,

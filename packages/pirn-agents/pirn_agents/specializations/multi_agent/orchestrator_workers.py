@@ -32,7 +32,7 @@ budget the admission gate already schedules against, not a second, private
 one it cannot see. ``_WorkerInvocation`` does not nest
 :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` as a further inner
 node — it reproduces ``ToolInvocation``'s exact catch-and-wrap contract
-directly (never raises; a failed call becomes a ``ToolStatus.ERROR`` result,
+directly (never raises; a failed call becomes a ``ToolResult`` whose outcome is ``Err``,
 scrubbed via ``ToolErrorRecord``) so results compose identically either way.
 
 Algorithm:

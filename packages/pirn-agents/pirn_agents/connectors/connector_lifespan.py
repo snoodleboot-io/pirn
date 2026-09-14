@@ -1,10 +1,10 @@
-"""``connector_lifespan`` — deterministic close/teardown for pooled connectors.
+"""``ConnectorLifespan`` — deterministic close/teardown for pooled connectors.
 
 The F16 connectors hold live pooled backend clients, so a run that vends them
 must release them when it finishes — on success *or* on error. This async
 context manager guarantees exactly that: it yields the connectors it was given
 and, on exit, closes each one in reverse order regardless of whether the body
-raised. Any object exposing a ``close`` attribute is handled (sync or async), so
+raised (``async with ConnectorLifespan.manage(a, b) as (a, b): ...``). Any object exposing a ``close`` attribute is handled (sync or async), so
 the same helper covers HTTP, SQL, search, and storage connectors uniformly.
 """
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import AsyncGenerator
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from contextlib import asynccontextmanager
 from typing import Any
 
 
@@ -51,12 +51,3 @@ class ConnectorLifespan:
                     errors.append(exc)
             if errors:
                 raise errors[0]
-
-
-def connector_lifespan(*connectors: Any) -> AbstractAsyncContextManager[tuple[Any, ...]]:
-    """Yield ``connectors`` and deterministically close them all on exit.
-
-    Thin wrapper kept for the pinned public import path (see
-    ``tests/test_ws5_s1_import_surface.py``); see :meth:`ConnectorLifespan.manage`.
-    """
-    return ConnectorLifespan.manage(*connectors)

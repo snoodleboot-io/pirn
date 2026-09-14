@@ -1,7 +1,7 @@
 """``_RoundRobinLoop`` — the sequential reviewer chain as a core node.
 
 Replaces the hand-rolled ``for reviewer in reviewer_list: await
-_SpecialistInvoker.invoke_specialist(...)`` that ran outside the engine, so
+SpecialistHandle.run(...)`` that ran outside the engine, so
 every review round is an engine knot with its own ``Result``, history record,
 and lineage (ADR agents-speaks-core WS5a; PIR-856's imperative-loop
 inventory).
@@ -35,6 +35,7 @@ from pirn_agents.specializations.multi_agent._reviewer_invocation import (
     _ReviewerInvocation,
 )
 from pirn_agents.specializations.multi_agent._round_robin_state import _RoundRobinState
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
@@ -71,7 +72,7 @@ class _RoundRobinLoop(AgentLoopPipeline[_RoundRobinState]):
         iteration = Tapestry()
         with iteration:
             _ReviewerInvocation(
-                reviewer=self._reviewers[state.index],
+                reviewer=SpecialistHandle(self._reviewers[state.index]),
                 response=state.response,
                 _config=KnotConfig(id=self._invoke_id),
             )

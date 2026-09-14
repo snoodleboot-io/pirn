@@ -17,12 +17,12 @@ Algorithm:
        store) and a ``_LexicalIds`` knot (BM25 search on a worker thread) as
        the parents of an ``Aggregator``.
     3. The combine fuses the two ranked id lists with
-       :func:`~pirn_agents.retrieval.reciprocal_rank_fusion.reciprocal_rank_fusion`.
+       :meth:`~pirn_agents.retrieval.reciprocal_rank_fusion.ReciprocalRankFusion.fuse`.
     4. Return the top ``top_k`` fused hits as ``{"id", "score"}`` mappings.
 
 Math:
     The fusion score itself is computed by
-    :func:`~pirn_agents.retrieval.reciprocal_rank_fusion.reciprocal_rank_fusion`
+    :meth:`~pirn_agents.retrieval.reciprocal_rank_fusion.ReciprocalRankFusion.fuse`
     (see that module for the full derivation); in short, for a document ``d``
     appearing at rank :math:`r_i(d)` in ranking :math:`i` (dense or lexical):
 
@@ -51,7 +51,7 @@ from pirn_agents.retrieval._lexical_ids import _LexicalIds
 from pirn_agents.retrieval.bm25_index import Bm25Index
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
-from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
+from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 
 
@@ -151,5 +151,5 @@ class HybridRetriever(SubTapestry, HybridRetrieverBase):
         *, dense: list[str], lexical: list[str], top_k: int, rrf_k: int
     ) -> list[Mapping[str, Any]]:
         """Fuse the dense and lexical rankings and return the top ``top_k`` hits."""
-        fused = reciprocal_rank_fusion([dense, lexical], k=rrf_k)
+        fused = ReciprocalRankFusion.fuse([dense, lexical], k=rrf_k)
         return [{"id": identifier, "score": score} for identifier, score in fused[:top_k]]

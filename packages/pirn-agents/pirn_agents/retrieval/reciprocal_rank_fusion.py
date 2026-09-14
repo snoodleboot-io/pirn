@@ -53,16 +53,3 @@ class ReciprocalRankFusion:
                     first_seen[identifier] = order
                     order += 1
         return sorted(fused.items(), key=lambda pair: (-pair[1], first_seen[pair[0]]))
-
-
-def reciprocal_rank_fusion(
-    rankings: Sequence[Sequence[str]], *, k: int = 60
-) -> list[tuple[str, float]]:
-    """Fuse several ranked id lists into one via Reciprocal Rank Fusion.
-
-    Thin wrapper kept for the pinned public import path (see
-    ``tests/retrieval/test_retrieval_import_surface.py``) and the
-    ``fusion_retriever.py``/``hybrid_retriever.py``/``hybrid_graph_retriever.py``
-    call sites; see :meth:`ReciprocalRankFusion.fuse`.
-    """
-    return ReciprocalRankFusion.fuse(rankings, k=k)

@@ -66,7 +66,7 @@ from pirn_agents.retrieval.graph_rag.graph_traversal import GraphTraversal
 from pirn_agents.retrieval.graph_rag.node_embedding_index import NodeEmbeddingIndex
 from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
 from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
-from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
+from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 
 
 class HybridGraphRetriever(HybridRetrieverBase):
@@ -136,14 +136,14 @@ class HybridGraphRetriever(HybridRetrieverBase):
         if not self._vector_enabled(embedding_index):
             # Clean graph-only fallback: RRF over the single graph ranking keeps
             # the returned score shape identical to the fused path.
-            fused = reciprocal_rank_fusion([graph_ids], k=rrf_k)
+            fused = ReciprocalRankFusion.fuse([graph_ids], k=rrf_k)
             return [{"id": identifier, "score": score} for identifier, score in fused[:top_k]]
 
         assert embedding_index is not None
         vector_ids = await embedding_index.ranked_node_ids(
             query_text, top_k=top_k * candidate_multiplier
         )
-        fused = reciprocal_rank_fusion([graph_ids, vector_ids], k=rrf_k)
+        fused = ReciprocalRankFusion.fuse([graph_ids, vector_ids], k=rrf_k)
         return [{"id": identifier, "score": score} for identifier, score in fused[:top_k]]
 
     @staticmethod

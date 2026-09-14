@@ -74,6 +74,17 @@ class OneSchedulerInventory:
                         found["checkpoints_outside_run_history"].add(label)
         return {name: frozenset(labels) for name, labels in found.items()}
 
+    @staticmethod
+    def walked_class_count() -> int:
+        """Return how many classes :meth:`discover` inspects across the owned dirs."""
+        root = Path(pirn_agents.__path__[0])
+        count = 0
+        for owned in _OWNED_DIRS:
+            for path in sorted((root / owned).rglob("*.py")):
+                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                count += sum(1 for node in ast.walk(tree) if isinstance(node, ast.ClassDef))
+        return count
+
     @classmethod
     def schedules_own_asyncio_loop(cls, node: ast.ClassDef) -> bool:
         """Whether *node*'s own body calls ``asyncio.wait``/``gather``/``ensure_future``.

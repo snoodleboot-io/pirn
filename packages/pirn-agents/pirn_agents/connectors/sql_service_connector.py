@@ -19,7 +19,7 @@ It also declares
 :class:`~pirn_agents.tools.sql.sql_connector.SqlConnector`, the tool-side SQL
 interface, so the connector is accepted by
 :class:`~pirn_agents.tools.sql.sql_query_tool.SqlQueryTool` (which type-checks its
-injected connector) and therefore by ``data_toolset`` (PIR-786). Both bases derive
+injected connector) and therefore by ``Bundles.data_toolset`` (PIR-786). Both bases derive
 from ``PirnOpaqueValue``, so the two lineages linearise cleanly and ``ConnectorBase``
 keeps precedence for the lifecycle and audit behaviour.
 """

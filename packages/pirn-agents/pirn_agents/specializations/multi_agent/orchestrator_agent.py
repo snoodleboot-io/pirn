@@ -10,7 +10,7 @@ A :class:`SubTapestry` that:
 Specialists are expected to accept a ``task: str`` kwarg. As
 :class:`SubTapestry` instances their ``process()`` returns the *sink knot*
 of their inner pipeline, so they must be invoked via
-:meth:`_SpecialistInvoker.invoke_specialist` — calling ``process()`` directly hands back an
+:meth:`SpecialistHandle.run` — calling ``process()`` directly hands back an
 unexecuted :class:`Knot` (see PIR-769). They run as sub-pipelines outside
 the orchestrator's inner :class:`Tapestry`; only the routing decision is
 recorded as an inner knot.
@@ -21,7 +21,7 @@ Algorithm:
        with the specialist names.
     3. Execute via ``self._run_inner(inner)`` to obtain the routing decision.
     4. Look up the chosen specialist by name; fall back to the first on mismatch.
-    5. Run the specialist via :meth:`_SpecialistInvoker.invoke_specialist` and normalise the value
+    5. Run the specialist via :meth:`SpecialistHandle.run` and normalise the value
        it produced to an :class:`AgentResponse`.
 
 
@@ -44,12 +44,10 @@ from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent._orchestrator_result_normalizer import (
     _OrchestratorResultNormalizer,
 )
-from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    _SpecialistInvoker,
-)
 from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
 )
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 
 
 class OrchestratorAgent(AgentPipeline):
@@ -96,5 +94,5 @@ class OrchestratorAgent(AgentPipeline):
         if not isinstance(chosen_name, str):
             chosen_name = next(iter(specialists_dict))
         specialist = specialists_dict[chosen_name]
-        raw = await _SpecialistInvoker.invoke_specialist(specialist, task=task)
+        raw = await SpecialistHandle(specialist).run(task=task)
         return _OrchestratorResultNormalizer(raw=raw, _config=KnotConfig(id="result"))

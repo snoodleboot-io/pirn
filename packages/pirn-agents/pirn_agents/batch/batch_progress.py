@@ -1,42 +1,34 @@
 """``BatchProgress`` — the per-fire summary of a batch run's completed items.
 
-Records which item keys a batch has already completed. ``TriggeredBatch``
-returns one as its per-fire summary; resume-after-crash itself is a
-``RunHistory`` lineage query on the item's knot id (see
-``pirn_agents.batch.map_agent.MapAgent``), not a checkpoint this value is
-read back from. :meth:`to_run_state`/:meth:`from_run_state` round-trip through
-a :class:`~pirn_agents.sessions.run_state.RunState` for the pre-migration
-``BatchCheckpointer`` shape; that shim is deleted (PIR-864), so today these
-two methods have no production caller left — kept as a still-correct,
-tested projection in case a future durable-checkpoint caller needs it again.
+A pure summary value: ``TriggeredBatch`` returns one per fire, naming the item
+keys that succeeded out of the total attempted. It checkpoints nothing and is
+never read back to decide what to run — resume-after-crash is a ``RunHistory``
+lineage query on each item's knot id (``item:<batch_id>:<key>``, see
+:class:`~pirn_agents.batch.map_agent.MapAgent`), so the engine's own run record
+is the only progress state there is.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.sessions.execution_cursor import ExecutionCursor
-from pirn_agents.sessions.run_state import RunState
-
 
 @dataclass(frozen=True)
 class BatchProgress(PirnOpaqueValue):
-    """The set of completed item keys for a batch, keyed by ``batch_id``.
+    """The set of item keys one batch run completed, keyed by ``batch_id``.
 
     Attributes
     ----------
     batch_id:
-        Stable id keying this batch's durable state (the session id under F14).
+        The id this run was reported under.
     completed_keys:
-        The item keys already finished successfully. Frozen (immutable) so the
+        The item keys that finished successfully. Frozen (immutable) so the
         value stays hashable and safe to share.
     total:
-        Total item count when known (for reporting), else ``None``. Not carried
-        through the F14 :class:`RunState` mapping — resume needs only the keys.
+        Total item count attempted, when known, else ``None``.
     """
 
     batch_id: str
@@ -54,81 +46,20 @@ class BatchProgress(PirnOpaqueValue):
 
     @property
     def completed_count(self) -> int:
-        """How many items have completed."""
+        """How many items completed."""
         return len(self.completed_keys)
 
     def is_complete(self, key: str) -> bool:
-        """Whether ``key`` has already been completed."""
+        """Whether ``key`` completed in this run."""
         return key in self.completed_keys
 
-    def with_completed(self, key: str) -> BatchProgress:
-        """Return a new progress with ``key`` recorded as completed."""
-        return BatchProgress(
-            batch_id=self.batch_id,
-            completed_keys=self.completed_keys | {key},
-            total=self.total,
-        )
-
-    def with_all(self, keys: Iterable[str]) -> BatchProgress:
-        """Return a new progress with every key in ``keys`` recorded completed."""
-        return BatchProgress(
-            batch_id=self.batch_id,
-            completed_keys=self.completed_keys | frozenset(keys),
-            total=self.total,
-        )
-
-    def to_run_state(self) -> RunState:
-        """Project the completed keys onto an F14 :class:`RunState` for persistence."""
-        ordered = tuple(sorted(self.completed_keys))
-        return RunState(
-            session_id=self.batch_id,
-            cursor=ExecutionCursor(step_index=len(ordered), completed_steps=ordered),
-        )
-
-    @classmethod
-    def from_run_state(cls, state: RunState, *, total: int | None = None) -> BatchProgress:
-        """Reconstruct progress from an F14 :class:`RunState`.
-
-        Raises:
-            TypeError: If ``state`` is not a RunState.
-        """
-        if not isinstance(state, RunState):
-            raise TypeError(
-                f"BatchProgress.from_run_state: state must be a RunState, "
-                f"got {type(state).__name__}"
-            )
-        return cls(
-            batch_id=state.session_id,
-            completed_keys=frozenset(state.cursor.completed_steps),
-            total=total,
-        )
-
     def to_payload(self) -> dict[str, Any]:
-        """Return a JSON-friendly mapping of this progress."""
+        """Return a JSON-friendly mapping of this summary."""
         return {
             "batch_id": self.batch_id,
             "completed_keys": sorted(self.completed_keys),
             "total": self.total,
         }
-
-    @classmethod
-    def from_payload(cls, payload: Any) -> BatchProgress:
-        """Reconstruct progress from a mapping produced by :meth:`to_payload`.
-
-        Raises:
-            TypeError: If ``payload`` is not a Mapping.
-        """
-        if not isinstance(payload, Mapping):
-            raise TypeError(
-                f"BatchProgress.from_payload: payload must be a Mapping, "
-                f"got {type(payload).__name__}"
-            )
-        raw_total = payload.get("total")
-        return cls(
-            batch_id=str(payload["batch_id"]),
-            completed_keys=frozenset(str(k) for k in payload.get("completed_keys", ())),
-            total=None if raw_total is None else int(raw_total),
-        )
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return self.to_payload()

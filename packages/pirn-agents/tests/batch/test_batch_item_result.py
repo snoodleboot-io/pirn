@@ -1,4 +1,4 @@
-"""Mirrored tests for the F28-S1 batch item result value + status enum."""
+"""Mirrored tests for the batch item result value — its outcome is a core ``Result``."""
 
 from __future__ import annotations
 
@@ -9,82 +9,107 @@ from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.batch.batch_item_result import BatchItemResult
-from pirn_agents.batch.batch_item_status import BatchItemStatus
 
 
-def _ok() -> BatchItemResult:
-    return BatchItemResult(
-        index=2, key="k2", status=BatchItemStatus.OK, output={"n": 1}, attempts=1, latency=0.5
-    )
-
-
-def _record(message: str = "boom") -> ExceptionRecord:
+def _record(message: str = "boom", exc_type: str = "RuntimeError") -> ExceptionRecord:
     return ExceptionRecord(
         run_id="<unbound>",
         knot_id="k9",
-        exc_type="RuntimeError",
+        exc_type=exc_type,
         message=message,
         traceback_text="Traceback (most recent call last):\n  RuntimeError: boom\n",
     )
+
+
+def _ok() -> BatchItemResult:
+    return BatchItemResult(index=2, key="k2", outcome=Ok(value={"n": 1}), attempts=1, latency=0.5)
 
 
 def _failed(record: ExceptionRecord | None = None) -> BatchItemResult:
     return BatchItemResult(
         index=9,
         key="k9",
-        status=BatchItemStatus.ERROR,
-        exception=record if record is not None else _record(),
+        outcome=Err(record=record if record is not None else _record()),
         attempts=3,
         latency=1.25,
     )
 
 
-class TestBatchItemResultRoundTrip:
-    def test_round_trips_without_data_loss(self) -> None:
-        restored = BatchItemResult.from_payload(_ok().to_payload())
-        assert restored == _ok()
-
-    def test_payload_covers_all_fields(self) -> None:
-        payload = _ok().to_payload()
-        assert set(payload) == {
-            "index",
-            "key",
-            "status",
-            "output",
-            "error",
-            "exception",
-            "attempts",
-            "latency",
-        }
-
-    def test_status_serialises_to_stable_token(self) -> None:
-        assert _ok().to_payload()["status"] == "ok"
-
-    def test_non_primitive_output_is_stringified(self) -> None:
-        result = BatchItemResult(index=0, key="k", status=BatchItemStatus.OK, output=object())
-        assert isinstance(result.to_payload()["output"], str)
-
-    def test_nested_output_is_json_safe(self) -> None:
-        result = BatchItemResult(
-            index=0, key="k", status=BatchItemStatus.OK, output={"a": [1, {"b": 2}]}
-        )
-        assert result.to_payload()["output"] == {"a": [1, {"b": 2}]}
+def _timeout() -> BatchItemResult:
+    return BatchItemResult(
+        index=7,
+        key="k7",
+        outcome=Err(record=_record("deadline exceeded", "KnotTimeoutError")),
+    )
 
 
-class TestBatchItemResultExceptionRecord:
-    def test_failure_carries_the_full_record(self) -> None:
+def _skipped() -> BatchItemResult:
+    return BatchItemResult(index=3, key="k3", outcome=Skipped(reason="resumed"), attempts=0)
+
+
+class TestBatchItemResultOutcome:
+    def test_ok_outcome_succeeds_and_carries_output(self) -> None:
+        result = _ok()
+        assert result.succeeded
+        assert result.output == {"n": 1}
+        assert result.exception is None
+        assert result.error is None
+        assert not result.timed_out
+
+    def test_err_outcome_carries_the_record(self) -> None:
         record = _record()
-        assert _failed(record).exception is record
+        result = _failed(record)
+        assert not result.succeeded
+        assert result.output is None
+        assert result.exception == record
+        assert result.error == "boom"
+        assert not result.timed_out
 
-    def test_error_is_derived_from_the_record_message(self) -> None:
-        assert _failed().error == "boom"
+    def test_timeout_is_an_err_whose_error_type_is_a_timeout(self) -> None:
+        result = _timeout()
+        assert isinstance(result.outcome, Err)
+        assert result.timed_out
+        assert result.error == "deadline exceeded"
 
-    def test_error_is_none_without_a_record(self) -> None:
-        assert _ok().error is None
+    @pytest.mark.parametrize("exc_type", ["TimeoutError", "KnotTimeoutError"])
+    def test_every_timeout_error_type_is_recognised(self, exc_type: str) -> None:
+        result = BatchItemResult(index=0, key="k", outcome=Err(record=_record(exc_type=exc_type)))
+        assert result.timed_out
+
+    def test_skipped_outcome_is_neither_success_nor_failure(self) -> None:
+        result = _skipped()
+        assert isinstance(result.outcome, Skipped)
+        assert not result.succeeded
+        assert result.exception is None
+        assert result.output is None
 
     def test_error_is_read_only(self) -> None:
         with pytest.raises(AttributeError):
             _failed().error = "clobbered"  # type: ignore[misc]
+
+
+class TestBatchItemResultPayload:
+    def test_payload_covers_all_fields(self) -> None:
+        assert set(_ok().to_payload()) == {
+            "index",
+            "key",
+            "outcome",
+            "output",
+            "error",
+            "exception",
+            "skip_reason",
+            "attempts",
+            "latency",
+        }
+
+    @pytest.mark.parametrize(
+        ("result", "token"),
+        [(_ok(), "ok"), (_failed(), "err"), (_skipped(), "skipped")],
+    )
+    def test_outcome_serialises_to_the_result_variant_token(
+        self, result: BatchItemResult, token: str
+    ) -> None:
+        assert result.to_payload()["outcome"] == token
 
     def test_payload_carries_the_whole_record(self) -> None:
         payload = _failed().to_payload()
@@ -92,188 +117,31 @@ class TestBatchItemResultExceptionRecord:
         assert payload["exception"]["traceback_text"].startswith("Traceback")
         assert payload["error"] == "boom"
 
-    def test_round_trips_a_record_without_data_loss(self) -> None:
-        # Equality covers the record's ``id`` and ``occurred_at`` too, so this
-        # pins that the checkpoint keeps a failure's full identity.
-        failed = _failed()
-        assert BatchItemResult.from_payload(failed.to_payload()) == failed
+    def test_payload_carries_the_skip_reason(self) -> None:
+        assert _skipped().to_payload()["skip_reason"] == "resumed"
+        assert _ok().to_payload()["skip_reason"] is None
 
-    def test_rejects_non_record_exception(self) -> None:
-        with pytest.raises(TypeError):
-            BatchItemResult(
-                index=0,
-                key="k",
-                status=BatchItemStatus.ERROR,
-                exception="boom",  # type: ignore[arg-type]
-            )
+    def test_non_json_output_is_stringified(self) -> None:
+        result = BatchItemResult(index=0, key="k", outcome=Ok(value=object()))
+        assert isinstance(result.to_payload()["output"], str)
 
-
-class TestBatchItemResultLegacyPayload:
-    """Checkpoints written before the record existed carry a bare ``error`` str."""
-
-    @staticmethod
-    def _legacy() -> dict[str, object]:
-        return {
-            "index": 4,
-            "key": "k4",
-            "status": "error",
-            "output": None,
-            "error": "legacy failure detail",
-            "attempts": 2,
-            "latency": 0.75,
-        }
-
-    def test_legacy_payload_still_loads(self) -> None:
-        restored = BatchItemResult.from_payload(self._legacy())
-        assert restored.index == 4
-        assert restored.key == "k4"
-        assert restored.status is BatchItemStatus.ERROR
-        assert restored.attempts == 2
-        assert restored.latency == 0.75
-
-    def test_legacy_error_string_is_preserved(self) -> None:
-        assert BatchItemResult.from_payload(self._legacy()).error == "legacy failure detail"
-
-    def test_legacy_error_string_is_lifted_into_a_record(self) -> None:
-        record = BatchItemResult.from_payload(self._legacy()).exception
-        assert record is not None
-        assert record.message == "legacy failure detail"
-        assert record.knot_id == "k4"
-        assert record.traceback_text == ""
-
-    def test_legacy_payload_without_error_has_no_record(self) -> None:
-        payload = self._legacy() | {"status": "ok", "error": None}
-        assert BatchItemResult.from_payload(payload).exception is None
-
-
-class TestBatchItemResultValidation:
-    def test_succeeded_reflects_status(self) -> None:
-        assert _ok().succeeded is True
-        assert _failed().succeeded is False
-
-    def test_rejects_negative_index(self) -> None:
-        with pytest.raises(ValueError):
-            BatchItemResult(index=-1, key="k", status=BatchItemStatus.OK)
-
-    def test_rejects_empty_key(self) -> None:
-        with pytest.raises(TypeError):
-            BatchItemResult(index=0, key="", status=BatchItemStatus.OK)
-
-    def test_rejects_non_status(self) -> None:
-        with pytest.raises(TypeError):
-            BatchItemResult(index=0, key="k", status="ok")  # type: ignore[arg-type]
-
-    def test_from_payload_rejects_non_mapping(self) -> None:
-        with pytest.raises(TypeError):
-            BatchItemResult.from_payload(["not", "a", "mapping"])
+    def test_nested_json_output_is_preserved(self) -> None:
+        result = BatchItemResult(index=0, key="k", outcome=Ok(value={"a": [1, {"b": 2}]}))
+        assert result.to_payload()["output"] == {"a": [1, {"b": 2}]}
 
     def test_is_opaque_audit_dict(self) -> None:
         assert _ok()._pirn_audit_dict() == _ok().to_payload()
 
 
-def _timeout() -> BatchItemResult:
-    record = ExceptionRecord(
-        run_id="<unbound>",
-        knot_id="k7",
-        exc_type="KnotTimeoutError",
-        message="deadline exceeded",
-        traceback_text="",
-    )
-    return BatchItemResult(
-        index=7, key="k7", status=BatchItemStatus.TIMEOUT, exception=record, attempts=1
-    )
+class TestBatchItemResultValidation:
+    def test_rejects_negative_index(self) -> None:
+        with pytest.raises(ValueError):
+            BatchItemResult(index=-1, key="k", outcome=Ok(value=None))
 
+    def test_rejects_empty_key(self) -> None:
+        with pytest.raises(TypeError):
+            BatchItemResult(index=0, key="", outcome=Ok(value=None))
 
-def _skipped() -> BatchItemResult:
-    return BatchItemResult(index=3, key="k3", status=BatchItemStatus.SKIPPED, attempts=0)
-
-
-class TestBatchItemResultToResult:
-    """ADR agents-speaks-core WS2: the ``Result`` bridge."""
-
-    def test_ok_becomes_ok(self) -> None:
-        result = _ok().to_result()
-        assert isinstance(result, Ok)
-        assert result.value == {"n": 1}
-
-    def test_error_becomes_err(self) -> None:
-        record = _record()
-        result = _failed(record).to_result()
-        assert isinstance(result, Err)
-        assert result.record is record
-
-    def test_timeout_becomes_err(self) -> None:
-        result = _timeout().to_result()
-        assert isinstance(result, Err)
-        assert result.record.exc_type == "KnotTimeoutError"
-
-    def test_skipped_becomes_skipped(self) -> None:
-        result = _skipped().to_result()
-        assert isinstance(result, Skipped)
-        assert result.detail == {"index": 3, "key": "k3"}
-
-    def test_error_without_a_record_is_rejected(self) -> None:
-        # __post_init__ allows exception=None regardless of status, so
-        # to_result must guard the case a plain construction can produce.
-        broken = BatchItemResult(index=0, key="k", status=BatchItemStatus.ERROR)
-        with pytest.raises(ValueError, match="exception is None"):
-            broken.to_result()
-
-
-class TestBatchItemResultFromResult:
-    """The reverse bridge: ``Result`` -> :class:`BatchItemResult`."""
-
-    def test_ok_round_trips(self) -> None:
-        built = BatchItemResult.from_result(
-            index=2, key="k2", result=Ok(value={"n": 1}), attempts=1, latency=0.5
-        )
-        assert built == _ok()
-
-    def test_skipped_round_trips(self) -> None:
-        built = BatchItemResult.from_result(
-            index=3, key="k3", result=Skipped(reason="resumed", detail={}), attempts=0
-        )
-        assert built.status is BatchItemStatus.SKIPPED
-        assert built.index == 3
-        assert built.key == "k3"
-
-    def test_known_timeout_exc_type_becomes_timeout_status(self) -> None:
-        record = ExceptionRecord(
-            run_id="<unbound>",
-            knot_id="k7",
-            exc_type="KnotTimeoutError",
-            message="deadline exceeded",
-            traceback_text="",
-        )
-        built = BatchItemResult.from_result(index=7, key="k7", result=Err(record=record))
-        assert built.status is BatchItemStatus.TIMEOUT
-
-    def test_other_exc_type_becomes_error_status(self) -> None:
-        built = BatchItemResult.from_result(index=9, key="k9", result=Err(record=_record()))
-        assert built.status is BatchItemStatus.ERROR
-
-    def test_round_trip_is_lossless_for_ok(self) -> None:
-        original = _ok()
-        assert (
-            BatchItemResult.from_result(
-                index=original.index,
-                key=original.key,
-                result=original.to_result(),
-                attempts=original.attempts,
-                latency=original.latency,
-            )
-            == original
-        )
-
-    def test_round_trip_is_lossless_for_error(self) -> None:
-        original = _failed()
-        assert (
-            BatchItemResult.from_result(
-                index=original.index,
-                key=original.key,
-                result=original.to_result(),
-                attempts=original.attempts,
-                latency=original.latency,
-            )
-            == original
-        )
+    def test_rejects_an_outcome_that_is_not_a_result(self) -> None:
+        with pytest.raises(TypeError):
+            BatchItemResult(index=0, key="k", outcome="ok")  # type: ignore[arg-type]

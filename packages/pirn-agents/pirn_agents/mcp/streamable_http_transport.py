@@ -5,7 +5,7 @@ remote server over the MCP streamable-HTTP transport instead of a subprocess.
 The thin JSON-RPC core owns the protocol; this class owns only the HTTP session
 plumbing, reusing the optional ``mcp`` SDK's ``streamablehttp_client``. Frames
 are translated between the SDK's message object and the plain mappings the core
-speaks. The backend is imported lazily via ``_require`` so importing this module
+speaks. The backend is imported lazily via ``OptionalImport.require`` so importing this module
 never pulls in ``mcp``.
 """
 
@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from contextlib import AsyncExitStack
 from typing import Any
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.mcp.mcp_transport import McpTransport
 
 
@@ -54,7 +54,7 @@ class StreamableHttpTransport(McpTransport):
         """Open the streamable-HTTP session and enter its stream context."""
         if self.is_open:
             return
-        mcp = _require("mcp", "mcp")
+        mcp = OptionalImport.require("mcp", "mcp")
         http = mcp.client.streamable_http  # type: ignore[attr-defined]
         stack = AsyncExitStack()
         streams = await stack.enter_async_context(
@@ -71,7 +71,7 @@ class StreamableHttpTransport(McpTransport):
         """Serialise ``message`` to an SDK JSON-RPC object and write it."""
         if self._write is None:
             raise RuntimeError("StreamableHttpTransport.send: transport is not open")
-        mcp = _require("mcp", "mcp")
+        mcp = OptionalImport.require("mcp", "mcp")
         rpc = mcp.types.JSONRPCMessage.model_validate(dict(message))  # type: ignore[attr-defined]
         await self._write.send(StreamableHttpTransport._wrap_session_message(mcp, rpc))
 

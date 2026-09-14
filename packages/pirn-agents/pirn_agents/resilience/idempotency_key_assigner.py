@@ -22,7 +22,7 @@ domain value object with its own ``__repr__``, ...) is still supported here:
 :meth:`_normalise` walks ``arguments`` and, at each leaf ``content_hash`` itself
 would reject, falls back to that leaf's ``repr()`` — refusing one whose ``repr``
 is the default identity form, mirroring the PIR-785/PIR-795 guard
-:attr:`~pirn_agents.serialization.opaque_policy.OpaquePolicy.REPR_CONTENT` used
+the former ``OpaquePolicy.REPR_CONTENT`` used
 to enforce, so this cannot key on a memory address either. Any leaf
 ``content_hash`` already hashes structurally (primitives, mappings, sequences,
 pydantic-aware types) passes through unchanged.

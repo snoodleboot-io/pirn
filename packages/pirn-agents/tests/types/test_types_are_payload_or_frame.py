@@ -1,4 +1,4 @@
-"""Ratchet: every class under ``pirn_agents.types`` is a ``Payload``, a frame, or allowlisted.
+"""Ratchet: every class under ``pirn_agents.types`` is a ``Payload``, a frame, or a named structural type.
 
 ADR agents-speaks-core WS6b: the vocabulary-drift review found agents had no
 ``Payload[Frame, Data]`` type at all — ``AgentResponse``/``AgentContext`` were
@@ -13,14 +13,14 @@ and ``ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage,
 * a **frame** — a frozen :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`
   dataclass named ``*Frame`` that only ever appears as a Payload's
   ``metadata``, or
-* explicitly **allowlisted** below, with a one-line reason, because it is a
-  structural leaf embedded *inside* a Payload's data (a content block, a
-  plain message record) rather than a knot-boundary value of its own.
+* a **structural type** named in the design inventory below, with a one-line
+  reason, because it is a leaf embedded *inside* a Payload's data (a content
+  block, a plain message record) rather than a knot-boundary value of its own.
 
 Following the style of ``tests/specializations/base/test_no_engine_bypass.py``:
-the allowlist is asserted by exact equality, so adding an unclassified class
-fails (not in the list) and fixing/removing a class without updating the list
-also fails (the list still names it).
+the inventory is asserted in both directions, so adding an unclassified class
+fails (not named) and converting/removing a class without updating the
+inventory also fails (it still names it).
 """
 
 from __future__ import annotations
@@ -35,32 +35,28 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 _TYPES_ROOT = Path(__file__).resolve().parents[2] / "pirn_agents" / "types"
 
-#: ``module::ClassName`` entries for classes that are neither a ``Payload``
-#: nor a ``*Frame`` — each is a structural leaf carried *inside* a Payload's
-#: data (a content block making up ``MessageContent``/``AgentMessage.blocks``,
-#: or the plain ``AgentMessage`` record itself), not a knot-boundary value in
-#: its own right. See the module docstring of each for its full rationale.
-ALLOWLISTED_STRUCTURAL = frozenset(
-    {
-        # Content-block union: nested inside AgentMessage.blocks, never a
-        # standalone knot output.
-        "content.content_block::ContentBlock",
-        "content.text_block::TextBlock",
-        "content.image_block::ImageBlock",
-        "content.audio_block::AudioBlock",
-        "content.file_block::FileBlock",
-        "content.tool_result_block::ToolResultBlock",
-        "content.media_handle::MediaHandle",
-        "content.message_content::MessageContent",
-        # Plain message record: the element type of ConversationPayload's
-        # `data` (tuple[AgentMessage, ...]) and AgentResponse's antecedent —
-        # analogous to numpy.ndarray being SignalPayload's `data` type.
-        "messaging.agent_message::AgentMessage",
-        # Neutral string enum, not a value that flows through the graph on
-        # its own.
-        "messaging.finish_reason::FinishReason",
-    }
-)
+#: The named design inventory of structural types under ``pirn_agents.types``:
+#: classes that are neither a ``Payload`` nor a ``*Frame`` by design, each with
+#: the one-line reason. Every one is a leaf carried *inside* a Payload's data
+#: (a content block making up ``MessageContent``/``AgentMessage.blocks``, or the
+#: ``AgentMessage`` record that is ``ConversationPayload``'s element type) or a
+#: token enum -- never a knot-boundary value of its own, so giving it a frame
+#: would describe lineage nothing records. A new class under ``types`` must be a
+#: Payload, a frame, or be added here with its reason (PIR-872).
+STRUCTURAL_TYPE_INVENTORY: dict[str, str] = {
+    "content.content_block::ContentBlock": "base of the content-block union inside AgentMessage.blocks",
+    "content.text_block::TextBlock": "text leaf of the content-block union",
+    "content.image_block::ImageBlock": "image leaf of the content-block union",
+    "content.audio_block::AudioBlock": "audio leaf of the content-block union",
+    "content.file_block::FileBlock": "file leaf of the content-block union",
+    "content.tool_result_block::ToolResultBlock": "tool-result leaf of the content-block union",
+    "content.media_handle::MediaHandle": "reference to media bytes carried by an image/audio/file block",
+    "content.message_content::MessageContent": "the block sequence an AgentMessage carries",
+    "messaging.agent_message::AgentMessage": (
+        "element type of ConversationPayload.data (as ndarray is SignalPayload's data)"
+    ),
+    "messaging.finish_reason::FinishReason": "string token enum on GenerationFrame, not a value",
+}
 
 
 def _iter_type_classes() -> list[tuple[str, type]]:
@@ -95,29 +91,30 @@ class TestEveryTypeIsPayloadFrameOrAllowlisted(unittest.TestCase):
                 and cls.__name__.endswith("Frame")
                 and issubclass(cls, PirnOpaqueValue)
             )
-            is_allowlisted = qualname in ALLOWLISTED_STRUCTURAL
-            if not (is_payload or is_frame or is_allowlisted):
+            is_structural = qualname in STRUCTURAL_TYPE_INVENTORY
+            if not (is_payload or is_frame or is_structural):
                 unclassified.append(qualname)
         assert unclassified == [], (
             f"Unclassified pirn_agents.types class(es): {unclassified}. "
-            "Make it a Payload subclass, a *Frame dataclass, or add it to "
-            "ALLOWLISTED_STRUCTURAL with a documented reason."
+            "Make it a Payload subclass, a *Frame dataclass, or name it in "
+            "STRUCTURAL_TYPE_INVENTORY with its reason."
         )
 
-    def test_allowlist_entries_still_exist_and_are_not_payload_or_frame(self) -> None:
-        """The other half of the ratchet: a fixed/removed entry must be deleted here too."""
+    def test_inventory_entries_still_exist_and_are_not_payload_or_frame(self) -> None:
+        """The other half: a converted/removed entry must be deleted here too."""
         classes_by_qualname = dict(_iter_type_classes())
-        for qualname in ALLOWLISTED_STRUCTURAL:
+        for qualname, reason in STRUCTURAL_TYPE_INVENTORY.items():
+            assert reason.strip(), qualname
             assert qualname in classes_by_qualname, (
-                f"{qualname} is allowlisted but no longer exists under pirn_agents.types; "
-                "remove it from ALLOWLISTED_STRUCTURAL."
+                f"{qualname} is inventoried but no longer exists under pirn_agents.types; "
+                "remove it from STRUCTURAL_TYPE_INVENTORY."
             )
             cls = classes_by_qualname[qualname]
             assert not issubclass(cls, Payload), (
-                f"{qualname} is now a Payload subclass; remove it from ALLOWLISTED_STRUCTURAL."
+                f"{qualname} is now a Payload subclass; remove it from STRUCTURAL_TYPE_INVENTORY."
             )
             assert not (cls.__name__.endswith("Frame") and issubclass(cls, PirnOpaqueValue)), (
-                f"{qualname} is now a *Frame type; remove it from ALLOWLISTED_STRUCTURAL."
+                f"{qualname} is now a *Frame type; remove it from STRUCTURAL_TYPE_INVENTORY."
             )
 
 

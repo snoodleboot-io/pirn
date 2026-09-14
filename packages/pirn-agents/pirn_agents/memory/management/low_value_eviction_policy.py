@@ -2,7 +2,7 @@
 
 When the store exceeds a capacity budget this policy evicts the lowest-value
 records first, where value is the shared importance x recency
-:func:`~pirn_agents.memory.management.decay_function.decay_score` (the same signal
+:meth:`~pirn_agents.memory.management.decay_function.DecayFunction.score` (the same signal
 :class:`~pirn_agents.memory.management.decay_scorer.DecayScorer` exposes). Records
 are ranked by decayed value at ``now``; everything below the top ``capacity`` is
 selected for eviction. Ties break deterministically by record ``id`` so eviction
@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 
-from pirn_agents.memory.management.decay_function import decay_score
+from pirn_agents.memory.management.decay_function import DecayFunction
 from pirn_agents.memory.management.memory_eviction_policy import MemoryEvictionPolicy
 from pirn_agents.memory.management.memory_record import MemoryRecord
 
@@ -88,4 +88,4 @@ class LowValueEvictionPolicy(MemoryEvictionPolicy):
     def _value(self, record: MemoryRecord, now: datetime) -> float:
         """Return ``record``'s decayed value at ``now``."""
         age_seconds = (now - record.recency_anchor()).total_seconds()
-        return decay_score(record.importance, age_seconds, self._half_life_seconds)
+        return DecayFunction.score(record.importance, age_seconds, self._half_life_seconds)

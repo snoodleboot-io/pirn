@@ -15,7 +15,6 @@ from pirn.managers.exception_record import ExceptionRecord
 from pirn_agents.resilience.circuit_open_error import CircuitOpenError
 from pirn_agents.resilience.failover_attempt import FailoverAttempt
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
-from pirn_agents.resilience.failover_outcome import FailoverOutcome
 from pirn_agents.resilience.failover_result import FailoverResult
 
 
@@ -82,7 +81,7 @@ class _AttemptCandidate(Knot):
                         *attempts,
                         FailoverAttempt(
                             candidate.name,
-                            Skipped(reason=FailoverOutcome.CIRCUIT_OPEN.value),
+                            Skipped(reason=FailoverAttempt.circuit_open_reason),
                         ),
                     ),
                 )

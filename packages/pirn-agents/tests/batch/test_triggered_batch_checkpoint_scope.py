@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import pytest
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.core.knot_config import KnotConfig
+from pirn.core.skipped import Skipped
 
-from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.map_agent import MapAgent
 from pirn_agents.batch.triggered_batch import TriggeredBatch
 from tests.batch.batch_doubles import RecordingTrigger, StubAgent
@@ -44,7 +45,13 @@ async def test_a_later_fire_reruns_keys_an_earlier_fire_completed() -> None:
     """
     history = InMemoryHistory()
     agent = StubAgent()
-    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
+    runner = MapAgent(
+        run_item=agent,
+        _config=KnotConfig(id="map-agent"),
+        concurrency=1,
+        key_fn=_by_customer,
+        history=history,
+    )
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
@@ -62,7 +69,13 @@ async def test_partially_overlapping_fires_rerun_the_colliding_subset() -> None:
     """Only the colliding keys were dropped, which is what hid the bug so long."""
     history = InMemoryHistory()
     agent = StubAgent()
-    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
+    runner = MapAgent(
+        run_item=agent,
+        _config=KnotConfig(id="map-agent"),
+        concurrency=1,
+        key_fn=_by_customer,
+        history=history,
+    )
     windows: dict[int, list[object]] = {1: ["c1", "c2"], 2: ["c2", "c3"]}
 
     triggered = TriggeredBatch(
@@ -79,7 +92,13 @@ async def test_partially_overlapping_fires_rerun_the_colliding_subset() -> None:
 async def test_each_fire_checkpoints_under_its_own_key() -> None:
     """Per-fire scoping is observable in lineage, not just in the results."""
     history = InMemoryHistory()
-    runner = MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer, history=history)
+    runner = MapAgent(
+        run_item=StubAgent(),
+        _config=KnotConfig(id="map-agent"),
+        concurrency=1,
+        key_fn=_by_customer,
+        history=history,
+    )
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
@@ -109,7 +128,13 @@ async def test_an_interrupted_fire_resumes_where_it_left_off() -> None:
     first_agent = StubAgent(fail_items={"d"})
     first = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
-        map_agent=MapAgent(first_agent, concurrency=1, key_fn=_by_customer, history=history),
+        map_agent=MapAgent(
+            run_item=first_agent,
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
+        ),
         inputs_fn=lambda ordinal: windows[ordinal],
     )
     crashed = [progress async for progress in first.run()]
@@ -118,7 +143,13 @@ async def test_an_interrupted_fire_resumes_where_it_left_off() -> None:
     second_agent = StubAgent()
     second = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
-        map_agent=MapAgent(second_agent, concurrency=1, key_fn=_by_customer, history=history),
+        map_agent=MapAgent(
+            run_item=second_agent,
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
+        ),
         inputs_fn=lambda ordinal: windows[ordinal],
     )
     resumed = [progress async for progress in second.run()]
@@ -136,7 +167,11 @@ async def test_map_agent_resumes_within_a_scope_and_isolates_across_scopes() -> 
     _ = [
         result
         async for result in MapAgent(
-            first, concurrency=1, key_fn=_by_customer, history=history
+            run_item=first,
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
         ).run(["a", "b"], checkpoint_scope="7")
     ]
     assert first.calls == ["a", "b"]
@@ -145,22 +180,29 @@ async def test_map_agent_resumes_within_a_scope_and_isolates_across_scopes() -> 
     same = StubAgent()
     resumed = [
         result
-        async for result in MapAgent(same, concurrency=1, key_fn=_by_customer, history=history).run(
-            ["a", "b"], checkpoint_scope="7"
-        )
+        async for result in MapAgent(
+            run_item=same,
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
+        ).run(["a", "b"], checkpoint_scope="7")
     ]
     assert same.calls == ["b"]
-    assert {r.key: r.status for r in resumed} == {
-        "a": BatchItemStatus.SKIPPED,
-        "b": BatchItemStatus.OK,
-    }
+    by_key = {r.key: r for r in resumed}
+    assert isinstance(by_key["a"].outcome, Skipped)
+    assert by_key["b"].succeeded
 
     # A different scope shares nothing.
     other = StubAgent()
     _ = [
         result
         async for result in MapAgent(
-            other, concurrency=1, key_fn=_by_customer, history=history
+            run_item=other,
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
         ).run(["a", "b"], checkpoint_scope="8")
     ]
     assert other.calls == ["a", "b"]
@@ -170,7 +212,13 @@ async def test_shared_checkpoint_opts_back_into_cross_fire_dedup() -> None:
     """The escape hatch: one namespace for every fire, explicitly requested."""
     history = InMemoryHistory()
     agent = StubAgent()
-    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
+    runner = MapAgent(
+        run_item=agent,
+        _config=KnotConfig(id="map-agent"),
+        concurrency=1,
+        key_fn=_by_customer,
+        history=history,
+    )
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
@@ -195,7 +243,13 @@ async def test_batch_id_and_checkpoint_scope_follow_the_triggers_fire_ordinal() 
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2, first_ordinal=41),
-        map_agent=MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer, history=history),
+        map_agent=MapAgent(
+            run_item=StubAgent(),
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
+        ),
         inputs_fn=inputs_fn,
     )
     progresses = [progress async for progress in triggered.run()]
@@ -209,7 +263,7 @@ async def test_a_trigger_without_a_usable_ordinal_falls_back_to_the_local_counte
     """``fire_ordinal`` is a convention, not a ``Trigger`` guarantee."""
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2, first_ordinal=None),
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=lambda ordinal: ["a"],
     )
     progresses = [progress async for progress in triggered.run()]
@@ -221,14 +275,16 @@ def test_rejects_a_non_bool_shared_checkpoint() -> None:
     with pytest.raises(TypeError):
         TriggeredBatch(
             trigger=RecordingTrigger(fires=1),
-            map_agent=MapAgent(StubAgent(), concurrency=1),
+            map_agent=MapAgent(
+                run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1
+            ),
             inputs_fn=lambda ordinal: ["a"],
             shared_checkpoint="yes",  # type: ignore[arg-type]
         )
 
 
 async def test_rejects_a_non_str_checkpoint_scope() -> None:
-    runner = MapAgent(StubAgent(), concurrency=1)
+    runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1)
     with pytest.raises(TypeError):
         _ = [result async for result in runner.run(["a"], checkpoint_scope=7)]  # type: ignore[arg-type]
 
@@ -254,7 +310,13 @@ async def test_a_replacement_process_silently_drops_repeat_keys_without_scope_fn
     for agent, windows in ((proc1_agent, proc1_windows), (proc2_agent, proc2_windows)):
         # A fresh TriggeredBatch each time == a fresh process, but the SAME
         # durable history, which is the whole point of a checkpoint.
-        runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
+        runner = MapAgent(
+            run_item=agent,
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
+        )
         triggered = TriggeredBatch(
             trigger=RecordingTrigger(fires=2),
             map_agent=runner,
@@ -285,7 +347,13 @@ async def test_scope_fn_keeps_a_replacement_process_processing_its_own_window() 
         (proc1_agent, proc1_windows, proc1_scopes),
         (proc2_agent, proc2_windows, proc2_scopes),
     ):
-        runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
+        runner = MapAgent(
+            run_item=agent,
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+            history=history,
+        )
         triggered = TriggeredBatch(
             trigger=RecordingTrigger(fires=2),
             map_agent=runner,
@@ -303,7 +371,8 @@ async def test_scope_fn_keeps_a_replacement_process_processing_its_own_window() 
 async def test_a_repeated_scope_is_refused_rather_than_silently_shared() -> None:
     """Two fires in one namespace make the second report success doing nothing."""
     runner = MapAgent(
-        StubAgent(),
+        run_item=StubAgent(),
+        _config=KnotConfig(id="map-agent"),
         concurrency=1,
         key_fn=_by_customer,
         history=InMemoryHistory(),
@@ -321,7 +390,12 @@ async def test_a_repeated_scope_is_refused_rather_than_silently_shared() -> None
 
 async def test_scope_fn_must_return_a_non_empty_str() -> None:
     def _runner() -> MapAgent:
-        return MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer)
+        return MapAgent(
+            run_item=StubAgent(),
+            _config=KnotConfig(id="map-agent"),
+            concurrency=1,
+            key_fn=_by_customer,
+        )
 
     for bad, exc in ((lambda ordinal: 7, TypeError), (lambda ordinal: "", ValueError)):
         triggered = TriggeredBatch(
@@ -338,7 +412,12 @@ def test_scope_fn_must_be_callable() -> None:
     with pytest.raises(TypeError, match="scope_fn"):
         TriggeredBatch(
             trigger=RecordingTrigger(fires=1),
-            map_agent=MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer),
+            map_agent=MapAgent(
+                run_item=StubAgent(),
+                _config=KnotConfig(id="map-agent"),
+                concurrency=1,
+                key_fn=_by_customer,
+            ),
             inputs_fn=lambda ordinal: [],
             scope_fn="not-callable",  # type: ignore[arg-type]
         )
@@ -347,7 +426,13 @@ def test_scope_fn_must_be_callable() -> None:
 async def test_without_scope_fn_the_ordinal_still_scopes_each_fire() -> None:
     """The default path is unchanged — PIR-803's guarantee still holds."""
     agent = StubAgent()
-    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=InMemoryHistory())
+    runner = MapAgent(
+        run_item=agent,
+        _config=KnotConfig(id="map-agent"),
+        concurrency=1,
+        key_fn=_by_customer,
+        history=InMemoryHistory(),
+    )
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
         map_agent=runner,

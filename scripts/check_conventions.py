@@ -153,62 +153,6 @@ _MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
     "pirn-core:pirn.core.knot_factory:knot": (
         "the @knot decorator that turns a function into a Knot factory"
     ),
-    # ---- pirn-agents ---------------------------------------------------------
-    # Pinned by tests/test_ws5_s1_import_surface.py (WS5/S1 import contract).
-    "pirn-agents:pirn_agents._internal._require:_require": (
-        "optional-extra import guard pinned by the S1 import-surface contract"
-    ),
-    "pirn-agents:pirn_agents.agent.approval_hook:authorize_tool_call": (
-        "async authorization helper; S1 import-surface contract"
-    ),
-    "pirn-agents:pirn_agents.connectors.connector_lifespan:connector_lifespan": (
-        "async context manager for connector lifetime; S1 import-surface contract"
-    ),
-    "pirn-agents:pirn_agents.tools.as_tool:as_tool": (
-        "agent-to-tool adapter documented in TOOLS.md/PATTERNS.md; S1 import-surface contract"
-    ),
-    "pirn-agents:pirn_agents.tools.tool_decorator:tool": (
-        "the @tool decorator documented in TOOLS.md/PATTERNS.md; S1 import-surface contract"
-    ),
-    # Pinned by tests/retrieval/test_retrieval_import_surface.py (WS5/S4).
-    "pirn-agents:pirn_agents.retrieval.reciprocal_rank_fusion:reciprocal_rank_fusion": (
-        "RRF fusion documented in PATTERNS.md; S4 retrieval import-surface contract"
-    ),
-    # Documented in pirn_agents/memory/management/MEMORY_MANAGEMENT.md.
-    "pirn-agents:pirn_agents.memory.management.decay_function:decay_score": (
-        "memory decay scoring documented in MEMORY_MANAGEMENT.md"
-    ),
-    # Public surface declared by pirn_agents/testing/__init__.py.
-    "pirn-agents:pirn_agents.testing.tool_test_harness:make_stub_tool": (
-        "tool testing kit factory declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:assert_tool_schema": (
-        "tool testing kit assertion declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:assert_schema_shape": (
-        "tool testing kit assertion declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:invoke_tool": (
-        "tool testing kit invocation driver declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:collect_tool_stream": (
-        "tool testing kit stream driver declared public by pirn_agents.testing"
-    ),
-    # Toolset bundles documented in pirn_agents/TOOLS.md.
-    "pirn-agents:pirn_agents.tools.bundles:calculator_toolset": (
-        "bundle factory documented in TOOLS.md"
-    ),
-    "pirn-agents:pirn_agents.tools.bundles:web_toolset": "bundle factory documented in TOOLS.md",
-    "pirn-agents:pirn_agents.tools.bundles:filesystem_toolset": (
-        "bundle factory documented in TOOLS.md"
-    ),
-    "pirn-agents:pirn_agents.tools.bundles:data_toolset": "bundle factory documented in TOOLS.md",
-    "pirn-agents:pirn_agents.tools.bundles:retrieval_toolset": (
-        "bundle factory documented in TOOLS.md"
-    ),
-    "pirn-agents:pirn_agents.tools.bundles:sandbox_toolset": (
-        "bundle factory documented in TOOLS.md"
-    ),
 }
 
 _KNOT_BASE_NAMES = frozenset(

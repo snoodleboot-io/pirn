@@ -30,8 +30,9 @@ One deliberate departure: ``run_forever`` routes every ``BaseException`` to
 Checkpoint scoping (PIR-803)
 ----------------------------
 The single ``MapAgent`` is reused for every fire, and a ``MapAgent`` re-seeds
-its skip-set from its checkpointer on every run. A checkpoint is therefore
-scoped to *one fire*: each run is given the fire's ordinal as its
+its skip-set from its ``RunHistory`` on every run (an item whose knot id
+``item:<batch_id>:<key>`` already has an ``Ok`` lineage row is skipped). That
+resume namespace is therefore scoped to *one fire*: each run is given the fire's ordinal as its
 ``checkpoint_scope``, so an interrupted fire still resumes where it stopped
 while the next fire starts clean. Sharing one namespace across fires instead
 made a key that repeats between windows — a customer id, a file name, a
@@ -130,7 +131,7 @@ class TriggeredBatch:
                 across *all* fires and you want an item completed in one fire
                 skipped in every later one — with repeating keys it silently
                 drops the whole of a later fire's work. It has no effect unless
-                the ``map_agent`` was given a checkpointer.
+                the ``map_agent`` was given a ``history``.
             on_result: Awaited after each completed run with the fire's
                 ``RunRequest`` and the ``BatchProgress`` about to be yielded.
             on_error: Awaited when a run raises, with the fire's ``RunRequest``

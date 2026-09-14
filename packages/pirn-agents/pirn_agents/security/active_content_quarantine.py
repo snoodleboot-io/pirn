@@ -16,6 +16,7 @@ extend them with no module-level constant.
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Sequence
 from re import DOTALL, IGNORECASE, Match, Pattern
 
@@ -95,12 +96,16 @@ class ActiveContentQuarantine:
         items: list[QuarantinedItem] = []
         working = text
         for kind, pattern in self._patterns:
-
-            def _replace(match: Match[str], _kind: str = kind) -> str:
-                value = match.group(0)
-                placeholder = f"[QUARANTINED:{_kind}#{len(items)}]"
-                items.append(QuarantinedItem(kind=_kind, value=value, placeholder=placeholder))
-                return placeholder
-
-            working = pattern.sub(_replace, working)
+            working = pattern.sub(
+                functools.partial(ActiveContentQuarantine._quarantine_match, items, kind),
+                working,
+            )
         return working, tuple(items)
+
+    @staticmethod
+    def _quarantine_match(items: list[QuarantinedItem], kind: str, match: Match[str]) -> str:
+        """Record ``match`` as a quarantined item of ``kind`` and return its placeholder."""
+        value = match.group(0)
+        placeholder = f"[QUARANTINED:{kind}#{len(items)}]"
+        items.append(QuarantinedItem(kind=kind, value=value, placeholder=placeholder))
+        return placeholder

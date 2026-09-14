@@ -11,7 +11,7 @@ sourced from an MCP server. It composes three checks, cheapest first:
    must be one the caller has been granted.
 3. **Human approval.** Allowed calls whose permissions set ``approval_required``
    are routed through the F14
-   :func:`~pirn_agents.agent.approval_hook.authorize_tool_call` seam so a human (or a
+   :meth:`~pirn_agents.agent.approval_hook.ApprovalHook.authorize` seam so a human (or a
    policy engine) can veto them.
 
 :meth:`decide` is the pure, synchronous evaluation (allow-list + scope);
@@ -24,7 +24,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents.agent.approval_hook import ApprovalHook, authorize_tool_call
+from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.security.mcp_trust_decision import McpTrustDecision
 from pirn_agents.security.mcp_trust_error import McpTrustError
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -163,7 +163,7 @@ class McpTrustPolicy:
         """
         perms = tool.permissions
         self.enforce(server, tool.name, permissions=perms)
-        return await authorize_tool_call(tool, arguments, self._approval_hook)
+        return await ApprovalHook.authorize(tool, arguments, self._approval_hook)
 
     def _deny(self, server: str, tool: str, reason: str) -> McpTrustDecision:
         """Build a denied :class:`McpTrustDecision`."""

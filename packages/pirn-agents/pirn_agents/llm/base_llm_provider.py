@@ -17,7 +17,7 @@ a lean orchestrator (DIP):
   estimating cost from a :class:`pirn_agents.llm.model_pricing.ModelPricing`.
 * **Lifecycle** — a pooled async HTTP client vended once by
   :class:`pirn.connectors.connector_base.ConnectorBase` and imported lazily via
-  :func:`pirn_agents._internal._require._require` so ``import pirn_agents`` stays
+  :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` so ``import pirn_agents`` stays
   backend-free.
 * **Streaming** — :meth:`stream_chat` yields a unified
   :class:`pirn_agents.llm.stream_delta.StreamDelta` (token + incremental
@@ -159,7 +159,7 @@ class BaseLLMProvider(
     async def _create_client(self) -> Any:
         """Return the injected client, or lazily build a pooled ``httpx`` one.
 
-        The real client is imported through :func:`_require` so ``httpx`` is
+        The real client is imported through :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` so ``httpx`` is
         never imported at package-import time; tests inject a fake client and
         never reach the import.
         """

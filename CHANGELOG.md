@@ -303,11 +303,44 @@ Deleted outright (no shims); every caller, test and doc moved in the same change
 | `pirn_agents.exceptions.tool_timeout_error.ToolTimeoutError` | `KnotConfig(timeout=)` → `Err(pirn.exceptions.knot_timeout_error.KnotTimeoutError)`. |
 | `AgentRecursionError`, `AgentDepthExceededError`, `AgentCycleError` | `pirn.core.run_nesting.RunNesting` with `Tapestry(max_nesting_depth=)` → `NestingDepthExceededError` / `NestedRunCycleError`. |
 | `pirn_agents.agent.agent_tool_context.AgentToolContext`, `current_agent_tool_context()`, `bind_agent_tool_context()` | Depth, run ids, path and cap: `RunNesting.current()`. The shared budget meter and pooled provider: `pirn_agents.agent.agent_tool_policy.AgentToolPolicy` (`meter`, `provider`, `bound()`/`current()`/`bind()`). |
-| `pirn_agents.agent.agent_nesting_config.AgentNestingConfig` | The `max_depth=8` default on `AgentTool`/`as_tool`/`AgentAsToolMixin.as_tool`/`AgentToolCall`, applied as core's `max_nesting_depth`. |
+| `pirn_agents.agent.agent_nesting_config.AgentNestingConfig` | The `max_depth=8` default on `AgentTool`/`AsTool.wrap`/`AgentAsToolMixin.as_tool`/`AgentToolCall`, applied as core's `max_nesting_depth`. |
 | `pirn_agents.specializations.base.gated_agent_response.GatedAgentResponse` | A core `Check` and `Gate(input=value, check=verdict)` (see `_EvaluatorOptimizerLoop`'s `_CandidateRejectedCheck`); `AcceptCheck` is now a `Check`. |
 | `CascadeTier.invoke` and `specializations/routing/_tier_invocation.py::_TierInvocation` | `CascadeTier(llm=LLMProvider)`: each tier runs as an `LLMChatCall` knot; `ModelCascadeRouter`'s `request` is the prompt string. |
 
 `ParallelToolExecutor` keeps its public shape: each call is a tool knot with `KnotConfig(retry=, timeout=, concurrency_group="tools")` under an `Aggregator`, so core's `GovernedDispatch` owns the per-call backoff and timeout. The shadow and bypass ratchets (`tests/core_seams/test_core_seam_shadows.py`, `tests/specializations/base/test_no_engine_bypass.py`) are all `frozenset()` assertions now.
+
+#### `pirn-agents` vocabulary onto core: outcomes, hashing, conventions (PIR-872)
+
+Deleted outright (no shims, no aliases); every caller, test and doc moved in the same change.
+
+| Removed | Replacement |
+|---|---|
+| `PromptCache.invalidate()`, `.purge_expired()`, `len(cache)` | `await cache.ainvalidate(...)`, `await cache.apurge_expired()`, `await cache.asize()`. |
+| `pirn_agents.serialization.canonical_json.CanonicalJson`, `pirn_agents.serialization.opaque_policy.OpaquePolicy` (the whole `pirn_agents.serialization` package) | `pirn.core.hashing.content_hash(value, strict=True)`; a type that needs a canonical form declares `__pirn_canonical__()`. `ContentDigest.digest` and `TrajectoryCallKey.args_key` now return core's `sha256:`-prefixed hash (cassette/trace keys and trajectory keys change value; neither is persisted across an upgrade). |
+| `pirn_agents._internal._require._require` | `pirn_agents._internal.optional_import.OptionalImport.require`. |
+| `ApprovalHook` module function `authorize_tool_call()` | `ApprovalHook.authorize()`. |
+| `connector_lifespan()` | `ConnectorLifespan.manage()`. |
+| `pirn_agents.tools.as_tool.as_tool()` | `AsTool.wrap()` (or `agent.as_tool()`). |
+| `pirn_agents.tools.tool_decorator.tool` (`@tool`) | `ToolDecorator.decorate` (`@ToolDecorator.decorate`). |
+| `reciprocal_rank_fusion()` | `ReciprocalRankFusion.fuse()`. |
+| `decay_score()` | `DecayFunction.score()`. |
+| `pirn_agents.testing.tool_test_harness.make_stub_tool`, `assert_tool_schema`, `assert_schema_shape`, `invoke_tool`, `collect_tool_stream` | `StubTool(...)`; `ToolTestHarness.assert_tool_schema`, `.assert_tool_schema_shape`, `.invoke_tool`, `.collect_tool_stream` (static methods). |
+| `pirn_agents.tools.bundles.calculator_toolset`/`web_toolset`/`filesystem_toolset`/`data_toolset`/`retrieval_toolset`/`sandbox_toolset` | `Bundles.calculator_toolset()` … `Bundles.sandbox_toolset()`. |
+| `pirn_agents.evaluation.eval_gate.EvalGate`, `evaluation.gate_result.GateResult` (not a core `Gate`) | `evaluation.eval_regression_check.EvalRegressionCheck`, `evaluation.eval_regression_verdict.EvalRegressionVerdict`. |
+| `SQLAgent(read_only=)` / `_SQLExecutor(read_only=)` instance state | The class is the policy: `SQLAgent` is read-only; `specializations.specialized_agents.read_write_sql_agent.ReadWriteSQLAgent` (pattern `read_write_sql_agent`) may write. No upstream knot can flip it (PIR-817). |
+| `specializations/multi_agent/_specialist_invoker.py::_SpecialistInvoker` | `specializations.multi_agent.specialist_handle.SpecialistHandle` — `SpecialistInvocation(specialist=SpecialistHandle(agent), ...)`, `_ReviewerInvocation(reviewer=SpecialistHandle(agent), ...)`, `await SpecialistHandle(agent).run(**inputs)`. |
+| `MapAgent(run_item, ...)` positional form and its default `_config` | `MapAgent(run_item=..., _config=KnotConfig(id=...), ...)`; every setting is a declared knot input and is validated when the batch runs. |
+| `DebateRoundFramer(**round_<i>=...)` | `DebateRoundFramer(prior_rounds=...)` — one declared input (an `Aggregator` over the prior rounds, or `()` for round 0). |
+| `pirn_agents.batch.batch_item_status.BatchItemStatus`; `BatchItemResult(status=, output=, exception=)`, `.to_result()`, `.from_result()`, `.from_payload()` | `BatchItemResult(outcome=Ok \| Err \| Skipped)`; `succeeded`, `output`, `exception`, `error`, `timed_out` are derived; a resumed item is `Skipped(reason="resumed")`. |
+| `BatchProgress.to_run_state()`, `.from_run_state()`, `.with_completed()`, `.with_all()`, `.from_payload()` | None — `BatchProgress` is a per-fire summary only; resume state is `RunHistory` lineage on `item:<batch_id>:<key>`. |
+| `pirn_agents.tools.tool_status.ToolStatus`; `ToolResult(result=, error=, status=, exception=)`, `.to_result()` | `ToolResult(call_id=, outcome=Ok \| Err \| Skipped, latency=, tokens=)` (or `ToolResult.from_result(...)`); `result`, `error`, `exception`, `succeeded` and the model-facing `status` string (`"ok"`/`"error"`/`"timeout"`/`"skipped"`) are derived. An error-only view carries an `Err` record, so its text is `"<type>: <message>"`. `ToolResult.with_latency()` is new. |
+| `pirn_agents.resilience.failover_outcome.FailoverOutcome` | `FailoverAttempt.result` (`Ok`/`Err`/`Skipped(reason=FailoverAttempt.circuit_open_reason)`); the trace dict carries `outcome` (`"ok"`/`"err"`/`"skipped"`) plus `error_type`. |
+| `pirn_agents.resilience.retry_classification.RetryClassification`, `RetrySafetyClassifier.classify()` | `RetrySafetyClassifier.is_safe(error) -> bool` (a retry-safety verdict, not an outcome). |
+| `pirn_agents.memory.stores.key_index_unreadable_error.KeyIndexUnreadableError` | None — its only raiser (`MemoryStoreKeyIndex`) was deleted in PIR-864. |
+| `ResultCache.get()`/`.put()`/`.has()` (and the subclass overrides) | `cache.get_or_compute(payload, compute)`; raw keyed access is `cache.store` (the core `DataStore`). |
+| `pirn_agents.caching.vector_memo_index.VectorMemoIndex` | `EmbeddingCache` stores vectors in a core `InMemoryDataStore`; `EmbeddingCache.invalidate()` is now a coroutine. |
+
+Also changed: `BudgetBreachError`, `StructuredDecodeError`, `SpecialistInvocationError`, `ConstitutionalViolationError`, `McpError`, `PromptRenderError`, `CircuitOpenError`, `LLMProviderError` and `RateLimitSignal` subclass `pirn.exceptions.pirn_error.PirnError` (keeping their builtin base); `TokenBucketRateLimiter` and `AdaptiveConcurrencyController` mix in `PirnOpaqueValue`; the `Retriever`/`Router`/`Writer`/`AgentPipeline` `process()` catch-alls are `**_`. The agents conventions baseline is 0 in every category, and the vocabulary ratchets (`EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR`, `CANONICAL_JSON_IMPORTERS`, `OUTCOME_ENUMS_BESIDE_RESULT`, `PARALLEL_VOCABULARY_IMPORTERS`, `CHECKPOINTS_OUTSIDE_RUN_HISTORY`, `LIFECYCLE_IMPORTERS`) are empty; the keyed-store and structural-type ratchets are now named design inventories with a reason per entry.
 
 #### The ADR "agents speaks core" one-cycle deprecation shims (PIR-864)
 
@@ -325,7 +358,7 @@ Every public name below was kept importable for exactly one deprecation cycle (e
 - `_FanoutRunner`, `AsyncFanoutEngine` — one knot per item under a core `Aggregator`; per-item timeout/retry via `KnotConfig.timeout`/`KnotConfig.retry`.
 - `AgentTool.invoke()` — `AgentTool.for_call(call)` run as a knot, or `run_view()`.
 
-`ToolResult`/`ToolStatus` are **not** removed: PIR-865 (#348) gave `ToolResult.from_result(gated=)`/`ToolStatus.SKIPPED` a live role rendering gated/approval outcomes to the model, so they remain the codec's rendering type.
+`ToolResult` was **not** removed: PIR-865 (#348) gave `ToolResult.from_result(gated=)` a live role rendering gated/approval outcomes to the model (PIR-872 later deleted `ToolStatus`; see above).
 
 **Observability (WS4a):**
 - `Tracer`, `OtelSink`, `LoggingSink`, `SpanEmittingToolInvocationHook`, `Span`, `SpanKind`, `SpanStatus`, `OpenSpanEntry`, `ObservabilitySink` — `AgentCallRecorder.record(...)` emits a core `StatusEvent` through the run's own emitters (`OpenTelemetryEmitter`, `LogEmitter`, or any custom `Emitter`); no separate sink or hook to build.
@@ -338,7 +371,7 @@ Every public name below was kept importable for exactly one deprecation cycle (e
 **Batch (WS4b):**
 - `BatchScheduler`, `BatchCheckpointer` — `MapAgent` resumes from a `RunHistory` lineage query on the item's knot id; pass `history=`/`data_store=`.
 
-`BatchProgress` is **not** removed: it is not itself a deprecation shim, and `TriggeredBatch`'s live `run()` still returns it as its per-fire summary.
+`BatchProgress` was **not** removed: `TriggeredBatch`'s `run()` returns it as its per-fire summary (PIR-872 reduced it to a pure summary; see above).
 
 **Concurrency (WS4b/PIR-866):**
 - `BackpressureSemaphore`, `Bulkhead`, `ConcurrencyConfig`, `BulkheadConfig` (and their private `_backpressure_admission`/`_admission_slot_knot` implementation) — declare `KnotConfig(concurrency_group=<backend>)` on the knots that call a backend and `ConcurrencyLimits(groups={<backend>: n})` on the run; every knot in that group is metered together by one shared `AdmissionGate`. `agent/parallel_tool_executor.py` and three `specializations/` pipelines (`document_processing/ingestion_pipeline.py`, `multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`) that read `ConcurrencyConfig.max_concurrency` as a class-level default now default to a plain literal `8`. `evaluation/run_eval.py::RunEval.run` — the one caller with no `Tapestry` to attach a group to — now bounds its per-item concurrency with a plain `asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8) instead.

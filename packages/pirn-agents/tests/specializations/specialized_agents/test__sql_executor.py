@@ -14,6 +14,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.specializations.specialized_agents._read_write_sql_executor import (
+    _ReadWriteSQLExecutor,
+)
 from pirn_agents.specializations.specialized_agents._sql_executor import (
     _SQLExecutor,
 )
@@ -69,12 +72,15 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
 
 def _build(sql: str, pool: Any, *, read_only: bool = True) -> _SQLExecutor:
-    """Construct a configured ``_SQLExecutor`` outside any enclosing run."""
+    """Construct a configured executor outside any enclosing run.
+
+    ``read_only`` selects the class — the write policy is never an input.
+    """
+    executor_class = _SQLExecutor if read_only else _ReadWriteSQLExecutor
     with Tapestry():
-        return _SQLExecutor(
+        return executor_class(
             sql=sql,
             pool=pool,
-            read_only=read_only,
             _config=KnotConfig(id="ex"),
         )
 
@@ -143,7 +149,7 @@ class TestSQLExecutorIsReadOnlyByDefault:
         assert pool.queries == []
 
     async def test_a_write_still_needs_the_interpolation_guard(self) -> None:
-        """``read_only=False`` opts out of the read guard only — not the other one.
+        """``_ReadWriteSQLExecutor`` opts out of the read guard only — not the other one.
 
         The two guards defend different threats: ``ReadOnlySqlGuard`` limits
         what the statement may *do*, ``_reject_inline_interpolation`` limits
@@ -254,3 +260,25 @@ class TestSQLExecutorWriteDurability:
             await pool.close()
 
         assert self._rows_on_disk(database) == [(1, "a"), (2, "b"), (3, "c")]
+
+
+class TestWritePolicyIsTheClass:
+    """PIR-817: the write policy cannot be supplied as a knot input."""
+
+    def test_read_only_is_a_class_attribute_not_instance_state(self) -> None:
+        pool = StubDatabaseConnectionPool()
+        executor = _build("SELECT 1", pool)
+        assert "_read_only" not in vars(executor)
+        assert vars(_SQLExecutor)["_read_only"] is True
+        assert vars(_ReadWriteSQLExecutor)["_read_only"] is False
+
+    def test_read_only_is_not_an_accepted_input(self) -> None:
+        pool = StubDatabaseConnectionPool()
+        smuggled: dict[str, Any] = {"read_only": False}
+        with Tapestry(), pytest.raises(TypeError):
+            _SQLExecutor(
+                sql="DROP TABLE users",
+                pool=pool,
+                _config=KnotConfig(id="ex"),
+                **smuggled,
+            )

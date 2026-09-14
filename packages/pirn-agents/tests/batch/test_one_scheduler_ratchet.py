@@ -43,16 +43,11 @@ ASYNCIO_LOOP: frozenset[str] = frozenset()
 # directories still fails loudly here.
 OWN_CONCURRENCY_LIMIT: frozenset[str] = frozenset()
 
-# BatchCheckpointer/BatchScheduler deleted (PIR-864); BatchProgress remains --
-# it is not itself a deprecated shim, and TriggeredBatch's live run() still
-# returns it as its per-fire summary (its to_run_state()/from_run_state()
-# bridge, the only reason it names RunState here, has no production caller
-# left but is kept, tested and correct -- see its module docstring).
-CHECKPOINTS_OUTSIDE_RUN_HISTORY = frozenset(
-    {
-        "batch/batch_progress.py::BatchProgress",
-    }
-)
+# BatchCheckpointer/BatchScheduler deleted (PIR-864). BatchProgress's
+# to_run_state()/from_run_state() RunState bridge is deleted (PIR-872): it is a
+# pure per-fire summary that checkpoints nothing, and resume state is the
+# RunHistory lineage query on each item's knot id. Empty, not deleted.
+CHECKPOINTS_OUTSIDE_RUN_HISTORY: frozenset[str] = frozenset()
 
 
 class TestOneSchedulerShadowsAreFrozen(unittest.TestCase):
@@ -62,11 +57,18 @@ class TestOneSchedulerShadowsAreFrozen(unittest.TestCase):
         self.found = OneSchedulerInventory.discover()
 
     def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
-        # PIR-864 deleted BatchScheduler/BatchCheckpointer/BackpressureSemaphore/
-        # Bulkhead; only BatchProgress remains in CHECKPOINTS_OUTSIDE_RUN_HISTORY.
-        total = sum(len(labels) for labels in self.found.values())
-        assert total >= 1, self.found
+        """A guard that walks nothing passes for the wrong reason.
+
+        Every inventory is empty now, so vacuity is checked on the walk itself:
+        the owned directories must still hold the classes the detectors read.
+        """
+        assert set(self.found) == {
+            "asyncio_loop",
+            "own_concurrency_limit",
+            "checkpoints_outside_run_history",
+        }
+        walked = OneSchedulerInventory.walked_class_count()
+        assert walked >= 10, walked
 
     def test_asyncio_loop_shadows_are_frozen(self) -> None:
         found = self.found["asyncio_loop"]

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.engine.admission.admission_observer import AdmissionObserver
 
 if TYPE_CHECKING:
@@ -39,7 +40,7 @@ if TYPE_CHECKING:
     from pirn.engine.admission.admission_gate import AdmissionGate
 
 
-class AdaptiveConcurrencyController(AdmissionObserver):
+class AdaptiveConcurrencyController(AdmissionObserver, PirnOpaqueValue):
     """A time-free AIMD governor that steers a run's ``AdmissionGate`` limit."""
 
     def __init__(

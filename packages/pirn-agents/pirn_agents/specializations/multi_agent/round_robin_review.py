@@ -6,7 +6,7 @@ agent's output as its input. Returns the final revised response.
 
 Reviewers accept a ``response: AgentResponse`` and produce a revised one. Each
 round runs through :class:`_ReviewerInvocation`, which itself delegates
-through :meth:`_SpecialistInvoker.invoke_specialist` — the reviewer's
+through :meth:`SpecialistHandle.run` — the reviewer's
 ``__call__``, never its ``process()`` (a :class:`SubTapestry`'s ``process()``
 only *builds* the sink knot of its inner pipeline; calling it directly used to
 mean every review was silently discarded, see PIR-769).

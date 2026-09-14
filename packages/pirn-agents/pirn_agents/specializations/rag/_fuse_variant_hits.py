@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
+from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 
 
 class _FuseVariantHits:
@@ -35,7 +35,7 @@ class _FuseVariantHits:
                 representative.setdefault(key, hit)
                 ranking.append(key)
             rankings.append(ranking)
-        fused = reciprocal_rank_fusion(rankings, k=rrf_k)
+        fused = ReciprocalRankFusion.fuse(rankings, k=rrf_k)
         results: list[Mapping[str, Any]] = []
         for key, score in fused[:top_k]:
             merged = dict(representative[key])

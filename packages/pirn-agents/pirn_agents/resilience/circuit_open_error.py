@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class CircuitOpenError(RuntimeError):
+
+class CircuitOpenError(PirnError, RuntimeError):
     """Raised when a call is short-circuited because the breaker is OPEN.
 
     Raised *before* any network call is attempted, so a dead endpoint fails

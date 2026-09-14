@@ -21,7 +21,6 @@ from typing import Any
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 
 from pirn_agents.resilience.idempotency_key_assigner import IdempotencyKeyAssigner
-from pirn_agents.resilience.retry_classification import RetryClassification
 from pirn_agents.resilience.retry_safety_classifier import RetrySafetyClassifier
 
 
@@ -112,4 +111,4 @@ class IdempotentRetryPolicy:
 
     def _is_safe(self, exc: Exception) -> bool:
         """Whether ``exc`` is classified safe to retry (never an unsafe mutation)."""
-        return self._classifier.classify(exc) is not RetryClassification.UNSAFE
+        return self._classifier.is_safe(exc)

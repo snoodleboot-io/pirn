@@ -8,10 +8,12 @@ guards, executes it, and returns the result inside an
 The query is written by a model, so both guards apply and they cover
 different threats:
 
-* the **read-only guard** (default, ``read_only=True``) rejects any
-  statement that is not a single ``SELECT``/``WITH``, so a model that
-  emits ``DROP TABLE``, ``UPDATE`` or DDL is refused before the statement
-  reaches the database. Writing is opt-in and explicit (PIR-817);
+* the **read-only guard** rejects any statement that is not a single
+  ``SELECT``/``WITH``, so a model that emits ``DROP TABLE``, ``UPDATE`` or
+  DDL is refused before the statement reaches the database. Writing is
+  opt-in and explicit: construct
+  :class:`~pirn_agents.specializations.specialized_agents.read_write_sql_agent.ReadWriteSQLAgent`
+  instead (PIR-817);
 * the **inline-interpolation guard** rejects ``str.format``-style
   ``{...}`` and printf-style ``%s``/``%d`` markers in the generated SQL,
   defending against both prompt-injected dynamic SQL and accidental bad
@@ -37,7 +39,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -61,6 +63,13 @@ from pirn_agents.specializations.specialized_agents._sql_response_formatter impo
 class SQLAgent(AgentPipeline):
     """Translate natural language to SQL, execute, return :class:`AgentResponse`."""
 
+    #: The executor class the generated statement runs through. The write
+    #: policy is this class choice (PIR-817), never a constructor input, so no
+    #: upstream knot can flip it: ``SQLAgent`` is read-only and
+    #: :class:`~pirn_agents.specializations.specialized_agents.read_write_sql_agent.ReadWriteSQLAgent`
+    #: is the one subclass that may write.
+    _executor_class: ClassVar[type[_SQLExecutor]] = _SQLExecutor
+
     def __init__(
         self,
         *,
@@ -69,35 +78,8 @@ class SQLAgent(AgentPipeline):
         pool: Knot | DatabaseConnectionPool,
         _config: KnotConfig,
         schema_description: Knot | str = "",
-        read_only: bool = True,
         **kwargs: Any,
     ) -> None:
-        """Bind the question, providers, and the write policy for generated SQL.
-
-        Args:
-            question: The natural-language question, or the knot producing it.
-            llm: The LLM provider, or the knot producing it.
-            pool: The database connection pool, or the knot producing it.
-            _config: Framework knot configuration.
-            schema_description: Optional schema hint passed to the LLM.
-            read_only: When ``True`` (the default), the generated statement must
-                be a single ``SELECT``/``WITH``; anything else is refused before
-                it reaches the database. Set ``False`` only where this agent is
-                genuinely meant to write — the statement is model-written, so
-                writing is opt-in and explicit (PIR-817).
-
-        Note:
-            ``read_only`` is held as plain constructor state rather than being
-            forwarded as a knot input, so the policy cannot be driven by another
-            knot's output on a pipeline whose data originates in model text.
-            This is a deliberate, documented exception to Knot Design Rule 4
-            (no instance state for inputs) — see
-            ``docs/contributing/knot-design-rules.md`` and PIR-817 — made for
-            this specific security property, not a general license to store
-            inputs on ``self``. ``read_only`` is correspondingly *not* a
-            ``process()`` parameter.
-        """
-        self._read_only = read_only
         super().__init__(
             question=question,
             llm=llm,
@@ -138,10 +120,9 @@ class SQLAgent(AgentPipeline):
             schema_description=schema_description,
             _config=KnotConfig(id="generate_sql"),
         )
-        rows = _SQLExecutor(
+        rows = self._executor_class(
             sql=sql,
             pool=pool,
-            read_only=self._read_only,
             _config=KnotConfig(id="execute_sql"),
         )
         return _SQLResponseFormatter(

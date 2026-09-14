@@ -9,7 +9,7 @@ character heuristic, and summarization / memory are caller-injected strategies.
 `TokenEstimator` is the common interface; each concrete estimator models one
 provider's tokenization. `HeuristicTokenEstimator` (default) needs no tokenizer
 backend — it estimates `ceil(len(text) / chars_per_token)`. A real encoder can
-be dropped in later behind a lazy `_require`-guarded import + a flat extra
+be dropped in later behind a lazy `OptionalImport.require`-guarded import + a flat extra
 without touching callers.
 
 `TokenCounter` wraps an estimator with a memoizing cache so repeated counting of

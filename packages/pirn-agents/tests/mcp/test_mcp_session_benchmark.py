@@ -20,7 +20,6 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_toolset import McpToolset
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.mcp.stub_mcp import StubMcpTransport
 
 
@@ -64,7 +63,7 @@ async def test_concurrent_call_tool_reuses_single_vended_session() -> None:
     results = run.outputs["pte"]
 
     assert len(results) == n
-    assert all(r.status is ToolStatus.OK for r in results)
+    assert all(r.status == "ok" for r in results)
     assert results[0].result == "msg-0"
 
     # The core assertion: exactly one session was built/opened for all N calls —

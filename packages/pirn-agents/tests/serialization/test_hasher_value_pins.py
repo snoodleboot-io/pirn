@@ -13,7 +13,7 @@ the whole suite still green. Both outputs escape the process:
   cache entries and their lineage continuity.
 
 These pins were recorded *before* the hashers were moved onto
-:class:`~pirn_agents.serialization.canonical_json.CanonicalJson`, so they prove
+the former ``CanonicalJson`` (deleted, PIR-872), so they prove
 the move was byte-identical rather than merely plausible.
 
 ADR agents-speaks-core WS2 part 2 (2026-09-13) intentionally moved the

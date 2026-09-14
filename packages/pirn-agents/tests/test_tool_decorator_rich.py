@@ -1,4 +1,4 @@
-"""Unit tests for the rich, parametrised form of ``@tool`` (S1)."""
+"""Unit tests for the rich, parametrised form of ``@ToolDecorator.decorate`` (S1)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pirn_agents.exceptions.tool_argument_validation_error import (
 )
 from pirn_agents.tools.function_tool import FunctionTool
 from pirn_agents.tools.tool import Tool
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_permissions import ToolPermissions
 from tests.tools.tool_runner import ToolRunner
@@ -34,19 +34,21 @@ class LookupArgs:
     limit: int = 3
 
 
-@tool(args_model=SearchArgs)
+@ToolDecorator.decorate(args_model=SearchArgs)
 async def model_search(args: SearchArgs) -> list[str]:
     """Search using a pydantic arg model."""
     return [args.query] * args.max_results
 
 
-@tool(args_model=LookupArgs)
+@ToolDecorator.decorate(args_model=LookupArgs)
 def dataclass_lookup(args: LookupArgs) -> str:
     """Look up using a dataclass arg model."""
     return f"{args.topic}:{args.limit}"
 
 
-@tool(arg_docs={"expression": "a math expression"}, examples={"expression": "2 + 2"})
+@ToolDecorator.decorate(
+    arg_docs={"expression": "a math expression"}, examples={"expression": "2 + 2"}
+)
 def documented_calc(expression: str) -> str:
     """Evaluate with documented arguments."""
     return str(eval(expression, {"__builtins__": {}}))
@@ -57,7 +59,7 @@ def documented_calc(expression: str) -> str:
 
 class TestBackwardCompatibility(unittest.TestCase):
     def test_bare_decorator_still_returns_function_tool(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain(x: str) -> str:
             """Plain tool."""
             return x
@@ -68,7 +70,7 @@ class TestBackwardCompatibility(unittest.TestCase):
         assert plain.name == "plain"
 
     def test_bare_decorator_schema_unchanged(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain(query: str, max_results: int = 5) -> str:
             """Plain tool."""
             return query
@@ -83,7 +85,7 @@ class TestBackwardCompatibility(unittest.TestCase):
         }
 
     def test_default_permissions_are_inert(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain() -> str:
             """Plain tool."""
             return ""
@@ -92,7 +94,7 @@ class TestBackwardCompatibility(unittest.TestCase):
 
     def test_non_callable_still_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "callable"):
-            tool("not a function")  # type: ignore[arg-type]
+            ToolDecorator.decorate("not a function")  # type: ignore[arg-type]
 
 
 # ----------------------------------------------------------------- pydantic args
@@ -136,7 +138,7 @@ class TestDataclassArgs(unittest.TestCase):
 
 class TestReturnSchema(unittest.TestCase):
     def test_scalar_return_schema(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def scalar() -> int:
             """Return an int."""
             return 1
@@ -147,7 +149,7 @@ class TestReturnSchema(unittest.TestCase):
         assert model_search.return_schema == {"type": "array", "items": {"type": "string"}}
 
     def test_no_annotation_is_none(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def untyped():  # type: ignore[no-untyped-def]
             """No return annotation."""
             return 1
@@ -155,7 +157,7 @@ class TestReturnSchema(unittest.TestCase):
         assert untyped.return_schema is None
 
     def test_none_return_is_none(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def returns_none() -> None:
             """Returns None."""
             return None
@@ -181,7 +183,7 @@ class TestArgDocsAndExamples(unittest.TestCase):
 
 class TestDescribe(unittest.TestCase):
     def test_describe_core_shape_matches_toolset_entry(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain(x: str) -> str:
             """Plain tool."""
             return x
@@ -191,7 +193,7 @@ class TestDescribe(unittest.TestCase):
         assert descriptor["name"] == "plain"
 
     def test_describe_includes_permissions_when_non_default(self) -> None:
-        @tool(scope="db:write", mutating=True, cost_hint=1.5)
+        @ToolDecorator.decorate(scope="db:write", mutating=True, cost_hint=1.5)
         async def writer(x: str) -> str:
             """Writer tool."""
             return x
@@ -204,7 +206,7 @@ class TestDescribe(unittest.TestCase):
         }
 
     def test_describe_omits_permissions_when_default(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain() -> str:
             """Plain tool."""
             return ""
@@ -217,7 +219,7 @@ class TestDescribe(unittest.TestCase):
 
 class TestOverridesAndErrors(unittest.TestCase):
     def test_name_and_description_override(self) -> None:
-        @tool(name="renamed", description="custom description")
+        @ToolDecorator.decorate(name="renamed", description="custom description")
         async def original() -> str:
             """Original docstring."""
             return ""
@@ -228,13 +230,13 @@ class TestOverridesAndErrors(unittest.TestCase):
     def test_invalid_args_model_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "args_model"):
 
-            @tool(args_model=int)
+            @ToolDecorator.decorate(args_model=int)
             async def bad(x: int) -> int:
                 """Bad model."""
                 return x
 
     def test_permissions_attached(self) -> None:
-        @tool(scope="s", approval_required=True)
+        @ToolDecorator.decorate(scope="s", approval_required=True)
         async def gated() -> str:
             """Gated tool."""
             return ""

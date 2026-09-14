@@ -20,7 +20,6 @@ from pirn_agents.tools.sandbox.sandbox_result import SandboxResult
 from pirn_agents.tools.sandbox.shell_tool import ShellTool
 from pirn_agents.tools.sandbox.subprocess_sandbox_backend import SubprocessSandboxBackend
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.tools.tool_runner import ToolRunner
 
 
@@ -56,7 +55,7 @@ class TestOptInGate:
         tool = PythonExecTool.bind(executor=SandboxExecutor())
         call = ToolCall(tool_name="python_exec", arguments={"code": "print(1)"}, call_id="c")
         outcome = await ToolRunner.view(tool, call)
-        assert outcome.status is ToolStatus.ERROR
+        assert outcome.status == "error"
         assert "disabled" in (outcome.error or "")
 
     async def test_shell_disabled_raises(self) -> None:

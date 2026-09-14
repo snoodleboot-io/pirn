@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
+
 from pirn_agents.performance.budget_limit import BudgetLimit
 
 
-class BudgetBreachError(RuntimeError):
+class BudgetBreachError(PirnError, RuntimeError):
     """Raised the instant a run exceeds one dimension of its :class:`RunBudget`.
 
     A *typed* breach (rather than a bare ``RuntimeError`` or an uncaught

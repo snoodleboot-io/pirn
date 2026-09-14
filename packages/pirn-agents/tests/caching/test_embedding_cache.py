@@ -109,7 +109,7 @@ class TestEvictionAndInvalidate:
         cache = EmbeddingCache(stub)
 
         await cache.embed(["k"])
-        cache.invalidate("k")
+        await cache.invalidate("k")
         await cache.embed(["k"])
 
         assert stub.texts_embedded == 2

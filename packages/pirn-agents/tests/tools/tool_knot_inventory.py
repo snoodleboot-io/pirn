@@ -7,9 +7,9 @@ inventory counts:
 
 * classes that carry their own execution verb — a method named ``invoke`` —
   beside ``Knot.process()``;
-* modules that import the parallel outcome/schema/adapter vocabulary
-  (``ToolResult``, ``ToolStatus``, ``ToolSchemaCompiler``,
-  ``ArgumentValidator``, ``AgentTool``);
+* modules that import the parallel outcome/schema vocabulary
+  (``ToolStatus``, ``ToolSchemaCompiler``, ``ArgumentValidator`` — every one
+  deleted; the names stay listed so a reintroduction is caught);
 * call sites that await ``<x>.invoke(...)`` instead of wiring a knot.
 
 Shared by ``test_tool_is_a_knot_ratchet.py`` (the frozen ratchet asserted by
@@ -31,8 +31,16 @@ class ToolKnotInventory:
     """Discovers the ``invoke``/``ToolResult`` inventory across ``pirn_agents``."""
 
     #: Names whose import marks a module as speaking the parallel tool vocabulary.
+    #:
+    #: ``ToolResult`` and ``AgentTool`` were on this list while they were
+    #: parallel to core and are not any more (PIR-872): ``ToolResult.outcome``
+    #: *is* the call's core ``Result`` (its model-facing ``status`` is a string
+    #: derived from it, and the ``ToolStatus`` enum is deleted), and ``AgentTool``
+    #: is a ``ToolFactory`` composing an ``AgentToolCall(SubTapestry)`` whose
+    #: nesting guard is core's ``RunNesting`` (FRAMEWORK_REFERENCE §7). Importing
+    #: either is importing the composed shape, not a parallel one.
     PARALLEL_NAMES: ClassVar[frozenset[str]] = frozenset(
-        {"ToolResult", "ToolStatus", "ToolSchemaCompiler", "ArgumentValidator", "AgentTool"}
+        {"ToolStatus", "ToolSchemaCompiler", "ArgumentValidator"}
     )
 
     @staticmethod

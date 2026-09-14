@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 from tests.tools.tool_runner import ToolRunner
 
 
@@ -13,7 +13,7 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
     async def test_injected_state_persists_across_calls(self) -> None:
         scratch: dict[str, int] = {"count": 0}
 
-        @tool(state=scratch)
+        @ToolDecorator.decorate(state=scratch)
         async def counter(amount: int, state: dict[str, int]) -> int:
             """Accumulate into injected state."""
             state["count"] += amount
@@ -26,7 +26,7 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
         assert scratch["count"] == 8
 
     def test_state_excluded_from_schema(self) -> None:
-        @tool(state={"x": 1})
+        @ToolDecorator.decorate(state={"x": 1})
         async def uses_state(amount: int, state: dict[str, int]) -> int:
             """Uses state."""
             return amount
@@ -38,7 +38,7 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
     def test_state_property_exposes_object(self) -> None:
         resource = object()
 
-        @tool(state=resource)
+        @ToolDecorator.decorate(state=resource)
         async def holds(x: str, state: object) -> str:
             """Holds a resource."""
             return x
@@ -47,7 +47,7 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
         assert holds.state is resource
 
     def test_non_stateful_tool_reports_false(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain(x: str) -> str:
             """Plain."""
             return x

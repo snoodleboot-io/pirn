@@ -23,7 +23,6 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -62,7 +61,7 @@ async def test_streamed_calls_execute_through_parallel_executor() -> None:
     results = await _execute(parsed, toolset)
 
     assert len(results) == 2
-    assert all(r.status is ToolStatus.OK for r in results)
+    assert all(r.status == "ok" for r in results)
     by_id = {r.call_id: r for r in results}
     assert by_id["c0"].result == {"tool": "alpha", "echo": {"x": 1}}
     assert by_id["c1"].result == {"tool": "beta", "echo": {"y": 2}}
@@ -91,7 +90,7 @@ async def test_dispatch_starts_before_stream_completes() -> None:
     first_results = await dispatched[0]
     assert not gate.is_set()  # stream still suspended; dispatch already done
     assert len(first_results) == 1
-    assert first_results[0].status is ToolStatus.OK
+    assert first_results[0].status == "ok"
     assert first_results[0].call_id == "c0"
     assert first_results[0].result == {"tool": "alpha", "echo": {"x": 1}}
 
