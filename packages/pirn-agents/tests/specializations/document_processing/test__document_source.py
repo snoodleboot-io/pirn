@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_DocumentLoader`."""
+"""Unit tests for :class:`_DocumentSource`."""
 
 from __future__ import annotations
 
@@ -10,28 +10,28 @@ from pathlib import Path
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.document_processing._document_loader import (
-    _DocumentLoader,
+from pirn_agents.specializations.document_processing._document_source import (
+    _DocumentSource,
 )
 
 
-def _make_knot(allowed_root: str | None = None) -> _DocumentLoader:
+def _make_knot(allowed_root: str | None = None) -> _DocumentSource:
     with Tapestry():
-        return _DocumentLoader(
+        return _DocumentSource(
             source="placeholder",
             allowed_root=allowed_root,
-            _config=KnotConfig(id="dl"),
+            _config=KnotConfig(id="ds"),
         )
 
 
-class TestDocumentLoaderLocalFile(unittest.IsolatedAsyncioTestCase):
+class TestDocumentSourceLocalFile(unittest.IsolatedAsyncioTestCase):
     async def test_reads_file_within_allowed_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             fpath = os.path.join(tmpdir, "doc.txt")
             Path(fpath).write_text("hello world", encoding="utf-8")
             k = _make_knot(allowed_root=tmpdir)
             result = await k.process(source=fpath, allowed_root=tmpdir)
-            assert result == "hello world"
+            assert result == b"hello world"
 
     async def test_rejects_path_outside_allowed_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
