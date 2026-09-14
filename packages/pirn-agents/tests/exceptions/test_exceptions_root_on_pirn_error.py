@@ -19,7 +19,6 @@ from pirn_agents.exceptions.tool_argument_validation_error import ToolArgumentVa
 from pirn_agents.exceptions.tool_cancelled_error import ToolCancelledError
 from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
-from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
 from pirn_agents.exceptions.unsupported_modality_error import UnsupportedModalityError
 from pirn_agents.security.injection_detected_error import InjectionDetectedError
 from pirn_agents.security.injection_verdict import InjectionVerdict
@@ -41,7 +40,6 @@ from pirn_agents.security.untrusted_directive_error import UntrustedDirectiveErr
         # Subclasses of a fixed root inherit PirnError transitively.
         (ToolCancelledError, ToolInvocationError),
         (ToolNotFoundError, ToolInvocationError),
-        (ToolTimeoutError, ToolInvocationError),
         (ToolArgumentValidationError, ToolInvocationError),
         (AgentCycleError, AgentRecursionError),
         (AgentDepthExceededError, AgentRecursionError),

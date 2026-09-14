@@ -31,11 +31,9 @@ from tests.core_seams.core_seam_shadow_inventory import CoreSeamShadowInventory
 
 # --- known shadows, frozen (ADR agents-speaks-core, WS0) -------------------
 
-RETRY_TIMEOUT = frozenset(
-    {
-        "exceptions/tool_timeout_error.py::ToolTimeoutError",
-    }
-)
+# RetryPolicy and ToolTimeoutError deleted (PIR-872): KnotConfig.retry /
+# KnotRetryPolicy.run and KnotConfig.timeout -> KnotTimeoutError.
+RETRY_TIMEOUT: frozenset[str] = frozenset()
 
 NESTING = frozenset(
     {

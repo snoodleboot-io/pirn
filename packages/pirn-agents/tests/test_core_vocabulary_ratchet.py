@@ -45,7 +45,7 @@ _PACKAGE_ROOT = Path(__file__).parent.parent / "pirn_agents"
 # A "root" is an exception class whose own immediate bases are all builtins
 # (or another agents exception that is itself unfixed) — i.e. every class
 # below is the class that would need `PirnError` added to its own bases; a
-# subclass of an already-fixed root (`ToolTimeoutError(ToolInvocationError)`,
+# subclass of an already-fixed root (`ToolNotFoundError(ToolInvocationError)`,
 # `AgentCycleError(AgentRecursionError)`, ...) is not listed here because it
 # inherits `PirnError` transitively the moment its root is fixed, and this
 # ratchet checks the resolved MRO, not immediate bases.
@@ -187,7 +187,6 @@ class TestExceptionRootsFrozen(unittest.TestCase):
         for name in (
             "ToolCancelledError",
             "ToolNotFoundError",
-            "ToolTimeoutError",
             "ToolArgumentValidationError",
             "AgentCycleError",
             "AgentDepthExceededError",
