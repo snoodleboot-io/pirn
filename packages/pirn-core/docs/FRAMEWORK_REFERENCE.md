@@ -395,6 +395,25 @@ so the previously-synchronous `invalidate`/`purge_expired`/`__len__` are now
 deprecation cycle as wrappers that bridge to the event loop (raising if
 called from inside one already running) and emit `DeprecationWarning`.
 
+**Resolved (PIR-870), three admission/dispatch refinements noted as future
+work above WS0b landed:**
+- An inner run naming a *bounded* `ConcurrencyLimits` of its own now gets a
+  `ChainedAdmissionGate` — a ticket from both its own gate and the enclosing
+  run's, released together — instead of an unrelated gate that let the two
+  budgets add rather than compose. An explicitly unbounded
+  `ConcurrencyLimits()` is unaffected: it stays the documented opt-out.
+- `Dispatcher.dispatcher_for_container(knot)` (default: identity) lets a
+  dispatcher route a container knot (`SubTapestry`/`LoopSubTapestry`/a loop
+  iteration) somewhere other than itself; `ThreadDispatcher` answers with a
+  shared `LocalDispatcher` so a container runs on the event loop instead of
+  spending one of its own pool workers on a wait for its inner run's leaves
+  — which need that same pool.
+- `GovernedDispatch` releases a retrying knot's admission ticket for the
+  backoff sleep and re-admits (via a new `AdmissionTicketHolder` the engine
+  reads back) before the next attempt, so a sleeping retry no longer holds a
+  slot another ready knot could use. `KnotLineage.extra["attempts"]` is
+  unchanged.
+
 ### Control-flow vocabulary (WS5a, WS5b)
 
 `Check(Knot)` names the boolean-verdict role and `Gate(check=)` consumes it
@@ -466,6 +485,21 @@ cycle. `AgentBuilder.build()`'s runtime seed is bound as a named core
 `Parameter` instead of a baked constructor kwarg. See
 `examples/agents_core_pipeline/` for `tapestry-check` validating an agent
 pipeline written entirely in core's YAML vocabulary (WS6a).
+
+**Resolved (PIR-870).** Each of those 66 rows used to restate its class's
+full `"module:ClassName"` location by hand — duplicating exactly what
+`Registry.fill_registry()` already discovers by scanning `pirn_agents` at
+import time, and doubling the cost of a rename or a moved file.
+`PatternDescriptor` now carries a bare `class_name` and resolves it through a
+`sweet_tea.registry.Registry.entries()` lookup scoped to the `pirn` library
+and the auto-fill label, deriving the module from the resolved class's own
+`__module__`; only `seed`/`seed_kind` remain hand-declared per pattern name.
+`tests/builder/test_pattern_registry_coverage.py` cross-checks the *sweet_tea*
+Registry's own view of every `AgentPipeline` subclass against this table
+(catching one class — `_FailoverLoop`, a private loop body living outside
+`specializations/` — the old pkgutil-based completeness check could not see)
+and generates the pattern list from the registry to verify it against a new
+"Full Pattern Reference" appendix in `pirn_agents/PATTERNS.md`.
 
 `AgentResponse` is `Payload[GenerationFrame, str]` in place — `data` is the
 reply text, `frame` carries `finish_reason`/`usage`/`cost`/`tool_calls`/
