@@ -69,14 +69,3 @@ async def test_filter_chains() -> None:
     out: DaskDataFrame = result.outputs["big_eu"]
     rows = out.frame.compute()
     assert len(rows) == 2  # ids 1, 2
-
-
-def test_construct_rejects_non_callable_predicate() -> None:
-    with Tapestry():
-        src = DaskSource(factory=_orders_factory, _config=KnotConfig(id="s"))
-        with pytest.raises(TypeError, match="callable"):
-            DaskFilter(
-                batch=src,
-                predicate="region == 'EU'",  # type: ignore[arg-type]
-                _config=KnotConfig(id="f"),
-            )

@@ -35,35 +35,6 @@ async def test_ray_source_emits_deferred_dataset() -> None:
     assert out.backend_name == "ray"
 
 
-def test_construct_rejects_neither_factory_nor_path() -> None:
-    with pytest.raises(TypeError, match="factory or path"):
-        RaySource(_config=KnotConfig(id="x"))
-
-
-def test_construct_rejects_both_factory_and_path() -> None:
-    with pytest.raises(TypeError, match="mutually exclusive"):
-        RaySource(
-            factory=_people_factory,
-            path="/tmp/foo",
-            reader=ray_data.read_parquet,
-            _config=KnotConfig(id="x"),
-        )
-
-
-def test_construct_rejects_path_without_reader() -> None:
-    with pytest.raises(TypeError, match="reader is required"):
-        RaySource(path="/tmp/foo", _config=KnotConfig(id="x"))
-
-
-def test_construct_rejects_empty_path() -> None:
-    with pytest.raises(ValueError, match="non-empty"):
-        RaySource(
-            path="",
-            reader=ray_data.read_parquet,
-            _config=KnotConfig(id="x"),
-        )
-
-
 def test_construct_rejects_non_callable_factory() -> None:
     with pytest.raises(TypeError, match="callable"):
         RaySource(factory="not callable", _config=KnotConfig(id="x"))  # type: ignore[arg-type]

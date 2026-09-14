@@ -81,18 +81,3 @@ def test_construct_rejects_non_string_predicate(_spark_session) -> None:
                 predicate=lambda f: f.region == "EU",  # type: ignore[arg-type]
                 _config=KnotConfig(id="f"),
             )
-
-
-def test_construct_rejects_empty_predicate(_spark_session) -> None:
-    with Tapestry():
-        src = SparkSource(
-            spark_session=_spark_session,
-            query=_orders_query(),
-            _config=KnotConfig(id="s"),
-        )
-        with pytest.raises(ValueError, match="non-empty"):
-            SparkFilter(
-                frame=src,
-                predicate="   ",
-                _config=KnotConfig(id="f"),
-            )

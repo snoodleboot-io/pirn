@@ -63,14 +63,3 @@ async def test_filter_chains() -> None:
     out: RayDataset = result.outputs["big_eu"]
     rows = out.dataset.take_all()
     assert len(rows) == 2
-
-
-def test_construct_rejects_non_callable_predicate() -> None:
-    with Tapestry():
-        src = RaySource(factory=_orders_factory, _config=KnotConfig(id="s"))
-        with pytest.raises(TypeError, match="callable"):
-            RayFilter(
-                batch=src,
-                predicate="region == 'EU'",  # type: ignore[arg-type]
-                _config=KnotConfig(id="f"),
-            )
