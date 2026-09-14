@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 from typing import Any
 
 from pirn.connectors.databases.sqlite_config import SqliteConfig
@@ -82,6 +83,26 @@ class TestScdType1Overwrite(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             scd = _make_knot(self.src, self.tgt)
         assert isinstance(scd, ScdType1Overwrite)
+
+
+class TestDeprecation(unittest.IsolatedAsyncioTestCase):
+    """PIR-870: ``ScdType1Overwrite`` duplicates ``MergeUpsert`` and is deprecated."""
+
+    async def asyncSetUp(self) -> None:
+        self.src, self.tgt = await _make_pools()
+
+    async def asyncTearDown(self) -> None:
+        await self.src.close()
+        await self.tgt.close()
+
+    async def test_construction_warns(self) -> None:
+        with Tapestry(), warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _make_knot(self.src, self.tgt)
+        assert len(caught) == 1
+        assert issubclass(caught[0].category, DeprecationWarning)
+        assert "ScdType1Overwrite" in str(caught[0].message)
+        assert "PIR-870" in str(caught[0].message)
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):

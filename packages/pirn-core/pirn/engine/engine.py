@@ -64,6 +64,7 @@ from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
 from pirn.engine.admission.admission_gate import AdmissionGate
 from pirn.engine.admission.admission_observer import AdmissionObserver
 from pirn.engine.admission.admission_ticket import AdmissionTicket
+from pirn.engine.admission.admission_ticket_holder import AdmissionTicketHolder
 from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
 from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
 from pirn.engine.admission_feedback import AdmissionFeedback
@@ -258,10 +259,14 @@ class Engine:
         # In-flight tasks, each with the knot instance this run actually
         # dispatched -- kept so lineage is read back off the copy that executed
         # rather than off the shared graph knot (``Knot.run_scoped_copy``,
-        # PIR-809) -- and the ticket its admission issued.
+        # PIR-809) -- and a holder for the ticket its admission issued.  A
+        # holder, not the ticket itself, because a retrying knot's ticket may
+        # be swapped mid-flight: released for the backoff sleep and replaced
+        # by a freshly re-admitted one before the next attempt (PIR-870), so
+        # whatever is current when the task completes is what gets released.
         running: dict[
             asyncio.Task[tuple[Result[Any], dict[str, str], datetime, bool, datetime]],
-            tuple[Knot, AdmissionTicket],
+            tuple[Knot, AdmissionTicketHolder],
         ] = {}
         completions: asyncio.Queue[
             asyncio.Task[tuple[Result[Any], dict[str, str], datetime, bool, datetime]]
@@ -349,10 +354,13 @@ class Engine:
                     # run to overwrite it on the shared graph knot (PIR-809).
                     run_knot = knot.run_scoped_copy()
                     dispatched.add(kid)
+                    holder = AdmissionTicketHolder(unplaced)
                     task = asyncio.create_task(
-                        self._invoke_admitted(run_knot, materialized, replay, data_store)
+                        self._invoke_admitted(
+                            run_knot, materialized, replay, data_store, gate, holder
+                        )
                     )
-                    running[task] = (run_knot, unplaced)
+                    running[task] = (run_knot, holder)
                     unplaced = None
                     task.add_done_callback(completions.put_nowait)
 
@@ -384,12 +392,16 @@ class Engine:
                 # Several tasks can finish in one tick; process them in
                 # topological order so the run's side effects are reproducible.
                 for task in sorted(done, key=lambda t: tracker.topo_index(running[t][0].knot_id)):
-                    knot, ticket = running.pop(task)
+                    knot, holder = running.pop(task)
                     kid = knot.knot_id
                     # Release before reading the outcome, so the slot comes back
                     # however the task ended -- a result, an Err, or an exception
                     # or cancellation that ``task.result()`` re-raises below.  It
-                    # does not rely on ``Knot.__call__`` catching anything.
+                    # does not rely on ``Knot.__call__`` catching anything.  Read
+                    # off the holder, not a ticket captured at admission time: a
+                    # retry may have swapped it for a freshly re-admitted one
+                    # (PIR-870).
+                    ticket = holder.ticket
                     self._release(gate, ready, ticket)
                     result, parent_hashes, started_at, replayed, finished_at = task.result()
                     # Re-register placeholder records with the live manager.
@@ -474,7 +486,8 @@ class Engine:
                 # root run, since the run is over; a gate shared with an
                 # enclosing run that carries on may briefly admit one knot
                 # beside that still-running thread.
-                for _, held in running.values():
+                for _, holder in running.values():
+                    held = holder.ticket
                     if held.held:
                         gate.release(held)
                     feedback.released(held, "aborted", 0)
@@ -766,6 +779,8 @@ class Engine:
         inputs: dict[str, Any],
         replay: ReplaySession | None,
         data_store: DataStore,
+        gate: AdmissionGate,
+        ticket_holder: AdmissionTicketHolder,
     ) -> tuple[Result[Any], dict[str, str], datetime, bool, datetime]:
         """Run ``_invoke`` as an admitted knot's task and stamp its finish time.
 
@@ -778,10 +793,14 @@ class Engine:
         life of this task, so a knot this one registers mid-run is attributed
         to it.  The task runs in its own copy of the context, so the value is
         never visible to the engine loop or to sibling knots.
+
+        *gate* and *ticket_holder* let a retry release its admission slot
+        during backoff and re-admit before the next attempt (PIR-870); see
+        ``GovernedDispatch``.
         """
         _current_dispatching_knot_id.set(knot.knot_id)
         result, parent_hashes, started_at, replayed = await self._invoke(
-            knot, inputs, replay, data_store
+            knot, inputs, replay, data_store, gate, ticket_holder
         )
         return result, parent_hashes, started_at, replayed, datetime.now(UTC)
 
@@ -973,6 +992,8 @@ class Engine:
         inputs: dict[str, Any],
         replay: ReplaySession | None,
         data_store: DataStore,
+        gate: AdmissionGate,
+        ticket_holder: AdmissionTicketHolder,
     ) -> tuple[Result[Any], dict[str, str], datetime, bool]:
         """Produce a knot's outcome — by executing it, or from a recording.
 
@@ -996,7 +1017,9 @@ class Engine:
         replay never falls back to live execution.
         """
         if replay is None:
-            result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
+            result, parent_hashes, started_at = await self._dispatch_with_timing(
+                knot, inputs, gate, ticket_holder
+            )
             return result, parent_hashes, started_at, False
 
         if replay.allow_new_knots and replay.row_for(knot.knot_id) is None:
@@ -1006,11 +1029,15 @@ class Engine:
             # session into "replay the covered prefix, execute the rest",
             # which is additive: every other replay session in the tree still
             # raises here (see ReplaySession.__init__).
-            result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
+            result, parent_hashes, started_at = await self._dispatch_with_timing(
+                knot, inputs, gate, ticket_holder
+            )
             return result, parent_hashes, started_at, False
 
         if isinstance(knot, Parameter):
-            result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
+            result, parent_hashes, started_at = await self._dispatch_with_timing(
+                knot, inputs, gate, ticket_holder
+            )
             if isinstance(result, Ok):
                 replay.verify_executed(
                     knot_id=knot.knot_id,
@@ -1032,6 +1059,8 @@ class Engine:
         self,
         knot: Knot,
         inputs: dict[str, Any],
+        gate: AdmissionGate,
+        ticket_holder: AdmissionTicketHolder,
     ) -> tuple[Result[Any], dict[str, str], datetime]:
         """Wrap dispatch with timing and parent-hash capture.
 
@@ -1040,16 +1069,21 @@ class Engine:
         actually consumed.
 
         The dispatch runs under the knot's ``timeout`` and ``retry`` policy
-        (``GovernedDispatch``).  ``started_at`` is the first attempt's start;
-        under a retry policy the attempt count is stashed on the run-scoped
-        knot for ``lineage_extra`` to report as ``extra["attempts"]``.
+        (``GovernedDispatch``), which also releases and re-admits *this*
+        knot's admission slot around a retry's backoff sleep (PIR-870) --
+        ``gate`` and ``ticket_holder`` are threaded through for exactly that.
+        ``started_at`` is the first attempt's start; under a retry policy the
+        attempt count is stashed on the run-scoped knot for ``lineage_extra``
+        to report as ``extra["attempts"]``.
         """
         # For RECEIVE_ERRORS knots the inputs may be Result objects; we
         # hash them as they are (they're already canonicalisable).  For
         # other policies inputs are raw values.
         parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
-        result, attempts = await self._governed.dispatch(knot, inputs)
+        result, attempts = await self._governed.dispatch(
+            knot, inputs, gate=gate, ticket_holder=ticket_holder
+        )
         if knot.config.retry is not None:
             knot._mutable_dispatch_extra = {"attempts": attempts}
         return result, parent_hashes, started_at

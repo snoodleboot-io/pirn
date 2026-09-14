@@ -4,6 +4,14 @@ Issues a per-row SELECT + INSERT or UPDATE to provide upsert semantics
 without requiring a database-level MERGE statement, keeping the
 implementation database-agnostic across the supported pool types.
 
+This is also the SCD Type 1 (overwrite, no history) upsert pattern; use
+this class for that rather than
+:class:`~pirn_data.specializations.scd.scd_type_1_overwrite.ScdType1Overwrite`,
+which is deprecated (PIR-870) — it duplicated this exact select/update/insert
+logic under a separate name. The two differ only in what the summary dict
+reports: this class splits ``rows_inserted`` / ``rows_updated`` where
+``ScdType1Overwrite`` reports a single combined ``rows_upserted``.
+
 Algorithm:
     1. Receive resolved ``source_pool``, ``source_query``, ``target_pool``,
        ``target_table``, ``key_columns``, and ``non_key_columns`` in

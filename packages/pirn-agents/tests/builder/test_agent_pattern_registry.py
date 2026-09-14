@@ -40,11 +40,15 @@ class TestPatternResolution(unittest.TestCase):
         assert "rag" not in AgentPatternRegistry.canonical_names()
         assert "naive_rag" in AgentPatternRegistry.canonical_names()
 
-    def test_resolving_a_name_does_not_import_the_pattern(self) -> None:
-        """`.pattern(...)` validates names; it must not drag in the whole surface."""
+    def test_a_descriptor_names_its_class_without_resolving(self) -> None:
+        """The row's ``class_name`` is a plain field -- no registry lookup needed."""
         descriptor = AgentPatternRegistry.descriptor("graph_rag")
-        assert descriptor.module_name.endswith("graph_rag_pipeline")
         assert descriptor.class_name == "GraphRAGPipeline"
+
+    def test_resolving_a_name_finds_it_through_the_sweet_tea_registry(self) -> None:
+        """PIR-870: the class's module is derived from the registry, not restated."""
+        descriptor = AgentPatternRegistry.descriptor("graph_rag")
+        assert descriptor.knot_class().__module__.endswith("graph_rag_pipeline")
 
 
 class TestDerivedContract(unittest.TestCase):

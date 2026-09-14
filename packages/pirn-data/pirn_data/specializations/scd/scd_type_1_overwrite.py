@@ -1,10 +1,22 @@
-"""``ScdType1Overwrite`` — Slowly Changing Dimension Type 1 (overwrite).
+"""``ScdType1Overwrite`` — deprecated; construct :class:`MergeUpsert` directly.
 
 SCD Type 1 keeps **only the current value** for every dimension row: when
 a tracked attribute changes, the existing target row is updated in place
 and history is lost. It is the right choice when the warehouse only
 needs the latest snapshot (e.g. correcting a typo in a name) and storage
 of historical states is not a regulatory or analytic requirement.
+
+**Deprecated (PIR-870).** This class's per-row select/update/insert logic
+is byte-for-byte the same as
+:class:`~pirn_data.specializations.incremental.merge_upsert.MergeUpsert`
+(same queries, same validation); the two grew independently under
+different names for the same SCD-1 / upsert pattern. Construct
+``MergeUpsert`` directly in new pipelines — its ``rows_inserted`` /
+``rows_updated`` split is a superset of this class's single
+``rows_upserted`` count. This name is kept importable for one deprecation
+cycle and raises a ``DeprecationWarning`` on construction
+(``Knot._deprecated_since``); see `docs/domains/data.md` (SCD / CDC
+patterns) for the migration note.
 
 Behaviour
 ---------
@@ -42,7 +54,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
@@ -52,7 +64,13 @@ from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
 class ScdType1Overwrite(_PoolMergeKnot):
-    """Upsert dimension rows in place, preserving no history (SCD Type 1)."""
+    """Deprecated: construct :class:`~pirn_data.specializations.incremental.merge_upsert.MergeUpsert`.
+
+    Upserts dimension rows in place, preserving no history (SCD Type 1) --
+    see the module docstring for why this duplicates ``MergeUpsert``.
+    """
+
+    _deprecated_since: ClassVar[str | None] = "PIR-870"
 
     def __init__(
         self,

@@ -20,6 +20,9 @@ from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.skipped import Skipped
+from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission_ticket import AdmissionTicket
+from pirn.engine.admission.admission_ticket_holder import AdmissionTicketHolder
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.governed_dispatch import GovernedDispatch
 from pirn.managers.exception_record import ExceptionRecord
@@ -64,6 +67,32 @@ class _Sleeps:
 
     async def __call__(self, delay: float) -> None:
         self.delays.append(delay)
+
+
+class _FakeGate(AdmissionGate):
+    """Records release/admit calls in order; always admits, never blocks."""
+
+    def __init__(self) -> None:
+        self.events: list[str] = []
+
+    def has_capacity(self) -> bool:
+        return True
+
+    def try_admit(self, knot: Knot) -> AdmissionTicket:
+        self.events.append("admit")
+        return AdmissionTicket(knot_id=knot.knot_id)
+
+    def release(self, ticket: AdmissionTicket) -> None:
+        self.events.append("release")
+
+    async def wait_for_release(self) -> None:
+        return None
+
+    def current_limit(self, group: str | None) -> int | None:
+        return None
+
+    def set_limit(self, group: str | None, limit: int) -> None:
+        raise NotImplementedError
 
 
 async def test_without_policy_one_attempt_passes_through() -> None:
@@ -220,3 +249,123 @@ async def test_a_cancellation_during_backoff_propagates() -> None:
 def test_exposes_the_wrapped_dispatcher() -> None:
     dispatcher = _Scripted([])
     assert GovernedDispatch(dispatcher).dispatcher is dispatcher
+
+
+class _Container(Knot):
+    """A stand-in for SubTapestry/LoopSubTapestry: holds no admission slot."""
+
+    _holds_admission_slot = False
+
+    async def process(self, **_: Any) -> str:
+        return "unused"
+
+
+class _RoutingDispatcher(Dispatcher):
+    """Records which dispatcher instance a knot actually ran on."""
+
+    def __init__(self) -> None:
+        self.container_dispatcher = _Scripted([Ok(value="container")])
+        self.calls: list[str] = []
+
+    @property
+    def name(self) -> str:
+        return "Routing"
+
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
+        self.calls.append("leaf")
+        return Ok(value="leaf")
+
+    def dispatcher_for_container(self, knot: Knot) -> Dispatcher:
+        self.calls.append("container")
+        return self.container_dispatcher
+
+
+async def test_a_leaf_knot_dispatches_on_the_wrapped_dispatcher() -> None:
+    dispatcher = _RoutingDispatcher()
+    result, _ = await GovernedDispatch(dispatcher).dispatch(_knot(), {})
+    assert result == Ok(value="leaf")
+    assert dispatcher.calls == ["leaf"]
+    assert dispatcher.container_dispatcher.calls == 0
+
+
+async def test_a_container_knot_dispatches_on_dispatcher_for_container() -> None:
+    # Arrange (PIR-870): a container must run on whatever
+    # ``dispatcher_for_container`` returns, not the wrapped dispatcher
+    # itself -- ``ThreadDispatcher`` uses this to keep a container off its
+    # pool workers.
+    dispatcher = _RoutingDispatcher()
+    container = _Container(_config=KnotConfig(id="c"))
+
+    # Act
+    result, _ = await GovernedDispatch(dispatcher).dispatch(container, {})
+
+    # Assert
+    assert result == Ok(value="container")
+    assert dispatcher.calls == ["container"]
+    assert dispatcher.container_dispatcher.calls == 1
+
+
+async def test_retry_releases_the_slot_for_backoff_and_readmits_before_the_next_attempt() -> None:
+    # Arrange (PIR-870): a sleeping retry must not hold a slot -- release
+    # before the sleep, re-admit before the next attempt.
+    dispatcher = _Scripted([_err(), Ok(value=1)])
+    sleeps = _Sleeps()
+    policy = KnotRetryPolicy(max_attempts=2, base_delay=0.1, jitter=False)
+    gate = _FakeGate()
+    knot = _knot(retry=policy)
+    holder = AdmissionTicketHolder(AdmissionTicket(knot_id=knot.knot_id))
+    original_ticket = holder.ticket
+
+    # Act
+    result, attempts = await GovernedDispatch(dispatcher, sleep=sleeps).dispatch(
+        knot, {}, gate=gate, ticket_holder=holder
+    )
+
+    # Assert
+    assert result == Ok(value=1)
+    assert attempts == 2
+    assert gate.events == ["release", "admit"]
+    assert sleeps.delays == [0.1]
+    # The holder now names the freshly re-admitted ticket, not the one it
+    # started with -- the engine reads this back to release the right one.
+    assert holder.ticket is not original_ticket
+
+
+async def test_a_slot_free_container_ticket_is_never_touched_during_backoff() -> None:
+    # Arrange: a container's ticket (``held=False``) holds no slot at all,
+    # so there is nothing to release or re-admit -- it just sleeps.
+    dispatcher = _Scripted([_err(), Ok(value=1)])
+    sleeps = _Sleeps()
+    policy = KnotRetryPolicy(max_attempts=2, base_delay=0.1, jitter=False)
+    gate = _FakeGate()
+    knot = _knot(retry=policy)
+    holder = AdmissionTicketHolder(AdmissionTicket(knot_id=knot.knot_id, held=False))
+
+    # Act
+    result, attempts = await GovernedDispatch(dispatcher, sleep=sleeps).dispatch(
+        knot, {}, gate=gate, ticket_holder=holder
+    )
+
+    # Assert
+    assert result == Ok(value=1)
+    assert attempts == 2
+    assert gate.events == []
+    assert holder.ticket.held is False
+
+
+async def test_without_a_ticket_holder_backoff_just_sleeps() -> None:
+    # Arrange: a caller that passes no gate/holder (e.g. a direct unit test
+    # of this class) keeps the old sleep-only behaviour.
+    dispatcher = _Scripted([_err(), Ok(value=1)])
+    sleeps = _Sleeps()
+    policy = KnotRetryPolicy(max_attempts=2, base_delay=0.1, jitter=False)
+
+    # Act
+    result, attempts = await GovernedDispatch(dispatcher, sleep=sleeps).dispatch(
+        _knot(retry=policy), {}
+    )
+
+    # Assert
+    assert result == Ok(value=1)
+    assert attempts == 2
+    assert sleeps.delays == [0.1]

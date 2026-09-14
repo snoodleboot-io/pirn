@@ -184,7 +184,12 @@ class SubTapestry(Knot):
 
         The default shares the enclosing run's admission gate, so the outer
         caps bound the inner leaves too.  Override to give the inner run a
-        budget of its own; ``ConcurrencyLimits()`` opts it out of any cap.
+        *bounded* budget of its own (e.g. ``ConcurrencyLimits(max_in_flight=2)``)
+        and its gate is chained under the enclosing run's: admission takes a
+        ticket from both, so the inner cap and the outer cap both apply
+        (PIR-870).  An explicitly unbounded ``ConcurrencyLimits()`` is the one
+        case that is not chained -- it opts the inner run out of any cap at
+        all, including the enclosing one.
         """
         return None
 
@@ -481,8 +486,10 @@ class SubTapestry(Knot):
         and ``admission_observers`` override that per call; when omitted,
         the ``_inner_dispatcher`` / ``_inner_concurrency`` /
         ``_inner_admission_observers`` hooks decide, and their default
-        (``None``) inherits.  Naming ``concurrency`` gives the inner run a
-        gate of its own, separate from the outer budget.
+        (``None``) inherits.  Naming a *bounded* ``concurrency`` gives the
+        inner run a gate chained under the outer budget -- both apply
+        (PIR-870); naming an explicitly unbounded ``ConcurrencyLimits()``
+        opts the inner run out of the outer budget entirely.
 
         Emitter forwarding is unconditional — there is no volume guard, and
         that is deliberate.  ``RunRetention`` (PIR-765) bounds *history*
