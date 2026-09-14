@@ -29,6 +29,7 @@ import asyncio
 from typing import Any, ClassVar
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -95,20 +96,24 @@ class HurstExponentEstimator(Knot):
         )
 
     @staticmethod
-    def _hurst_rs(signal_array: np.ndarray) -> float:
+    def _hurst_rs(signal_array: NDArray[np.float64]) -> float:
         """Hurst exponent via R/S analysis over partitions of increasing length."""
         signal_length = len(signal_array)
         min_len = 10
         max_len = signal_length // 2
         if max_len <= min_len:
             return 0.5
-        lengths = np.unique(np.logspace(np.log10(min_len), np.log10(max_len), 20).astype(int))
-        rs_vals = []
-        for length in lengths:
+        grid: NDArray[np.float64] = np.logspace(
+            float(np.log10(min_len)), float(np.log10(max_len)), 20
+        )
+        lengths: NDArray[np.int_] = np.unique(grid.astype(int))
+        rs_vals: list[tuple[float, float]] = []
+        for length_value in lengths:
+            length = int(length_value)
             n_segments = signal_length // length
             if n_segments == 0:
                 continue
-            rs_seg = []
+            rs_seg: list[float] = []
             for seg_index in range(n_segments):
                 seg = signal_array[seg_index * length : (seg_index + 1) * length].astype(float)
                 seg_mean = np.mean(seg)
@@ -127,7 +132,7 @@ class HurstExponentEstimator(Knot):
         return float(np.clip(coeffs[0], 0.0, 1.0))
 
     @staticmethod
-    def _hurst_dfa(signal_array: np.ndarray) -> float:
+    def _hurst_dfa(signal_array: NDArray[np.float64]) -> float:
         """Hurst exponent via detrended fluctuation analysis."""
         signal_length = len(signal_array)
         profile = np.cumsum(signal_array - np.mean(signal_array))
@@ -135,19 +140,23 @@ class HurstExponentEstimator(Knot):
         max_len = signal_length // 4
         if max_len <= min_len:
             return 0.5
-        lengths = np.unique(np.logspace(np.log10(min_len), np.log10(max_len), 20).astype(int))
-        fluct = []
-        for length in lengths:
+        grid: NDArray[np.float64] = np.logspace(
+            float(np.log10(min_len)), float(np.log10(max_len)), 20
+        )
+        lengths: NDArray[np.int_] = np.unique(grid.astype(int))
+        fluct: list[tuple[float, float]] = []
+        for length_value in lengths:
+            length = int(length_value)
             n_seg = signal_length // length
             if n_seg == 0:
                 continue
-            f2 = []
+            f2: list[float] = []
             for seg_index in range(n_seg):
                 seg = profile[seg_index * length : (seg_index + 1) * length]
-                idx = np.arange(length)
-                poly_coeffs = np.polyfit(idx, seg, 1)
-                trend = np.polyval(poly_coeffs, idx)
-                f2.append(np.mean((seg - trend) ** 2))
+                idx: NDArray[np.int_] = np.arange(length)
+                poly_coeffs: NDArray[np.float64] = np.polyfit(idx, seg, 1)
+                trend: NDArray[np.floating[Any]] = np.polyval(poly_coeffs, idx)
+                f2.append(float(np.mean((seg - trend) ** 2)))
             fluct.append((float(length), float(np.sqrt(np.mean(f2)))))
         if len(fluct) < 2:
             return 0.5
@@ -157,13 +166,13 @@ class HurstExponentEstimator(Knot):
         return float(np.clip(coeffs[0], 0.0, 1.0))
 
     @staticmethod
-    def _hurst_wavelet(signal_array: np.ndarray) -> float:
+    def _hurst_wavelet(signal_array: NDArray[np.float64]) -> float:
         """Hurst exponent via wavelet energy scaling."""
         signal_length = len(signal_array)
         max_level = int(np.log2(signal_length)) - 1
         if max_level < 2:
             return 0.5
-        energies = []
+        energies: list[tuple[float, float]] = []
         sig = signal_array.astype(float)
         for level in range(1, max_level + 1):
             # Simple Haar wavelet detail coefficients
@@ -183,7 +192,7 @@ class HurstExponentEstimator(Knot):
         return float(np.clip(hurst_exponent, 0.0, 1.0))
 
     @staticmethod
-    def _compute_hurst(signal_array: np.ndarray, method: str) -> float:
+    def _compute_hurst(signal_array: NDArray[np.float64], method: str) -> float:
         """Dispatch Hurst exponent computation to the selected method."""
         if method == "rs":
             return HurstExponentEstimator._hurst_rs(signal_array)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MultiRateFusionPipeline`` — fuse two signals at different rates by resampling to a common rate.
 
 Algorithm:
@@ -28,9 +30,11 @@ from math import gcd
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -106,17 +110,12 @@ class MultiRateFusionPipeline(Knot):
 
     @staticmethod
     def _resample_to_rate(
-        data: np.ndarray,
+        data: NDArray[np.floating[Any]],
         src_rate: float,
         tgt_rate: float,
-    ) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "MultiRateFusionPipeline requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    ) -> NDArray[np.floating[Any]]:
+        ss = ScipySignalBinding.load()
         common = gcd(int(tgt_rate), int(src_rate))
         up = int(tgt_rate) // common
         down = int(src_rate) // common
-        return np.asarray(ss.resample_poly(data, up, down, axis=-1))
+        return ss.resample_poly(data, up, down, axis=-1)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MelSpectrogramExtractor`` — mel-scaled spectrogram feature.
 
 Algorithm:
@@ -124,7 +126,7 @@ class MelSpectrogramExtractor(Knot):
         mono: np.ndarray, sr: int, n_mels: int, n_fft: int, hop_length: int
     ) -> np.ndarray:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "MelSpectrogramExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"

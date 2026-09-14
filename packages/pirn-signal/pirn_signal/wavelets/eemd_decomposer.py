@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EEMDDecomposer`` — ensemble empirical mode decomposition.
 
 Algorithm:
@@ -35,6 +37,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.py_emd_binding import PyEmdBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
@@ -102,14 +105,8 @@ class EEMDDecomposer(Knot):
 
     @staticmethod
     def _eemd_1d(channel: np.ndarray, trials: int, noise_width: float, max_imf: int) -> np.ndarray:
-        try:
-            from PyEMD import EEMD  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "EEMDDecomposer requires 'EMD-signal'. Install via pip install pirn-signal[emd]"
-            ) from exc
-        eemd = EEMD(trials=trials, noise_width=noise_width)
-        return eemd.eemd(channel, max_imf=max_imf)
+        emd = PyEmdBinding.load()
+        return emd.eemd(channel, trials=trials, noise_width=noise_width, max_imf=max_imf)
 
     @staticmethod
     def _run_eemd(

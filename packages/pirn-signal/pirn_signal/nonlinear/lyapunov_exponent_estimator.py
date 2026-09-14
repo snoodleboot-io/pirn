@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LyapunovExponentEstimator`` — largest-Lyapunov-exponent estimation.
 
 Algorithm:
@@ -33,6 +35,7 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -105,28 +108,30 @@ class LyapunovExponentEstimator(Knot):
         )
 
     @staticmethod
-    def _lyapunov(signal_array: np.ndarray, embedding_dim: int, tau: int) -> float:
+    def _lyapunov(signal_array: NDArray[np.float64], embedding_dim: int, tau: int) -> float:
         """Largest Lyapunov exponent via Rosenstein algorithm."""
         embedded = DelayEmbedding.embed(signal_array, embedding_dim, tau)
         n_pts = len(embedded)
         if n_pts < 4:
             return 0.0
-        divergences = []
+        divergences: list[list[float]] = []
         max_iter = min(50, n_pts // 4)
         for i in range(n_pts):
-            dists = np.linalg.norm(embedded - embedded[i], axis=1)
+            reference_point: NDArray[np.float64] = embedded[i]
+            dists: NDArray[np.float64] = np.linalg.norm(embedded - reference_point, axis=1)
             dists[i] = np.inf
             # Exclude temporally close neighbours
             for k in range(max(0, i - tau), min(n_pts, i + tau + 1)):
                 dists[k] = np.inf
             nn = int(np.argmin(dists))
-            divs = []
+            divs: list[float] = []
             for step in range(max_iter):
                 if i + step >= n_pts or nn + step >= n_pts:
                     break
-                divergence_dist = float(np.linalg.norm(embedded[i + step] - embedded[nn + step]))
+                separation: NDArray[np.float64] = embedded[i + step] - embedded[nn + step]
+                divergence_dist = float(np.linalg.norm(separation))
                 if divergence_dist > 0:
-                    divs.append(np.log(divergence_dist))
+                    divs.append(float(np.log(divergence_dist)))
             if divs:
                 divergences.append(divs)
         if not divergences:

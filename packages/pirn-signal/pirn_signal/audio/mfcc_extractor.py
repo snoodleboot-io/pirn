@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MFCCExtractor`` — mel-frequency cepstral coefficients.
 
 Algorithm:
@@ -116,7 +118,7 @@ class MFCCExtractor(Knot):
         mono: np.ndarray, sr: int, n_mfcc: int, n_fft: int, hop_length: int
     ) -> np.ndarray:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "MFCCExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"

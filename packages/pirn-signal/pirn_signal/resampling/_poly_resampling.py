@@ -10,18 +10,20 @@ byte-for-byte across four resampling knots (:class:`ArbitraryResamplerPipeline`,
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+from numpy.typing import NDArray
+
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 
 
 class PolyResampling:
     """Polyphase resampling shared by ``pirn_signal.resampling`` knots."""
 
     @staticmethod
-    def resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "PolyResampling requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
-        return np.asarray(ss.resample_poly(data, up, down, axis=-1))
+    def resample_poly(
+        data: NDArray[np.floating[Any]], up: int, down: int
+    ) -> NDArray[np.floating[Any]]:
+        ss = ScipySignalBinding.load()
+        return ss.resample_poly(data, up, down, axis=-1)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ICARobustDecomposer`` — robust ICA variant for outlier-heavy data.
 
 Algorithm:
@@ -28,9 +30,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.sklearn_decomposition_binding import SklearnDecompositionBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
@@ -96,17 +100,11 @@ class ICARobustDecomposer(Knot):
                 source_count=source_count,
                 mixing_matrix_shape=(signal.frame.channel_count, source_count),
             ),
-            data=np.asarray(sources),
+            data=sources,
         )
 
     @staticmethod
-    def _run_robust_ica(data: np.ndarray, source_count: int) -> np.ndarray:
-        try:
-            from sklearn.decomposition import FastICA  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ICARobustDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-            ) from exc
-        ica = FastICA(n_components=source_count, fun="exp", max_iter=500, random_state=0)
-        result: np.ndarray = ica.fit_transform(data.T)  # type: ignore[union-attr]
+    def _run_robust_ica(data: NDArray[np.floating[Any]], source_count: int) -> NDArray[np.float64]:
+        decomposition = SklearnDecompositionBinding.load()
+        result = decomposition.fast_ica(data.T, source_count, max_iterations=500, contrast="exp")
         return result.T

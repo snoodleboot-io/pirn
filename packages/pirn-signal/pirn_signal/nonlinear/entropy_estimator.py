@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EntropyEstimator`` — sample / approximate / permutation entropy.
 
 Algorithm:
@@ -35,6 +37,7 @@ import asyncio
 from typing import Any, ClassVar
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -115,10 +118,12 @@ class EntropyEstimator(Knot):
         )
 
     @staticmethod
-    def _approx_entropy_phi(signal_array: np.ndarray, m_val: int, tolerance: float) -> float:
+    def _approx_entropy_phi(
+        signal_array: NDArray[np.float64], m_val: int, tolerance: float
+    ) -> float:
         """Mean log frequency of self-inclusive template matches of length ``m_val``."""
         signal_length = len(signal_array)
-        counts = []
+        counts: list[float] = []
         for template_idx in range(signal_length - m_val + 1):
             template = signal_array[template_idx : template_idx + m_val]
             match_count = sum(
@@ -131,24 +136,28 @@ class EntropyEstimator(Knot):
         return float(np.mean(np.log(counts)))
 
     @staticmethod
-    def _approx_entropy(signal_array: np.ndarray, template_length: int, tolerance: float) -> float:
+    def _approx_entropy(
+        signal_array: NDArray[np.float64], template_length: int, tolerance: float
+    ) -> float:
         """Approximate entropy via template matching (includes self-matches)."""
         phi_m = EntropyEstimator._approx_entropy_phi(signal_array, template_length, tolerance)
         phi_m1 = EntropyEstimator._approx_entropy_phi(signal_array, template_length + 1, tolerance)
         return float(phi_m - phi_m1)
 
     @staticmethod
-    def _spectral_entropy(signal_array: np.ndarray) -> float:
+    def _spectral_entropy(signal_array: NDArray[np.float64]) -> float:
         """Shannon entropy over the normalised power spectrum."""
-        power = np.abs(np.fft.rfft(signal_array)) ** 2
+        power: NDArray[np.float64] = np.abs(np.fft.rfft(signal_array)) ** 2
         power_sum = power.sum()
         if power_sum == 0.0:
             return 0.0
-        probabilities = power / power_sum
+        probabilities: NDArray[np.float64] = power / power_sum
         return float(-np.sum(probabilities * np.log(probabilities + 1e-12)))
 
     @staticmethod
-    def _compute_entropy(signal_array: np.ndarray, kind: str, template_length: int) -> float:
+    def _compute_entropy(
+        signal_array: NDArray[np.float64], kind: str, template_length: int
+    ) -> float:
         """Dispatch entropy computation to the selected measure."""
         tolerance = 0.2 * float(np.std(signal_array))
         if kind == "sample":

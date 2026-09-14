@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CWTDecomposer`` — continuous wavelet transform decomposition.
 
 Algorithm:
@@ -27,9 +29,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.py_wavelets_binding import PyWaveletsBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
@@ -96,13 +100,8 @@ class CWTDecomposer(Knot):
     @staticmethod
     def _run_cwt(
         data: np.ndarray, wavelet_name: str, scale_count: int, sample_rate_hz: float
-    ) -> list[np.ndarray]:
-        try:
-            import pywt  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "CWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    ) -> list[NDArray[np.inexact[Any]]]:
+        pywt = PyWaveletsBinding.load()
         scales = np.arange(1, scale_count + 1)
         sampling_period = 1.0 / sample_rate_hz if sample_rate_hz > 0 else 1.0
         coeffs, _freqs = pywt.cwt(
