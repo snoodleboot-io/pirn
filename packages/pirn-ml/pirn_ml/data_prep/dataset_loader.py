@@ -1,17 +1,21 @@
-"""``DatasetLoader`` — load a :class:`DatasetPayload` from any configured source.
+"""``DatasetLoader`` — load a :class:`DatasetPayload` from the one configured source.
 
-Tries all configured sources concurrently inside an inner tapestry.  Each
-source is wrapped with :class:`Optional` so a missing or failing source
-produces ``Skipped`` rather than an error.  An :class:`Aggregator` picks
-whichever source succeeded; exactly one must produce a result.  A
-:class:`DatasetAssembler` knot converts the raw :class:`DataBatch` into
-a typed :class:`DatasetPayload` as the terminal step of the inner graph.
+The caller configures exactly one source group; the loader wires that source
+directly into a :class:`DatasetAssembler` inside an inner tapestry. Source
+failures (a missing file, a failing query, an unreachable lakehouse) fail the
+run with the source's own exception — nothing is converted to ``Skipped`` and
+no other source is consulted.
 
-Because ``Optional`` intercepts both construction failures (e.g. ``store=None``
-rejected by ``FileSource``) and runtime failures (e.g. file not found), the
-caller simply passes all possible source config and leaves the rest as
-``None`` — the pipeline resolves which source is live at runtime with no
-branching logic in this class.
+Algorithm:
+    1. Receive the dataset shape (``name``, ``feature_names``, ``target_name``)
+       and every source option via process().
+    2. Validate ``feature_names`` is non-empty.
+    3. Resolve the configured source group: file (``store`` + ``file_format``
+       + ``key``), lakehouse (``table``), or SQL (``pool`` + ``query``). A
+       partially configured group, no group, or more than one group raises
+       ``ValueError``.
+    4. Wire the matching source knot and feed its :class:`DataBatch` to
+       :class:`DatasetAssembler`, which is the inner graph's terminal.
 
 Supported sources
 -----------------
@@ -26,7 +30,6 @@ References:
     pirn_data/sources/file_source.py
     pirn_data/sources/sql_source.py
     pirn_data/lakehouse/lakehouse_table_source.py
-    pirn/core/optional.py
 """
 
 from __future__ import annotations
@@ -39,9 +42,6 @@ from pirn.connectors.file_format import FileFormat
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.optional import Optional
-from pirn.core.skipped import Skipped
-from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
@@ -51,10 +51,8 @@ from pirn_ml.data_prep.dataset_assembler import DatasetAssembler
 class DatasetLoader(SubTapestry):
     """Load feature and target arrays into a :class:`DatasetPayload`.
 
-    Constructs an inner tapestry with all three source knots wrapped in
-    :class:`Optional`.  Whichever source is configured succeeds; the rest
-    skip.  The :class:`Aggregator` surfaces the live result and
-    :class:`DatasetAssembler` converts it into a :class:`DatasetPayload`.
+    Wires exactly one configured source into :class:`DatasetAssembler`; a
+    failing source fails the run with its own error.
 
     Parameters
     ----------
@@ -114,6 +112,26 @@ class DatasetLoader(SubTapestry):
         query: str | None = None,
         **_: Any,
     ) -> Any:
+        """Wire the one configured source into a DatasetAssembler and return the terminal knot.
+
+        Args:
+            name: Dataset name embedded in the manifest.
+            feature_names: Non-empty column names for the feature matrix.
+            target_name: Optional target column name.
+            store: File source object store (with ``file_format`` and ``key``).
+            file_format: File source format (with ``store`` and ``key``).
+            key: File source object key (with ``store`` and ``file_format``).
+            table: Lakehouse source table.
+            pool: SQL source connection pool (with ``query``).
+            query: SQL source query (with ``pool``).
+
+        Returns:
+            The inner :class:`DatasetAssembler` knot producing a :class:`DatasetPayload`.
+
+        Raises:
+            ValueError: If ``feature_names`` is empty, a source group is only
+                partially configured, or not exactly one source group is configured.
+        """
         if not feature_names:
             raise ValueError("DatasetLoader: feature_names must be non-empty")
 
@@ -121,38 +139,40 @@ class DatasetLoader(SubTapestry):
         from pirn_data.sources.file_source import FileSource
         from pirn_data.sources.sql_source import SqlSource
 
-        # All three sources are constructed unconditionally and wrapped in
-        # Optional.  Optional intercepts construction failures (e.g. FileSource
-        # rejecting store=None) and runtime failures alike, converting both to
-        # Ok(Skipped(...)).  The Aggregator then picks whichever source
-        # produced a real DataBatch.
-        file_src = Optional(
-            FileSource,
-            store=store,
-            format=file_format,
-            key=key,
-            _config=KnotConfig(id="src-file"),
+        file_options = (store, file_format, key)
+        sql_options = (pool, query)
+        file_configured = DatasetLoader._group_configured(
+            "file", ("store", "file_format", "key"), file_options
         )
-        lake_src = Optional(
-            LakehouseTableSource,
-            table=table,
-            _config=KnotConfig(id="src-lake"),
-        )
-        sql_src = Optional(
-            SqlSource,
-            pool=pool,
-            query=query,
-            _config=KnotConfig(id="src-sql"),
-        )
-        agg = Aggregator(
-            combine=self._first_present,
-            file=file_src,
-            lake=lake_src,
-            sql=sql_src,
-            _config=KnotConfig(id="agg"),
-        )
+        sql_configured = DatasetLoader._group_configured("sql", ("pool", "query"), sql_options)
+        lake_configured = table is not None
+        configured = [
+            label
+            for label, is_set in (
+                ("store+file_format+key", file_configured),
+                ("table", lake_configured),
+                ("pool+query", sql_configured),
+            )
+            if is_set
+        ]
+        if len(configured) != 1:
+            raise ValueError(
+                "DatasetLoader: configure exactly one source — store+file_format+key, "
+                f"table, or pool+query; got {configured or 'none'}"
+            )
+        source: Knot
+        if store is not None and file_format is not None and key is not None:
+            source = FileSource(
+                store=store, format=file_format, key=key, _config=KnotConfig(id="src-file")
+            )
+        elif table is not None:
+            source = LakehouseTableSource(table=table, _config=KnotConfig(id="src-lake"))
+        elif pool is not None and query is not None:
+            source = SqlSource(pool=pool, query=query, _config=KnotConfig(id="src-sql"))
+        else:  # unreachable: exactly one group was confirmed configured above
+            raise ValueError("DatasetLoader: no source configured")
         return DatasetAssembler(
-            batch=agg,
+            batch=source,
             name=name,
             feature_names=feature_names,
             target_name=target_name,
@@ -160,12 +180,17 @@ class DatasetLoader(SubTapestry):
         )
 
     @staticmethod
-    def _first_present(**results: Any) -> Any:
-        """Return the first non-``Skipped`` value from the source results."""
-        for v in results.values():
-            if not isinstance(v, Skipped):
-                return v
-        raise RuntimeError(
-            "DatasetLoader: no source produced data — "
-            "provide store+file_format+key, table, or pool+query"
-        )
+    def _group_configured(group: str, names: tuple[str, ...], values: tuple[object, ...]) -> bool:
+        """Whether a source group is fully configured; a partial group raises ``ValueError``."""
+        provided = [
+            option for option, value in zip(names, values, strict=True) if value is not None
+        ]
+        if not provided:
+            return False
+        if len(provided) != len(names):
+            missing = [option for option in names if option not in provided]
+            raise ValueError(
+                f"DatasetLoader: {group} source is partially configured — "
+                f"got {provided}, missing {missing}"
+            )
+        return True
