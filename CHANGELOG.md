@@ -108,6 +108,44 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
   `DeprecationWarning`. The `max_entries` bound is now enforced by
   `InMemoryDataStore` (evicts the least-recently-*read* entry), not the
   previous first-inserted-wins policy.
+#### `Bulkhead`/`BackpressureSemaphore`/`ConcurrencyConfig` onto core concurrency groups (ADR agents-speaks-core WS4b, PIR-866)
+`pirn_agents.resilience.bulkhead.Bulkhead`, `pirn_agents.resilience.bulkhead_config.BulkheadConfig`,
+`pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`, and
+`pirn_agents.performance.concurrency_config.ConcurrencyConfig` no longer hold
+a private `asyncio.Semaphore`; each is now a one-cycle deprecated shim built
+on a core concurrency seam, warning `DeprecationWarning` on construction:
+- `ConcurrencyConfig` and `BulkheadConfig` are now subclasses of
+  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`.
+  `ConcurrencyConfig.to_concurrency_limits(group=...)` returns the exact
+  `ConcurrencyLimits` a real engine run would declare for it.
+- `BackpressureSemaphore` and `Bulkhead` are now subclasses of
+  `pirn.engine.admission.admission_gate.AdmissionGate`, delegating every
+  admission decision to a real `LimitedAdmissionGate` through the new,
+  shared, private `pirn_agents.performance._backpressure_gate._BackpressureGate` —
+  the one place `max_queue_depth`/`acquire_timeout` (backpressure knobs core
+  has no equivalent for outside a running `Tapestry`) are still implemented
+  directly, documented there as the seam.
+- **The replacement pattern:** declare `KnotConfig(concurrency_group=<backend>)`
+  on the knots that call a backend and `ConcurrencyLimits(groups={<backend>: n})`
+  on the run — two independently-built pipelines whose knots share one group
+  are bounded together by the run's one `AdmissionGate`, exactly the
+  isolation `Bulkhead` used to promise (`tests/performance/test_shared_concurrency_group.py`).
+- **Public API unchanged:** `Bulkhead.slot(backend)`, `BackpressureSemaphore.slot()`/
+  `.acquire()`/`.release()`, and every constructor signature still work as
+  before; `agent/parallel_tool_executor.py` already used the replacement
+  pattern (WS1) and needed no change.
+- **Disclosed behaviour change:** a `BulkheadConfig` override's backend name
+  now doubles as a `ConcurrencyLimits` group name, so it must satisfy the
+  knot id charset (alphanumeric, underscore, hyphen, dot, colon) — a name
+  with other characters, accepted before this migration, now raises at
+  construction.
+- **Still open:** `evaluation/run_eval.py` (a bare `asyncio.gather` loop, no
+  `Tapestry`) still constructs `BackpressureSemaphore` directly; two
+  `specializations/` files (`document_processing/_ingestion_runner.py`,
+  `multi_agent/orchestrator_workers.py`) build their own unrelated bare
+  `asyncio.Semaphore`, outside this migration's ownership. See
+  `packages/pirn-core/docs/FRAMEWORK_REFERENCE.md` §6 "Scheduling and
+  concurrency" for the full detail.
 
 #### `pirn-agents` hashing seams moved onto `pirn.core.hashing.content_hash` (ADR agents-speaks-core WS2 part 2)
 
