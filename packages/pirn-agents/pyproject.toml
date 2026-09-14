@@ -201,7 +201,6 @@ strict = [
     "pirn_agents/observability",
     "pirn_agents/performance",
     "pirn_agents/planning",
-    "pirn_agents/serialization",
     "pirn_agents/testing",
     "pirn_agents/*.py",
 ]

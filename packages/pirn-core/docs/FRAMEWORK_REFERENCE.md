@@ -288,15 +288,10 @@ one-cycle deprecated wrapper around it, deleted by PIR-864 — every caller now
 calls `content_hash(value, strict=True)` directly.
 
 **Still open:** `BatchItemStatus` is not deleted (`MapAgent` scheduling still
-owns it). `CanonicalJson`/`OpaquePolicy` are **not** deleted: PIR-864 checked
-their remaining callers (`resilience/idempotency_key_assigner.py`'s now-only
-derivation path, `determinism/content_digest.py`, `evaluation/trajectory_call_key.py`)
-and found each is a non-durable, in-memory-only key per its own module
-docstring, so retiring `CanonicalJson` itself is a decision for whichever
-lane owns that retirement, not made unilaterally by a shim-deletion lane;
-`IdempotencyKeyAssigner.legacy_key()`, the one caller that *was* this lane's
-call to make (a durable/dedup key with an unmigrated bare-hex form), is
-deleted.
+owns it). `CanonicalJson`/`OpaquePolicy` are deleted (PIR-872): their last callers
+(`determinism/content_digest.py`, `evaluation/trajectory_call_key.py`) call
+`content_hash(value, strict=True)` directly, like `IdempotencyKeyAssigner` and
+`AgentKnotIdFactory` already did.
 
 ### Memory, sessions, and determinism (WS3, parts 1-4)
 

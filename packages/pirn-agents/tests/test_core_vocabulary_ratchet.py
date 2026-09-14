@@ -5,8 +5,8 @@ retires three agents-local parallels to a core primitive:
 
 (a) an agents exception hierarchy that does not root on
     :class:`pirn.exceptions.pirn_error.PirnError`;
-(b) :class:`~pirn_agents.serialization.canonical_json.CanonicalJson` as a
-    parallel canonicaliser to :func:`pirn.core.hashing.content_hash`;
+(b) ``CanonicalJson`` (deleted, PIR-872) as a parallel canonicaliser to
+    :func:`pirn.core.hashing.content_hash`;
 (c) an outcome enum modelling success/failure/skip beside core's
     ``Ok | Err | Skipped`` ``Result``.
 
@@ -70,31 +70,15 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
     }
 )
 
-# --- (b) modules importing CanonicalJson, frozen ----------------------------
+# --- (b) modules importing CanonicalJson ------------------------------------
 #
-# ADR agents-speaks-core WS2 part 2 sanctioned the digest cutover: the
-# `sha256:` prefix core emits IS the format version.
-# `builder/agent_knot_id_factory.py` now calls `pirn.core.hashing.content_hash`
-# directly and is off this list; `caching/content_address.py` migrated too
-# (part 2 added `content_hash`'s `strict=True` mode, which closes the PIR-785
-# gap that blocked it in part 1) and its `ContentAddress`/`content_address`
-# one-cycle wrapper is deleted (PIR-864). `resilience/idempotency_key_assigner.py`
-# ALSO switched its `assign()` derivation to `content_hash`; its `legacy_key()`
-# bridge (the last thing that imported `CanonicalJson` there) is deleted
-# (PIR-864), taking it off this list. `sessions/run_checkpoint.py` -- WS3 part
-# 2's versioned-checkpoint-migration importer -- is itself a deleted (PIR-864)
-# one-cycle shim, taking it off this list too. `agent/parallel_tool_executor.py`
-# dropped it with WS1 (the executor no longer digests arguments itself);
-# `determinism/content_digest.py` and `evaluation/trajectory_call_key.py`
-# remain -- non-durable/in-memory-only callers per their own module
-# docstrings, but migrating them off `CanonicalJson` is a decision for
-# whichever lane owns `CanonicalJson`'s own retirement, not this one.
-CANONICAL_JSON_IMPORTERS = frozenset(
-    {
-        "determinism/content_digest.py",
-        "evaluation/trajectory_call_key.py",
-    }
-)
+# `CanonicalJson`/`OpaquePolicy` are deleted (PIR-872): every former caller
+# (`determinism/content_digest.py`, `evaluation/trajectory_call_key.py`, and
+# earlier `builder/agent_knot_id_factory.py`,
+# `resilience/idempotency_key_assigner.py`) calls
+# `pirn.core.hashing.content_hash(..., strict=True)` directly. Kept as an empty
+# assertion so a reintroduced parallel canonicaliser is loud.
+CANONICAL_JSON_IMPORTERS: frozenset[str] = frozenset()
 
 # --- (c) outcome enums beside Result, frozen --------------------------------
 #
@@ -211,10 +195,6 @@ class TestCanonicalJsonImportersFrozen(unittest.TestCase):
             ),
         }
 
-    def test_canonical_json_itself_is_not_counted_as_its_own_importer(self) -> None:
-        canonical_json_path = _PACKAGE_ROOT / "serialization" / "canonical_json.py"
-        assert not VocabularyInventory.imports_canonical_json(canonical_json_path)
-
     def test_detector_recognises_a_from_import_shape(self) -> None:
         import tempfile
 
@@ -230,7 +210,7 @@ class TestCanonicalJsonImportersFrozen(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             module = Path(tmp) / "user.py"
-            module.write_text("from pirn_agents.serialization.opaque_policy import OpaquePolicy\n")
+            module.write_text("from pirn.core.hashing import content_hash\n")
             assert not VocabularyInventory.imports_canonical_json(module)
 
 
