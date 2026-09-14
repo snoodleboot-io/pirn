@@ -13,8 +13,10 @@ from __future__ import annotations
 import asyncio
 
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.core.err import Err
+from pirn.core.knot_config import KnotConfig
+from pirn.core.skipped import Skipped
 
-from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.map_agent import MapAgent
 
 
@@ -27,7 +29,9 @@ async def test_a_fast_item_is_yielded_before_a_slow_sibling_finishes() -> None:
             await release.wait()
         return f"done:{item}"
 
-    runner = MapAgent(agent, batch_id="stream", concurrency=4)
+    runner = MapAgent(
+        run_item=agent, _config=KnotConfig(id="map-agent"), batch_id="stream", concurrency=4
+    )
     stream = runner.run(["slow", "fast"])
 
     # Act: the first result must arrive while "slow" is still held.
@@ -36,7 +40,7 @@ async def test_a_fast_item_is_yielded_before_a_slow_sibling_finishes() -> None:
     # Assert
     assert not release.is_set()
     assert first.key == "1"
-    assert first.status is BatchItemStatus.OK
+    assert first.succeeded
     assert first.output == "done:fast"
 
     release.set()
@@ -53,7 +57,9 @@ async def test_every_item_is_yielded_exactly_once_in_completion_order() -> None:
         order.append(str(item))
         return item
 
-    runner = MapAgent(agent, batch_id="order", concurrency=4)
+    runner = MapAgent(
+        run_item=agent, _config=KnotConfig(id="map-agent"), batch_id="order", concurrency=4
+    )
 
     results = [result async for result in runner.run([0, 1, 2, 3])]
 
@@ -65,11 +71,17 @@ async def test_a_failed_item_streams_with_its_exception_record_and_attempts() ->
     async def agent(item: object) -> object:
         raise ValueError(f"nope {item}")
 
-    runner = MapAgent(agent, batch_id="fail", concurrency=2, retries=1)
+    runner = MapAgent(
+        run_item=agent,
+        _config=KnotConfig(id="map-agent"),
+        batch_id="fail",
+        concurrency=2,
+        retries=1,
+    )
 
     (only,) = [result async for result in runner.run(["x"])]
 
-    assert only.status is BatchItemStatus.ERROR
+    assert isinstance(only.outcome, Err)
     assert only.exception is not None
     assert only.exception.exc_type == "ValueError"
     assert only.exception.knot_id == "item:fail:0"
@@ -86,19 +98,31 @@ async def test_resumed_items_are_yielded_first_and_not_re_run() -> None:
         return item
 
     history = InMemoryHistory()
-    first_runner = MapAgent(agent, batch_id="resume", concurrency=2, history=history)
+    first_runner = MapAgent(
+        run_item=agent,
+        _config=KnotConfig(id="map-agent"),
+        batch_id="resume",
+        concurrency=2,
+        history=history,
+    )
     await asyncio.wait_for(_drain(first_runner, ["a", "b"]), timeout=5)
     assert calls == ["a", "b"] or calls == ["b", "a"]
 
-    second_runner = MapAgent(agent, batch_id="resume", concurrency=2, history=history)
+    second_runner = MapAgent(
+        run_item=agent,
+        _config=KnotConfig(id="map-agent"),
+        batch_id="resume",
+        concurrency=2,
+        history=history,
+    )
 
     # Act
     results = await asyncio.wait_for(_drain(second_runner, ["a", "b", "c"]), timeout=5)
 
     # Assert: the two resumed items come first as SKIPPED, the new one ran.
-    assert [r.status for r in results[:2]] == [BatchItemStatus.SKIPPED] * 2
+    assert all(isinstance(r.outcome, Skipped) for r in results[:2])
     assert results[2].key == "2"
-    assert results[2].status is BatchItemStatus.OK
+    assert results[2].succeeded
     assert calls.count("c") == 1
     assert len(calls) == 3
 
@@ -116,7 +140,9 @@ async def test_closing_the_stream_early_cancels_the_run() -> None:
                 raise
         return item
 
-    runner = MapAgent(agent, batch_id="close", concurrency=4)
+    runner = MapAgent(
+        run_item=agent, _config=KnotConfig(id="map-agent"), batch_id="close", concurrency=4
+    )
     stream = runner.run(["slow", "fast"])
     first = await asyncio.wait_for(stream.__anext__(), timeout=5)
     assert first.key == "1"

@@ -105,7 +105,6 @@ CANONICAL_JSON_IMPORTERS: frozenset[str] = frozenset()
 OUTCOME_ENUMS_BESIDE_RESULT = frozenset(
     {
         "tools/tool_status.py::ToolStatus",
-        "batch/batch_item_status.py::BatchItemStatus",
         "resilience/failover_outcome.py::FailoverOutcome",
         "resilience/retry_classification.py::RetryClassification",
     }

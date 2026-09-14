@@ -75,12 +75,11 @@ STORE_CLASSES = frozenset(
 # run chain (ResumeToken-shaped fork point + ReplaySession(allow_new_knots=
 # True)), not a RunCheckpoint rewind. PIR-864 deleted the remaining five
 # one-cycle shims this list named (sessions/* and batch/batch_checkpointer.py),
-# leaving two real, non-deprecated importers: batch/batch_progress.py (its
-# to_run_state()/from_run_state() bridge, kept for a possible future durable
-# caller — see its module docstring) and sessions/run_resumer.py.
+# leaving two real, non-deprecated importers; PIR-872 deleted
+# batch/batch_progress.py's to_run_state()/from_run_state() bridge (a per-fire
+# summary checkpoints nothing), leaving sessions/run_resumer.py.
 LIFECYCLE_IMPORTERS = frozenset(
     {
-        "batch/batch_progress.py",
         "sessions/run_resumer.py",
     }
 )
@@ -95,10 +94,10 @@ class TestStoreInventoryIsFrozen(unittest.TestCase):
         assert len(found) >= 10, len(found)
 
     def test_the_importer_walk_is_not_vacuous(self) -> None:
-        # PIR-864 deleted five of the seven prior importers (one-cycle shims);
-        # two real importers remain -- see LIFECYCLE_IMPORTERS above.
+        # PIR-864 deleted five of the seven prior importers (one-cycle shims)
+        # and PIR-872 one more -- see LIFECYCLE_IMPORTERS above.
         found = StoreInventory.discover_lifecycle_importers()
-        assert len(found) >= 2, len(found)
+        assert len(found) >= 1, len(found)
 
     def test_keyed_store_classes_are_frozen(self) -> None:
         found = frozenset(StoreInventory.discover_store_classes())

@@ -287,8 +287,9 @@ hashing path for new code; `ContentAddress`/`content_address()` were a
 one-cycle deprecated wrapper around it, deleted by PIR-864 — every caller now
 calls `content_hash(value, strict=True)` directly.
 
-**Still open:** `BatchItemStatus` is not deleted (`MapAgent` scheduling still
-owns it). `CanonicalJson`/`OpaquePolicy` are deleted (PIR-872): their last callers
+**Resolved (PIR-872):** `BatchItemStatus` is deleted — `BatchItemResult.outcome` is the
+item's core `Result` (`Ok`, `Err` — a timeout is an `Err` whose error type is
+`KnotTimeoutError` — or `Skipped(reason="resumed")`). `CanonicalJson`/`OpaquePolicy` are deleted (PIR-872): their last callers
 (`determinism/content_digest.py`, `evaluation/trajectory_call_key.py`) call
 `content_hash(value, strict=True)` directly, like `IdempotencyKeyAssigner` and
 `AgentKnotIdFactory` already did.
