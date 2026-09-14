@@ -459,8 +459,11 @@ capped by `ConcurrencyLimits(groups={"eval_items": concurrency})`, fanned into
 an `Aggregator` that assembles the `EvalReport` in dataset order. Eval
 determinism is core replay: `RunEval.run(history=, data_store=, run_id=)`
 records each item's result, and `RunEval.run(replay=ReplaySession(...))` serves
-it without calling the target (a replay whose items, target/metric names or
-thresholds differ raises `ReplayMismatchError`). The agents recorder seam it
+it without calling the target (a replay whose items, thresholds, metric names
+or target/metric *code* differ raises `ReplayMismatchError` — callables are
+identified by bytecode, constants, names, defaults, closure values and bound
+arguments via `_CallableIdentity`; only a callable with no inspectable code,
+such as a C builtin, falls back to `module.qualname`). The agents recorder seam it
 used to route through — `RunRecorder`, `NullRunRecorder`, `CassetteRunRecorder`,
 `CassetteRecorder`, `Cassette`/`CassetteEntry`/`InteractionKind`/`RecordingMode`,
 `MissingCassetteEntryError` — is deleted; `tests/tools/test_tool_is_a_knot_ratchet.py`'s

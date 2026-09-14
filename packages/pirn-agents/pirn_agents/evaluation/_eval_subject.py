@@ -6,13 +6,15 @@ constructor argument, so it is part of each item's recorded invocation identity
 (``KnotLineage.config_values_hash``) and a replay refuses to serve a recording
 made for a different subject.
 
-Callables have no content, so a subject names each callable by its qualified
-name (``module.qualname``, the type's for a callable instance) — stable across
-processes, which is what lets a recorded eval replay in a fresh interpreter.
-Renaming the target or a metric, adding or dropping a metric, or changing a
-threshold makes a replay raise ``ReplayMismatchError``; editing a callable's body
-under the same name does not, exactly as a knot's recorded row does not track
-its ``process()`` body.
+Callables have no value ``content_hash`` can canonicalise, so a subject
+identifies each one by its code through
+:class:`~pirn_agents.evaluation._callable_identity._CallableIdentity`: the
+bytecode, constants (nested code objects included), names, defaults, closure
+cell values, a ``functools.partial``'s bound arguments and a bound method's
+object. Editing a target's or metric's body, rebinding a partial, adding or
+dropping a metric, or changing a threshold therefore makes a replay raise
+``ReplayMismatchError``. Only a callable with no inspectable code (a C builtin)
+is identified by ``module.qualname`` alone.
 
 Internal API.
 """
@@ -25,6 +27,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.evaluation._callable_identity import _CallableIdentity
 from pirn_agents.evaluation.eval_item import EvalItem
 from pirn_agents.evaluation.threshold_config import ThresholdConfig
 
@@ -49,22 +52,11 @@ class _EvalSubject(PirnOpaqueValue):
     metrics: Mapping[str, Callable[[EvalItem, Mapping[str, Any]], Any]]
     thresholds: ThresholdConfig | None = None
 
-    @staticmethod
-    def _callable_name(candidate: object) -> str:
-        """``module.qualname`` of a function, or of a callable instance's type."""
-        module = getattr(candidate, "__module__", None)
-        qualname = getattr(candidate, "__qualname__", None)
-        if not isinstance(module, str) or not isinstance(qualname, str):
-            module = type(candidate).__module__
-            qualname = type(candidate).__qualname__
-        return f"{module}.{qualname}"
-
     def __pirn_canonical__(self) -> dict[str, Any]:
         return {
-            "target": _EvalSubject._callable_name(self.target),
+            "target": _CallableIdentity.of(self.target),
             "metrics": {
-                name: _EvalSubject._callable_name(scorer)
-                for name, scorer in sorted(self.metrics.items())
+                name: _CallableIdentity.of(scorer) for name, scorer in sorted(self.metrics.items())
             },
             "thresholds": (None if self.thresholds is None else self.thresholds._pirn_audit_dict()),
         }

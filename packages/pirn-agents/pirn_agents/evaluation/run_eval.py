@@ -108,6 +108,21 @@ class RunEval:
                 instead of calling the target.
             run_id: The run id to record this eval under; generated when omitted.
 
+        Replay identity:
+            A replay is served only when the recording describes this exact
+            evaluation: the same items, thresholds and metric names, and the
+            same *code* for ``target`` and every metric. A Python function,
+            lambda, bound method, ``functools.partial`` or object with a Python
+            ``__call__`` is identified by its bytecode, constants (nested code
+            objects included), names, defaults, closure cell values and bound
+            arguments/object, so editing its body raises
+            ``ReplayMismatchError``. **Fallback:** a callable with no
+            inspectable code — a C builtin or extension callable — is
+            identified by its ``module.qualname`` alone, so a change inside it
+            is not detected and a replay can serve results recorded before
+            that change. Likewise, a closure value or bound argument with no
+            canonical content form is compared only by its type.
+
         Returns:
             An :class:`EvalReport` with one :class:`EvalCaseResult` per item, in
             dataset order.

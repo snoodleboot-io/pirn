@@ -19,7 +19,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 #### `RunEval` on the engine; eval determinism is core replay (PIR-872)
 
-- `RunEval.run` runs one `_EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
+- `RunEval.run` runs one `_EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
 - `ToolTestHarness.run_tool` (and the instance `run`) drives a call through `Tapestry.run` — approval gate included — instead of `ToolFactory.run_call`'s bare-call path.
 
 #### A `Check` names the skip reason its `Gate` propagates (PIR-872)
