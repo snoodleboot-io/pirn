@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PathologyFeatureExtractor`` — compose per-tile pathology features.
 
 Production version assembles morphometric, intensity, and texture
@@ -47,7 +49,7 @@ class PathologyFeatureExtractor(Knot):
         self,
         *,
         cell_counts: Knot | Mapping[tuple[int, int], int],
-        mitosis_counts: Knot | Any,
+        mitosis_counts: Knot | Mapping[tuple[int, int], int] | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -61,7 +63,7 @@ class PathologyFeatureExtractor(Knot):
     async def process(
         self,
         cell_counts: Mapping[tuple[int, int], int],
-        mitosis_counts: Any,
+        mitosis_counts: Mapping[tuple[int, int], int] | int,
         **_: Any,
     ) -> Mapping[tuple[int, int], Mapping[str, float | int]]:
         """Combine per-tile cell counts and mitosis counts into feature vectors.
@@ -92,7 +94,7 @@ class PathologyFeatureExtractor(Knot):
 
     @staticmethod
     def _coerce_per_tile_mitosis(
-        mitosis_counts: Any,
+        mitosis_counts: Mapping[tuple[int, int], int] | int,
         cell_counts: Mapping[tuple[int, int], int],
     ) -> Mapping[tuple[int, int], int]:
         """Accept either a per-tile mapping or a single int total.
@@ -101,7 +103,7 @@ class PathologyFeatureExtractor(Knot):
         versions may emit a per-tile mapping. We support both.
         """
         if isinstance(mitosis_counts, Mapping):
-            return {tuple(k): int(v) for k, v in mitosis_counts.items()}
+            return {position: int(count) for position, count in mitosis_counts.items()}
         if isinstance(mitosis_counts, int):
             tile_count = max(len(cell_counts), 1)
             base = mitosis_counts // tile_count

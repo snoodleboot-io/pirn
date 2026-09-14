@@ -31,20 +31,14 @@ from tests.core_seams.core_seam_shadow_inventory import CoreSeamShadowInventory
 
 # --- known shadows, frozen (ADR agents-speaks-core, WS0) -------------------
 
-RETRY_TIMEOUT = frozenset(
-    {
-        "exceptions/tool_timeout_error.py::ToolTimeoutError",
-        "llm/retry_policy.py::RetryPolicy",
-    }
-)
+# RetryPolicy and ToolTimeoutError deleted (PIR-872): KnotConfig.retry /
+# KnotRetryPolicy.run and KnotConfig.timeout -> KnotTimeoutError.
+RETRY_TIMEOUT: frozenset[str] = frozenset()
 
-NESTING = frozenset(
-    {
-        "exceptions/agent_cycle_error.py::AgentCycleError",
-        "exceptions/agent_depth_exceeded_error.py::AgentDepthExceededError",
-        "exceptions/agent_recursion_error.py::AgentRecursionError",
-    }
-)
+# AgentRecursionError/AgentDepthExceededError/AgentCycleError, AgentToolContext
+# and AgentNestingConfig deleted (PIR-872): RunNesting + Tapestry(max_nesting_depth=)
+# with NestingDepthExceededError / NestedRunCycleError.
+NESTING: frozenset[str] = frozenset()
 
 # AgentSchemaDeriver/ToolSchemaCompiler/ArgumentValidator all deleted (PIR-864).
 INPUT_SCHEMA: frozenset[str] = frozenset()
@@ -57,17 +51,13 @@ INPUT_SCHEMA: frozenset[str] = frozenset()
 # name this list ever named.
 ADMISSION_FEEDBACK: frozenset[str] = frozenset()
 
-CHECK_ROLE = frozenset(
-    {
-        "specializations/base/gated_agent_response.py::GatedAgentResponse",
-    }
-)
+# GatedAgentResponse deleted (PIR-872): a core Check + Gate(check=).
+CHECK_ROLE: frozenset[str] = frozenset()
 
-ASYNC_LOOP_STEP = frozenset(
-    {
-        "agent/parallel_tool_executor.py::ParallelToolExecutor",
-    }
-)
+# ParallelToolExecutor is one tool knot per call under an Aggregator, with
+# KnotConfig(retry=, timeout=, concurrency_group="tools") run by core's
+# GovernedDispatch (PIR-872).
+ASYNC_LOOP_STEP: frozenset[str] = frozenset()
 
 
 class TestCoreSeamShadowsAreFrozen(unittest.TestCase):
@@ -84,14 +74,13 @@ class TestCoreSeamShadowsAreFrozen(unittest.TestCase):
         }
 
     def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
-        total = sum(len(labels) for labels in self.found.values())
-        # PIR-866 removed 2 admission_feedback shadows (BackpressureSemaphore,
-        # Bulkhead -> Admission subclasses; 18 -> 16). PIR-864 then deleted
-        # AgentInvoker (nesting), all of input_schema, and all of
-        # admission_feedback outright: 16 -> 7 (retry_timeout=2, nesting=3,
-        # check_role=1, async_loop_step=1).
-        assert total >= 7, self.found
+        """A guard that finds nothing passes for the wrong reason.
+
+        Every seam inventory is empty now (PIR-872 migrated the last shadows),
+        so the walk proves it ran by the classes it inspected, not by what it
+        found; ``TestDetectorIsDiscriminating`` proves the detector still fires.
+        """
+        assert len(CoreSeamShadowInventory.top_level_classes()) >= 500
 
     def test_retry_and_timeout_shadows_are_frozen(self) -> None:
         self._assert_frozen("retry_timeout", RETRY_TIMEOUT)
@@ -135,6 +124,12 @@ class TestDetectorIsDiscriminating(unittest.TestCase):
     def test_a_generic_core_base_is_recognised(self) -> None:
         node = self._class_of("class ParallelToolExecutor(LoopSubTapestry[int]):\n    pass\n")
         assert not CoreSeamShadowInventory.is_shadow(node, "async_loop_step")
+
+    def test_a_fan_out_container_is_not_a_loop_step_shadow_but_a_bare_knot_is(self) -> None:
+        container = self._class_of("class ParallelToolExecutor(SubTapestry):\n    pass\n")
+        bare = self._class_of("class ParallelToolExecutor(Knot):\n    pass\n")
+        assert not CoreSeamShadowInventory.is_shadow(container, "async_loop_step")
+        assert CoreSeamShadowInventory.is_shadow(bare, "async_loop_step")
 
     def test_an_unrelated_name_is_not_a_shadow(self) -> None:
         node = self._class_of("class ToolCall:\n    pass\n")

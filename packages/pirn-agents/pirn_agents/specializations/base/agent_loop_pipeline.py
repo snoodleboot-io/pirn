@@ -30,12 +30,12 @@ read its output off the ``RunResult``. That is the sanctioned shape
 async, keeps the terminating call outside the engine, which is the exact bypass
 this programme exists to remove.
 
-**A decision knot that must only run conditionally** needs a gate. Core
-:class:`~pirn.nodes.gate.gate.Gate` passes a *single* parent through, so it
-cannot by itself feed a knot that takes several inputs — join it with
-:class:`~pirn_agents.specializations.base.gated_agent_response.GatedAgentResponse`
-(or an equivalent join). When the gate is ``Skipped`` everything downstream is
-skipped with it, so the conditional call is never paid for.
+**A decision knot that must only run conditionally** needs a gate: a core
+:class:`~pirn.nodes.check.Check` for the condition and
+``Gate(input=value, check=condition)`` passing the value the conditional knot
+consumes (see ``_EvaluatorOptimizerLoop``'s ``_CandidateRejectedCheck``). When
+the gate is ``Skipped`` everything downstream is skipped with it, so the
+conditional call is never paid for.
 
 **A loop over work that can genuinely fail** — a flaky provider, a timeout, a
 rate limit — should set ``_tolerate_iteration_failures = True``. ``fold`` then

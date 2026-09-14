@@ -192,16 +192,16 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-data | `pirn_data/frames` | 254 |  |
 | pirn-health | `pirn_health/*.py` | 0 | yes |
 | pirn-health | `pirn_health/assemblers` | 0 | yes |
+| pirn-health | `pirn_health/clinical` | 0 | yes |
 | pirn-health | `pirn_health/disassemblers` | 0 | yes |
+| pirn-health | `pirn_health/eeg_meg` | 0 | yes |
+| pirn-health | `pirn_health/genomics` | 0 | yes |
+| pirn-health | `pirn_health/mri` | 0 | yes |
+| pirn-health | `pirn_health/pathology` | 0 | yes |
 | pirn-health | `pirn_health/protocols` | 0 | yes |
+| pirn-health | `pirn_health/trials` | 0 | yes |
 | pirn-health | `pirn_health/types` | 0 | yes |
-| pirn-health | `pirn_health/pathology` | 32 |  |
-| pirn-health | `pirn_health/clinical` | 34 |  |
-| pirn-health | `pirn_health/trials` | 42 |  |
-| pirn-health | `pirn_health/wearables` | 54 |  |
-| pirn-health | `pirn_health/genomics` | 55 |  |
-| pirn-health | `pirn_health/eeg_meg` | 88 |  |
-| pirn-health | `pirn_health/mri` | 181 |  |
+| pirn-health | `pirn_health/wearables` | 0 | yes |
 | pirn-ml | `pirn_ml/*.py` | 0 | yes |
 | pirn-ml | `pirn_ml/assemblers` | 0 | yes |
 | pirn-ml | `pirn_ml/data_prep` | 0 | yes |
@@ -241,7 +241,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
 Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 514,
-pirn-health 486, pirn-ml 286, pirn-oilgas 0, pirn-signal 0. The dominant
+pirn-health 0, pirn-ml 286, pirn-oilgas 0, pirn-signal 0. The dominant
 remaining categories are `reportUnknownMemberType` / `reportUnknownVariableType`
 on untyped third-party returns (cloud SDKs, `cloudpickle`, DB drivers,
 numpy-heavy domain code), `reportMissingTypeStubs`, `reportPrivateUsage` on

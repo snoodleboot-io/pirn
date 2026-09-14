@@ -201,9 +201,9 @@ class BypassInventory:
         """True if the body contains a literal ``while True:`` loop.
 
         The structural marker every hand-rolled retry loop in this codebase
-        was written with before ``RetryPolicy.run()`` existed (PIR-856); a
-        caller that composes ``RetryPolicy.run()`` instead has no
-        ``while True`` of its own.
+        was written with before core's ``KnotRetryPolicy.run()`` existed; a
+        caller that composes ``KnotRetryPolicy.run()`` (or declares
+        ``KnotConfig(retry=)`` on a knot) has no ``while True`` of its own.
         """
         for node in ast.walk(process):
             if (

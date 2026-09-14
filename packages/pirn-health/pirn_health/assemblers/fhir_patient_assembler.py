@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FhirPatientAssembler`` — assemble :class:`ClinicalRecord` objects from FHIR dicts.
 
 Sits between a connector that materialises FHIR Patient JSON bundles (as
@@ -9,7 +11,7 @@ Algorithm:
     2. Validate that ``records`` is a non-empty ``list`` and ``salt`` is a non-empty string.
     3. Parse each dict into field values, extracting known FHIR fields.
     4. Hash ``patient_id`` and ``encounter_id`` with the same salted SHA-256 scheme as
-       :class:`~pirn_health.clinical.phi_redactor.PHIRedactor` (via ``_PhiHasher``) so no
+       :class:`~pirn_health.clinical.phi_redactor.PHIRedactor` (via ``PhiHasher``) so no
        raw identifier ever reaches a :class:`ClinicalRecord`.
     5. Return the records as a ``tuple[ClinicalRecord, ...]``.
 
@@ -28,7 +30,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.clinical.phi_hasher import (
-    _PhiHasher,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+    PhiHasher,
 )
 from pirn_health.types.clinical_record import ClinicalRecord
 
@@ -67,13 +69,13 @@ class FhirPatientAssembler(Assembler):
             TypeError: If ``records`` is not a ``list`` or ``salt`` is not a ``str``.
             ValueError: If ``records`` is empty or ``salt`` is empty.
         """
-        if not isinstance(records, list):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(records, list):
             raise TypeError(
                 f"FhirPatientAssembler: records must be a list, got {type(records).__name__}"
             )
         if not records:
             raise ValueError("FhirPatientAssembler: records must be non-empty")
-        if not isinstance(salt, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(salt, str):
             raise TypeError("FhirPatientAssembler: salt must be a string")
         if not salt:
             raise ValueError("FhirPatientAssembler: salt must be non-empty")
@@ -98,8 +100,8 @@ class FhirPatientAssembler(Assembler):
         raw_patient_id = str(raw.get("patient_id", raw.get("id", "")))
         raw_encounter_id = str(raw.get("encounter_id", raw.get("encounterId", "")))
         return ClinicalRecord(
-            patient_id=_PhiHasher.hash_identifier(salt, raw_patient_id),
-            encounter_id=_PhiHasher.hash_identifier(salt, raw_encounter_id),
+            patient_id=PhiHasher.hash_identifier(salt, raw_patient_id),
+            encounter_id=PhiHasher.hash_identifier(salt, raw_encounter_id),
             observation_codes=observation_codes,
             observed_at=observed_at,
             source_system=str(raw.get("source_system", "fhir")),

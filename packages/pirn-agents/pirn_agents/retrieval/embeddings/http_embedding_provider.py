@@ -16,10 +16,10 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents._internal._require import _require
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.retrieval.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
@@ -34,7 +34,7 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
         credential: CredentialRef | None = None,
         path: str = "/embeddings",
         batch_size: int = 32,
-        retry_policy: RetryPolicy | None = None,
+        retry_policy: KnotRetryPolicy | None = None,
         rng: Callable[[], float] | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
         timeout: float = 30.0,
@@ -51,7 +51,7 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
                 ``"/embeddings"``).
             batch_size: Texts per HTTP round-trip (see the base provider).
             retry_policy: Per-batch retry/backoff schedule (see the base
-                provider); defaults to :class:`RetryPolicy`.
+                provider); defaults to ``KnotRetryPolicy(max_attempts=3)``.
             rng: Optional jitter source forwarded to the base provider.
             sleep: Optional inter-attempt sleep forwarded to the base provider.
             timeout: Per-request timeout in seconds for the built client.

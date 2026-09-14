@@ -1,4 +1,4 @@
-"""``_PhiHasher`` — shared salted SHA-256 hashing for PHI identifier fields.
+"""``PhiHasher`` — shared salted SHA-256 hashing for PHI identifier fields.
 
 :class:`~pirn_health.clinical.phi_redactor.PHIRedactor` and
 :class:`~pirn_health.assemblers.fhir_patient_assembler.FhirPatientAssembler`
@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 
 
-class _PhiHasher:
+class PhiHasher:
     """Shared salted SHA-256 hashing for PHI identifier fields."""
 
     @staticmethod

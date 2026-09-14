@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SnomedCTNormalizer`` — translate ICD codes to SNOMED CT via static map.
 
 The mapping is caller-injected so tests can supply a deterministic

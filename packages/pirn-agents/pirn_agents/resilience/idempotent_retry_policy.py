@@ -5,18 +5,21 @@ an :class:`~pirn_agents.resilience.idempotency_key_assigner.IdempotencyKeyAssign
 invokes the call passing that key through, and on failure consults a
 :class:`~pirn_agents.resilience.retry_safety_classifier.RetrySafetyClassifier`.
 An unsafe classification (validation / 4xx / unknown) re-raises immediately — a
-mutating call is never blindly retried — while a safe one backs off (reusing the
-F3 :class:`~pirn_agents.llm.retry_policy.RetryPolicy` shape) and retries with the
+mutating call is never blindly retried — while a safe one backs off on a core
+:class:`~pirn.core.knot_retry_policy.KnotRetryPolicy` schedule (driven by
+:meth:`~pirn.core.knot_retry_policy.KnotRetryPolicy.run`) and retries with the
 *same* idempotency key, so the backend can dedupe the repeated mutation.
 """
 
 from __future__ import annotations
 
 import asyncio
+import functools
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from pirn_agents.llm.retry_policy import RetryPolicy
+from pirn.core.knot_retry_policy import KnotRetryPolicy
+
 from pirn_agents.resilience.idempotency_key_assigner import IdempotencyKeyAssigner
 from pirn_agents.resilience.retry_classification import RetryClassification
 from pirn_agents.resilience.retry_safety_classifier import RetrySafetyClassifier
@@ -30,7 +33,7 @@ class IdempotentRetryPolicy:
         *,
         classifier: RetrySafetyClassifier | None = None,
         assigner: IdempotencyKeyAssigner | None = None,
-        backoff: RetryPolicy | None = None,
+        backoff: KnotRetryPolicy | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
         """Assemble the policy from its collaborators.
@@ -40,8 +43,8 @@ class IdempotentRetryPolicy:
                 :class:`RetrySafetyClassifier`.
             assigner: Idempotency-key assigner; defaults to a stock
                 :class:`IdempotencyKeyAssigner`.
-            backoff: Backoff shape (attempt budget + delays); defaults to a stock
-                :class:`RetryPolicy`.
+            backoff: Backoff shape (attempt budget + delays); defaults to
+                ``KnotRetryPolicy(max_attempts=3)``.
             sleep: Async sleep used between retries; defaults to
                 :func:`asyncio.sleep`. Injected in tests.
 
@@ -50,7 +53,7 @@ class IdempotentRetryPolicy:
         """
         self._classifier = classifier if classifier is not None else RetrySafetyClassifier()
         self._assigner = assigner if assigner is not None else IdempotencyKeyAssigner()
-        self._backoff = backoff if backoff is not None else RetryPolicy()
+        self._backoff = backoff if backoff is not None else KnotRetryPolicy(max_attempts=3)
         self._sleep = sleep if sleep is not None else asyncio.sleep
         if not isinstance(self._classifier, RetrySafetyClassifier):
             raise TypeError(
@@ -62,9 +65,9 @@ class IdempotentRetryPolicy:
                 f"IdempotentRetryPolicy: assigner must be an IdempotencyKeyAssigner, "
                 f"got {type(self._assigner).__name__}"
             )
-        if not isinstance(self._backoff, RetryPolicy):
+        if not isinstance(self._backoff, KnotRetryPolicy):
             raise TypeError(
-                f"IdempotentRetryPolicy: backoff must be a RetryPolicy, "
+                f"IdempotentRetryPolicy: backoff must be a KnotRetryPolicy, "
                 f"got {type(self._backoff).__name__}"
             )
 
@@ -99,13 +102,14 @@ class IdempotentRetryPolicy:
                 unsafe or the retry budget is exhausted.
         """
         key = self._assigner.assign(operation=operation, arguments=arguments, caller_key=caller_key)
-        attempt = 0
-        while True:
-            try:
-                return await call(key)
-            except Exception as exc:
-                unsafe = self._classifier.classify(exc) is RetryClassification.UNSAFE
-                if unsafe or attempt >= self._backoff.max_retries:
-                    raise
-                await self._sleep(self._backoff.backoff_delay(attempt, rng=rng))
-                attempt += 1
+        return await self._backoff.run(
+            functools.partial(call, key),
+            call_id=operation,
+            retry_on=self._is_safe,
+            sleep=self._sleep,
+            rng=rng,
+        )
+
+    def _is_safe(self, exc: Exception) -> bool:
+        """Whether ``exc`` is classified safe to retry (never an unsafe mutation)."""
+        return self._classifier.classify(exc) is not RetryClassification.UNSAFE

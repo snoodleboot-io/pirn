@@ -128,9 +128,16 @@ include = ["pirn_health"]
 # docs/architecture/ci-pipelines.md.
 strict = [
     "pirn_health/assemblers",
+    "pirn_health/clinical",
     "pirn_health/disassemblers",
+    "pirn_health/eeg_meg",
+    "pirn_health/genomics",
+    "pirn_health/mri",
+    "pirn_health/pathology",
     "pirn_health/protocols",
+    "pirn_health/trials",
     "pirn_health/types",
+    "pirn_health/wearables",
     "pirn_health/*.py",
 ]
 pythonVersion = "3.12"

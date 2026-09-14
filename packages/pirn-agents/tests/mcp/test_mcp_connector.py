@@ -1,7 +1,7 @@
 """Tests for :class:`pirn_agents.mcp.mcp_connector.McpConnector` (S5 / PIR-207, PIR-218).
 
 Single-session vending (build once, reuse), reconnect with deterministic
-exponential+jitter backoff driven by an injected ``sleep``/``jitter``, reconnect
+core ``KnotRetryPolicy`` backoff driven by an injected ``sleep``, reconnect
 exhaustion, and partial-open cleanup — all with the in-memory stub transport.
 """
 
@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 import pytest
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 
 from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_error import McpError
@@ -59,11 +60,8 @@ async def test_reconnect_uses_exponential_backoff_schedule() -> None:
     sleeps, sleep = _recording_sleep()
     connector = McpConnector(
         transport_factory=factory,
-        backoff_base=0.1,
-        backoff_cap=10.0,
-        jitter=lambda: 0.0,
+        reconnect=KnotRetryPolicy(max_attempts=5, base_delay=0.1, max_delay=10.0, jitter=False),
         sleep=sleep,
-        max_reconnect_attempts=5,
     )
 
     client = await connector.session()
@@ -78,11 +76,8 @@ async def test_backoff_is_capped() -> None:
     sleeps, sleep = _recording_sleep()
     connector = McpConnector(
         transport_factory=factory,
-        backoff_base=1.0,
-        backoff_cap=1.5,
-        jitter=lambda: 0.0,
+        reconnect=KnotRetryPolicy(max_attempts=6, base_delay=1.0, max_delay=1.5, jitter=False),
         sleep=sleep,
-        max_reconnect_attempts=6,
     )
 
     await connector.session()
@@ -95,10 +90,8 @@ async def test_reconnect_exhaustion_raises_mcp_error() -> None:
     sleeps, sleep = _recording_sleep()
     connector = McpConnector(
         transport_factory=factory,
-        backoff_base=0.01,
-        jitter=lambda: 0.0,
+        reconnect=KnotRetryPolicy(max_attempts=3, base_delay=0.01, jitter=False),
         sleep=sleep,
-        max_reconnect_attempts=3,
     )
 
     with pytest.raises(McpError):
@@ -111,7 +104,7 @@ async def test_reconnect_exhaustion_raises_mcp_error() -> None:
 async def test_failed_open_closes_partial_transport() -> None:
     factory = FlakyFactory(fail_first=1)
     _sleeps, sleep = _recording_sleep()
-    connector = McpConnector(transport_factory=factory, jitter=lambda: 0.0, sleep=sleep)
+    connector = McpConnector(transport_factory=factory, rng=lambda: 0.0, sleep=sleep)
 
     await connector.session()
 
@@ -134,6 +127,21 @@ def test_rejects_non_callable_factory() -> None:
         McpConnector(transport_factory=object())  # type: ignore[arg-type]
 
 
-def test_rejects_zero_attempts() -> None:
-    with pytest.raises(ValueError):
-        McpConnector(transport_factory=StubMcpTransport, max_reconnect_attempts=0)
+def test_rejects_a_reconnect_that_is_not_a_policy() -> None:
+    with pytest.raises(TypeError, match="KnotRetryPolicy"):
+        McpConnector(transport_factory=StubMcpTransport, reconnect=5)  # type: ignore[arg-type]
+
+
+async def test_jitter_draw_scales_the_delay() -> None:
+    factory = FlakyFactory(fail_first=1)
+    sleeps, sleep = _recording_sleep()
+    connector = McpConnector(
+        transport_factory=factory,
+        reconnect=KnotRetryPolicy(max_attempts=2, base_delay=0.4),
+        rng=lambda: 0.5,
+        sleep=sleep,
+    )
+
+    await connector.session()
+
+    assert sleeps == [0.2]

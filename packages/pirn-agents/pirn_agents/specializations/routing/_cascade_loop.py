@@ -40,7 +40,7 @@ class _CascadeLoop(AgentLoopPipeline[_CascadeChainState]):
     def __init__(
         self,
         *,
-        request: Any,
+        request: str,
         tiers: tuple[CascadeTier, ...],
         confidence: Callable[[Any], Awaitable[float]],
         meter: Any,

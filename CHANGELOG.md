@@ -11,6 +11,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### `KnotRetryPolicy.run` — the core retry schedule below the knot boundary (PIR-872)
+
+`pirn.core.knot_retry_policy.KnotRetryPolicy.run(attempt, *, call_id=, retry_on=, retry_after_hint=, sleep=, rng=)` awaits a zero-argument attempt under the same `should_retry` / `delay_before_retry` decision `GovernedDispatch` applies to a knot (over an `ExceptionRecord` built from the live exception), for calls that are not knot dispatches — an HTTP POST, an embedding batch, a session reconnect. `retry_on` / `retry_after_hint` narrow the policy with live-exception checks (an `isinstance`, a `Retry-After` attribute); a cancellation is never retried.
+
 #### Inner runs inherit the execution plane (ADR agents-speaks-core, WS0b)
 
 - `pirn/core/execution_plane.py` — `ExecutionPlane`: the dispatcher, admission gate + `ConcurrencyLimits`, admission observers, replay posture and identity resolver a run executes under. `Tapestry.run` publishes it for the run's duration (`ExecutionPlane.current()`) and every `SubTapestry` inner run / `LoopSubTapestry` iteration inherits whatever its own tapestry did not name. The gate is inherited **by identity**, so `max_in_flight` and group caps are one budget across the run tree (PIR-841 slice 3).
@@ -82,7 +86,7 @@ The last standing entries in `tests/specializations/base/test_no_engine_bypass.p
 - `_ChunkTranslator` and `FactClaimVerifier` fan independent per-item work (one chunk's translation, one claim's search) out into per-item knots joined by an `Aggregator`; `PlanExecutor` wires a `LoopSubTapestry` instead, since each step's prompt depends on every prior step's result. All three knots' `process()` now returns the sink of an inner pipeline rather than the computed value directly.
 - `retrieval/hybrid_retriever.py::HybridRetriever` becomes a `SubTapestry` wiring its dense and lexical arms as two knots into an `Aggregator`, in place of a hand-rolled `asyncio.gather`. `specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore` and `_ingestion_runner.py::_IngestionRunner` do the same for their per-chunk writes and per-document ETL; `_IngestionRunner`'s bounded concurrency is now a `ConcurrencyLimits` group cap (`_inner_concurrency()`) instead of a held `asyncio.Semaphore`.
 - `specializations/multi_agent/orchestrator_workers.py::OrchestratorWorkers` and its internal `_WorkerInvocation` drop their own shared `asyncio.Semaphore` the same way — bounded concurrency is a `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` group cap now, so the admission gate can see and steer it.
-- `specializations/routing/_attempt_tier.py::_AttemptTier` no longer awaits `CascadeTier.invoke` directly: a new `_TierInvocation` knot makes the call, and `_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its outcome into the cascade's state. `_AttemptTier` becomes an `AgentPipeline`.
+- `specializations/routing/_attempt_tier.py::_AttemptTier` no longer awaits `CascadeTier.invoke` directly: a new `_TierInvocation` knot makes the call, and `_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its outcome into the cascade's state. `_AttemptTier` becomes an `AgentPipeline`. (PIR-872 then deleted `CascadeTier.invoke` and `_TierInvocation`: a tier is an `LLMChatCall` knot — see "Removed".)
 - `rag/indexing/_raptor_assembler.py` keeps its atomic read-check-transform-write cycle unchanged (the assembler-disassembler ETL exception); giving each level's summarization its own lineage row via `SubTapestry._run_inner` was evaluated and deferred — see the module docstring for why it does not fit without a fragile multiple-inheritance workaround.
 
 #### Specialization results, document loader, and PromptCache onto core seams (ADR agents-speaks-core WS6b, PIR-868)
@@ -232,6 +236,23 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 ---
 
 ### Removed
+
+#### `pirn-agents` shadows of the core retry, timeout, nesting and check seams (PIR-872)
+
+Deleted outright (no shims); every caller, test and doc moved in the same change.
+
+| Removed | Replacement |
+|---|---|
+| `pirn_agents.llm.retry_policy.RetryPolicy` (`max_retries`, `backoff_delay`, `run`) | `pirn.core.knot_retry_policy.KnotRetryPolicy` — `KnotConfig(retry=)` on a knot, `KnotRetryPolicy.run(...)` below the knot boundary. `max_retries=n` is `max_attempts=n + 1`; the provider/embedding default `RetryPolicy()` is `KnotRetryPolicy(max_attempts=3)`. `BaseLLMProvider`/`HttpTransport`/`BaseEmbeddingProvider`/`HttpEmbeddingProvider`/`LocalEmbeddingProvider(retry_policy=)` and `IdempotentRetryPolicy(backoff=)` take a `KnotRetryPolicy`; the provider content identity names `max_attempts`. |
+| `McpConnector(max_reconnect_attempts=, backoff_base=, backoff_cap=, jitter=)` | `McpConnector(reconnect=KnotRetryPolicy(max_attempts=5, base_delay=0.05, max_delay=2.0), rng=)` — the schedule is core's capped exponential backoff with full jitter (the additive-jitter formula is gone). |
+| `pirn_agents.exceptions.tool_timeout_error.ToolTimeoutError` | `KnotConfig(timeout=)` → `Err(pirn.exceptions.knot_timeout_error.KnotTimeoutError)`. |
+| `AgentRecursionError`, `AgentDepthExceededError`, `AgentCycleError` | `pirn.core.run_nesting.RunNesting` with `Tapestry(max_nesting_depth=)` → `NestingDepthExceededError` / `NestedRunCycleError`. |
+| `pirn_agents.agent.agent_tool_context.AgentToolContext`, `current_agent_tool_context()`, `bind_agent_tool_context()` | Depth, run ids, path and cap: `RunNesting.current()`. The shared budget meter and pooled provider: `pirn_agents.agent.agent_tool_policy.AgentToolPolicy` (`meter`, `provider`, `bound()`/`current()`/`bind()`). |
+| `pirn_agents.agent.agent_nesting_config.AgentNestingConfig` | The `max_depth=8` default on `AgentTool`/`as_tool`/`AgentAsToolMixin.as_tool`/`AgentToolCall`, applied as core's `max_nesting_depth`. |
+| `pirn_agents.specializations.base.gated_agent_response.GatedAgentResponse` | A core `Check` and `Gate(input=value, check=verdict)` (see `_EvaluatorOptimizerLoop`'s `_CandidateRejectedCheck`); `AcceptCheck` is now a `Check`. |
+| `CascadeTier.invoke` and `specializations/routing/_tier_invocation.py::_TierInvocation` | `CascadeTier(llm=LLMProvider)`: each tier runs as an `LLMChatCall` knot; `ModelCascadeRouter`'s `request` is the prompt string. |
+
+`ParallelToolExecutor` keeps its public shape: each call is a tool knot with `KnotConfig(retry=, timeout=, concurrency_group="tools")` under an `Aggregator`, so core's `GovernedDispatch` owns the per-call backoff and timeout. The shadow and bypass ratchets (`tests/core_seams/test_core_seam_shadows.py`, `tests/specializations/base/test_no_engine_bypass.py`) are all `frozenset()` assertions now.
 
 #### Core deletions and module-level functions folded into classes (PIR-872)
 

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ECGRPeakDetector`` — detect R-peaks in an ECG signal using Pan-Tompkins.
 
 Algorithm:
@@ -31,15 +33,8 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    import scipy.signal
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    scipy = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
 
 
 class ECGRPeakDetector(Knot):
@@ -95,12 +90,9 @@ class ECGRPeakDetector(Knot):
         Returns:
             Tuple of integer sample indices for detected R-peaks.
         """
-        if not _HAS_SCIPY or scipy is None:
-            raise ImportError(
-                "scipy is required for ECGRPeakDetector — install with: pip install 'pirn-health[health]'"
-            )
-        sos = scipy.signal.butter(2, [5.0, 15.0], btype="bandpass", fs=fs, output="sos")
-        filtered = scipy.signal.sosfiltfilt(sos, ecg)
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        sos: np.ndarray = signal.butter(2, [5.0, 15.0], btype="bandpass", fs=fs, output="sos")
+        filtered: np.ndarray = signal.sosfiltfilt(sos, ecg)
         deriv = np.diff(filtered, prepend=filtered[0])
         squared = deriv**2
         window_samples = max(1, int(0.150 * fs))
@@ -108,5 +100,6 @@ class ECGRPeakDetector(Knot):
         integrated = np.convolve(squared, kernel, mode="same")
         threshold = 0.6 * float(integrated.max()) if integrated.size > 0 else 0.0
         min_distance = max(1, int(0.3 * fs))
-        peaks, _ = scipy.signal.find_peaks(integrated, height=threshold, distance=min_distance)
-        return tuple(int(p) for p in peaks)
+        peaks: np.ndarray
+        peaks, _ = signal.find_peaks(integrated, height=threshold, distance=min_distance)
+        return tuple(int(peak) for peak in peaks.tolist())

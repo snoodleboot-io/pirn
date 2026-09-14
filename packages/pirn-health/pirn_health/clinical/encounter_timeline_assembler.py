@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EncounterTimelineAssembler`` — chronologically order encounters by patient.
 
 Returns a mapping ``patient_id -> tuple[ClinicalRecord, ...]`` sorted

@@ -1,13 +1,14 @@
 """Mirrored tests for :class:`ModelCascadeRouter` cheap-first escalation (PIR-508).
 
-Tiers wrap stub provider callables (no vendor SDK) and confidence is an injected
+Tiers wrap stub LLM providers (no vendor SDK) and confidence is an injected
 stub, so escalation, observability, and spend-cap interaction are deterministic.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from typing import Any
 
 import pytest
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
@@ -15,12 +16,14 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 from pirn_agents.specializations.routing.model_cascade_router import ModelCascadeRouter
+from tests.conftest import StubLLMProvider
 
 
 async def _run(tapestry: Tapestry, knot_id: str = "cascade"):
@@ -29,18 +32,37 @@ async def _run(tapestry: Tapestry, knot_id: str = "cascade"):
     return result.outputs[knot_id]
 
 
-def _tier(name: str, output: str, *, min_confidence: float = 0.0, cost: float = 0.0) -> CascadeTier:
-    async def invoke(_request: object) -> str:
-        return output
+class _DownProvider(LLMProvider):
+    """A provider whose every call fails."""
 
-    return CascadeTier(name=name, invoke=invoke, min_confidence=min_confidence, estimated_cost=cost)
+    async def chat(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> Mapping[str, Any]:
+        raise RuntimeError("tier down")
+
+
+def _tier(name: str, output: str, *, min_confidence: float = 0.0, cost: float = 0.0) -> CascadeTier:
+    return CascadeTier(
+        name=name,
+        llm=StubLLMProvider([output]),
+        min_confidence=min_confidence,
+        estimated_cost=cost,
+    )
+
+
+def _prompts_sent(tier: CascadeTier) -> list[str]:
+    """The user prompt of every call the tier's stub provider received."""
+    assert isinstance(tier.llm, StubLLMProvider)
+    return [str(call[-1]["content"]) for call in tier.llm.calls]
 
 
 def _failing_tier(name: str, *, cost: float = 0.0) -> CascadeTier:
-    async def invoke(_request: object) -> str:
-        raise RuntimeError("tier down")
-
-    return CascadeTier(name=name, invoke=invoke, estimated_cost=cost)
+    return CascadeTier(name=name, llm=_DownProvider(), estimated_cost=cost)
 
 
 def _confidence_from(table: dict[str, float]) -> Callable[[object], Awaitable[float]]:
@@ -75,6 +97,10 @@ class TestValidation:
         with pytest.raises(ValueError, match="min_confidence"):
             _tier("t", "x", min_confidence=2.0)
 
+    def test_non_provider_rejected(self) -> None:
+        with pytest.raises(TypeError, match="LLMProvider"):
+            CascadeTier(name="t", llm="not-a-provider")  # type: ignore[arg-type]
+
 
 class TestCheapFirst:
     async def test_cheap_tier_accepted_without_escalation(self) -> None:
@@ -92,6 +118,24 @@ class TestCheapFirst:
         assert outcome.chosen == "cheap"
         assert outcome.escalated is False
         assert outcome.attempted == ("cheap",)  # strong never invoked
+        assert _prompts_sent(tiers[1]) == []
+
+    async def test_each_attempted_tier_is_an_llm_call_knot_with_its_own_lineage(self) -> None:
+        history = InMemoryHistory()
+        tiers = [_tier("cheap", "A", min_confidence=0.8), _tier("strong", "B")]
+        with Tapestry(history=history) as t:
+            ModelCascadeRouter(
+                request="q",
+                tiers=tiers,
+                confidence=_confidence_from({"A": 0.1, "B": 1.0}),
+                _config=KnotConfig(id="cascade"),
+            )
+        await _run(t)
+
+        # The provider saw the prompt as a user message, once per attempted tier.
+        assert _prompts_sent(tiers[0]) == ["q"]
+        assert _prompts_sent(tiers[1]) == ["q"]
+        assert len(await history.query_lineage_by_knot_id("invoke")) == 2
 
     async def test_low_confidence_escalates(self) -> None:
         tiers = [_tier("cheap", "A", min_confidence=0.8), _tier("strong", "B", min_confidence=0.8)]

@@ -9,8 +9,10 @@ a stronger one. Every decision is recorded on the returned
 cost analysis.
 
 The confidence check is injected (F12's eval signals plug in here as a stub in
-tests) and the tiers carry their own provider callables, so the cascade is
-provider-neutral — no vendor is privileged and none is imported. When a
+tests) and each tier carries its own :class:`~pirn_agents.llm.llm_provider.LLMProvider`,
+run as an engine-dispatched
+:class:`~pirn_agents.specializations.rag.llm_chat_call.LLMChatCall` knot, so the
+cascade is provider-neutral — no vendor is privileged and none is imported. When a
 :class:`~pirn_agents.performance.run_budget_meter.RunBudgetMeter` is supplied the
 router accrues each tier's estimated cost and honours a
 :class:`~pirn_agents.performance.spend_cap_policy.SpendCapPolicy`: it either
@@ -54,7 +56,7 @@ class ModelCascadeRouter(AgentPipeline, Router):
     def __init__(
         self,
         *,
-        request: Knot | Any,
+        request: Knot | str,
         tiers: Knot | Sequence[CascadeTier],
         confidence: Any,
         meter: Any = None,
@@ -65,7 +67,7 @@ class ModelCascadeRouter(AgentPipeline, Router):
         """Wire the cascade's inputs.
 
         Args:
-            request: The payload to route, or a :class:`Knot` producing it.
+            request: The prompt to route, or a :class:`Knot` producing it.
             tiers: The model tiers to try in order, cheapest first.
             confidence: Async scorer mapping a tier's output to ``[0, 1]``.
             meter: Optional budget meter.
@@ -85,7 +87,7 @@ class ModelCascadeRouter(AgentPipeline, Router):
 
     async def process(
         self,
-        request: Any,
+        request: str,
         tiers: Sequence[CascadeTier],
         confidence: Callable[[Any], Awaitable[float]],
         # `meter` is typed `Any`: RunBudgetMeter is a plain class, not a
@@ -99,7 +101,7 @@ class ModelCascadeRouter(AgentPipeline, Router):
         """Build the tier chain and return its outcome-extracting sink knot.
 
         Args:
-            request: The payload passed unchanged to each tier's ``invoke``.
+            request: The prompt sent unchanged to each tier's provider.
             tiers: The model tiers to try in order; must be non-empty and each a
                 :class:`CascadeTier`.
             confidence: Async scorer mapping a tier's output to a confidence in

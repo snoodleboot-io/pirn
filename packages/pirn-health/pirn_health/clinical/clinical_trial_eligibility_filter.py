@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ClinicalTrialEligibilityFilter`` — predicate-based subject filter.
 
 Each criterion maps to a callable predicate ``(record) -> bool``. A

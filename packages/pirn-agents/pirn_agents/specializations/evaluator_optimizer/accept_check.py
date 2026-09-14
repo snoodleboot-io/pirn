@@ -1,6 +1,7 @@
 """``AcceptCheck`` — the scored accept check for the Evaluator-Optimizer loop.
 
-A :class:`Knot` that decides whether a :class:`JudgeVerdict` clears a threshold.
+A core :class:`~pirn.nodes.check.Check` that decides whether a :class:`JudgeVerdict`
+clears a threshold.
 It is the scored generalisation of
 :class:`~pirn_agents.control.reflection_check.ReflectionCheck`: where
 ``ReflectionCheck`` asks the LLM for a boolean "iterate again?", ``AcceptCheck``
@@ -24,11 +25,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.check import Check
 
 from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
 
 
-class AcceptCheck(Knot):
+class AcceptCheck(Check):
     """Return whether a :class:`JudgeVerdict` meets the accept threshold."""
 
     def __init__(

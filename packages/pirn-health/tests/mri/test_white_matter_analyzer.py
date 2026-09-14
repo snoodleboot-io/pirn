@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.white_matter_analyzer import WhiteMatterAnalyzer
 
 _CFG = KnotConfig(id="w")
@@ -48,11 +50,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_model_instance = MagicMock()
         mock_model_instance.fit.return_value = mock_fit
         mock_tensor_model = MagicMock(return_value=mock_model_instance)
+        modules = {
+            "nibabel": mock_nib,
+            "dipy.core.gradients": MagicMock(gradient_table=mock_gradient_table),
+            "dipy.reconst.dti": MagicMock(TensorModel=mock_tensor_model),
+        }
         with (
-            patch("pirn_health.mri.white_matter_analyzer.nib", mock_nib),
-            patch("pirn_health.mri.white_matter_analyzer.gradient_table", mock_gradient_table),
-            patch("pirn_health.mri.white_matter_analyzer.TensorModel", mock_tensor_model),
-            patch("pirn_health.mri.white_matter_analyzer._HAS_DIPY", True),
+            patch.object(
+                HealthOptionalDependency,
+                "require",
+                side_effect=lambda module, **_: modules[module],
+            ),
             patch("numpy.loadtxt", return_value=MagicMock()),
         ):
             out = await knot.process(
@@ -65,3 +73,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert "CST" in out
         assert "fa" in out["CST"]
         assert "md" in out["CST"]
+
+    async def test_raises_without_dipy(self) -> None:
+        knot = self._make_knot()
+        with patch.dict(sys.modules, {"dipy.reconst.dti": None}):
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[mri\\]"):
+                await knot.process(
+                    dwi_nifti_path="dwi.nii.gz", bvec_path="b", bval_path="v", tracts=["CC"]
+                )

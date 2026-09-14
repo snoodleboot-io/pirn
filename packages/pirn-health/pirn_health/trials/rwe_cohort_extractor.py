@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RWECohortExtractor`` — extract a real-world evidence cohort from structured EHR/claims data.
 
 Algorithm:

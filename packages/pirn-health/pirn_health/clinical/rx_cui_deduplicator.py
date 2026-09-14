@@ -19,7 +19,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-class _DedupRxCUIs(Knot):
+class RxCuiDeduplicator(Knot):
     """Inner deduper used by the medication reconciliation pipeline."""
 
     def __init__(

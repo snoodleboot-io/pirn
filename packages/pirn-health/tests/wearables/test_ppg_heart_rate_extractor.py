@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 
 try:
@@ -11,7 +12,9 @@ except ImportError as _e:
 
 import math
 from typing import Any
+from unittest.mock import patch
 
+import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
@@ -95,3 +98,10 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         for window in out:
             assert "hr_bpm" in window
             assert "timestamp_sec" in window
+
+
+class TestOptionalDependency(unittest.TestCase):
+    def test_raises_without_scipy(self) -> None:
+        with patch.dict(sys.modules, {"scipy.signal": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                PPGHeartRateExtractor._ppg_peaks(np.zeros(64), 25.0)

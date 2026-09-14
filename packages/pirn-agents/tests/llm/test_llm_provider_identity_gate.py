@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn.core.content_hasher import ContentHasher
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.security.credential_ref import CredentialRef
 
@@ -46,7 +47,6 @@ from pirn_agents.llm.anthropic_messages_provider import AnthropicMessagesProvide
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
-from pirn_agents.llm.retry_policy import RetryPolicy
 
 ROOT = "packages/pirn-agents/pirn_agents/llm/base_llm_provider.py::BaseLLMProvider"
 
@@ -117,7 +117,7 @@ def baseline_kwargs() -> dict[str, Any]:
         "model": "model-a",
         "base_url": "https://llm.example/v1",
         "credential": CredentialRef(secret="sk-GATE-BASELINE"),
-        "retry_policy": RetryPolicy(),
+        "retry_policy": KnotRetryPolicy(max_attempts=3),
         "pricing": ModelPricing(input_per_million=1.0, output_per_million=2.0),
         "timeout": 30.0,
         "default_max_tokens": 256,
@@ -139,7 +139,7 @@ def http_provider_variants() -> dict[str, Variant]:
             EQUAL,
             "a secret is never identity: same model and endpoint with another key replay",
         ),
-        "retry_policy": Variant(RetryPolicy(max_retries=0), CHANGES),
+        "retry_policy": Variant(KnotRetryPolicy(max_attempts=1), CHANGES),
         "pricing": Variant(ModelPricing(input_per_million=9.0, output_per_million=2.0), CHANGES),
         "timeout": Variant(5.0, CHANGES),
         "default_max_tokens": Variant(512, CHANGES),

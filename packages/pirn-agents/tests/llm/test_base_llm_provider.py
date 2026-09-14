@@ -13,6 +13,7 @@ import unittest
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
@@ -21,7 +22,6 @@ from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.llm.rate_limit_error import RateLimitError
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.tools.toolset import Toolset
 from tests.llm.conftest import FakeAsyncClient, FakeResponse, FakeStream, RecordingSleeper
@@ -197,7 +197,9 @@ class TestRetryAndRateLimit(unittest.IsolatedAsyncioTestCase):
         provider = _make_provider(
             client,
             sleeper=sleeper,
-            retry_policy=RetryPolicy(base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False),
+            retry_policy=KnotRetryPolicy(
+                max_attempts=3, base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False
+            ),
         )
 
         await provider.chat_response([{"role": "user", "content": "hi"}])
@@ -210,12 +212,14 @@ class TestRetryAndRateLimit(unittest.IsolatedAsyncioTestCase):
         provider = _make_provider(
             client,
             sleeper=sleeper,
-            retry_policy=RetryPolicy(base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False),
+            retry_policy=KnotRetryPolicy(
+                max_attempts=3, base_delay=0.1, multiplier=2.0, max_delay=10.0, jitter=False
+            ),
         )
 
         with self.assertRaises(RateLimitError):
             await provider.chat_response([{"role": "user", "content": "hi"}])
-        # max_retries=2 -> two backoff sleeps before the final failure.
+        # max_attempts=3 -> two backoff sleeps before the final failure.
         assert sleeper.delays == [0.1, 0.2]
 
     async def test_5xx_is_retried_as_transient(self) -> None:

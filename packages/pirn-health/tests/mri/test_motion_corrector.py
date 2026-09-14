@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.motion_corrector import MotionCorrector
 
 _CFG = KnotConfig(id="m")
@@ -33,18 +35,22 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_nib = MagicMock()
         mock_nib.load.return_value = mock_img
 
-        with (
-            patch("pirn_health.mri.motion_corrector.nib", mock_nib),
-            patch("pirn_health.mri.motion_corrector._HAS_DIPY", True),
+        modules = {
+            "nibabel": mock_nib,
+            "dipy.align.imaffine": MagicMock(),
+            "dipy.align.transforms": MagicMock(),
+        }
+
+        with patch.object(
+            HealthOptionalDependency,
+            "require",
+            side_effect=lambda module, **_: modules[module],
         ):
             out = await knot.process(nifti_path="in.nii.gz", output_nifti_path="mc.nii.gz")
         assert out == "mc.nii.gz"
 
     async def test_raises_without_dipy(self) -> None:
         knot = self._make_knot()
-        with (
-            patch("pirn_health.mri.motion_corrector._HAS_DIPY", False),
-            patch("pirn_health.mri.motion_corrector.nib", None),
-        ):
-            with self.assertRaises(ImportError):
+        with patch.dict(sys.modules, {"dipy.align.imaffine": None}):
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[mri\\]"):
                 await knot.process(nifti_path="in.nii.gz", output_nifti_path="mc.nii.gz")
