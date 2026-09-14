@@ -411,10 +411,20 @@ executes" default. `MajorityVoteStrategy` folds through core `Reduce`.
 `_LLMCallKnot`/`LLMChatCall`/`MemorySearchRetriever` report through
 `AgentCallRecorder` like `ToolInvocation` already did.
 
+`retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever`'s
+`traversal: GraphTraversal` parameter used to be a bare `Knot` subclass named
+as a *value* type on `process()`, which made `Knot._build_adapters` raise the
+moment the class was constructed through its real `__init__` — so it awaited
+the traversal knot's `process()` directly instead (`AWAITS_CHILD_PROCESS`).
+Fixed in PIR-867: `GraphTraversal` is wired as a genuine upstream parent, with
+its own `store`/`budget`/`start_ids`/`direction`/`edge_types` bound at its own
+construction; `HybridGraphRetriever.process()` receives the traversal's
+resolved `Subgraph` like any other parent's output.
+
 The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
-is empty for `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`, and
-`DEFINES_INLINE_SOURCE`; kept as `frozenset()` assertions so a regression is
-loud, not deleted.
+is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
+and `DEFINES_INLINE_SOURCE`; kept as `frozenset()` assertions so a regression
+is loud, not deleted.
 
 **Still open** (frozen in the same ratchet, not this ADR's blast radius to
 fix unilaterally):
@@ -424,8 +434,6 @@ fix unilaterally):
   a consistent store). Decomposing it into engine-tracked knots risks
   breaking that atomicity guarantee; whether per-summary observability is
   worth that trade is a product call, not made here.
-- `retrieval/hybrid_retriever.py::HybridGraphRetriever` still awaits a child's
-  `process()` directly (`AWAITS_CHILD_PROCESS`).
 - 3 gather sites still fan calls out with `asyncio.gather` instead of letting
   the engine schedule sibling knots (`USES_ASYNCIO_GATHER`):
   `retrieval/hybrid_retriever.py::HybridRetriever`,

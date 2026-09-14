@@ -66,14 +66,14 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 
 #: `await <child>.process(...)` — runs a child pipeline's body directly instead
 #: of wiring it as a knot, so the child contributes no Result and no lineage.
-#: PIR-769 fixed four of these in multi_agent/; these are what remain. PIR-856
-#: widened the walk beyond `specializations/` and found one more pre-existing
-#: instance under `retrieval/`.
-AWAITS_CHILD_PROCESS = frozenset(
-    {
-        "retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever",
-    }
-)
+#: PIR-769 fixed four of these in multi_agent/; PIR-856 widened the walk beyond
+#: `specializations/` and found one more pre-existing instance under
+#: `retrieval/` (`HybridGraphRetriever`, awaiting its `traversal` knot's
+#: `process()` directly because a bare `Knot` subclass used as a *value* type
+#: made `Knot._build_adapters` raise). PIR-867 fixed it: `traversal` is wired
+#: as a genuine upstream parent now. Kept as a `frozenset()` assertion so a
+#: future instance regresses loudly.
+AWAITS_CHILD_PROCESS: frozenset[str] = frozenset()
 
 #: Returns a `Source` defined inside `process()` that closes over an
 #: already-computed value. The engine then "runs" a graph of one knot whose job

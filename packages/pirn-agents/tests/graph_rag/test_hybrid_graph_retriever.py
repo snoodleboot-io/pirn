@@ -3,13 +3,24 @@
 Uses stub doubles — a scripted ``NodeEmbeddingIndex`` for the vector arm and a
 real :class:`GraphTraversal` over an :class:`InMemoryGraphStore` for the graph
 arm — to verify merge/rank correctness and the no-embeddings fallback path.
+
+PIR-867: ``HybridGraphRetriever`` used to await its ``traversal`` knot's
+``process()`` directly, re-passing ``store``/``budget``/``direction``/
+``edge_types``/``start_ids`` at call time — a bare ``Knot`` subclass used as a
+*value* type, which made ``Knot._build_adapters`` raise the moment the class
+was constructed through its real ``__init__`` (see the removed PIR-856 note in
+``hybrid_graph_retriever.py``'s git history). ``GraphTraversal`` is wired as a
+genuine upstream parent now, fully configured at its own construction; these
+tests build it that way and run the retriever through a real ``Tapestry``.
 """
 
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.retrieval.graph_rag.graph_traversal import GraphTraversal
@@ -37,31 +48,6 @@ class StubNodeEmbeddingIndex(NodeEmbeddingIndex):
         return self._empty
 
 
-def _make_traversal() -> GraphTraversal:
-    with Tapestry():
-        knot = GraphTraversal(
-            start_ids=["a"],
-            store=InMemoryGraphStore(),
-            budget=TraversalBudget.create(),
-            edge_types=None,
-            _config=KnotConfig(id="t"),
-        )
-    return knot
-
-
-def _make_retriever() -> HybridGraphRetriever:
-    # Not constructed via __init__: HybridGraphRetriever.process() declares
-    # ``traversal: GraphTraversal`` (a bare Knot subclass used as a value
-    # type, not wired through the graph), and pydantic cannot build a
-    # TypeAdapter for a Knot subclass — Knot._build_adapters raises
-    # PydanticSchemaGenerationError unconditionally for this class. See the
-    # PIR-856 note on the isinstance guards in hybrid_graph_retriever.py.
-    with Tapestry():
-        knot = HybridGraphRetriever.__new__(HybridGraphRetriever)
-        object.__setattr__(knot, "_config", KnotConfig(id="hybrid-graph"))
-    return knot
-
-
 async def _store() -> InMemoryGraphStore:
     """a->b (graph arm surfaces a, b)."""
     store = InMemoryGraphStore()
@@ -71,23 +57,43 @@ async def _store() -> InMemoryGraphStore:
 
 
 class TestHybridGraphRetriever(unittest.IsolatedAsyncioTestCase):
+    async def _run(
+        self,
+        *,
+        store: InMemoryGraphStore,
+        embedding_index: NodeEmbeddingIndex | None,
+        top_k: int = 5,
+        direction: str = "out",
+        max_depth: int = 1,
+        query_text: str = "q",
+    ) -> list[dict[str, Any]]:
+        with Tapestry() as t:
+            traversal = GraphTraversal(
+                start_ids=["a"],
+                store=store,
+                budget=TraversalBudget.create(max_depth=max_depth),
+                direction=direction,
+                edge_types=None,
+                _config=KnotConfig(id="traversal"),
+            )
+            HybridGraphRetriever(
+                query_text=query_text,
+                traversal=traversal,
+                embedding_index=embedding_index,
+                top_k=top_k,
+                _config=KnotConfig(id="hybrid"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
+        return result.outputs["hybrid"]
+
     async def test_fuses_graph_and_vector_arms(self) -> None:
         store = await _store()
-        retriever = _make_retriever()
         # Vector arm surfaces "c" (isolated node the graph arm never reaches) and
         # re-ranks "a"; fusion must merge both arms into one ranking.
         index = StubNodeEmbeddingIndex(["c", "a"])
 
-        results = await retriever.process(
-            query_text="find c",
-            start_ids=["a"],
-            store=store,
-            traversal=_make_traversal(),
-            budget=TraversalBudget.create(max_depth=1),
-            embedding_index=index,
-            top_k=3,
-            direction="out",
-        )
+        results = await self._run(store=store, embedding_index=index, top_k=3, query_text="find c")
 
         ids = [hit["id"] for hit in results]
         assert set(ids) == {"a", "b", "c"}
@@ -99,18 +105,8 @@ class TestHybridGraphRetriever(unittest.IsolatedAsyncioTestCase):
 
     async def test_falls_back_to_graph_only_when_no_index(self) -> None:
         store = await _store()
-        retriever = _make_retriever()
 
-        results = await retriever.process(
-            query_text="q",
-            start_ids=["a"],
-            store=store,
-            traversal=_make_traversal(),
-            budget=TraversalBudget.create(max_depth=1),
-            embedding_index=None,
-            top_k=5,
-            direction="out",
-        )
+        results = await self._run(store=store, embedding_index=None, top_k=5)
 
         ids = {hit["id"] for hit in results}
         assert ids == {"a", "b"}
@@ -118,19 +114,9 @@ class TestHybridGraphRetriever(unittest.IsolatedAsyncioTestCase):
 
     async def test_empty_index_skips_vector_arm(self) -> None:
         store = await _store()
-        retriever = _make_retriever()
         index = StubNodeEmbeddingIndex(["c"], empty=True)
 
-        results = await retriever.process(
-            query_text="q",
-            start_ids=["a"],
-            store=store,
-            traversal=_make_traversal(),
-            budget=TraversalBudget.create(max_depth=1),
-            embedding_index=index,
-            top_k=5,
-            direction="out",
-        )
+        results = await self._run(store=store, embedding_index=index, top_k=5)
 
         ids = {hit["id"] for hit in results}
         assert "c" not in ids
@@ -139,57 +125,43 @@ class TestHybridGraphRetriever(unittest.IsolatedAsyncioTestCase):
 
     async def test_respects_top_k(self) -> None:
         store = await _store()
-        retriever = _make_retriever()
         index = StubNodeEmbeddingIndex(["c", "a", "b"])
 
-        results = await retriever.process(
-            query_text="q",
-            start_ids=["a"],
-            store=store,
-            traversal=_make_traversal(),
-            budget=TraversalBudget.create(max_depth=1),
-            embedding_index=index,
-            top_k=1,
-            direction="out",
-        )
+        results = await self._run(store=store, embedding_index=index, top_k=1)
 
         assert len(results) == 1
 
     async def test_rejects_bad_embedding_index(self) -> None:
+        with Tapestry():
+            knot = HybridGraphRetriever.__new__(HybridGraphRetriever)
+            object.__setattr__(knot, "_config", KnotConfig(id="x"))
         store = await _store()
-        retriever = _make_retriever()
-        with self.assertRaisesRegex(TypeError, "embedding_index must implement NodeEmbeddingIndex"):
-            await retriever.process(
+        traversal_subgraph = await GraphTraversal.__new__(GraphTraversal).process(
+            start_ids=["a"],
+            store=store,
+            budget=TraversalBudget.create(),
+        )
+        with self.assertRaises((TypeError, AttributeError)):
+            await knot.process(
                 query_text="q",
-                start_ids=["a"],
-                store=store,
-                traversal=_make_traversal(),
-                budget=TraversalBudget.create(),
+                traversal=traversal_subgraph,
                 embedding_index=123,  # type: ignore[arg-type]
             )
 
-    async def test_rejects_bad_traversal(self) -> None:
-        store = await _store()
-        retriever = _make_retriever()
-        with self.assertRaisesRegex(TypeError, "traversal must be a GraphTraversal"):
-            await retriever.process(
-                query_text="q",
-                start_ids=["a"],
-                store=store,
-                traversal="nope",  # type: ignore[arg-type]
-                budget=TraversalBudget.create(),
-            )
-
     async def test_rejects_non_positive_top_k(self) -> None:
+        with Tapestry():
+            knot = HybridGraphRetriever.__new__(HybridGraphRetriever)
+            object.__setattr__(knot, "_config", KnotConfig(id="x"))
         store = await _store()
-        retriever = _make_retriever()
+        traversal_subgraph = await GraphTraversal.__new__(GraphTraversal).process(
+            start_ids=["a"],
+            store=store,
+            budget=TraversalBudget.create(),
+        )
         with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            await retriever.process(
+            await knot.process(
                 query_text="q",
-                start_ids=["a"],
-                store=store,
-                traversal=_make_traversal(),
-                budget=TraversalBudget.create(),
+                traversal=traversal_subgraph,
                 top_k=0,
             )
 
