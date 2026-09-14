@@ -124,21 +124,6 @@ _EXPECTED_EXCLUSIONS = frozenset(
     }
 )
 
-#: Registry-visible ``AgentPipeline`` subclasses outside ``specializations/``,
-#: so the pkgutil walk ``_discover_pipelines`` performs never sees them and
-#: they cannot belong in ``_EXPECTED_EXCLUSIONS`` (that set's own completeness
-#: tests are cross-checked *against* that same walk). Found only by
-#: ``test_every_registry_visible_agent_pipeline_has_seed_metadata``'s
-#: sweet_tea-Registry-based check (PIR-870); justified the same way as any
-#: other private loop body.
-_REGISTRY_ONLY_EXCLUSIONS = frozenset(
-    {
-        # Internal stage: the loop body FailoverChain drives internally (ADR
-        # agents-speaks-core WS5b); lives in resilience/, not specializations/.
-        "pirn_agents.resilience.failover_loop.FailoverLoop",
-    }
-)
-
 
 def _qualified(cls: type) -> str:
     """Return ``module.QualName`` for a class."""
@@ -219,10 +204,7 @@ def test_every_registry_visible_agent_pipeline_has_seed_metadata() -> None:
         AgentPatternRegistry.descriptor(name).class_name
         for name in AgentPatternRegistry.canonical_names()
     }
-    exclusion_class_names = {
-        excluded.rsplit(".", 1)[1]
-        for excluded in (_EXPECTED_EXCLUSIONS | _REGISTRY_ONLY_EXCLUSIONS)
-    }
+    exclusion_class_names = {excluded.rsplit(".", 1)[1] for excluded in _EXPECTED_EXCLUSIONS}
 
     # Act.
     missing = []
