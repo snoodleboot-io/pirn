@@ -7,7 +7,7 @@ description: >
   agentic pattern name into it at import time. The LLM provider is a live
   object that cannot be written into YAML text, so it arrives through a
   `source` node whose `callable:` is a reference label resolved via
-  `known_callables` -- see build_tapestry.py, and
+  `known_callables` -- see agents_core_pipeline.py, and
   AgentReferences.as_known_callables() for the general mechanism.
 
 allow_callable_refs: false
@@ -17,13 +17,13 @@ nodes:
   # constructor declares (a tuple of AgentMessage) -- the string-to-message
   # convenience AgentBuilder.input() provides is a builder-only nicety, not
   # something core YAML can express; the caller supplies the already-shaped
-  # value via RunRequest.parameters (see run.py).
+  # value via RunRequest.parameters (see AgentsCorePipeline.main).
   - id: seed_messages
     type: parameter
     type_: Any
 
   # A live LLMProvider cannot be written into YAML text; known_callables
-  # resolves the label "llm" to the one build_tapestry.py registers.
+  # resolves the label "llm" to the one AgentsCorePipeline.build_tapestry registers.
   - id: llm_provider
     type: source
     callable: llm

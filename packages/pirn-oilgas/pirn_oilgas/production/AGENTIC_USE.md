@@ -1,98 +1,113 @@
-Analyzes production data — allocation, decline curve analysis, artificial lift optimization, ESP health monitoring, and flaring measurement. Does NOT interface with SCADA or historian systems; ingest production data via DatabaseQuerySource.
+Analyzes production data — rate validation and normalisation, GOR and water cut, decline rate and forecasting, artificial lift optimisation, ESP health monitoring, well tests, tank gauging, and flaring measurement. Does NOT interface with SCADA or historian systems; fetch historian rows upstream (e.g. with `DatabaseQuerySource`) and assemble them with `ScadaDatabaseAssembler`.
 
 ## Mental model
 
-Production analytics operates on time-series streams of rate, pressure, and equipment state. Allocation distributes measured facility volumes back to individual wells; decline analysis fits production trends to forecast reserves; artificial lift knots optimize injection rate or pump settings against a cost or production objective. All knots treat the incoming data as already-ingested frames — SCADA connectivity is out of scope.
+Production analytics operates on time-series streams of rate, pressure, and equipment state. Most series-based knots here consume a `ScadaPayload` produced by `ScadaDatabaseAssembler`; validation knots bound-check the series, derived-quantity knots (GOR, water cut, injection) combine series, and decline knots estimate a trend that `ProductionForecaster` projects forward. A second group of record-based knots (ESP health, gas lift, rod pump, separator tests, tank gauging, flaring) take plain dicts. All knots treat the incoming data as already-ingested — SCADA connectivity is out of scope. Allocation of field volumes to wells lives in the reservoir sub-package (`ProductionAllocationEngine`).
 
 ## Source map
 
 ```
-├── artificial_lift_optimizer.py      ArtificialLiftOptimizer      — optimizes gas-lift injection rate or ESP frequency for target production
-├── decline_rate_estimator.py         DeclineRateEstimator         — fits Arps decline parameters (qi, Di, b) to production history
-├── downtime_event_classifier.py      DowntimeEventClassifier      — classifies production downtime events from rate anomalies and remarks
-├── esp_health_monitor.py             EspHealthMonitor             — monitors ESP current, vibration, and temperature for failure precursors
-├── flaring_measurement_processor.py  FlaringMeasurementProcessor  — processes flare meter readings into reportable flared volumes
-├── flowline_pressure_modeler.py      FlowlinePressureModeler      — models flowing pressure along a flowline network
-├── gas_lift_optimizer.py             GasLiftOptimizer             — optimizes gas-lift allocation across a well group
-├── gas_oil_ratio_calculator.py       GasOilRatioCalculator        — computes GOR from measured gas and oil production rates
-├── injection_efficiency_analyzer.py  InjectionEfficiencyAnalyzer  — evaluates water/gas injection efficiency against voidage replacement
-├── production_allocation_engine.py   ProductionAllocationEngine   — allocates facility-level volumes to individual wells
-├── production_data_qc_gate.py        ProductionDataQcGate         — validates production time series for nulls, spikes, and date gaps
-├── rate_transient_analyzer.py        RateTransientAnalyzer        — performs rate-transient analysis for reservoir characterization
-├── voidage_replacement_calculator.py VoidageReplacementCalculator — calculates voidage replacement ratio for waterflood management
-├── water_cut_predictor.py            WaterCutPredictor            — forecasts water cut evolution using decline or ML models
-├── well_performance_benchmarker.py   WellPerformanceBenchmarker   — benchmarks individual well performance against peer or IPR curve
+├── artificial_lift_optimizer.py      ArtificialLiftOptimizer      — recommends a lift-system operating point for a production ScadaPayload
+├── decline_rate_estimator.py         DeclineRateEstimator         — short-window fractional annual decline rate from a rate series
+├── downtime_event_classifier.py      DowntimeEventClassifier      — classifies downtime events from gaps in a production series
+├── esp_health_monitor.py             EspHealthMonitor             — scores ESP telemetry against vibration and temperature thresholds
+├── flaring_measurement_processor.py  FlaringMeasurementProcessor  — computes total gas flared and emissions from flare measurements
+├── flowline_pressure_modeler.py      FlowlinePressureModeler      — predicts flowline pressure drop from a rate series
+├── gas_lift_optimizer.py             GasLiftOptimizer             — optimises gas injection rate against a well performance curve
+├── gas_oil_ratio_calculator.py       GasOilRatioCalculator        — computes GOR from oil- and gas-rate series
+├── production_forecaster.py          ProductionForecaster         — projects a future rate series from Arps decline parameters
+├── production_rate_normalizer.py     ProductionRateNormalizer     — normalises measured rates to reference pressure and temperature
+├── production_test_validator.py      ProductionTestValidator      — checks a production-test series against oil, gas, and water rate bounds
+├── rod_pump_optimizer.py             RodPumpOptimizer             — optimises rod pump stroke speed from a dynagraph card
+├── separator_test_processor.py       SeparatorTestProcessor       — computes GOR, WOR, and shrinkage from separator test data
+├── tank_gauging_processor.py         TankGaugingProcessor         — computes net oil volume and BS&W from tank gauge readings
+├── water_cut_tracker.py              WaterCutTracker              — derives a water-cut series from oil and water rates
+├── water_injection_tracker.py        WaterInjectionTracker        — tracks injected water volumes from an injection-rate series
+├── well_test_analyzer.py             WellTestAnalyzer             — extracts permeability and skin from a well-test pressure series
 ```
 
 ## Canonical pattern
 
 ```python
+from datetime import UTC, datetime
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_oilgas.production import (
-    ProductionDataQcGate,
-    ProductionAllocationEngine,
-    DeclineRateEstimator,
-    EspHealthMonitor,
-)
+from pirn_oilgas.assemblers.scada_database_assembler import ScadaDatabaseAssembler
+from pirn_oilgas.production.decline_rate_estimator import DeclineRateEstimator
+from pirn_oilgas.production.production_forecaster import ProductionForecaster
+from pirn_oilgas.production.production_test_validator import ProductionTestValidator
+from pirn_oilgas.production.water_cut_tracker import WaterCutTracker
+from pirn_oilgas.reservoir.decline_curve_analyzer import DeclineCurveAnalyzer
+
+since = datetime(2026, 1, 1, tzinfo=UTC)
 
 with Tapestry() as t:
-    production_ts = Parameter("production_ts", object)  # DataFrame from DatabaseQuerySource
+    oil_rows = Parameter("oil_rows", list)      # historian rows from DatabaseQuerySource
+    water_rows = Parameter("water_rows", list)
 
-    qc_passed = ProductionDataQcGate(
-        timeseries=production_ts,
-        _config=KnotConfig(id="prod_qc"),
+    oil = ScadaDatabaseAssembler(
+        rows=oil_rows, tag="WELL-12.OIL", since=since, sample_interval_sec=86400.0,
+        _config=KnotConfig(id="oil_series"),
+    )
+    water = ScadaDatabaseAssembler(
+        rows=water_rows, tag="WELL-12.WATER", since=since, sample_interval_sec=86400.0,
+        _config=KnotConfig(id="water_series"),
     )
 
-    allocated = ProductionAllocationEngine(
-        facility_volumes=qc_passed,
-        _config=KnotConfig(id="allocate", params={"method": "proportional"}),
+    validated = ProductionTestValidator(
+        series=oil,
+        max_oil_rate_bopd=5000.0,
+        max_gas_rate_mscfd=20000.0,
+        max_water_rate_bwpd=8000.0,
+        _config=KnotConfig(id="validate"),
     )
 
-    decline = DeclineRateEstimator(
-        well_rates=allocated,
-        _config=KnotConfig(id="decline", params={"model": "hyperbolic"}),
-    )
+    water_cut = WaterCutTracker(oil_rate=validated, water_rate=water, _config=KnotConfig(id="water_cut"))
+    decline_rate = DeclineRateEstimator(rate_series=validated, window_days=90, _config=KnotConfig(id="decline_rate"))
 
-    esp_health = EspHealthMonitor(
-        esp_telemetry=qc_passed,
-        _config=KnotConfig(id="esp_health", params={"vibration_threshold": 0.15}),
-    )
+    arps = DeclineCurveAnalyzer(rate_series=validated, method="hyperbolic", _config=KnotConfig(id="arps"))
+    forecast = ProductionForecaster(decline_parameters=arps, forecast_months=24, _config=KnotConfig(id="forecast"))
 
-result = await t.run(RunRequest(parameters={"production_ts": df}))
+result = await t.run(RunRequest(parameters={"oil_rows": oil_row_list, "water_rows": water_row_list}))
 ```
 
 ## Anti-patterns
 
-**Passing raw SCADA exports directly to DeclineRateEstimator** — SCADA data contains equipment downtime zeroes that distort decline fits; always pass through ProductionDataQcGate and ProductionAllocationEngine first.
+**Passing raw historian rows to series knots** — `GasOilRatioCalculator`, `WaterCutTracker`, `DeclineRateEstimator`, `ArtificialLiftOptimizer`, and the other series knots raise `TypeError` unless their input is a `ScadaPayload`; assemble rows with `ScadaDatabaseAssembler` first.
 
-**Running GasLiftOptimizer and ArtificialLiftOptimizer on the same wells in parallel** — both knots emit injection rate recommendations and will produce conflicting outputs; choose one optimizer per well group per run.
+**Feeding DeclineRateEstimator output to ProductionForecaster** — `DeclineRateEstimator` returns a single fractional annual rate, while `ProductionForecaster` requires a dict with `qi`, `di_per_year`, and `b` (a missing key raises `KeyError`). Use `DeclineCurveAnalyzer` from the reservoir sub-package for the forecaster's input.
 
-**Using DeclineRateEstimator on fewer than 6 months of stable production** — Arps fitting on ramp-up data yields unreliable Di and b parameters that overestimate EUR; filter to plateau or declining periods before fitting.
+**Running GasLiftOptimizer and ArtificialLiftOptimizer on the same wells in one run** — both emit operating-point recommendations and will produce conflicting outputs; choose one optimiser per well group.
 
 ## Constraints and gotchas
 
-- `ProductionDataQcGate` raises `KnotCheckError` on date gaps exceeding `max_gap_days` (default 3); set explicitly for wells with planned shutdowns.
-- `ProductionAllocationEngine` requires facility-level oil, gas, and water totals and a well-count or test-rate basis; missing totals raise `AllocationBasisError`.
-- `DeclineRateEstimator` with `model="hyperbolic"` clips b to [0, 2]; values outside that range indicate non-decline data and are logged as warnings.
-- `EspHealthMonitor` expects 1-minute or finer telemetry; coarser intervals suppress vibration anomaly detection.
-- Install extra: `pip install pirn[oilgas]`
+- `ProductionTestValidator` requires all three rate bounds to be positive numbers and returns the series unchanged when it passes.
+- `DeclineRateEstimator` requires `window_days` to be a positive `int`.
+- `ArtificialLiftOptimizer` accepts `lift_type` in `esp`, `gas_lift`, `rod_pump`, `pcp`, `jet_pump`; `WellTestAnalyzer` accepts `method` in `horner`, `mdh`, `deconvolution`.
+- `EspHealthMonitor`, `FlaringMeasurementProcessor`, `GasLiftOptimizer`, `RodPumpOptimizer`, `SeparatorTestProcessor`, `TankGaugingProcessor`, and `WellTestAnalyzer` declare their inputs only through `process()`; pass those parameter names as keyword inputs (for example `EspHealthMonitor(telemetry=..., vibration_threshold_g=..., temperature_threshold_c=..., _config=...)`).
+- `EspHealthMonitor` requires `motor_temp_c` and `vibration_g` in the telemetry dict; `FlaringMeasurementProcessor` requires `efficiency_factor` in (0, 1].
+- Install extra: `pip install "pirn-oilgas[oilgas]"`
 
 ## Quick reference
 
 | Task | How |
 |------|-----|
-| Validate production time series | `ProductionDataQcGate(timeseries=param)` |
-| Allocate facility volumes to wells | `ProductionAllocationEngine(facility_volumes=qc_passed)` |
-| Fit Arps decline parameters | `DeclineRateEstimator(well_rates=allocated)` |
-| Monitor ESP health indicators | `EspHealthMonitor(esp_telemetry=ts)` |
-| Optimize gas-lift injection | `GasLiftOptimizer(well_rates=allocated)` |
-| Compute voidage replacement ratio | `VoidageReplacementCalculator(injection=inj, production=prod)` |
-| Forecast water cut | `WaterCutPredictor(well_rates=allocated)` |
-| Classify downtime events | `DowntimeEventClassifier(timeseries=qc_passed)` |
-| Benchmark well against peers | `WellPerformanceBenchmarker(well_rates=allocated)` |
-| Process flare meter data | `FlaringMeasurementProcessor(flare_ts=param)` |
+| Assemble historian rows into a series | `ScadaDatabaseAssembler(rows=..., tag=..., since=..., sample_interval_sec=...)` |
+| Bound-check a production test | `ProductionTestValidator(series=..., max_oil_rate_bopd=..., max_gas_rate_mscfd=..., max_water_rate_bwpd=...)` |
+| Normalise rates to standard conditions | `ProductionRateNormalizer(measurements=..., reference_pressure_psia=..., reference_temp_f=...)` |
+| Compute GOR | `GasOilRatioCalculator(oil_rate=..., gas_rate=...)` |
+| Track water cut | `WaterCutTracker(oil_rate=..., water_rate=...)` |
+| Track water injection | `WaterInjectionTracker(injection_rate=...)` |
+| Estimate short-window decline rate | `DeclineRateEstimator(rate_series=..., window_days=...)` |
+| Forecast production | `ProductionForecaster(decline_parameters=..., forecast_months=...)` |
+| Model flowline pressure drop | `FlowlinePressureModeler(rate_series=..., pipe_inner_diameter_in=..., pipe_length_ft=...)` |
+| Recommend a lift operating point | `ArtificialLiftOptimizer(production=..., lift_type=...)` |
+| Monitor ESP health | `EspHealthMonitor(telemetry=..., vibration_threshold_g=..., temperature_threshold_c=...)` |
+| Classify downtime events | `DowntimeEventClassifier(production_series=..., gap_threshold_hours=...)` |
+| Process flare meter data | `FlaringMeasurementProcessor(measurements=..., gas_composition=..., efficiency_factor=...)` |
+| Analyse a well test | `WellTestAnalyzer(pressure_series=..., method=...)` |
 
 *See also: [oilgas AGENTIC_USE.md](../AGENTIC_USE.md)*

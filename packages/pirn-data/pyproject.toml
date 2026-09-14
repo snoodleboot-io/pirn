@@ -186,8 +186,6 @@ reportUnnecessaryIsInstance = "none"
 # declares exactly the subset pirn_data uses; extend it when new API is used.
 stubPath = "typings"
 pythonVersion = "3.12"
-reportMissingImports = "none"
-reportMissingModuleSource = "none"
 # reportIncompatibleMethodOverride is ON (PIR-833). It used to be "none" in all
 # seven packages, which hid real substitutability breaks among ~730 framework
 # false positives. Those are gone at the source: Knot — and every abstract
@@ -195,4 +193,3 @@ reportMissingModuleSource = "none"
 # gradual parameter form (*args, **kwargs), which drops the parameter half of
 # the check for dynamically-bound named inputs and keeps the return half.
 reportIncompatibleMethodOverride = "error"
-reportAttributeAccessIssue = "none"

@@ -84,12 +84,12 @@ After construction, Pydantic `TypeAdapter`s are built from `get_type_hints(type(
 Knots self-register at the end of `__init__`:
 
 ```python
-target_tapestry = explicit_tapestry or _CURRENT_TAPESTRY.get(None)
+target_tapestry = tapestry or RunContextVars.tapestry.get(None)
 if target_tapestry is not None:
     target_tapestry.register(self)
 ```
 
-`_CURRENT_TAPESTRY` is a `contextvars.ContextVar` — async-safe and task-local. Inside a `with Tapestry()` block the var is set; knots register without any explicit call.
+`RunContextVars.tapestry` (`pirn/core/run_context_vars.py`) is a `contextvars.ContextVar` — async-safe and task-local. Inside a `with Tapestry()` block the var is set; knots register without any explicit call.
 
 ### Execution
 

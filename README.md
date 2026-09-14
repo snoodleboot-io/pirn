@@ -141,15 +141,15 @@ KnotLineage(
     run_id="run-abc",
     knot_id="answer",
     knot_class="my_pkg.knots.Add",
-    knot_config_hash="sha256:…",       # the knot's config at run time
+    knot_config_hash="sha256:...",     # the knot's config at run time
     parent_input_hashes={               # what it consumed
-        "a": "sha256:…",
-        "b": "sha256:…",
+        "a": "sha256:...",
+        "b": "sha256:...",
     },
-    output_hash="sha256:…",            # what it produced
+    output_hash="sha256:...",          # what it produced
     outcome="ok",
     dispatcher="LocalDispatcher",
-    started_at=…, finished_at=…,
+    started_at=..., finished_at=...,
 )
 ```
 

@@ -14,15 +14,16 @@ Triggers produce independent, complete `RunRequest` objects per event. This is d
 
 ```
 pirn/triggers/
-├── base.py       Trigger          — base class; implement name, stream(), close()
-│                 Trigger.run_forever()    — driver: pull requests from trigger, run tapestry, call callbacks
-├── cron.py       CronTrigger      — yield RunRequests on a time-based schedule
-├── http.py       WebhookTrigger   — Starlette ASGI app; yield one RunRequest per POST
-├── kafka.py      KafkaTrigger     — Kafka consumer; yield one RunRequest per message
-└── valkey.py     ValKeyTrigger    — Valkey/Redis pub-sub; yield one RunRequest per message
+├── trigger.py          Trigger          — base class; implement name, stream(), close()
+│                       Trigger.run_forever()    — driver: pull requests from trigger, run tapestry, call callbacks
+├── run_driver.py       RunDriver        — the run-and-callback step run_forever/run_stream share
+├── cron_trigger.py     CronTrigger      — yield RunRequests on a time-based schedule
+├── webhook_trigger.py  WebhookTrigger   — Starlette ASGI app; yield one RunRequest per POST
+├── kafka_trigger.py    KafkaTrigger     — Kafka consumer; yield one RunRequest per message
+└── valkey_trigger.py   ValKeyTrigger    — Valkey pub-sub; yield one RunRequest per message
 ```
 
-`pirn/triggers/__init__.py` deliberately re-exports nothing — the house convention forbids import forwarding, and `scripts/check_no_import_forwarding.py` enforces it in CI. Always import from the concrete module: `from pirn.triggers.trigger import Trigger`, **not** `from pirn.triggers import Trigger`.
+`pirn/triggers/__init__.py` deliberately re-exports nothing — the house convention forbids import forwarding, and `scripts/check_no_import_forwarding.py` enforces it in CI. Always import from the concrete module: `from pirn.triggers.trigger import Trigger` — the package itself exposes no names.
 
 ---
 
