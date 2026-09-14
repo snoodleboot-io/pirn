@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WellCompletionObjectStoreAssembler`` — assemble a :class:`DrillingParameters` from completion bytes.
 
 Sits between :class:`~pirn.connectors.knots.object_store_read_source.ObjectStoreReadSource`
@@ -30,7 +32,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypeGuard
 
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
@@ -41,6 +43,16 @@ from pirn_oilgas.types.drilling_parameters import DrillingParameters
 
 class WellCompletionObjectStoreAssembler(Assembler):
     """Assemble a :class:`DrillingParameters` from raw completion record bytes."""
+
+    @staticmethod
+    def _is_json_object(value: object) -> TypeGuard[dict[str, object]]:
+        """Whether a ``json.loads`` result is a JSON object (always string-keyed)."""
+        return isinstance(value, dict)
+
+    @staticmethod
+    def _is_json_array(value: object) -> TypeGuard[list[object]]:
+        """Whether a ``json.loads`` result is a JSON array."""
+        return isinstance(value, list)
 
     def __init__(
         self,
@@ -88,10 +100,13 @@ class WellCompletionObjectStoreAssembler(Assembler):
             raise ValueError(
                 f"WellCompletionObjectStoreAssembler: body is not valid JSON: {exc}"
             ) from exc
-        if isinstance(data, dict):
+        if WellCompletionObjectStoreAssembler._is_json_object(data):
             perforations = data.get("perforations", data.get("intervals", []))
-            depth_count = len(perforations) if isinstance(perforations, list) else max(1, len(data))
-        elif isinstance(data, list):
+            if WellCompletionObjectStoreAssembler._is_json_array(perforations):
+                depth_count = len(perforations)
+            else:
+                depth_count = max(1, len(data))
+        elif WellCompletionObjectStoreAssembler._is_json_array(data):
             depth_count = len(data)
         else:
             depth_count = 1
