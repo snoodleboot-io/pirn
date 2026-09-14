@@ -102,7 +102,7 @@ class TestRetryOnParseFailureProcess(unittest.IsolatedAsyncioTestCase):
     async def test_raises_after_exhausting_retries(self) -> None:
         # `process()` now returns a loop knot rather than running the retries
         # itself (ADR agents-speaks-core WS5a) — the exhaustion raise happens
-        # inside `_RetryResultExtractor`, reached only through a real engine
+        # inside `RetryResultExtractor`, reached only through a real engine
         # run, so this asserts on the run's recorded failure rather than a
         # bare synchronous ValueError from `process()`. The outer run only
         # sees a generic SubTapestryError; the real ValueError is recorded on

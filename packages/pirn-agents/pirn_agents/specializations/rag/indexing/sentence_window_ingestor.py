@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SentenceWindowIngestor`` — index single sentences with a neighbour window.
 
 Sentence-window retrieval embeds each *sentence* on its own (maximally precise

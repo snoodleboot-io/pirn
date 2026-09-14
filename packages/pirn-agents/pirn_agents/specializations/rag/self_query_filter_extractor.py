@@ -98,10 +98,15 @@ class SelfQueryFilterExtractor(Knot):
             parsed = json.loads(text)
         except (json.JSONDecodeError, ValueError):
             return fallback_query, {}
-        if not isinstance(parsed, dict):
-            return fallback_query, {}
-        semantic = parsed.get("query")
-        semantic_query = semantic if isinstance(semantic, str) and semantic else fallback_query
-        raw_filter = parsed.get("filter")
-        metadata_filter = dict(raw_filter) if isinstance(raw_filter, dict) else {}
-        return semantic_query, metadata_filter
+        match parsed:
+            case {"query": str() as semantic} if semantic:
+                semantic_query = semantic
+            case {**_fields}:
+                semantic_query = fallback_query
+            case _:
+                return fallback_query, {}
+        match parsed:
+            case {"filter": {**raw_filter}}:
+                return semantic_query, dict(raw_filter)
+            case _:
+                return semantic_query, {}

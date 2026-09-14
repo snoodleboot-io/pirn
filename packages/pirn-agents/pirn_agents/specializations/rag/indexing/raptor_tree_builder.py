@@ -1,9 +1,9 @@
 """``RaptorTreeBuilder`` — chunk a document and build its RAPTOR tree.
 
 A :class:`SubTapestry` that reuses the existing sliding-window
-:class:`~pirn_agents.specializations.document_processing._document_chunker._DocumentChunker`
+:class:`~pirn_agents.specializations.document_processing.document_chunker.DocumentChunker`
 to produce leaf chunks, then wires
-:class:`~pirn_agents.specializations.rag.indexing._raptor_assembler._RaptorAssembler`
+:class:`~pirn_agents.specializations.rag.indexing.raptor_assembler.RaptorAssembler`
 to cluster + summarize them into a content-addressed RAPTOR tree stored in the
 vector store. The tree is built once at ingest and reused across queries.
 
@@ -22,8 +22,8 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_chunker import _DocumentChunker
-from pirn_agents.specializations.rag.indexing._raptor_assembler import _RaptorAssembler
+from pirn_agents.specializations.document_processing.document_chunker import DocumentChunker
+from pirn_agents.specializations.rag.indexing.raptor_assembler import RaptorAssembler
 
 
 class RaptorTreeBuilder(AgentPipeline):
@@ -68,7 +68,7 @@ class RaptorTreeBuilder(AgentPipeline):
         max_levels: int = 3,
         **_: Any,
     ) -> Knot:
-        """Wire ``_DocumentChunker`` → ``_RaptorAssembler`` and return the sink.
+        """Wire ``DocumentChunker`` → ``RaptorAssembler`` and return the sink.
 
         Args:
             text: The full source document to build a tree from.
@@ -81,15 +81,15 @@ class RaptorTreeBuilder(AgentPipeline):
             max_levels: Maximum number of summary levels above the leaves.
 
         Returns:
-            The ``_RaptorAssembler`` sink knot whose output is the :class:`RaptorTree`.
+            The ``RaptorAssembler`` sink knot whose output is the :class:`RaptorTree`.
         """
-        chunks = _DocumentChunker(
+        chunks = DocumentChunker(
             text=text,
             chunk_size=leaf_chunk_size,
             chunk_overlap=chunk_overlap,
             _config=KnotConfig(id="chunk"),
         )
-        return _RaptorAssembler(
+        return RaptorAssembler(
             chunks=chunks,
             llm=llm,
             embedder=embedder,

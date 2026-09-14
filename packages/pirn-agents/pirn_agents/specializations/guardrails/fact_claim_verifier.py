@@ -2,7 +2,7 @@
 
 Inner stage knot used by :class:`FactCheck`. Each claim's search is
 independent of every other claim's, so this is a fan-out — one
-:class:`~pirn_agents.specializations.guardrails._claim_verification._ClaimVerification`
+:class:`~pirn_agents.specializations.guardrails.claim_verification.ClaimVerification`
 knot per claim wired into an :class:`~pirn.nodes.aggregator.Aggregator` — rather
 than a hand-rolled ``for`` loop awaiting ``store.search`` directly (PIR-867;
 before this, no claim's search had its own lineage row). Claims that return
@@ -14,7 +14,7 @@ Algorithm:
     1. Filter ``claims`` down to non-empty strings.
     2. When none remain, return a ``Parameter`` defaulting to the original
        ``response`` unchanged — an ``Aggregator`` requires at least one parent.
-    3. Otherwise build one ``_ClaimVerification`` per valid claim and wire
+    3. Otherwise build one ``ClaimVerification`` per valid claim and wire
        them as the parents of an ``Aggregator``.
     4. The combine collects claims whose verification came back ``False``
        into ``unverified``. If empty, it returns ``response`` unchanged.
@@ -41,7 +41,7 @@ from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.guardrails._claim_verification import _ClaimVerification
+from pirn_agents.specializations.guardrails.claim_verification import ClaimVerification
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -82,7 +82,7 @@ class FactClaimVerifier(AgentPipeline):
         Returns:
             The sink of the inner pipeline: a ``Parameter`` defaulting to
             ``response`` unchanged when no valid claim remains, or an
-            :class:`Aggregator` over one ``_ClaimVerification`` per claim
+            :class:`Aggregator` over one ``ClaimVerification`` per claim
             whose output is ``response`` (unchanged if every claim verified,
             or annotated with an unverified-claims warning otherwise).
         """
@@ -92,7 +92,7 @@ class FactClaimVerifier(AgentPipeline):
                 "original", AgentResponse, default=response, _config=KnotConfig(id="original")
             )
         per_claim: dict[str, Knot] = {
-            f"claim_{index}": _ClaimVerification(
+            f"claim_{index}": ClaimVerification(
                 claim=claim, store=store, _config=KnotConfig(id=f"verify_{index}")
             )
             for index, claim in enumerate(valid_claims)

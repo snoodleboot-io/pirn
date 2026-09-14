@@ -1328,7 +1328,7 @@ and citations live in
 ### Indexing structure
 - **Parent-doc / sentence-window / auto-merging / RAPTOR** under
   `specializations/rag/indexing/` — ingest + retrieve knot pairs reusing the
-  existing `_DocumentChunker`; RAPTOR builds a content-addressed tree once at
+  existing `DocumentChunker`; RAPTOR builds a content-addressed tree once at
   ingest.
 
 ### FLARE
