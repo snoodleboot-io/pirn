@@ -17,7 +17,7 @@ A seismic processing pipeline is a directed graph of transform knots, each consu
 ├── migration_processor.py            MigrationProcessor           — applies Kirchhoff or phase-shift migration
 ├── mute_applicator.py                MuteApplicator               — applies top, surgical, or surgical mute functions
 ├── normal_moveout_corrector.py       NormalMoveoutCorrector       — applies NMO correction using a velocity model
-├── seismic_qc_check.py               SeismicQCCheck               — checks trace health, fold, and S/N thresholds before downstream steps (seismic_qc_gate.py keeps a deprecated SeismicQCGate alias)
+├── seismic_qc_check.py               SeismicQCCheck               — checks trace health, fold, and S/N thresholds before downstream steps
 ├── spectral_whitener.py              SpectralWhitener             — flattens amplitude spectrum within an operator length
 ├── surface_consistent_deconvolver.py SurfaceConsistentDeconvolver — surface-consistent spiking or predictive deconvolution
 ├── stacking_velocity_picker.py       StackingVelocityPicker       — semblance-based stacking velocity picker

@@ -91,9 +91,6 @@ pirn_agents/
     ├── memory_patterns/         Working / Semantic / Episodic / Procedural memory pipelines
     │                            EpisodicMemoryRetriever, SemanticMemoryUpsert, SessionSummarizer
     ├── guardrails/              Input/OutputGuardrailCheck, PiiRedactorCheck, FactCheck
-    │                            (the *Gate names — InputGuardrailGate, OutputGuardrailGate,
-    │                            FactCheckGate — are one-cycle deprecation shims subclassing
-    │                            the *Check class above; construct the *Check name directly)
     │                            HallucinationDetector, CitationGrounder
     ├── structured_output/       JsonExtractor, YamlExtractor, PydanticValidator, EnumClassifier
     │                            SchemaEnforcer, RetryOnParseFailure, FormatCoercer

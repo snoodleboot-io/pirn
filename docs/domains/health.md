@@ -492,7 +492,7 @@ NGS pipeline knots.
 | `PathwayEnricher` | Gene set / pathway enrichment analysis |
 | `MultiOmicsIntegrator` | Integrates multi-omics datasets |
 | `SingleCellClusterer` | Single-cell RNA-seq clustering |
-| `GenomicsQCCheck` | Quality assessment knot for NGS metrics (`GenomicsQCGate` is a backward-compatible alias) |
+| `GenomicsQCCheck` | Quality assessment knot for NGS metrics |
 
 ---
 

@@ -4,7 +4,7 @@ Processes NGS data through alignment, variant calling, expression quantification
 
 Each knot wraps a single bioinformatics tool or algorithm stage. Knots consume and produce file-path strings or in-memory byte buffers; they never open connections to sequence databases or LIMS systems. Pipeline topology is expressed as a pirn `Tapestry` — wire knots together rather than calling tools in sequence with subprocess.
 
-The `GenomicsQCCheck` knot acts as a quality checkpoint (`GenomicsQCGate` is a backward-compatible alias for the same class). It raises `GenomicsQCError` on quality failures so the tapestry fails loudly rather than propagating low-quality data silently. All other knots are unconditional transforms — quality decisions belong in the check, not scattered across stages.
+The `GenomicsQCCheck` knot acts as a quality checkpoint. It raises `GenomicsQCError` on quality failures so the tapestry fails loudly rather than propagating low-quality data silently. All other knots are unconditional transforms — quality decisions belong in the check, not scattered across stages.
 
 ## Source map
 
@@ -24,7 +24,6 @@ pirn_health/genomics/
 ├── gene_set_enrichment_runner.py   GeneSetEnrichmentRunner         — GSEA/fgsea enrichment analysis
 ├── genomics_qc_error.py            GenomicsQCError                 — typed error for QC gate failures
 ├── genomics_qc_check.py            GenomicsQCCheck                 — quality check; raises GenomicsQCError on failure
-├── genomics_qc_gate.py             GenomicsQCGate                  — backward-compatible alias for GenomicsQCCheck
 ├── gvcf_combiner.py                GVCFCombiner                    — merges per-sample gVCFs for joint genotyping
 ├── methylation_array_processor.py  MethylationArrayProcessor       — Illumina EPIC/450K array normalisation
 ├── multi_omics_integrator.py       MultiOmicsIntegrator            — integrates expression, methylation, and variant data
