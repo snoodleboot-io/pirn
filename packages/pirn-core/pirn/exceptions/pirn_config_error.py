@@ -9,6 +9,6 @@ class PirnConfigError(PirnError, ValueError):
     Subclasses ``ValueError`` in addition to ``PirnError`` — matching the
     precedent set by :class:`~pirn.exceptions.value_evicted_error.ValueEvictedError`
     subclassing ``KeyError`` — because every existing caller of
-    :meth:`~pirn.backends._signer._Signer.from_env` catches ``ValueError``
+    :meth:`~pirn.backends.signer.Signer.from_env` catches ``ValueError``
     for a missing or malformed signing key.
     """

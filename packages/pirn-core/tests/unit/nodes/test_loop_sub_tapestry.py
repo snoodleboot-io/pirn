@@ -126,7 +126,7 @@ class TestLoopSubTapestryDepth(unittest.IsolatedAsyncioTestCase):
 class TestLoopSubTapestryHistory(unittest.IsolatedAsyncioTestCase):
     """Loop iterations must be recorded on the default backend.
 
-    `_IterationChainKnot` used to inject the outer history only when it was
+    `IterationChainKnot` used to inject the outer history only when it was
     *not* an InMemoryHistory. The intent was sound — an open-ended
     conversational loop records one child run per turn and an ephemeral store
     cannot absorb that — but InMemoryHistory is the default backend

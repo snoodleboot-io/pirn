@@ -9,12 +9,12 @@ if TYPE_CHECKING:
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 
 #: Signature of ``EmitterFanout.handle_emitter_error`` — kept as a type alias so
-#: ``_EmitterSubscriber`` does not need to import ``EmitterFanout`` (which would be
+#: ``EmitterSubscriber`` does not need to import ``EmitterFanout`` (which would be
 #: circular: ``emitter_fanout.py`` imports this module).
 EmitterErrorHandler: TypeAlias = Callable[[Any, str, Exception, "EmitterErrorPolicy"], None]
 
 
-class _EmitterSubscriber:
+class EmitterSubscriber:
     """Schedules emitter.on_status as a fire-and-forget task per status event."""
 
     def __init__(

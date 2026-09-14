@@ -218,9 +218,9 @@ class GCSDataStore:
     The built-in `S3DataStore` / `GCSDataStore` / `AzureBlobDataStore` do not talk to an SDK
     themselves: each builds the matching connector `ObjectStore` (`S3Store`, `GCSStore`,
     `AzureBlobStore`) once, on first use, and delegates `put`/`get`/`has`/`scrub` to it —
-    serialisation and HMAC signing live in `_CloudObjectStore`, the client lifecycle in the
+    serialisation and HMAC signing live in `CloudObjectStore`, the client lifecycle in the
     connector, and `close()` releases the one client (PIR-869). A custom cloud store should
-    do the same: subclass `_CloudObjectStore` and implement `_build_object_store()`.
+    do the same: subclass `CloudObjectStore` and implement `_build_object_store()`.
 
 ---
 

@@ -1,4 +1,4 @@
-"""Unit tests for _EmitterSubscriber routing on_status failures through policy (PIR-856)."""
+"""Unit tests for EmitterSubscriber routing on_status failures through policy (PIR-856)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 from typing import Any
 
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
-from pirn.engine._emitter_subscriber import _EmitterSubscriber
 from pirn.engine.emitter_fanout import EmitterFanout
+from pirn.engine.emitter_subscriber import EmitterSubscriber
 
 
 class _FailingEmitter:
@@ -19,7 +19,7 @@ class _FailingEmitter:
         raise self._exc
 
 
-async def _run_and_collect(subscriber: _EmitterSubscriber, event: Any) -> list[asyncio.Task]:
+async def _run_and_collect(subscriber: EmitterSubscriber, event: Any) -> list[asyncio.Task]:
     """Invoke *subscriber* the way StatusManager does, then await its task."""
     tasks: list[asyncio.Task] = []
     subscriber(event)
@@ -33,7 +33,7 @@ class TestEmitterSubscriberErrorRouting(unittest.IsolatedAsyncioTestCase):
         # Arrange
         calls: list[tuple[Any, str, Exception, EmitterErrorPolicy]] = []
         emitter = _FailingEmitter(RuntimeError("boom"))
-        subscriber = _EmitterSubscriber(
+        subscriber = EmitterSubscriber(
             emitter,
             asyncio.get_running_loop(),
             [],
@@ -52,7 +52,7 @@ class TestEmitterSubscriberErrorRouting(unittest.IsolatedAsyncioTestCase):
     async def test_warn_policy_is_routed_through_handle_emitter_error(self) -> None:
         # Arrange
         emitter = _FailingEmitter(RuntimeError("boom"))
-        subscriber = _EmitterSubscriber(
+        subscriber = EmitterSubscriber(
             emitter,
             asyncio.get_running_loop(),
             [],
@@ -76,7 +76,7 @@ class TestEmitterSubscriberErrorRouting(unittest.IsolatedAsyncioTestCase):
         # Arrange
         boom = RuntimeError("boom")
         emitter = _FailingEmitter(boom)
-        subscriber = _EmitterSubscriber(
+        subscriber = EmitterSubscriber(
             emitter,
             asyncio.get_running_loop(),
             [],
@@ -98,7 +98,7 @@ class TestEmitterSubscriberErrorRouting(unittest.IsolatedAsyncioTestCase):
             async def on_status(self, event: Any) -> None:
                 return None
 
-        subscriber = _EmitterSubscriber(
+        subscriber = EmitterSubscriber(
             _OkEmitter(),
             asyncio.get_running_loop(),
             [],

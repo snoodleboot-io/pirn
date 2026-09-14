@@ -14,7 +14,7 @@ class KnotRegistrationNotice:
 
     ``InMemoryStore`` calls subscribers synchronously inside the
     registering task, so the ambient run id that PIR-808's
-    ``_RunScopedSubscriber`` reads is right for free.  The durable stores
+    ``RunScopedSubscriber`` reads is right for free.  The durable stores
     do not: ``PostgresStore`` delivers from a background LISTEN task and
     ``ValKeyStore`` from a pub/sub callback on a dedicated connection.
     Neither inherits the registering task's context — and worse, whatever

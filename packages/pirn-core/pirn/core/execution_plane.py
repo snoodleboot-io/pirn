@@ -62,6 +62,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from pirn.core.run_context_vars import RunContextVars
+
 if TYPE_CHECKING:
     from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
     from pirn.core.identity.identity_resolver import IdentityResolver
@@ -76,7 +78,7 @@ class ExecutionPlane:
     """What a run is scheduled on, metered by, watched by, served from and attributed to.
 
     Immutable; one per run, built by ``Tapestry.run`` and published on
-    ``pirn.tapestry._current_execution_plane`` for the run's duration so an
+    ``RunContextVars.execution_plane`` for the run's duration so an
     inner run can inherit it.  Read yours with :meth:`current`.
 
     Attributes:
@@ -110,6 +112,5 @@ class ExecutionPlane:
         ``SubTapestry`` body it is the inner run's plane, which shares the
         outer gate unless the inner tapestry named its own limits.
         """
-        from pirn.tapestry import _current_execution_plane
 
-        return _current_execution_plane.get(None)
+        return RunContextVars.execution_plane.get(None)

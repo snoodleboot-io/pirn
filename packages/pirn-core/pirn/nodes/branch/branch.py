@@ -15,6 +15,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_context_vars import RunContextVars
 from pirn.exceptions.invalid_branch_error import InvalidBranchError
 from pirn.nodes.branch.branch_output import BranchOutput
 
@@ -77,9 +78,7 @@ class Branch(Knot):
             tapestry=tapestry,
         )
 
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
+        target = tapestry or RunContextVars.tapestry.get(None)
 
         self._mutable_outputs: dict[str, BranchOutput] = {}
         for name in branches:

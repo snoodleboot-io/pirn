@@ -45,7 +45,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes._end_knot import _EndKnot
+from pirn.nodes.end_knot import EndKnot
 from pirn.nodes.next import Next
 from pirn.tapestry import Tapestry
 
@@ -67,7 +67,7 @@ class WithContinuation(Knot):
     the provided inputs, and registered into the running extensible tapestry.
 
     The continuation always creates at least one successor — termination is
-    explicit via ``Next("end")``, which registers a built-in ``_EndKnot``.
+    explicit via ``Next("end")``, which registers a built-in ``EndKnot``.
 
     Algorithm:
         1. Resolution — the engine resolves the wrapped knot and passes its
@@ -85,7 +85,7 @@ class WithContinuation(Knot):
            continuation still ran, but its successors are dropped.
         5. Pool lookup — for each ``Next`` entry, its ``action`` name is
            looked up in the pool (the built-in ``"end"`` action always maps to
-           ``_EndKnot`` unless the caller's pool overrides it). An unknown
+           ``EndKnot`` unless the caller's pool overrides it). An unknown
            action raises ``KeyError`` naming the available actions.
         6. Spawn — the resolved knot class is constructed with ``nxt.inputs``
            as constructor kwargs and a derived or caller-supplied id, then
@@ -113,7 +113,7 @@ class WithContinuation(Knot):
         self._mutable_fn = fn
         # Built-in end action is always available; user pool entries take
         # precedence if they supply their own "end" knot.
-        self._mutable_pool = {WithContinuation._end: _EndKnot, **pool}
+        self._mutable_pool = {WithContinuation._end: EndKnot, **pool}
 
     async def process(self, result: Any, **_: Any) -> Any:  # type: ignore[override]
         """Invoke the continuation function on the upstream result, register successor knots, and return the result.

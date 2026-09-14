@@ -11,8 +11,9 @@ from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.valkey.valkey_store import ValKeyStore
-from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
-from pirn.tapestry import Tapestry, _current_run_id
+from pirn.core.run_context_vars import RunContextVars
+from pirn.engine.run_scoped_subscriber import RunScopedSubscriber
+from pirn.tapestry import Tapestry
 
 
 def _make_knot(knot_id: str) -> MagicMock:
@@ -183,7 +184,7 @@ class TestValKeyStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
 
     ``ValKeyStore`` delivers through a pub/sub callback on a dedicated
     connection, which never inherited the registering task's context, so
-    PIR-808's ``_RunScopedSubscriber`` saw no ambient run and fell
+    PIR-808's ``RunScopedSubscriber`` saw no ambient run and fell
     through its ``None`` passthrough -- every extensible run on the
     tapestry got every other run's knots (PIR-815).
     """
@@ -194,11 +195,11 @@ class TestValKeyStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
 
     async def _register_under_run(self, knot: Any, run_id: str | None) -> None:
         """Register ``knot`` with ``run_id`` as the ambient run, then leave."""
-        token = _current_run_id.set(run_id)
+        token = RunContextVars.run_id.set(run_id)
         try:
             await self.store.aregister(knot)
         finally:
-            _current_run_id.reset(token)
+            RunContextVars.run_id.reset(token)
 
     def _published_payloads(self) -> list[str]:
         return [call.args[1] for call in self.client.publish.call_args_list]
@@ -229,8 +230,8 @@ class TestValKeyStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
     async def test_concurrent_runs_do_not_receive_each_others_knots(self) -> None:
         pending_a: list[Any] = []
         pending_b: list[Any] = []
-        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
-        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+        self.store._subscribers[0] = RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = RunScopedSubscriber("run-b", pending_b)
 
         knot_a = _make_knot("k-a")
         knot_b = _make_knot("k-b")
@@ -252,8 +253,8 @@ class TestValKeyStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
     async def test_registration_with_no_run_in_scope_still_broadcasts(self) -> None:
         pending_a: list[Any] = []
         pending_b: list[Any] = []
-        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
-        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+        self.store._subscribers[0] = RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = RunScopedSubscriber("run-b", pending_b)
 
         knot = _make_knot("k1")
         await self._register_under_run(knot, None)
@@ -266,8 +267,8 @@ class TestValKeyStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
         """A publisher from before PIR-815 sends the bare knot id."""
         pending_a: list[Any] = []
         pending_b: list[Any] = []
-        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
-        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+        self.store._subscribers[0] = RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = RunScopedSubscriber("run-b", pending_b)
 
         knot = _make_knot("k1")
         self.store._live["k1"] = knot

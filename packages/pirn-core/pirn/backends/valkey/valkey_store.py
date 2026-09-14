@@ -12,7 +12,7 @@ from pirn.backends.base.subscribable_store import SubscribableStore
 _logger = logging.getLogger(__name__)
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot  # noqa: E402
 from pirn.backends.base.tapestry_store import TapestryStore  # noqa: E402
-from pirn.backends.valkey._lazy_client import _LazyClient  # noqa: E402
+from pirn.backends.valkey.lazy_client import LazyClient  # noqa: E402
 from pirn.exceptions.duplicate_knot_error import DuplicateKnotError  # noqa: E402
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         Raises:
             TypeError: If neither ``client`` nor ``config`` is provided.
         """
-        self._client = _LazyClient(client=client, config=config)
+        self._client = LazyClient(client=client, config=config)
         self._live: dict[str, Knot] = {}
         self._pending_register_tasks: list[Any] = []
         self._subscribers: dict[int, Callable[[Any], None]] = {}

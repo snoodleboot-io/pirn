@@ -27,7 +27,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, TypeAdapter
 
-from pirn.core._unhashable_error import _UnhashableError
+from pirn.core.unhashable_error import UnhashableError
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 _logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class ContentHasher:
             2. If canonicalisation hits a leaf with no canonical form at all
                — no ``__pirn_canonical__``, no pydantic core schema, not a
                recognised container — :meth:`_canonicalise` raises
-               ``_UnhashableError`` naming that leaf's type. ``strict=True``
+               ``UnhashableError`` naming that leaf's type. ``strict=True``
                re-raises it as :class:`~pirn.exceptions.unhashable_value_error.UnhashableValueError`;
                ``strict=False`` (the default) swallows it and returns a
                ``sha256:unhashable:<top-level type>`` sentinel instead, since
@@ -100,10 +100,10 @@ class ContentHasher:
         """
         try:
             canonical = ContentHasher._canonicalise(value, strict=strict)
-        except _UnhashableError as exc:
+        except UnhashableError as exc:
             if strict:
                 raise UnhashableValueError(type_name=exc.type_name) from exc
-            return f"sha256:{_UnhashableError.sentinel}:{type(value).__name__}"
+            return f"sha256:{UnhashableError.sentinel}:{type(value).__name__}"
         payload = json.dumps(canonical, separators=(",", ":"), sort_keys=False).encode("utf-8")
         digest = hashlib.sha256(payload).hexdigest()
         return f"sha256:{digest}"
@@ -144,7 +144,7 @@ class ContentHasher:
           :class:`PirnOpaqueValue`). ``TypeAdapter.dump_python`` honours the
           type's custom serialiser, producing a JSON-friendly dict that we
           then canonicalise normally. Without this branch the canonicaliser
-          walks dataclass ``type`` fields and hits ``_UnhashableError`` for
+          walks dataclass ``type`` fields and hits ``UnhashableError`` for
           anything containing a ``Mapping[str, type]`` (DataSchema columns).
 
         Args:
@@ -153,7 +153,7 @@ class ContentHasher:
                 through ``_canonicalise`` itself — the per-element sub-hash
                 inside the set/frozenset branch, which calls
                 :meth:`hash` directly. Every other branch recurses via
-                ``_canonicalise``, and ``_UnhashableError`` from a nested
+                ``_canonicalise``, and ``UnhashableError`` from a nested
                 call propagates unmodified regardless of ``strict`` — this
                 method never catches it, only :meth:`hash` does.
         """
@@ -202,7 +202,7 @@ class ContentHasher:
                 )
             except Exception:
                 # Fall through to the container/Mapping/Sequence branches
-                # below; if those also fail we end up at ``_UnhashableError``.
+                # below; if those also fail we end up at ``UnhashableError``.
                 _logger.warning(
                     "ContentHasher: TypeAdapter.dump_python failed for %s; "
                     "falling back to container/repr canonicalisation",
@@ -234,4 +234,4 @@ class ContentHasher:
             return {"__seq__": [ContentHasher._canonicalise(e, strict=strict) for e in value]}
         # Opaque type — bail.  Caller produces the UNHASHABLE marker (or, in
         # strict mode, UnhashableValueError naming this exact type).
-        raise _UnhashableError(type_name=type(value).__name__)
+        raise UnhashableError(type_name=type(value).__name__)

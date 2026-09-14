@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
-from pirn.backends.sqlite._migrations import _SqliteMigrations
+from pirn.backends.sqlite.sqlite_migrations import SqliteMigrations
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
 
@@ -191,7 +191,7 @@ class SQLiteHistory(RunHistory):
         if self._initialized:
             return
         self._conn.executescript(self._schema_version_ddl + self._history_ddl)
-        _SqliteMigrations.apply(
+        SqliteMigrations.apply(
             self._conn,
             "history",
             self._schema_version,

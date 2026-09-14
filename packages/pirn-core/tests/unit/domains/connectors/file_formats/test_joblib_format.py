@@ -14,7 +14,7 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("joblib not installed") from _e
 
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
@@ -34,7 +34,7 @@ class TestJoblibFormatConstruction(unittest.TestCase):
         assert fmt.signed is False
 
     def test_signer_construction_ok(self) -> None:
-        fmt = JoblibFormat(signer=_Signer.test_signer())
+        fmt = JoblibFormat(signer=Signer.test_signer())
         assert fmt.signed is True
 
     def test_non_bool_allow_unsigned_rejected(self) -> None:
@@ -77,7 +77,7 @@ class TestJoblibFormatRoundTripUnsigned(unittest.IsolatedAsyncioTestCase):
 
 class TestJoblibFormatRoundTripSigned(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_signed(self) -> None:
-        signer = _Signer.test_signer()
+        signer = Signer.test_signer()
         fmt = JoblibFormat(signer=signer)
         body = await FormatRoundTrip.encode(fmt, [{"object": {"a": 1, "b": "two"}}])
         # Signed payload begins with a 32-byte HMAC header.
@@ -87,7 +87,7 @@ class TestJoblibFormatRoundTripSigned(unittest.IsolatedAsyncioTestCase):
         assert decoded[0]["object_type"] == "dict"
 
     async def test_signed_payload_rejected_when_tampered(self) -> None:
-        signer = _Signer.test_signer()
+        signer = Signer.test_signer()
         fmt = JoblibFormat(signer=signer)
         body = await FormatRoundTrip.encode(fmt, [{"object": [1, 2, 3]}])
         # Flip a byte in the body section (after the 32-byte signature).
@@ -97,7 +97,7 @@ class TestJoblibFormatRoundTripSigned(unittest.IsolatedAsyncioTestCase):
             await FormatRoundTrip.decode(fmt, bytes(tampered))
 
     async def test_signed_payload_rejected_by_unsigned_reader(self) -> None:
-        signer = _Signer.test_signer()
+        signer = Signer.test_signer()
         writer = JoblibFormat(signer=signer)
         body = await FormatRoundTrip.encode(writer, [{"object": {"x": 1}}])
         reader = JoblibFormat(allow_unsigned=True)

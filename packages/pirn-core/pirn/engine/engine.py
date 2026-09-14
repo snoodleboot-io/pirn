@@ -52,6 +52,7 @@ from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.result import Result
 from pirn.core.run_context import RunContext
+from pirn.core.run_context_vars import RunContextVars
 from pirn.core.run_nesting import RunNesting
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
@@ -60,7 +61,6 @@ from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
-from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
 from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_observer import AdmissionObserver
 from pirn.engine.admission.admission_ticket import AdmissionTicket
@@ -73,6 +73,7 @@ from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.emitter_fanout import EmitterFanout
 from pirn.engine.governed_dispatch import GovernedDispatch
 from pirn.engine.lineage_recorder import LineageRecorder
+from pirn.engine.run_scoped_subscriber import RunScopedSubscriber
 from pirn.engine.scheduling.dependency_tracker import DependencyTracker
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
@@ -80,7 +81,6 @@ from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.managers.knot_state import KnotState
 from pirn.managers.rebindable_error import RebindableError
 from pirn.recording.replay_session import ReplaySession
-from pirn.tapestry import _current_dispatching_knot_id
 
 _log = logging.getLogger(__name__)
 
@@ -174,7 +174,7 @@ class Engine:
                 )
 
             subscribe_token = extensible_store.subscribe(
-                _RunScopedSubscriber(ctx.run_id, pending_new, registrars)
+                RunScopedSubscriber(ctx.run_id, pending_new, registrars)
             )
 
         active_transport: DataTransport = transport or InlineTransport()
@@ -789,7 +789,7 @@ class Engine:
         The wave loop stamped it on processing, so a fast knot listed after a
         slow sibling reported the sibling's duration as its own (PIR-841).
 
-        The knot's id is published on ``_current_dispatching_knot_id`` for the
+        The knot's id is published on ``RunContextVars.dispatching_knot_id`` for the
         life of this task, so a knot this one registers mid-run is attributed
         to it.  The task runs in its own copy of the context, so the value is
         never visible to the engine loop or to sibling knots.
@@ -798,7 +798,7 @@ class Engine:
         during backoff and re-admit before the next attempt (PIR-870); see
         ``GovernedDispatch``.
         """
-        _current_dispatching_knot_id.set(knot.knot_id)
+        RunContextVars.dispatching_knot_id.set(knot.knot_id)
         result, parent_hashes, started_at, replayed = await self._invoke(
             knot, inputs, replay, data_store, gate, ticket_holder
         )

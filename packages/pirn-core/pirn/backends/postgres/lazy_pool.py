@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 
-class _LazyPool:
+class LazyPool:
     """Wraps either an injected pool (test / sharing) or a DSN string.
 
     When a DSN is given the asyncpg pool is created lazily on first use.

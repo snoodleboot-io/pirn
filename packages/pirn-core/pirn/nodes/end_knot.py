@@ -1,4 +1,4 @@
-"""``_EndKnot`` — built-in terminal knot registered when a continuation returns ``Next('end')``."""
+"""``EndKnot`` — built-in terminal knot registered when a continuation returns ``Next('end')``."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 from pirn.core.knot import Knot
 
 
-class _EndKnot(Knot):
+class EndKnot(Knot):
     """Terminal knot — registered when a continuation returns Next('end').
 
     Produces no output.  Its presence in the graph makes explicit that the

@@ -26,13 +26,13 @@ from typing import TYPE_CHECKING, Any
 from pirn.backends.base.data_store import DataStore
 
 if TYPE_CHECKING:
-    from pirn.backends._signer import _Signer
+    from pirn.backends.signer import Signer
     from pirn.connectors.object_store import ObjectStore
 
 _logger = logging.getLogger(__name__)
 
 
-class _CloudObjectStore(DataStore):
+class CloudObjectStore(DataStore):
     """Serialization + signing base for object-store backends.
 
     Subclasses either implement ``_build_object_store() -> ObjectStore`` (the
@@ -52,14 +52,14 @@ class _CloudObjectStore(DataStore):
     def __init__(
         self,
         *,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
         prefix: str = "",
     ) -> None:
         """Initialise the base with signing configuration.
 
         Args:
-            signer: An ``_Signer`` instance used to HMAC-sign payloads before
+            signer: An ``Signer`` instance used to HMAC-sign payloads before
                 writing and verify them after reading.  Required in production.
             allow_unsigned: If ``True``, the store operates without signing.
                 Requires the ``PIRN_ALLOW_UNSIGNED=1`` environment variable to

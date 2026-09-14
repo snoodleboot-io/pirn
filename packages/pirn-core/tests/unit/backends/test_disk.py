@@ -10,8 +10,8 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
-from pirn.backends._signer import _Signer
 from pirn.backends.local_disk_data_store import LocalDiskDataStore
+from pirn.backends.signer import Signer
 
 
 class TestLocalDiskDataStoreKeyLayout(unittest.TestCase):
@@ -130,7 +130,7 @@ class TestLocalDiskDataStoreAtomicWrite(unittest.IsolatedAsyncioTestCase):
     async def test_concurrent_reader_never_observes_torn_payload(self) -> None:
         # The reported symptom: a reader racing a rewrite gets a ValueError
         # from signature verification because it read a partial file.
-        store = LocalDiskDataStore(self.root, signer=_Signer.test_signer())
+        store = LocalDiskDataStore(self.root, signer=Signer.test_signer())
         content_hash = "sha256:" + "a" * 64
         await store.put(content_hash, b"x" * 1024)
 

@@ -42,7 +42,7 @@ class ExecutionPlaneReachThroughInventory:
 
     #: The private ``Tapestry`` fields that make up a run's execution plane and
     #: its observability wiring.  ``SubTapestry._run_inner`` and
-    #: ``_IterationChainKnot`` forward every one of them; downstream code has
+    #: ``IterationChainKnot`` forward every one of them; downstream code has
     #: no business assigning them.
     PRIVATE_TAPESTRY_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {

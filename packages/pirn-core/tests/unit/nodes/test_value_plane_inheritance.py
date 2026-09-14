@@ -30,6 +30,7 @@ from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_context_vars import RunContextVars
 from pirn.core.run_request import RunRequest
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.inline_transport import InlineTransport
@@ -437,14 +438,13 @@ class TestTapestryPublishesItsValuePlane(unittest.IsolatedAsyncioTestCase):
     """`run()` has to publish both halves for the forwarding sites to read them."""
 
     async def test_the_running_tapestry_s_store_and_transport_are_visible(self) -> None:
-        from pirn.tapestry import _current_data_store, _current_transport
 
         seen: dict[str, Any] = {}
 
         class _Peek(Source):
             async def process(self, **_: Any) -> int:
-                seen["store"] = _current_data_store.get(None)
-                seen["transport"] = _current_transport.get(None)
+                seen["store"] = RunContextVars.data_store.get(None)
+                seen["transport"] = RunContextVars.transport.get(None)
                 return 1
 
         store, transport = InMemoryDataStore(), _RecordingTransport()
@@ -455,10 +455,9 @@ class TestTapestryPublishesItsValuePlane(unittest.IsolatedAsyncioTestCase):
         self.assertIs(transport, seen["transport"])
 
     async def test_the_vars_are_cleared_when_the_run_ends(self) -> None:
-        from pirn.tapestry import _current_data_store, _current_transport
 
         with Tapestry() as tapestry:
             _Seed(_config=KnotConfig(id="seed"))
         await tapestry.run(RunRequest())
-        self.assertIsNone(_current_data_store.get(None))
-        self.assertIsNone(_current_transport.get(None))
+        self.assertIsNone(RunContextVars.data_store.get(None))
+        self.assertIsNone(RunContextVars.transport.get(None))

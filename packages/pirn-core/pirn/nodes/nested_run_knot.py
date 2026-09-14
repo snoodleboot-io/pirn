@@ -79,6 +79,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_context_vars import RunContextVars
 from pirn.nodes.sub_tapestry_error import SubTapestryError
 
 if TYPE_CHECKING:
@@ -258,10 +259,9 @@ class NestedRunKnot(Knot):
         # because they are two halves of the same subscription: forwarding one
         # without the other is what made inner work visible to the explorer and
         # invisible to spans/metrics/logs (PIR-834).
-        from pirn.tapestry import _current_tapestry
 
         explicit_tapestry = kwargs.get("tapestry")
-        outer = explicit_tapestry or _current_tapestry.get(None)
+        outer = explicit_tapestry or RunContextVars.tapestry.get(None)
         outer_history: RunHistory | None = outer.history if outer is not None else None
         outer_emitters: list[Any] | None = outer.emitters if outer is not None else None
         outer_emitter_policy: Any = outer.emitter_error_policy if outer is not None else None
@@ -392,15 +392,6 @@ class NestedRunKnot(Knot):
         ``run_path``, which identify inner runs precisely.  See PIR-834.
         """
         from pirn.core.run_request import RunRequest
-        from pirn.tapestry import (
-            _current_data_store,
-            _current_emitter_error_policy,
-            _current_emitters,
-            _current_history,
-            _current_run_id,
-            _current_traceback_filter,
-            _current_transport,
-        )
 
         # Prefer the live contextvar over the construction-time capture.
         #
@@ -416,7 +407,7 @@ class NestedRunKnot(Knot):
         # that run is actually writing to, so it is right at every depth.  It is
         # None only outside a run, and the construction-time capture is then the
         # correct answer.  See PIR-764.
-        outer_history: RunHistory | None = _current_history.get(None)
+        outer_history: RunHistory | None = RunContextVars.history.get(None)
         if outer_history is None:
             outer_history = self._mutable_outer_history
         # Inject the outer history into the inner tapestry so inner runs are
@@ -432,10 +423,10 @@ class NestedRunKnot(Knot):
         # its values into the *real* outer store, so the lineage row it records
         # in the real outer history has something to resolve against
         # (PIR-764/PIR-773, PIR-837).
-        outer_data_store: Any = _current_data_store.get(None)
+        outer_data_store: Any = RunContextVars.data_store.get(None)
         if outer_data_store is None:
             outer_data_store = self._mutable_outer_data_store
-        outer_transport: Any = _current_transport.get(None)
+        outer_transport: Any = RunContextVars.transport.get(None)
         if outer_transport is None:
             outer_transport = self._mutable_outer_transport
         self._apply_inherited_value_plane(
@@ -453,8 +444,8 @@ class NestedRunKnot(Knot):
         # a policy belongs to the subscription it governs, so mixing a live
         # emitter list with a construction-time policy (or vice versa) would
         # apply one run's error handling to another run's emitters.
-        outer_emitters: list[Any] | None = _current_emitters.get(None)
-        outer_emitter_policy: Any = _current_emitter_error_policy.get(None)
+        outer_emitters: list[Any] | None = RunContextVars.emitters.get(None)
+        outer_emitter_policy: Any = RunContextVars.emitter_error_policy.get(None)
         if outer_emitters is None:
             outer_emitters = self._mutable_outer_emitters
             outer_emitter_policy = self._mutable_outer_emitter_policy
@@ -466,7 +457,7 @@ class NestedRunKnot(Knot):
         # If no explicit parent_run_id was supplied, inherit from the context
         # var set by the enclosing Tapestry.run() call.
         if parent_run_id is None:
-            parent_run_id = _current_run_id.get(None)
+            parent_run_id = RunContextVars.run_id.get(None)
 
         # Per-container overrides of the inherited execution plane (WS0b): an
         # explicit argument wins, then the subclass hook; ``None`` inherits.
@@ -494,7 +485,7 @@ class NestedRunKnot(Knot):
             _nesting_key=self._nesting_key(),
             _inner_run_ordinal=ordinal,
             extensible=extensible,
-            traceback_filter=_current_traceback_filter.get(None),
+            traceback_filter=RunContextVars.traceback_filter.get(None),
             emitters=inner_emitters,
             emitter_error_policy=inner_emitter_policy,
             dispatcher=inner_dispatcher,

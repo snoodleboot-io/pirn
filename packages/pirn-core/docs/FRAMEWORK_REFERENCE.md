@@ -692,7 +692,7 @@ to `ExceptionRecord`.
   (`pirn/_migrate/`), and the `Knot._deprecated_since` /
   `_deprecation_notice` construction-warning seam (with its last user,
   `pirn_data`'s `ScdType1Overwrite` — use `MergeUpsert`).
-- **`_CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
+- **`CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
   `GCSDataStore` and `AzureBlobDataStore` no longer open an SDK client per
   call: each lazily builds its connector `ObjectStore` (`S3Store`, `GCSStore`,
   `AzureBlobStore`) through `_build_object_store()` and delegates

@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.backends._signer import _Signer
-from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.base.cloud_object_store import CloudObjectStore
+from pirn.backends.signer import Signer
 
 if TYPE_CHECKING:
     from pirn.connectors.object_store import ObjectStore
 
 
-class GCSDataStore(_CloudObjectStore):
+class GCSDataStore(CloudObjectStore):
     """``DataStore`` backed by a GCS bucket via gcloud-aio-storage.
 
     Each value is one GCS object at ``gs://{bucket}/{prefix}{hash}``.
@@ -42,7 +42,7 @@ class GCSDataStore(_CloudObjectStore):
         service_file: str | None = None,
         session: Any = None,
         client: Any = None,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         """Initialise the store.
@@ -56,7 +56,7 @@ class GCSDataStore(_CloudObjectStore):
                 client to reuse.
             client: A ready ``gcloud.aio.storage.Storage``-like client
                 (tests).  When given, ``service_file``/``session`` are unused.
-            signer: An ``_Signer`` for HMAC payload signing.  Required unless
+            signer: An ``Signer`` for HMAC payload signing.  Required unless
                 ``allow_unsigned=True`` is set.
             allow_unsigned: If ``True``, the store operates without signing.
                 Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.

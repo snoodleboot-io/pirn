@@ -77,7 +77,7 @@ from functools import lru_cache
 _MAX_PIRN_AGENTS_MODULES = 975
 _MAX_SPECIALIZATION_MODULES = 430
 # PIR-869 moved every core module-level function onto a holder class (CLI
-# classes, ConnectionConfigDecorator, AsyncCallable, _SqliteMigrations, ...);
+# classes, ConnectionConfigDecorator, AsyncCallable, SqliteMigrations, ...);
 # each is one more registry entry. Measured 1379 after that change.
 _MAX_REGISTRY_ENTRIES = 1379
 

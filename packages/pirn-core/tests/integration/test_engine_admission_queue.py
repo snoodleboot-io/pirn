@@ -28,9 +28,10 @@ from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+from pirn.core.run_context_vars import RunContextVars
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
-from pirn.tapestry import Tapestry, _current_run_id
+from pirn.tapestry import Tapestry
 
 
 class _Script:
@@ -132,12 +133,12 @@ def _register_late_parentless(script: _Script, target: Tapestry, run_id: str | N
     fresh ``contextvars.Context`` standing in for a durable store's listener,
     which restores only the run id from the notice.
     """
-    token = _current_run_id.set(run_id)
+    token = RunContextVars.run_id.set(run_id)
     try:
         with target:
             _Scripted(script=script, _config=KnotConfig(id="late"))
     finally:
-        _current_run_id.reset(token)
+        RunContextVars.run_id.reset(token)
 
 
 async def _register_without_a_registrar(script: _Script, target: Tapestry, via: str) -> None:

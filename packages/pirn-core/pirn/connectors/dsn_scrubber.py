@@ -1,6 +1,6 @@
 """DSN / connection-string credential scrubber.
 
-Generalises the existing ``pirn/backends/postgres/_lazy_pool.py`` regex into
+Generalises the existing ``pirn/backends/postgres/lazy_pool.py`` regex into
 a reusable class. Used by :class:`pirn.connectors.connection_config.ConnectionConfig`
 to redact inline credentials from any DSN-style URL before logging.
 """

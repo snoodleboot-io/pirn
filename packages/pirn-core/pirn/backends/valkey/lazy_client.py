@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 
-class _LazyClient:
+class LazyClient:
     """Wraps either an injected client (test / sharing) or a GlideClientConfiguration.
 
     When a config is given the GlideClient is created lazily on first use.

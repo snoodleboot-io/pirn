@@ -13,7 +13,7 @@ Security: ``torch.load`` with ``weights_only=False`` deserialises
 arbitrary Python objects via ``pickle`` — this is RCE-prone. The
 constructor defaults ``weights_only=True`` (PyTorch's safe-mode loader,
 which only restores tensor data and refuses arbitrary callables). Users
-who need full model loading must supply a :class:`_Signer` so the
+who need full model loading must supply a :class:`Signer` so the
 payload is HMAC-verified before deserialisation, or set
 ``allow_unsigned=True`` to opt out (NOT recommended for untrusted
 inputs).
@@ -31,7 +31,7 @@ import io
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
@@ -57,16 +57,16 @@ class PytorchFormat(BatchFileFormat):
     def __init__(
         self,
         weights_only: bool = True,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         if not isinstance(weights_only, bool):
             raise TypeError(
                 f"PytorchFormat: weights_only must be a bool, got {type(weights_only).__name__}"
             )
-        if signer is not None and not isinstance(signer, _Signer):
+        if signer is not None and not isinstance(signer, Signer):
             raise TypeError(
-                f"PytorchFormat: signer must be a _Signer or None, got {type(signer).__name__}"
+                f"PytorchFormat: signer must be a Signer or None, got {type(signer).__name__}"
             )
         if not isinstance(allow_unsigned, bool):
             raise TypeError(
@@ -92,7 +92,7 @@ class PytorchFormat(BatchFileFormat):
         return self._weights_only
 
     @property
-    def signer(self) -> _Signer | None:
+    def signer(self) -> Signer | None:
         return self._signer
 
     @property

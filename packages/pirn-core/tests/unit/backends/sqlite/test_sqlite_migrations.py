@@ -1,11 +1,11 @@
-"""Tests for _SqliteMigrations.apply SQLite schema migration helper."""
+"""Tests for SqliteMigrations.apply SQLite schema migration helper."""
 
 from __future__ import annotations
 
 import sqlite3
 import unittest
 
-from pirn.backends.sqlite._migrations import _SqliteMigrations
+from pirn.backends.sqlite.sqlite_migrations import SqliteMigrations
 
 
 def _fresh_conn() -> sqlite3.Connection:
@@ -29,12 +29,12 @@ class TestApplyMigrations(unittest.TestCase):
         def _m2(c: sqlite3.Connection) -> None:
             called.append(2)
 
-        _SqliteMigrations.apply(conn, "test", 2, {1: _m1, 2: _m2})
+        SqliteMigrations.apply(conn, "test", 2, {1: _m1, 2: _m2})
         self.assertEqual(called, [1, 2])
 
     def test_records_target_version_in_table(self) -> None:
         conn = _fresh_conn()
-        _SqliteMigrations.apply(conn, "test_comp", 3, {})
+        SqliteMigrations.apply(conn, "test_comp", 3, {})
         row = conn.execute(
             "SELECT version FROM pirn_schema_version WHERE component = 'test_comp'"
         ).fetchone()
@@ -51,7 +51,7 @@ class TestApplyMigrations(unittest.TestCase):
         def _m2(c: sqlite3.Connection) -> None:
             called.append(2)
 
-        _SqliteMigrations.apply(conn, "comp", 2, {1: _m1, 2: _m2})
+        SqliteMigrations.apply(conn, "comp", 2, {1: _m1, 2: _m2})
         # Only m2 should be called (v1 already applied)
         self.assertEqual(called, [2])
 
@@ -59,14 +59,14 @@ class TestApplyMigrations(unittest.TestCase):
         conn = _fresh_conn()
         conn.execute("INSERT INTO pirn_schema_version VALUES ('comp', 5)")
         called: list[int] = []
-        _SqliteMigrations.apply(conn, "comp", 5, {1: lambda c: called.append(1)})
+        SqliteMigrations.apply(conn, "comp", 5, {1: lambda c: called.append(1)})
         self.assertEqual(called, [])
 
     def test_no_migration_for_version_gap_skips_gracefully(self) -> None:
         conn = _fresh_conn()
         # Only v2 registered; v1 has no migration — should still advance
         called: list[int] = []
-        _SqliteMigrations.apply(conn, "comp", 2, {2: lambda c: called.append(2)})
+        SqliteMigrations.apply(conn, "comp", 2, {2: lambda c: called.append(2)})
         self.assertEqual(called, [2])
         row = conn.execute(
             "SELECT version FROM pirn_schema_version WHERE component = 'comp'"
@@ -75,7 +75,7 @@ class TestApplyMigrations(unittest.TestCase):
 
     def test_empty_migrations_dict_advances_version(self) -> None:
         conn = _fresh_conn()
-        _SqliteMigrations.apply(conn, "comp", 3)
+        SqliteMigrations.apply(conn, "comp", 3)
         row = conn.execute(
             "SELECT version FROM pirn_schema_version WHERE component = 'comp'"
         ).fetchone()
@@ -83,8 +83,8 @@ class TestApplyMigrations(unittest.TestCase):
 
     def test_multiple_components_tracked_independently(self) -> None:
         conn = _fresh_conn()
-        _SqliteMigrations.apply(conn, "alpha", 2, {})
-        _SqliteMigrations.apply(conn, "beta", 5, {})
+        SqliteMigrations.apply(conn, "alpha", 2, {})
+        SqliteMigrations.apply(conn, "beta", 5, {})
         alpha = conn.execute(
             "SELECT version FROM pirn_schema_version WHERE component = 'alpha'"
         ).fetchone()[0]

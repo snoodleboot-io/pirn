@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.backends._signer import _Signer
-from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.base.cloud_object_store import CloudObjectStore
+from pirn.backends.signer import Signer
 
 if TYPE_CHECKING:
     from pirn.connectors.object_store import ObjectStore
 
 
-class AzureBlobDataStore(_CloudObjectStore):
+class AzureBlobDataStore(CloudObjectStore):
     """``DataStore`` backed by Azure Blob Storage.
 
     Each value is one blob at ``{container}/{prefix}{hash}``.
@@ -43,7 +43,7 @@ class AzureBlobDataStore(_CloudObjectStore):
         account_url: str | None = None,
         credential: Any = None,
         client: Any = None,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         """Initialise the store.
@@ -58,7 +58,7 @@ class AzureBlobDataStore(_CloudObjectStore):
                 SAS token or a ``TokenCredential``; ``None`` for anonymous
                 access to a public container.
             client: A ready ``BlobServiceClient``-like client (tests).
-            signer: An ``_Signer`` for HMAC payload signing.  Required unless
+            signer: An ``Signer`` for HMAC payload signing.  Required unless
                 ``allow_unsigned=True`` is set.
             allow_unsigned: If ``True``, the store operates without signing.
                 Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.

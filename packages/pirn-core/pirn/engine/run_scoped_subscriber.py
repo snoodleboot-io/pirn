@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pirn.tapestry import Tapestry, _current_dispatching_knot_id
+from pirn.core.run_context_vars import RunContextVars
+from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-class _RunScopedSubscriber:
+class RunScopedSubscriber:
     """Queues a newly-registered knot only if this run registered it.
 
     ``Tapestry._store`` is tapestry-scoped and fans every registration to
@@ -59,7 +60,7 @@ class _RunScopedSubscriber:
     def __call__(self, knot: Knot) -> None:
         registering_run_id = Tapestry.current_run_id()
         if registering_run_id is None or registering_run_id == self._run_id:
-            registrar = _current_dispatching_knot_id.get()
+            registrar = RunContextVars.dispatching_knot_id.get()
             if self._registrars is not None and registrar is not None:
                 # Before queueing: the engine may drain the queue from another
                 # thread the moment the knot is in it.

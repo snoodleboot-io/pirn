@@ -63,8 +63,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes._iteration_chain_knot import _IterationChainKnot
-from pirn.nodes._loop_terminal import _LoopTerminal
+from pirn.core.run_context_vars import RunContextVars
+from pirn.nodes.iteration_chain_knot import IterationChainKnot
+from pirn.nodes.loop_terminal import LoopTerminal
 from pirn.nodes.sub_tapestry import SubTapestry
 
 if TYPE_CHECKING:
@@ -113,32 +114,32 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         1. Bootstrap — ``process()`` awaits ``astep(initial_state)`` to decide
            whether any iterations are needed.
         2. Zero-iteration short-circuit — if ``step`` returns ``None`` on the
-           first call, a ``_LoopTerminal`` seeded with the initial state is
+           first call, a ``LoopTerminal`` seeded with the initial state is
            registered directly in the inner tapestry and returned as the sink.
            The loop run executes that one knot and completes.
-        3. First iteration — otherwise, an ``_IterationChainKnot`` for iteration
+        3. First iteration — otherwise, an ``IterationChainKnot`` for iteration
            index 1 is created with the iteration tapestry returned by ``step``
            and registered in the inner tapestry.  The initial state is wired in
            as a config value (not a parent edge) so no upstream dependency exists.
         4. Extensible inner run — ``SubTapestry.__call__`` starts the inner
            tapestry in extensible mode (``_extensible_inner_run = True``).  The
            engine executes iteration 1 and waits for more knots.
-        5. Fold — when iteration N completes, ``_IterationChainKnot.process``
+        5. Fold — when iteration N completes, ``IterationChainKnot.process``
            awaits ``afold(state, run_result)`` to integrate the iteration's
            outputs into the accumulated state.
         6. Plan next — ``astep(new_state)`` is awaited immediately after the fold.
-           If it returns a ``(tapestry, state)`` pair, a new ``_IterationChainKnot``
+           If it returns a ``(tapestry, state)`` pair, a new ``IterationChainKnot``
            for iteration N+1 is registered into the loop's live store via
            ``Tapestry.current_store()``.  The extensible engine merges it as soon as
            iteration N's completion is processed and starts it straight away,
            with the previous iteration knot as its parent edge (encoding the
            data dependency and ordering).
         7. Terminal registration — when ``step`` returns ``None``, a
-           ``_LoopTerminal`` knot is registered with the last iteration chain
+           ``LoopTerminal`` knot is registered with the last iteration chain
            knot as its ``state`` parent.  The terminal's ID is the well-known
            sentinel ``__loop_terminal__``.
         8. Output extraction — ``_resolve_output_key`` always returns
-           ``_terminal_id`` so the final state surfaced by ``_LoopTerminal``
+           ``_terminal_id`` so the final state surfaced by ``LoopTerminal``
            becomes the loop's output, regardless of how many iterations ran.
     """
 
@@ -229,10 +230,10 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         """Wire the iteration chain into the inner tapestry and return the sink knot.
 
         For a zero-iteration loop (``step`` returns ``None`` immediately),
-        creates and returns a ``_LoopTerminal`` seeded with the initial state.
-        For a normal loop, creates the first ``_IterationChainKnot`` — subsequent
+        creates and returns a ``LoopTerminal`` seeded with the initial state.
+        For a normal loop, creates the first ``IterationChainKnot`` — subsequent
         iterations self-register mid-run via the extensible engine.  The last
-        iteration registers the ``_LoopTerminal``; ``_resolve_output_key`` always
+        iteration registers the ``LoopTerminal``; ``_resolve_output_key`` always
         directs the output lookup to that terminal regardless of which knot is
         returned here.
 
@@ -241,8 +242,8 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
 
         Returns:
             The first knot registered in the inner tapestry — either a
-            ``_LoopTerminal`` (zero iterations) or the first
-            ``_IterationChainKnot``.
+            ``LoopTerminal`` (zero iterations) or the first
+            ``IterationChainKnot``.
         """
         # Prefer the live contextvar over the construction-time capture, for the
         # same reason `SubTapestry._run_inner` does (PIR-764): a loop built
@@ -252,22 +253,21 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         # recorded into a store nobody keeps. PIR-764 fixed `_run_inner`; this
         # call site had no consumer to expose it until the PIR-713 pilot nested
         # a loop inside a pipeline.
-        from pirn.tapestry import _current_history
 
-        outer_history: Any = _current_history.get(None)
+        outer_history: Any = RunContextVars.history.get(None)
         if outer_history is None:
             outer_history = self._mutable_outer_history
 
         first_outcome = await self.astep(state)
         if first_outcome is None:
-            return _LoopTerminal(
+            return LoopTerminal(
                 state=state,
                 _config=KnotConfig(id=self._terminal_id),
             )
 
         first_tapestry, first_state = first_outcome
         first_knot_id = self.step_id(first_state, 1)
-        return _IterationChainKnot(
+        return IterationChainKnot(
             _loop_sub=self,
             _iter_tapestry=first_tapestry,
             _iteration_idx=1,

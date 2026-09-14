@@ -22,9 +22,7 @@ import functools
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from pirn.triggers._run_driver import (
-    _RunDriver,  # pyright: ignore[reportPrivateUsage]  # package-internal driver
-)
+from pirn.triggers.run_driver import RunDriver
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -99,12 +97,12 @@ class StreamingSource:
         source is the *primary* input and other parameters are constants
         for the run.
 
-        Thin wrapper around ``_RunDriver.drive``, shared with
+        Thin wrapper around ``RunDriver.drive``, shared with
         ``Trigger.run_forever``: ``to_request`` binds each value to
         ``self.parameter_name`` alongside ``extra_parameters``, and "close"
         means :meth:`close`. A cancelled run ends the stream; it is not a
         bad value for ``on_error`` to log and skip past (PIR-841) — see the
-        ``asyncio.CancelledError`` re-raise inside ``_RunDriver.drive``.
+        ``asyncio.CancelledError`` re-raise inside ``RunDriver.drive``.
         """
         base_params = dict(extra_parameters or {})
         to_request = functools.partial(
@@ -113,7 +111,7 @@ class StreamingSource:
             self.parameter_name,
         )
 
-        await _RunDriver.drive(
+        await RunDriver.drive(
             self.stream(),
             tapestry=tapestry,
             to_request=to_request,

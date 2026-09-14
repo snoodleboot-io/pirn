@@ -91,7 +91,7 @@ class TestPlanExecutorProcess(unittest.IsolatedAsyncioTestCase):
 
         Nesting is three deep here: ``exec`` (the outer ``PlanExecutor``) runs
         ``loop`` (a ``LoopSubTapestry``) whose own inner run registers one
-        ``_IterationChainKnot`` per step, each of which runs the per-step
+        ``IterationChainKnot`` per step, each of which runs the per-step
         tapestry containing the ``call`` knot — so the search walks every
         descendant run, not just direct children.
         """

@@ -3,7 +3,7 @@ accessors, and for ``EmitterFanout.emit_status`` — the sanctioned way to deliv
 an ad hoc ``StatusEvent`` to a run's emitters from inside a knot's ``process()``.
 
 Mirrors ``test_current_run_id.py``: emitters have always been carried in a
-``ContextVar``, but only as the private ``_current_emitters``. A downstream
+``ContextVar``, but only as the private ``RunContextVars.emitters``. A downstream
 domain publishing its own sub-knot events (an LLM call, a tool call, a
 retrieval step) needs the same run-scoped emitter subscription the engine
 itself fans lifecycle transitions to, without reaching into a private name.

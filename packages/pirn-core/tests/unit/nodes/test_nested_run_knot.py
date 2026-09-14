@@ -23,6 +23,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.ok import Ok
+from pirn.core.run_context_vars import RunContextVars
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.emitters.emitter import Emitter
@@ -33,7 +34,7 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.nested_run_knot import NestedRunKnot
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.recording.replay_session import ReplaySession
-from pirn.tapestry import Tapestry, _current_execution_plane, _current_run_id
+from pirn.tapestry import Tapestry
 
 
 class _Value(Knot):
@@ -371,15 +372,17 @@ class TestInheritedReplayPicksTheInnerRunByOrdinal(unittest.IsolatedAsyncioTestC
             )
 
         # Act: start that inner run as the host's n-th, under outer replay.
-        token_plane = _current_execution_plane.set(self._plane(ReplaySession(source_run=outer)))
-        token_run = _current_run_id.set(outer.run_id)
+        token_plane = RunContextVars.execution_plane.set(
+            self._plane(ReplaySession(source_run=outer))
+        )
+        token_run = RunContextVars.run_id.set(outer.run_id)
         try:
             replayed = await inner.run(
                 RunRequest(), _parent_knot_id="host", _inner_run_ordinal=ordinal
             )
         finally:
-            _current_run_id.reset(token_run)
-            _current_execution_plane.reset(token_plane)
+            RunContextVars.run_id.reset(token_run)
+            RunContextVars.execution_plane.reset(token_plane)
 
         self.assertTrue(replayed.succeeded, replayed.exceptions)
         (replayed_row,) = replayed.lineage

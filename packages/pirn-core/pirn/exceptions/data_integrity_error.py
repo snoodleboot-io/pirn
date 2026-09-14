@@ -9,6 +9,6 @@ class DataIntegrityError(PirnError, ValueError):
     Subclasses ``ValueError`` in addition to ``PirnError`` — matching the
     precedent set by :class:`~pirn.exceptions.value_evicted_error.ValueEvictedError`
     subclassing ``KeyError`` — because every existing caller of
-    :meth:`~pirn.backends._signer._Signer.verify` catches ``ValueError`` for
+    :meth:`~pirn.backends.signer.Signer.verify` catches ``ValueError`` for
     a truncated or tampered payload.
     """

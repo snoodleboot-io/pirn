@@ -51,6 +51,7 @@ from pirn.core.map import Map
 from pirn.core.map_type_error import MapTypeError
 from pirn.core.ok import Ok
 from pirn.core.result import Result
+from pirn.core.run_context_vars import RunContextVars
 from pirn.core.skipped import Skipped
 from pirn.core.zip_map import ZipMap
 from pirn.managers.exception_record import ExceptionRecord
@@ -532,9 +533,7 @@ class Knot:
         # shallow ``run_scoped_copy`` never shares it with the graph knot.
         self._mutable_dispatch_extra: dict[str, Any] = {}
 
-        from pirn.tapestry import _current_tapestry
-
-        target_tapestry = tapestry or _current_tapestry.get(None)
+        target_tapestry = tapestry or RunContextVars.tapestry.get(None)
         if target_tapestry is not None:
             target_tapestry.register(self)
 

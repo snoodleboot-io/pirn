@@ -7,10 +7,10 @@ and other Python objects that benefit from compressed numpy storage.
 sink.
 
 This module mirrors the trust-boundary contract used by
-:class:`pirn.backends.base._cloud_object_store._CloudObjectStore`:
+:class:`pirn.backends.base.cloud_object_store.CloudObjectStore`:
 construction REFUSES to proceed without an explicit acknowledgement
 that the caller understands the risk. The caller must either pass a
-:class:`pirn.backends._signer._Signer` (production) or set
+:class:`pirn.backends.signer.Signer` (production) or set
 ``allow_unsigned=True`` (single-tenant dev / test only).
 
 When a signer is configured, payloads are HMAC-SHA256 signed before
@@ -34,7 +34,7 @@ from pirn.connectors.file_formats.batch_file_format import (
 )
 
 if TYPE_CHECKING:
-    from pirn.backends._signer import _Signer
+    from pirn.backends.signer import Signer
 
 
 class JoblibFormat(BatchFileFormat):
@@ -53,7 +53,7 @@ class JoblibFormat(BatchFileFormat):
 
     def __init__(
         self,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         if not isinstance(allow_unsigned, bool):
