@@ -1,7 +1,7 @@
 """``RowCountCheck`` — assesses whether a :class:`DataBatch`'s row count
 falls within ``[min_rows, max_rows]``.
 
-Despite the legacy "Gate" suffix in the catalog, this is a :class:`Knot`
+This is an assessment :class:`Knot` (a check, not a gate)
 that emits a :class:`QualityReport`. Wrap with
 :class:`pirn.nodes.gate.gate.Gate` to halt the pipeline on failure::
 
