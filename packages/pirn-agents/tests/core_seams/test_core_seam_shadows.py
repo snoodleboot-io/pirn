@@ -55,15 +55,16 @@ INPUT_SCHEMA = frozenset(
     }
 )
 
+# PIR-866 removed BackpressureSemaphore/ConcurrencyConfig/Bulkhead/
+# BulkheadConfig: each now subclasses one of this seam's core bases
+# (ConcurrencyConfig/BulkheadConfig -> ConcurrencyLimits; BackpressureSemaphore/
+# Bulkhead -> AdmissionGate), so CoreSeamShadowInventory.is_shadow no longer
+# matches them.
 ADMISSION_FEEDBACK = frozenset(
     {
         "agent/_fanout_runner.py::_FanoutRunner",
         "agent/async_fanout_engine.py::AsyncFanoutEngine",
         "batch/batch_scheduler.py::BatchScheduler",
-        "performance/backpressure_semaphore.py::BackpressureSemaphore",
-        "performance/concurrency_config.py::ConcurrencyConfig",
-        "resilience/bulkhead.py::Bulkhead",
-        "resilience/bulkhead_config.py::BulkheadConfig",
     }
 )
 
@@ -96,7 +97,8 @@ class TestCoreSeamShadowsAreFrozen(unittest.TestCase):
     def test_the_walk_is_not_vacuous(self) -> None:
         """A guard that finds nothing passes for the wrong reason."""
         total = sum(len(labels) for labels in self.found.values())
-        assert total >= 15, self.found
+        # PIR-866 removed 4 admission_feedback shadows (15 -> 14).
+        assert total >= 14, self.found
 
     def test_retry_and_timeout_shadows_are_frozen(self) -> None:
         self._assert_frozen("retry_timeout", RETRY_TIMEOUT)

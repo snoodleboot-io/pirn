@@ -6,12 +6,15 @@ execution should be the core engine's ``Map``/``Aggregator``/``Dispatcher``/
 ``asyncio.Semaphore``, or a checkpoint store outside ``RunHistory``. The
 classes below are what remained after WS4b's own migration
 (``MapAgent`` → per-item knots + ``Aggregator``;
-``AdaptiveConcurrencyController`` → ``AdmissionObserver``): two
-deliberately-kept deprecated shims (``BatchScheduler``, ``BatchCheckpointer``,
-plus the value type ``BatchProgress`` that bridges to the old checkpoint
-shape) with zero external callers left in this tree, and two primitives
-(``BackpressureSemaphore``, ``Bulkhead``) this workstream does not own the
-blast radius to migrate — see the WS4b report's "Deferred" section.
+``AdaptiveConcurrencyController`` → ``AdmissionObserver``): one
+deliberately-kept deprecated shim (``BatchScheduler``, plus
+``BatchCheckpointer`` and the value type ``BatchProgress`` that bridges to
+the old checkpoint shape) with zero external callers left in this tree.
+PIR-866 migrated the two primitives WS4b did not own the blast radius for
+(``BackpressureSemaphore``, ``Bulkhead``) onto a real
+``pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate`` per
+pool (``pirn_agents.performance._backpressure_gate._BackpressureGate``), so
+``OWN_CONCURRENCY_LIMIT`` below is empty.
 
 The allowlists are asserted by **exact equality**, deliberately:
 
@@ -20,11 +23,8 @@ The allowlists are asserted by **exact equality**, deliberately:
   still names it.
 
 The second half is what keeps the list from rotting into a lie. When a later
-workstream retires ``BatchScheduler``/``BatchCheckpointer`` outright, or
-migrates ``BackpressureSemaphore``/``Bulkhead`` onto ``ConcurrencyLimits``
-(possible once their callers in ``agent/`` and ``specializations/`` — owned
-by other lanes — move onto a knot-scoped concurrency group), delete the
-corresponding line and watch this test go green.
+workstream retires ``BatchScheduler``/``BatchCheckpointer`` outright, delete
+the corresponding line and watch this test go green.
 """
 
 from __future__ import annotations
@@ -38,12 +38,13 @@ from tests.batch.one_scheduler_inventory import OneSchedulerInventory
 
 ASYNCIO_LOOP = frozenset({"batch/batch_scheduler.py::BatchScheduler"})
 
-OWN_CONCURRENCY_LIMIT = frozenset(
-    {
-        "performance/backpressure_semaphore.py::BackpressureSemaphore",
-        "resilience/bulkhead.py::Bulkhead",
-    }
-)
+# PIR-866 migrated both off their own asyncio.Semaphore: BackpressureSemaphore
+# and Bulkhead now delegate every admission decision to a real
+# pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate through
+# the shared pirn_agents.performance._backpressure_gate._BackpressureGate --
+# see its module docstring. Empty, not deleted: a re-introduced private
+# semaphore anywhere in these three directories still fails loudly here.
+OWN_CONCURRENCY_LIMIT: frozenset[str] = frozenset()
 
 CHECKPOINTS_OUTSIDE_RUN_HISTORY = frozenset(
     {
