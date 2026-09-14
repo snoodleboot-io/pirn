@@ -7,6 +7,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
+from pirn.emitters.emitter import Emitter
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.traceback_redactor import TracebackRedactor
@@ -73,15 +74,12 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class _BrokenEmitter:
-    """An emitter that always raises."""
+class _BrokenEmitter(Emitter):
+    """An emitter whose lineage and run-result hooks always raise."""
 
     @property
     def name(self) -> str:
         return "BrokenEmitter"
-
-    async def on_status(self, event: object) -> None:
-        """No-op: these tests exercise on_lineage/on_run_result policy only."""
 
     async def on_lineage(self, record: object) -> None:
         raise RuntimeError("boom")

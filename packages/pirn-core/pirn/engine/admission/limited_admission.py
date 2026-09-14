@@ -153,6 +153,24 @@ class LimitedAdmission(Admission):
         with self._lock:
             return self._group_in_flight[group]
 
+    def check_group(self, knot: Knot) -> None:
+        """Refuse a knot tagged with a group the limits do not define.
+
+        The declared groups never change after construction (``set_limit``
+        adjusts caps, not the set of groups), so no lock is needed.
+
+        Args:
+            knot: A knot this gate may be asked to admit.
+
+        Raises:
+            UndefinedConcurrencyGroupError: If the limits define groups and
+                *knot*'s group is not one of them.  Tags are ignored when the
+                limits define no groups.
+        """
+        group = knot.config.concurrency_group
+        if group is not None and self._limits.groups and group not in self._limits.groups:
+            raise UndefinedConcurrencyGroupError(knot.knot_id, group, self._limits.groups)
+
     def try_admit(self, knot: Knot) -> AdmissionTicket | None:
         """Admit *knot* if both its global and its group budget have room.
 
@@ -168,11 +186,10 @@ class LimitedAdmission(Admission):
                 *knot*'s group is not one of them.  Tags are ignored when the
                 limits define no groups.
         """
+        self.check_group(knot)
         group = knot.config.concurrency_group
         with self._lock:
             group_limit = self._group_limits.get(group) if group is not None else None
-            if group is not None and group_limit is None and self._limits.groups:
-                raise UndefinedConcurrencyGroupError(knot.knot_id, group, self._limits.groups)
             if self._max_in_flight is not None and self._in_flight >= self._max_in_flight:
                 return None
             held_group: str | None = None

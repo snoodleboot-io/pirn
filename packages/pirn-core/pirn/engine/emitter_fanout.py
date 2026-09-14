@@ -7,9 +7,10 @@ Algorithm:
     Every hook is delivered under the run's ``EmitterErrorPolicy`` through
     ``handle_emitter_error``: an emitter that raises is ignored, logged at
     WARNING, or re-raised (``RAISE``), so the same policy governs
-    ``on_status`` (scheduled as a task per transition), ``on_knot_result``
-    (awaited in place the moment a knot settles), and ``on_lineage`` /
-    ``on_run_result`` (awaited after the run is persisted).
+    ``on_status`` (scheduled as a task per transition and awaited by the
+    engine before the run finishes, ``drain_status_deliveries``),
+    ``on_knot_result`` (awaited in place the moment a knot settles), and
+    ``on_lineage`` / ``on_run_result`` (awaited after the run is persisted).
 
     ``emit_knot_result(emitters, policy, knot_id, result, lineage)``:
 
@@ -68,17 +69,13 @@ class EmitterFanout:
         """Subscribe each emitter's ``on_status`` to ``StatusManager``.
 
         StatusManager calls subscribers synchronously; emitters are
-        async.  We schedule each call as a fire-and-forget task on the
-        running loop. A failing ``on_status`` is routed through
-        ``handle_emitter_error`` — the same policy dispatch used for
-        ``on_lineage``/``on_run_result`` — so IGNORE/WARN/RAISE apply here
-        too, instead of being swallowed unconditionally regardless of the
-        configured policy.
+        async.  Each call is scheduled as a task on the running loop and held
+        in ``ctx.emitter_tasks`` until ``drain_status_deliveries`` awaits it.
+        A failing ``on_status`` is routed through ``handle_emitter_error`` —
+        the same policy dispatch used for ``on_lineage``/``on_run_result`` —
+        so IGNORE/WARN/RAISE apply here too.
         """
         loop = asyncio.get_running_loop()
-        # Strong-reference the in-flight tasks; without this, Python's
-        # GC may reclaim them before they complete. ctx.emitter_tasks
-        # lives as long as the run.
         emitter_tasks = ctx.emitter_tasks
 
         for emitter in emitters:
@@ -93,8 +90,39 @@ class EmitterFanout:
             )
 
     @staticmethod
+    async def drain_status_deliveries(ctx: RunContext, *, raise_failures: bool = True) -> None:
+        """Await every ``on_status`` delivery the run scheduled.
+
+        Called by the engine once the scheduling loop has settled every knot.
+        A delivery task only completes with an exception when the run's
+        policy is ``RAISE`` (``IGNORE`` and ``WARN`` handle the failure inside
+        the task), so the first such exception is re-raised here and fails the
+        run, the way a raising ``on_knot_result`` does.  On an aborting run the
+        engine passes ``raise_failures=False``: the deliveries are still
+        awaited, so none is left pending on the loop, but the abort's own
+        exception is the one that propagates.
+
+        Args:
+            ctx: The run whose ``emitter_tasks`` to await.
+            raise_failures: Whether to re-raise a delivery's exception.
+
+        Raises:
+            Exception: The first exception an ``on_status`` delivery raised
+                under ``EmitterErrorPolicy.RAISE``.
+        """
+        while ctx.emitter_tasks:
+            pending = list(ctx.emitter_tasks)
+            ctx.emitter_tasks.clear()
+            outcomes = await asyncio.gather(*pending, return_exceptions=True)
+            if not raise_failures:
+                continue
+            for outcome in outcomes:
+                if isinstance(outcome, Exception):
+                    raise outcome
+
+    @staticmethod
     async def emit_knot_result(
-        emitters: Sequence[Any],
+        emitters: Sequence[Emitter],
         policy: EmitterErrorPolicy,
         knot_id: str,
         result: Result[Any],
@@ -120,15 +148,8 @@ class EmitterFanout:
             lineage: The ``KnotLineage`` row built for it.
         """
         for emitter in emitters:
-            # Emitters are duck-typed at this boundary (the engine takes
-            # ``list[Any]``), and one written before this hook existed has no
-            # ``on_knot_result`` at all; that is the one place core reaches
-            # for ``getattr``, so an older emitter keeps working unchanged.
-            hook = getattr(emitter, "on_knot_result", None)
-            if hook is None:
-                continue
             try:
-                await hook(knot_id, result, lineage)
+                await emitter.on_knot_result(knot_id, result, lineage)
             except Exception as exc:
                 EmitterFanout.handle_emitter_error(emitter, "on_knot_result", exc, policy)
 
@@ -136,7 +157,7 @@ class EmitterFanout:
     async def emit_status(
         event: StatusEvent,
         *,
-        emitters: Sequence[Any] | None = None,
+        emitters: Sequence[Emitter] | None = None,
         policy: EmitterErrorPolicy | None = None,
     ) -> None:
         """Deliver one ad hoc ``StatusEvent`` to a run's emitters.
