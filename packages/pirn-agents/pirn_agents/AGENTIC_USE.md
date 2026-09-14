@@ -55,11 +55,10 @@ pirn_agents/
 │   ├── conversation_payload.py  ConversationPayload   — Payload[ConversationFrame, tuple[AgentMessage, ...]]
 │   ├── conversation_frame.py    ConversationFrame     — session/turn ids, token count, truncation state
 │   ├── agent_response.py        AgentResponse         — Payload[GenerationFrame, str]
-│   ├── generation_frame.py      GenerationFrame       — finish_reason, usage, cost, tool_calls
-│   └── agent_context.py         AgentContext          — deprecated alias of ConversationPayload
+│   └── generation_frame.py      GenerationFrame       — finish_reason, usage, cost, tool_calls
 ├── planning/plan.py             Plan                  — ordered tuple of step strings
 ├── tools/tool_call.py           ToolCall              — LLM-requested tool invocation
-├── tools/tool_result.py         ToolResult            — deprecated view of a ToolCall's Result
+├── tools/tool_result.py         ToolResult            — the model-facing view of a ToolCall's Result
 ├── input/
 │   ├── message_parser.py        MessageParser         — raw input → AgentMessage tuple
 │   ├── context_builder.py       ContextBuilder        — messages + system_prompt → ConversationPayload

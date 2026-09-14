@@ -16,7 +16,6 @@ pirn_agents/
 ├── types/messaging/
 │   ├── conversation_payload.py  ConversationPayload  — Payload[ConversationFrame, tuple[AgentMessage, ...]]
 │   ├── conversation_frame.py    ConversationFrame    — session/turn ids, token count, truncation state
-│   ├── agent_context.py         AgentContext         — deprecated alias of ConversationPayload
 │   ├── agent_message.py         AgentMessage
 │   ├── agent_response.py        AgentResponse        — Payload[GenerationFrame, str]
 │   └── generation_frame.py      GenerationFrame      — finish_reason, usage, cost, tool_calls
@@ -1220,7 +1219,7 @@ async with limiter.slot():        # queues under load; QueueFull past the depth 
 ### Caching — content-addressed result cache + semantic + prompt-cache passthrough
 
 `ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
-and embedding lookups keyed off a `content_address` of the inputs (mirrors the
+and embedding lookups keyed off a `content_hash` of the inputs (mirrors the
 DAG's content addressing). `SemanticResultCache.get_or_compute_semantic(text,
 compute)` matches on embedding similarity using a caller-injected embedding fn
 (no backend). `PromptCachePassthrough` defers to a provider's native prompt

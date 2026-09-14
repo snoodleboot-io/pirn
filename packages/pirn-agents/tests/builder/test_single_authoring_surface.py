@@ -156,8 +156,8 @@ class TestOneNamespaceOfPatternNames(unittest.TestCase):
         assert "knot" not in Agent.patterns()
 
 
-class TestAgentSpecLoaderAcceptsBothDialects(unittest.TestCase):
-    """``AgentSpecLoader`` reads a core pipeline document, and warns on the old one."""
+class TestAgentSpecLoaderReadsACorePipelineDocument(unittest.TestCase):
+    """``AgentSpecLoader`` reads a core pipeline document (the one dialect, PIR-864)."""
 
     def test_a_core_pipeline_document_loads_with_no_warning(self) -> None:
         # Arrange: exactly the shape to_pipeline_spec() emits.
@@ -185,14 +185,13 @@ class TestAgentSpecLoaderAcceptsBothDialects(unittest.TestCase):
         # Assert
         assert restored == spec
 
-    def test_the_legacy_flat_dialect_still_loads_but_warns(self) -> None:
-        # Arrange
+    def test_the_legacy_flat_dialect_is_rejected(self) -> None:
+        # Arrange: no top-level "nodes" key -- the deleted (PIR-864) dialect.
         document = json.dumps({"pattern": "react", "options": {"max_iterations": 4}})
 
         # Act / Assert
-        with self.assertWarns(DeprecationWarning):
-            spec = AgentSpecLoader.from_json(document)
-        assert spec == AgentSpec(pattern="react", options={"max_iterations": 4})
+        with self.assertRaisesRegex(ValueError, "flat"):
+            AgentSpecLoader.from_json(document)
 
     def test_a_hand_authored_core_pipeline_document_round_trips_via_to_pipeline_spec(self) -> None:
         """The exact document to_pipeline_spec() would write, read back losslessly."""

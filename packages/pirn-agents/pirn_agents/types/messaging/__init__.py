@@ -6,8 +6,9 @@ value, hash-equal by content), the
 :class:`~pirn_agents.types.messaging.conversation_payload.ConversationPayload`
 conversation window (``Payload[ConversationFrame, tuple[AgentMessage, ...]]``),
 and the final :class:`~pirn_agents.types.messaging.agent_response.AgentResponse`
-(``Payload[GenerationFrame, str]``). ``AgentContext`` is the deprecated
-pre-ADR name for ``ConversationPayload`` (ADR agents-speaks-core WS6b).
+(``Payload[GenerationFrame, str]``). ``AgentContext`` was the pre-ADR name for
+``ConversationPayload`` (ADR agents-speaks-core WS6b), kept importable for one
+deprecation cycle and now deleted (PIR-864).
 """
 
 __all__: list[str] = []

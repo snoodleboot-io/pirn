@@ -172,10 +172,11 @@ with Tapestry() as t:
 ```
 
 The older flat dialect (`pattern: naive_rag` / `llm: my-llm` / `memory: kb` /
-`options: {...}` at the top level, with no `nodes:` list) still loads — one
-deprecation cycle — but emits a `DeprecationWarning`. `AgentSpecLoader`
-dispatches structurally: a top-level `nodes:` key means the core-pipeline
-dialect above; its absence means the deprecated flat one.
+`options: {...}` at the top level, with no `nodes:` list) loaded for one
+deprecation cycle and is now deleted (PIR-864): `AgentSpecLoader.from_mapping`
+rejects a mapping with no top-level `nodes:` key. Use `AgentSpec.from_dict()`/
+`.to_dict()` directly if you already have that flat shape in hand — the
+loader itself now speaks only the core-pipeline dialect above.
 
 `register_tools(toolset)` binds each tool under its own `name`, which is the
 label `to_spec()`/`to_pipeline_spec()` write for tools. An unregistered label

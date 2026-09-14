@@ -1,4 +1,4 @@
-"""Tests for :class:`AgentSpecLoader` (JSON + YAML parsing)."""
+"""Tests for :class:`AgentSpecLoader` (JSON + YAML parsing of a core pipeline document)."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
 
 
 class TestAgentSpecLoaderJson(unittest.TestCase):
-    def test_from_json_parses_object(self) -> None:
+    def test_from_json_parses_a_pipeline_document(self) -> None:
         # Arrange
-        text = json.dumps({"pattern": "react", "options": {"max_iterations": 4}})
+        text = AgentSpecLoader.to_json(AgentSpec(pattern="react", options={"max_iterations": 4}))
 
         # Act
         spec = AgentSpecLoader.from_json(text)
@@ -31,6 +31,10 @@ class TestAgentSpecLoaderJson(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid JSON"):
             AgentSpecLoader.from_json("{not json")
 
+    def test_from_json_rejects_the_deleted_flat_dialect(self) -> None:
+        with self.assertRaisesRegex(ValueError, "flat"):
+            AgentSpecLoader.from_json(json.dumps({"pattern": "react"}))
+
     def test_json_round_trip(self) -> None:
         # Arrange
         spec = AgentSpec(pattern="naive_rag", memory="m", tools=("t",), options={"top_k": 2})
@@ -43,9 +47,11 @@ class TestAgentSpecLoaderJson(unittest.TestCase):
 
 
 class TestAgentSpecLoaderYaml(unittest.TestCase):
-    def test_from_yaml_parses_mapping(self) -> None:
+    def test_from_yaml_parses_a_pipeline_document(self) -> None:
         # Arrange
-        text = "pattern: react\ntools: [a, b]\noptions:\n  max_iterations: 6\n"
+        text = AgentSpecLoader.to_yaml(
+            AgentSpec(pattern="react", tools=("a", "b"), options={"max_iterations": 6})
+        )
 
         # Act
         spec = AgentSpecLoader.from_yaml(text)
@@ -58,6 +64,10 @@ class TestAgentSpecLoaderYaml(unittest.TestCase):
     def test_from_yaml_rejects_non_mapping(self) -> None:
         with self.assertRaisesRegex(TypeError, "top-level YAML must be a mapping"):
             AgentSpecLoader.from_yaml("- 1\n- 2\n")
+
+    def test_from_yaml_rejects_the_deleted_flat_dialect(self) -> None:
+        with self.assertRaisesRegex(ValueError, "flat"):
+            AgentSpecLoader.from_yaml("pattern: react\n")
 
     def test_yaml_round_trip(self) -> None:
         # Arrange
@@ -76,14 +86,17 @@ class TestAgentSpecLoaderPath(unittest.TestCase):
     def test_from_path_dispatches_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "spec.json"
-            path.write_text(json.dumps({"pattern": "react"}), encoding="utf-8")
+            path.write_text(AgentSpecLoader.to_json(AgentSpec(pattern="react")), encoding="utf-8")
             spec = AgentSpecLoader.from_path(path)
         assert spec.pattern == "react"
 
     def test_from_path_dispatches_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "spec.yml"
-            path.write_text("pattern: naive_rag\nmemory: m\n", encoding="utf-8")
+            path.write_text(
+                AgentSpecLoader.to_yaml(AgentSpec(pattern="naive_rag", memory="m")),
+                encoding="utf-8",
+            )
             spec = AgentSpecLoader.from_path(path)
         assert spec.pattern == "naive_rag"
         assert spec.memory == "m"
@@ -91,7 +104,7 @@ class TestAgentSpecLoaderPath(unittest.TestCase):
     def test_from_path_rejects_unknown_suffix(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "spec.txt"
-            path.write_text("pattern: react", encoding="utf-8")
+            path.write_text(AgentSpecLoader.to_yaml(AgentSpec(pattern="react")), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "unsupported suffix"):
                 AgentSpecLoader.from_path(path)
 
@@ -101,7 +114,9 @@ class TestAgentSpecLoaderPathContainment(unittest.TestCase):
 
     def test_relative_path_inside_root_loads(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            (Path(tmp) / "spec.json").write_text(json.dumps({"pattern": "react"}), encoding="utf-8")
+            (Path(tmp) / "spec.json").write_text(
+                AgentSpecLoader.to_json(AgentSpec(pattern="react")), encoding="utf-8"
+            )
             spec = AgentSpecLoader.from_path("spec.json", allowed_root=tmp)
         assert spec.pattern == "react"
 
@@ -110,7 +125,7 @@ class TestAgentSpecLoaderPathContainment(unittest.TestCase):
             root = Path(tmp) / "specs"
             root.mkdir()
             (Path(tmp) / "secret.json").write_text(
-                json.dumps({"pattern": "react"}), encoding="utf-8"
+                AgentSpecLoader.to_json(AgentSpec(pattern="react")), encoding="utf-8"
             )
             with self.assertRaisesRegex(ValueError, "traversal"):
                 AgentSpecLoader.from_path("../secret.json", allowed_root=root)
@@ -118,7 +133,7 @@ class TestAgentSpecLoaderPathContainment(unittest.TestCase):
     def test_absolute_path_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "spec.json"
-            target.write_text(json.dumps({"pattern": "react"}), encoding="utf-8")
+            target.write_text(AgentSpecLoader.to_json(AgentSpec(pattern="react")), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "absolute path"):
                 AgentSpecLoader.from_path(str(target), allowed_root=tmp)
 
@@ -127,7 +142,9 @@ class TestAgentSpecLoaderPathContainment(unittest.TestCase):
             root = Path(tmp) / "root"
             root.mkdir()
             outside = Path(tmp) / "outside.json"
-            outside.write_text(json.dumps({"pattern": "react"}), encoding="utf-8")
+            outside.write_text(
+                AgentSpecLoader.to_json(AgentSpec(pattern="react")), encoding="utf-8"
+            )
             link = root / "link.json"
             link.symlink_to(outside)
             with self.assertRaisesRegex(ValueError, "symlink"):

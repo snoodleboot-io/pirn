@@ -192,7 +192,7 @@ Knots that handle tool-use reasoning.
 |------|-------------|
 | `Planner` | Asks an `LLMProvider` for an ordered `Plan` grounded in the current `ConversationPayload`. Lines starting with `#` are treated as rationale; everything else becomes a numbered step in the `Plan`. |
 | `ToolRouter` | Accepts a single plan step string and a sequence of tool capabilities. Matches the first tool whose `name` appears as a substring of the step (case-insensitive) and returns a `ToolCall`. |
-| `ToolExecutor` | Accepts a `ToolCall` and a sequence of tool capabilities. Constructs the matching tool knot for the call and runs it as a nested pipeline; the call's `Err` is surfaced as `ToolResult.error` (the deprecated view of the call's `Result`) so callers can decide how to react. |
+| `ToolExecutor` | Accepts a `ToolCall` and a sequence of tool capabilities. Constructs the matching tool knot for the call and runs it as a nested pipeline; the call's `Err` is surfaced as `ToolResult.error` (the model-facing view of the call's `Result`) so callers can decide how to react. |
 | `ToolResultAggregator` | Collects a sequence of `ToolResult`s into a `{call_id: result}` mapping, ready to splice into the conversation context. |
 
 ### `memory/`
@@ -263,10 +263,10 @@ content.
 | Type | Description |
 |------|-------------|
 | `AgentMessage` | A single conversational turn: `role`, `content`, optional `name`, `tool_call_id`, `created_at`, and typed multimodal `blocks`. Frozen dataclass. |
-| `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` is the deprecated pre-ADR name, kept importable for one cycle. |
+| `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` was the pre-ADR name, kept importable for one cycle and now deleted (PIR-864). |
 | `AgentResponse` | Outcome of one agent turn: `Payload[GenerationFrame, str]` — `data` is the reply text, `frame` carries `tool_calls`, `finish_reason`, `usage`, `cost`, `model`, `provider`. The pre-ADR field names (`content`, `tool_calls`, `finish_reason`, `usage`, `cost`) stay available as properties. |
 | `ToolCall` | A single tool invocation requested by the LLM: `tool_name`, `arguments` mapping, `call_id`. |
-| `ToolResult` | Deprecated (one cycle) view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. |
+| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. Not a one-cycle shim — PIR-865 gave it and `ToolStatus.SKIPPED` a live role rendering gated/approval outcomes. |
 | `Plan` | An ordered `tuple` of plan step strings plus an optional `rationale` string. |
 
 ---
@@ -432,11 +432,11 @@ operation and applies the mutation again.
 
 Operators upgrading must drain in-flight idempotent requests (let outstanding
 retries exhaust their window, or hold new mutating traffic) before or during the
-deploy, rather than rolling it out under live retry traffic. For one deprecation
-cycle, `IdempotencyKeyAssigner.legacy_key(...)` reproduces the pre-upgrade key for
-a given `(operation, arguments, namespace)`, so an operator reconciling a backend's
-dedupe table across the upgrade window can compute what a pre-upgrade retry would
-have used.
+deploy, rather than rolling it out under live retry traffic. `IdempotencyKeyAssigner.legacy_key(...)`
+reproduced the pre-upgrade key for a given `(operation, arguments, namespace)`
+for one deprecation cycle, so an operator reconciling a backend's dedupe table
+across the upgrade window could compute what a pre-upgrade retry would have
+used; that one-cycle bridge is now deleted (PIR-864).
 
 ---
 

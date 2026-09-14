@@ -18,8 +18,11 @@ Two distinct things are recorded:
   storage-format break needing a migration. See
   ``tests/serialization/test_canonical_json.py::TestCanonicalJsonReproducesDurableDigests``.
 
-* **The convergence, then divergence** — :func:`~pirn_agents.caching.content_address.content_address`
-  used to diverge on two axes, default separators (``", "`` / ``": "``) *and*
+* **The convergence, then divergence** — ``content_address`` (the former
+  ``pirn_agents.caching.content_address`` one-cycle shim, deleted PIR-864;
+  ``_content_address`` below reproduces its body, ``content_hash(payload,
+  strict=True)``, now that no importable wrapper is left to pin) used to
+  diverge on two axes, default separators (``", "`` / ``": "``) *and*
   ``ensure_ascii=False``, so it disagreed with the other hashers on every
   non-trivial payload. PIR-785 moved it onto this file's shared
   ``CanonicalJson``-based seam, and it agreed with ``ContentDigest`` from
@@ -46,10 +49,16 @@ import json
 from typing import Any, ClassVar
 
 import pytest
+from pirn.core.hashing import content_hash
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
-from pirn_agents.caching.content_address import content_address
 from pirn_agents.determinism.content_digest import ContentDigest
+
+
+def _content_address(payload: Any) -> str:
+    """``content_hash(payload, strict=True)`` -- what the deleted (PIR-864)
+    ``ContentAddress``/``content_address`` one-cycle shim delegated to."""
+    return content_hash(payload, strict=True)
 
 
 def _payloads() -> dict[str, Any]:
@@ -232,16 +241,16 @@ class TestContentAddressCanonicalForm:
 
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_pinned(self, name: str) -> None:
-        assert content_address(_payloads()[name]) == self._pins[name]
+        assert _content_address(_payloads()[name]) == self._pins[name]
 
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_sha256_prefixed(self, name: str) -> None:
-        digest = content_address(_payloads()[name])
+        digest = _content_address(_payloads()[name])
         assert digest.startswith("sha256:")
         int(digest.removeprefix("sha256:"), 16)
 
     def test_mapping_key_order_does_not_move_the_digest(self) -> None:
-        assert content_address({"a": 1, "b": 2, "c": 3}) == content_address(
+        assert _content_address({"a": 1, "b": 2, "c": 3}) == _content_address(
             {"c": 3, "a": 1, "b": 2}
         )
 
@@ -249,7 +258,7 @@ class TestContentAddressCanonicalForm:
         # PIR-785, re-enforced by strict=True: no silent fallback of any kind,
         # so a cache key can never be derived from an object's memory address.
         with pytest.raises(UnhashableValueError):
-            content_address({"leaf": object()})
+            _content_address({"leaf": object()})
 
 
 class TestCanonicalFormConvergence:
@@ -272,20 +281,20 @@ class TestCanonicalFormConvergence:
         # (without updating this file to say so) is caught rather than
         # silently making this test vacuously true.
         payload = _payloads()[name]
-        assert content_address(payload) != ContentDigest.digest(payload)
+        assert _content_address(payload) != ContentDigest.digest(payload)
 
     def test_both_hashers_are_sha256_over_a_canonical_form(self) -> None:
-        assert content_address({"a": 1}).startswith("sha256:")
+        assert _content_address({"a": 1}).startswith("sha256:")
         assert len(ContentDigest.digest({"a": 1})) == 64
         int(ContentDigest.digest({"a": 1}), 16)
 
     def test_both_hashers_are_order_independent_on_mapping_keys(self) -> None:
-        assert content_address({"a": 1, "b": 2}) == content_address({"b": 2, "a": 1})
+        assert _content_address({"a": 1, "b": 2}) == _content_address({"b": 2, "a": 1})
         assert ContentDigest.digest({"a": 1, "b": 2}) == ContentDigest.digest({"b": 2, "a": 1})
 
     def test_both_hashers_refuse_an_identity_keyed_opaque_leaf(self) -> None:
         with pytest.raises(TypeError):
-            content_address({"leaf": object()})
+            _content_address({"leaf": object()})
         with pytest.raises(TypeError):
             ContentDigest.digest({"leaf": object()})
 

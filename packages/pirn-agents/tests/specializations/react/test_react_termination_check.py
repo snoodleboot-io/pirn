@@ -5,11 +5,9 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.react.messages_passthrough import (
-    MessagesPassthrough,
-)
 from pirn_agents.specializations.react.react_termination_check import (
     ReActTerminationCheck,
 )
@@ -19,8 +17,10 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 class TestReActTerminationCheckProcess(unittest.IsolatedAsyncioTestCase):
     def _make(self) -> ReActTerminationCheck:
         with Tapestry():
-            src = MessagesPassthrough(
-                messages=(AgentMessage(role="assistant", content="x"),),
+            src = Parameter(
+                "seed_messages",
+                tuple[AgentMessage, ...],
+                default=(AgentMessage(role="assistant", content="x"),),
                 _config=KnotConfig(id="src"),
             )
             return ReActTerminationCheck(

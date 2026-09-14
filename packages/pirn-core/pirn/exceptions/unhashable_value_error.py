@@ -21,9 +21,10 @@ class UnhashableValueError(PirnError, TypeError):
 
     Subclasses ``TypeError`` in addition to ``PirnError`` so a caller
     migrating from a hand-rolled ``TypeError`` on the same failure mode (see
-    ``pirn_agents.caching.content_address.ContentAddress``, whose own
-    "cannot canonically encode a value of type X" refusal this class
-    replaces) keeps its existing ``except TypeError`` working unchanged.
+    the former ``pirn_agents.caching.content_address.ContentAddress`` --
+    a one-cycle shim, deleted PIR-864 -- whose own "cannot canonically encode
+    a value of type X" refusal this class replaced) keeps its existing
+    ``except TypeError`` working unchanged.
 
     Attributes:
         type_name: The class name of the innermost value that could not be

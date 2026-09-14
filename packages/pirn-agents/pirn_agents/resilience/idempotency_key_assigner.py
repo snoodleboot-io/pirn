@@ -2,20 +2,21 @@
 
 ADR agents-speaks-core WS2 part 2 — **breaking key-format change, sanctioned**:
 derivation now goes through :func:`pirn.core.hashing.content_hash` (``strict=True``)
-instead of :class:`~pirn_agents.serialization.canonical_json.CanonicalJson`. The
-``sha256:``-prefixed digest core emits IS the format version; a key issued after
-this upgrade never matches one issued before it for the same call. **An operator
-upgrading must drain in-flight idempotent requests before/during the deploy** — a
-retry that lands after the upgrade computes a different key than its first attempt
-registered, so the backend sees a new operation and applies the mutation twice.
-See "Idempotency keys" in ``docs/domains/agents.md`` for the operational note, and
-:meth:`IdempotencyKeyAssigner.legacy_key` (kept one cycle) to reproduce a
-pre-upgrade key for reconciliation.
+instead of the former ``CanonicalJson``. The ``sha256:``-prefixed digest core
+emits IS the format version; a key issued after this upgrade never matches
+one issued before it for the same call. **An operator upgrading must drain
+in-flight idempotent requests before/during the deploy** — a retry that lands
+after the upgrade computes a different key than its first attempt registered,
+so the backend sees a new operation and applies the mutation twice. See
+"Idempotency keys" in ``docs/domains/agents.md`` for the operational note.
+``legacy_key()`` reproduced a pre-upgrade key for reconciliation across the
+drain window; that one-cycle bridge is now deleted (PIR-864).
 
 ``content_hash`` has no repr-based fallback for a value with no canonical form
-(no ``__pirn_canonical__``, no pydantic core schema) — unlike the ``OpaquePolicy``
-policies :class:`CanonicalJson` supported, it either hashes a value structurally
-or (``strict=True``) raises. An argument ``content_hash`` cannot canonicalise but
+(no ``__pirn_canonical__``, no pydantic core schema) — unlike the
+``OpaquePolicy`` policies the former ``CanonicalJson`` supported, it either
+hashes a value structurally or (``strict=True``) raises. An argument
+``content_hash`` cannot canonicalise but
 whose ``repr`` is content-derived (``datetime``, ``UUID``, ``Decimal``, a
 domain value object with its own ``__repr__``, ...) is still supported here:
 :meth:`_normalise` walks ``arguments`` and, at each leaf ``content_hash`` itself
@@ -34,9 +35,6 @@ from typing import Any
 
 from pirn.core.hashing import content_hash
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
-
-from pirn_agents.serialization.canonical_json import CanonicalJson
-from pirn_agents.serialization.opaque_policy import OpaquePolicy
 
 
 class IdempotencyKeyAssigner:
@@ -141,34 +139,3 @@ class IdempotencyKeyAssigner:
                 f"derive a different key than the original call."
             )
         return rendered
-
-    @staticmethod
-    def legacy_key(*, operation: str, arguments: Mapping[str, Any], namespace: str = "") -> str:
-        """Return the pre-upgrade (``CanonicalJson``-derived) idempotency key.
-
-        ADR agents-speaks-core WS2 part 2 changed :meth:`assign`'s digest
-        engine to ``content_hash``, which is a breaking key-format change
-        (see the module docstring). Kept for one deprecation cycle so an
-        operator reconciling a backend's dedupe table across the upgrade
-        window can compute what a pre-upgrade retry of ``(operation,
-        arguments)`` would have used.
-
-        Args:
-            operation: Stable name of the mutating operation.
-            arguments: The call's arguments, exactly as passed to
-                :meth:`assign` originally.
-            namespace: The namespace :meth:`assign` was configured with at
-                the time, if any.
-
-        Raises:
-            TypeError: If ``arguments`` is not a mapping.
-        """
-        if not isinstance(arguments, Mapping):
-            raise TypeError(
-                f"IdempotencyKeyAssigner.legacy_key: arguments must be a Mapping, "
-                f"got {type(arguments).__name__}"
-            )
-        digest = CanonicalJson.digest(
-            {"operation": operation, "arguments": arguments}, policy=OpaquePolicy.REPR_CONTENT
-        )
-        return f"{namespace}:{digest}" if namespace else digest

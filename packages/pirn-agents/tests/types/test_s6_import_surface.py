@@ -33,7 +33,6 @@ _S6_IMPORT_SURFACE: list[tuple[str, str]] = [
     ("pirn_agents.types.content.tool_result_block", "ToolResultBlock"),
     # messaging taxonomy subpackage
     ("pirn_agents.types.messaging.agent_message", "AgentMessage"),
-    ("pirn_agents.types.messaging.agent_context", "AgentContext"),
     ("pirn_agents.types.messaging.agent_response", "AgentResponse"),
     # tools value objects
     ("pirn_agents.tools.tool_call", "ToolCall"),

@@ -6,9 +6,9 @@ without being one — ``responses`` here arrives as a single already-assembled
 mapping, and ``process()`` *selects* which one of two named strategies builds
 the inner reduction, an OCP dispatch shape closer to
 :class:`~pirn_agents.interfaces.router.Router` than to a fan-in. Renamed here
-(WS5b); ``ConsensusAggregator`` is kept importable as a one-cycle deprecation
-shim (``consensus_aggregator.py``) forwarding to this class, per the ADR's
-deprecation policy. The strategy this class *builds* for ``"majority_vote"``
+(WS5b); ``ConsensusAggregator`` was kept importable as a one-cycle deprecation
+shim forwarding to this class and is now deleted (PIR-864). The strategy this
+class *builds* for ``"majority_vote"``
 uses core primitives — :class:`~pirn_agents.specializations.multi_agent.majority_vote_strategy.MajorityVoteStrategy`
 folds through a core :class:`~pirn.nodes.reduce_.Reduce` rather than a bespoke
 picker knot.

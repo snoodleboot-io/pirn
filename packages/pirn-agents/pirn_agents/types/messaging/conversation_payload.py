@@ -20,9 +20,9 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
     :class:`AgentMessage`, ``metadata`` is the
     :class:`~pirn_agents.types.messaging.conversation_frame.ConversationFrame`
     describing the window (session/turn ids, token count, truncation state,
-    and the free-form ``extra`` bag). This replaces
-    :class:`~pirn_agents.types.messaging.agent_context.AgentContext`, kept
-    importable for one deprecation cycle as a thin subclass.
+    and the free-form ``extra`` bag). This replaces ``AgentContext``, kept
+    importable for one deprecation cycle as a thin subclass and now deleted
+    (PIR-864).
 
     Attributes
     ----------

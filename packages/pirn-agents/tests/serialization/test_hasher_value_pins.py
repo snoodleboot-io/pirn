@@ -112,16 +112,6 @@ class TestIdempotencyKeyPins:
             content_hash({"operation": operation, "arguments": arguments}, strict=True)
         )
 
-    def test_legacy_key_reproduces_the_pre_migration_pin(self) -> None:
-        # The pre-migration pins this class used to carry, now reachable only
-        # through legacy_key() -- proves the one-cycle compatibility path
-        # actually reproduces what a pre-upgrade caller would have seen.
-        operation, arguments = _idempotency_calls()["flat"]
-        assert (
-            IdempotencyKeyAssigner.legacy_key(operation=operation, arguments=arguments)
-            == "887b157b5f766f58e907fee41f6ef4b9096724023abef9e760758d097223109f"
-        )
-
 
 class TestAgentKnotIdPins:
     """A generated knot id keys lineage records and engine cache entries."""

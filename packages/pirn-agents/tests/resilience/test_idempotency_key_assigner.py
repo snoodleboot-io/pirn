@@ -97,37 +97,3 @@ class TestOpaqueArgumentsAreContentKeyed:
         first = assigner.assign(operation="charge", arguments={"total": Money(500)})
         second = assigner.assign(operation="charge", arguments={"total": Money(500)})
         assert first == second
-
-
-class TestLegacyKey:
-    """ADR agents-speaks-core WS2 part 2 — the pre-upgrade key, for one cycle."""
-
-    def test_matches_the_pre_upgrade_canonical_json_digest(self) -> None:
-        from pirn_agents.serialization.canonical_json import CanonicalJson
-        from pirn_agents.serialization.opaque_policy import OpaquePolicy
-
-        arguments = {"amount": 100, "currency": "usd"}
-        expected = CanonicalJson.digest(
-            {"operation": "charge", "arguments": arguments}, policy=OpaquePolicy.REPR_CONTENT
-        )
-        assert (
-            IdempotencyKeyAssigner.legacy_key(operation="charge", arguments=arguments) == expected
-        )
-
-    def test_differs_from_the_current_key(self) -> None:
-        arguments = {"amount": 100}
-        legacy = IdempotencyKeyAssigner.legacy_key(operation="charge", arguments=arguments)
-        current = IdempotencyKeyAssigner().assign(operation="charge", arguments=arguments)
-        assert legacy != current
-        assert not legacy.startswith("sha256:")
-        assert current.startswith("sha256:")
-
-    def test_namespace_prefixes_the_legacy_key(self) -> None:
-        key = IdempotencyKeyAssigner.legacy_key(
-            operation="charge", arguments={"amount": 1}, namespace="tenant-a"
-        )
-        assert key.startswith("tenant-a:")
-
-    def test_rejects_non_mapping_arguments(self) -> None:
-        with pytest.raises(TypeError, match="Mapping"):
-            IdempotencyKeyAssigner.legacy_key(operation="x", arguments=[1, 2])  # type: ignore[arg-type]
