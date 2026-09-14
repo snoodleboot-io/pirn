@@ -8,8 +8,7 @@ gated tool runs exactly as an ungated one would. Subclasses override
 those overrides are what the security (F11) and human-in-the-loop (F14)
 surfaces will supply.
 
-The module-level :func:`authorize_tool_call` coroutine — and
-:meth:`ApprovalHook.authorize`, its implementation — is the policy this
+The :meth:`ApprovalHook.authorize` coroutine is the policy this
 package's own approval seam evaluates: it consults the capability's
 permission metadata and only routes through the hook when approval is
 actually required, so unrestricted tools pay nothing.  Since PIR-865 the
@@ -77,16 +76,3 @@ class ApprovalHook:
             return True
         resolved = hook if hook is not None else ApprovalHook()
         return await resolved.request_approval(tool_name=factory.name, arguments=arguments)
-
-
-async def authorize_tool_call(
-    tool: Any,
-    arguments: Mapping[str, Any],
-    hook: ApprovalHook | None = None,
-) -> bool:
-    """Return whether a call to ``tool`` with ``arguments`` may proceed.
-
-    Thin wrapper kept for the pinned public import path (see
-    ``tests/test_ws5_s1_import_surface.py``); see :meth:`ApprovalHook.authorize`.
-    """
-    return await ApprovalHook.authorize(tool, arguments, hook)

@@ -12,7 +12,7 @@ except ImportError as _e:
     raise unittest.SkipTest("dask not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
@@ -26,7 +26,7 @@ def _make_batch(data: dict) -> DaskDataFrame:
     return DaskDataFrame(frame=frame)
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> DaskDataFrame:
     return _make_batch({"region": ["EU", "EU", "US"], "amount": [10, 20, 5]})
 
@@ -63,7 +63,7 @@ class TestDaskAggregate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> list:
             return ["region"]
 

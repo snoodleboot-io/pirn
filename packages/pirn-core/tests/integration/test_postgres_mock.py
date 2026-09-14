@@ -18,7 +18,7 @@ from typing import Any
 
 from pirn.backends.postgres.postgres_history import PostgresHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -89,7 +89,7 @@ class _FakePool:
 # ---------------------------------------------------- helpers
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 

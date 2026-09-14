@@ -75,7 +75,7 @@ class Knot:
     _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
 
     # Opt-in, per-class: declare ``process`` in the gradual parameter form
-    # ``(*args: Any, **kwargs: Any)`` so a type checker skips the parameter half
+    # ``(*args: Any, **_: Any)`` so a type checker skips the parameter half
     # of its override check for every subclass, while still checking the return
     # type (PIR-833).  Only an *abstract* mid-tree base that exists to narrow the
     # return type should set it — the engine binds named inputs dynamically, so
@@ -103,46 +103,7 @@ class Knot:
     # ``KnotFactory.from_schema``; ``input_json_schema()`` returns it as is.
     _input_schema_override: ClassVar[Mapping[str, Any] | None] = None
 
-    # Opt-in, per-class: name the deprecation this knot shim exists for (an ADR
-    # workstream, a PIR ticket, a version) so ``_bootstrap`` can raise a
-    # ``DeprecationWarning`` on every construction without the shim's own
-    # ``__init__`` containing anything beyond its required single
-    # ``super().__init__(...)`` call (Rule 1, ``knot-design-rules.md``).
-    # ``None`` (the default) emits nothing -- set only on a deprecated public
-    # shim, never on an ordinary knot. ``_bootstrap`` is the seam, not
-    # ``Knot.__init__``, because framework primitives that bypass the standard
-    # constructor introspection (``Parameter`` among them) still call
-    # ``_bootstrap`` -- a shim built on top of one of those (e.g. a
-    # ``Parameter`` subclass) would otherwise never be checked (ADR
-    # agents-speaks-core WS5b).
-    _deprecated_since: ClassVar[str | None] = None
-
-    def _deprecation_notice(
-        self, parents: Mapping[str, Knot], config_values: Mapping[str, Any]
-    ) -> str | None:
-        """Return the deprecation notice ``_bootstrap`` should warn with, or ``None``.
-
-        The default is unconditional: whenever ``_deprecated_since`` is set,
-        every construction of the class warns, regardless of how it was
-        called. A shim deprecated for only a *subset* of its call shapes --
-        e.g. one argument accepting either a constant (deprecated: use
-        ``Parameter``) or a genuine upstream ``Knot`` (still correct) --
-        overrides this to inspect the partitioned ``parents``/``config_values``
-        and return ``None`` for the shapes that remain legitimate.
-
-        Args:
-            parents: This construction's parent knots, as partitioned by
-                ``Knot.__init__`` (or built by hand, for a framework primitive
-                that bypasses it).
-            config_values: This construction's constant config values, same
-                partitioning.
-
-        Returns:
-            The notice to warn with, or ``None`` to stay silent.
-        """
-        return type(self)._deprecated_since
-
-    # Whether this knot takes a slot of the run's ``AdmissionGate`` while it
+    # Whether this knot takes a slot of the run's ``Admission`` while it
     # executes.  ``True`` for a leaf -- a knot that does its own work.  A
     # *container* (``SubTapestry``, ``LoopSubTapestry``, a loop iteration)
     # sets it ``False``: it spends its life waiting on an inner run whose
@@ -215,7 +176,7 @@ class Knot:
         super().__init_subclass__(**kwargs)
         if "process" in cls.__dict__:
             # follow_wrapped=False: inspect the actual method body, not the
-            # user's original function via __wrapped__.  @knot-generated methods
+            # user's original function via __wrapped__.  @KnotFactory.knot-generated methods
             # have **kwargs in their body; user class overrides must have **_.
             sig = inspect.signature(cls.__dict__["process"], follow_wrapped=False)
             has_var_pos = False
@@ -265,7 +226,7 @@ class Knot:
 
         # Validate the remaining kwargs against process()'s signature -- or,
         # for a schema-declared knot, against the declared schema.
-        # follow_wrapped=True: for @knot classes, inspect the user's original
+        # follow_wrapped=True: for @KnotFactory.knot classes, inspect the user's original
         # function so declared input names reflect its real parameter names.
         sig = self._process_signature()
         schema = type(self)._input_schema_override
@@ -558,15 +519,6 @@ class Knot:
                 active context-var tapestry is used, matching the standard
                 ``Knot.__init__`` self-registration behaviour.
         """
-        deprecated_since = self._deprecation_notice(parents, config_values or {})
-        if deprecated_since is not None:
-            warnings.warn(
-                f"{type(self).__name__} is deprecated (since {deprecated_since}); "
-                "see its class docstring for the replacement.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
         self._mutable_config = config
         self._mutable_parents = dict(parents)
         self._mutable_config_values = dict(config_values) if config_values else {}
@@ -753,7 +705,7 @@ class Knot:
 
     # ------------------------------------------------------------- user-impl
 
-    async def process(self, *args: Any, **kwargs: Any) -> Any:
+    async def process(self, *args: Any, **_: Any) -> Any:
         """Implement this.  This is the one method users override.
 
         Type annotations on parameters and return are honoured for
@@ -929,7 +881,7 @@ class Knot:
         """Resolve ``process()``'s type hints, keeping ``Annotated`` extras.
 
         We introspect ``cls.process`` (the unbound method) so that
-        ``inspect.signature`` follows ``__wrapped__`` for ``@knot``-
+        ``inspect.signature`` follows ``__wrapped__`` for ``@KnotFactory.knot``-
         generated subclasses.  See Phase 1 commit history for the
         justification.
 

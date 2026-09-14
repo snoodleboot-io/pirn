@@ -17,7 +17,7 @@ All pools, stores, and clients inherit from `PirnOpaqueValue` — pirn serialise
 ## Source map
 
 ```
-pirn/domains/connectors/
+pirn/connectors/
 ├── connection_config.py         ConnectionConfig          — base: host, port, database, credentials fields
 ├── database_connection_pool.py  DatabaseConnectionPool    — base: acquire(), release(), close()
 ├── object_store.py              ObjectStore               — base: read(), write(), list(), delete()
@@ -25,7 +25,7 @@ pirn/domains/connectors/
 ├── file_format.py               FileFormat                — base: encode()/decode() for a single format
 ├── dsn_scrubber.py              dsn_scrubber()            — strips credentials from DSN strings before logging
 ├── api_client.py                ApiClient                 — base for REST API clients (SaaS connectors)
-├── connection_config_decorator.py  @connection_config     — decorator: register a config class for auto-discovery
+├── connection_config_decorator.py  @ConnectionConfigDecorator.apply     — decorator: register a config class for auto-discovery
 ├── knots/                       source/sink knots         — → see AGENTIC_USE.md
 ├── capabilities/                capability interfaces     — → see AGENTIC_USE.md
 ├── databases/                   DB configs + pools        — → see AGENTIC_USE.md

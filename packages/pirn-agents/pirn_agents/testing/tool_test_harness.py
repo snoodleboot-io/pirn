@@ -2,29 +2,31 @@
 
 The kit gives tool authors two things:
 
-* **Schema assertions** — :meth:`ToolTestHarness.assert_tool_schema` (exact
-  match) and :meth:`ToolTestHarness.assert_tool_schema_shape` (partial: required
-  names + per-property fragments) check the declaration a tool advertises.
+* **Schema assertions** — :meth:`ToolTestHarness.assert_tool_schema` (exact match) and
+  :meth:`ToolTestHarness.assert_tool_schema_shape` (partial: required names + per-property
+  fragments) check the declaration a tool advertises.
 * **Drivers** — :meth:`ToolTestHarness.run_tool` runs one call through the
   engine (a real ``Tapestry.run`` of the call's knot, approval gate and all)
-  and returns its value, raising on a failed or skipped call;
-  :meth:`ToolTestHarness.collect_tool_stream` drains a streaming tool.
+  and returns its value, raising on a failed or skipped call, and
+  :meth:`ToolTestHarness.collect_tool_stream` drains a streaming tool, both
+  returning the observed output for assertion.
 
 Every helper accepts anything :meth:`ToolFactory.of` accepts — a ``Tool``
-class, a ``@tool`` factory, a :class:`StubTool`, a bound factory (ADR
-agents-speaks-core, WS1).  A :class:`ToolTestHarness` instance bundles a single
-tool with those helpers for a fluent style. Worked example::
+class, a ``@ToolDecorator.decorate`` factory, a :class:`StubTool`, a bound factory (ADR
+agents-speaks-core, WS1).  :class:`ToolTestHarness` bundles a single tool
+with those helpers for a fluent style. Worked example::
 
+    from pirn_agents.testing.stub_tool import StubTool
     from pirn_agents.testing.tool_test_harness import ToolTestHarness
 
     async def test_echo() -> None:
-        harness = ToolTestHarness(ToolTestHarness.make_stub_tool(name="echo", result="hi"))
+        harness = ToolTestHarness(StubTool(name="echo", result="hi"))
         harness.assert_schema_shape(required=(), properties={"input": {"type": "string"}})
         assert await harness.run({"input": "x"}) == "hi"
 
     async def test_stream() -> None:
-        stub = ToolTestHarness.make_stub_tool(name="gen", stream_chunks=["a", "b"])
-        assert await ToolTestHarness(stub).collect_stream({}) == ["a", "b"]
+        harness = ToolTestHarness(StubTool(name="gen", stream_chunks=["a", "b"]))
+        assert await harness.collect_stream({}) == ["a", "b"]
 """
 
 from __future__ import annotations
@@ -38,17 +40,18 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
-from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class ToolTestHarness:
-    """Bundles one tool capability with schema assertions and engine drivers.
+    """Bundles one tool capability with schema assertions and invocation drivers.
 
-    The static methods are the tool-agnostic helpers; the instance methods
-    apply them to the wrapped tool.
+    The static methods (:meth:`assert_tool_schema`,
+    :meth:`assert_tool_schema_shape`, :meth:`run_tool`,
+    :meth:`collect_tool_stream`) take any tool capability directly; the
+    instance API applies them to the wrapped tool.
     """
 
     def __init__(self, tool: Any) -> None:
@@ -106,11 +109,6 @@ class ToolTestHarness:
                 f"tool {self._tool.name!r} stream mismatch:\n"
                 f"  expected={expected!r}\n  actual={chunks!r}"
             )
-
-    @staticmethod
-    def make_stub_tool(**kwargs: Any) -> StubTool:
-        """Return a :class:`StubTool` configured by ``kwargs`` (factory helper)."""
-        return StubTool(**kwargs)
 
     @staticmethod
     def assert_tool_schema(tool: Any, expected: Mapping[str, Any]) -> None:

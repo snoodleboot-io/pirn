@@ -10,7 +10,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.prompt.system_prompt_composer import SystemPromptComposer
@@ -18,7 +18,7 @@ from pirn_agents.prompt.system_prompt_kind import SystemPromptKind
 from pirn_agents.prompt.system_prompt_layer import SystemPromptLayer
 
 
-@knot
+@KnotFactory.knot
 async def _empty_layers() -> tuple:
     """Upstream stand-in supplying the composer's ``layers`` port."""
     return ()

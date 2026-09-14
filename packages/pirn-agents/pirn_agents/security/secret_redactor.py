@@ -19,7 +19,7 @@ ADR agents-speaks-core WS2 — the traceback surface: core's
 ``traceback_filter: Callable[[str], str]`` that runs over every captured
 traceback before it is stored in an :class:`~pirn.managers.exception_record.ExceptionRecord`
 — core's own default is the format-only
-:func:`pirn.managers.redact.redact_common_secrets`. :meth:`default_traceback_filter`
+:meth:`pirn.managers.traceback_redactor.TracebackRedactor.redact_common_secrets`. :meth:`default_traceback_filter`
 returns a filter backed by this redactor instead, so a traceback that leaks
 through an agents-specific surface (e.g. an MCP server URL in a connection
 error) gets the same detection this module already applies to tool args and

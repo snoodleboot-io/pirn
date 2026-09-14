@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from pirn_agents.resilience.retry_classification import RetryClassification
 from pirn_agents.resilience.retry_safety_classifier import RetrySafetyClassifier
 
 
@@ -20,13 +19,13 @@ class TestExceptionTypes:
         [TimeoutError("t"), ConnectionError("c"), OSError("o")],
     )
     def test_transient_exceptions_are_safe(self, error: BaseException) -> None:
-        assert RetrySafetyClassifier().classify(error) is RetryClassification.SAFE
+        assert RetrySafetyClassifier().is_safe(error) is True
 
     def test_validation_error_is_unsafe(self) -> None:
-        assert RetrySafetyClassifier().classify(ValueError("bad")) is RetryClassification.UNSAFE
+        assert RetrySafetyClassifier().is_safe(ValueError("bad")) is False
 
     def test_unknown_defaults_unsafe(self) -> None:
-        assert RetrySafetyClassifier().classify(RuntimeError("?")) is RetryClassification.UNSAFE
+        assert RetrySafetyClassifier().is_safe(RuntimeError("?")) is False
 
 
 class TestStatusCodes:
@@ -43,7 +42,7 @@ class TestStatusCodes:
         class _Weird(OSError):
             status_code = 400
 
-        assert RetrySafetyClassifier().classify(_Weird()) is RetryClassification.UNSAFE
+        assert RetrySafetyClassifier().is_safe(_Weird()) is False
 
 
 class TestConfiguration:

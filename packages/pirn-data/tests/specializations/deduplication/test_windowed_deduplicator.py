@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -117,7 +117,7 @@ class TestWindowedDeduplicator(unittest.IsolatedAsyncioTestCase):
         assert result == []
 
     async def test_wired_tapestry_run(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list[dict[str, Any]]:
             return [
                 {"id": "A", "ts": _ts(0)},
@@ -139,7 +139,7 @@ class TestWindowedDeduplicator(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_timestamp_column_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_col() -> str:
             return _TIMESTAMP_COLUMN
 

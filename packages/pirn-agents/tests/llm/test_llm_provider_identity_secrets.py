@@ -1,6 +1,6 @@
 """No credential ever reaches an HTTP provider's canonical form (PIR-840 PR-3).
 
-The canonical form is what ``content_hash`` digests, and the digest lands in lineage.
+The canonical form is what ``ContentHasher.hash`` digests, and the digest lands in lineage.
 These tests assert on the **form** (serialised to JSON), never on the hex digest: a
 digest cannot show that a secret is absent, only that two inputs differ.
 

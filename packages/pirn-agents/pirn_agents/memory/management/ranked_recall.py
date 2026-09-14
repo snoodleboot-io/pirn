@@ -68,7 +68,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.memory.management.decay_function import decay_score
+from pirn_agents.memory.management.decay_function import DecayFunction
 from pirn_agents.memory.management.memory_record import MemoryRecord
 from pirn_agents.memory.management.ranked_memory import RankedMemory
 from pirn_agents.memory.management.recall_candidate import RecallCandidate
@@ -193,7 +193,7 @@ class RankedRecall(Knot):
     def _recency(record: MemoryRecord, now: datetime, half_life_seconds: float) -> float:
         """Return the half-life recency weight of ``record`` at ``now`` in ``[0, 1]``."""
         age_seconds = (now - record.recency_anchor()).total_seconds()
-        return decay_score(1.0, age_seconds, half_life_seconds)
+        return DecayFunction.score(1.0, age_seconds, half_life_seconds)
 
     @staticmethod
     def _min_max(values: Sequence[float]) -> list[float]:

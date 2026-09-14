@@ -75,13 +75,13 @@ Extras without system deps (`duckdb`, `polars`, `datafusion`, `s3`, `otel`, etc.
 
 ## Hello World knot
 
-A knot is the fundamental unit of work in pirn. Use `@knot` to wrap an async function:
+A knot is the fundamental unit of work in pirn. Use `@KnotFactory.knot` to wrap an async function:
 
 ```python
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:  # (1)
     return x * 2
 ```
@@ -91,7 +91,7 @@ async def double(x: int) -> int:  # (1)
 Sync functions work too — pirn wraps them with `asyncio.to_thread` automatically:
 
 ```python
-@knot
+@KnotFactory.knot
 def to_upper(text: str) -> str:
     return text.upper()
 ```
@@ -117,18 +117,18 @@ Knots are wired inside a `Tapestry` context manager. Pass one knot as a kwarg to
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -240,13 +240,13 @@ By default, a knot whose parent failed is skipped (`SKIP_IF_PARENT_FAILED`). You
 
 ```python
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pirn.core.error_policy import ErrorPolicy
 
 # This knot receives Result objects directly — it handles failures itself
-@knot
+@KnotFactory.knot
 async def summarise(left: int, right: int, **_) -> str:
     return f"{left} + {right}"
 

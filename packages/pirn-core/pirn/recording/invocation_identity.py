@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -23,7 +23,7 @@ class InvocationIdentity:
     Two such knots therefore record identical ``knot_config_hash``, identical
     ``parent_input_hashes`` and identical ``source_hash`` while computing
     different answers.  That is harmless for a re-executing helper like
-    ``pirn.knot_diff.replay_run`` — the knot runs, so the literal is honoured —
+    ``pirn.knot_diff.KnotDiff.replay_run`` — the knot runs, so the literal is honoured —
     but it is fatal for a replay that *substitutes* the recorded output: the
     stale value would be served with no signal that anything had changed.
 
@@ -61,9 +61,9 @@ class InvocationIdentity:
     than trusting an equality that does not mean what it looks like.
     """
 
-    #: Marker ``content_hash`` emits when a value has no canonical form.  Every
+    #: Marker ``ContentHasher.hash`` emits when a value has no canonical form.  Every
     #: instance of such a type shares it, so it can never establish identity.
-    UNCOMPARABLE_MARKER = ":unhashable:"
+    uncomparable_marker: ClassVar[str] = ":unhashable:"
 
     @staticmethod
     def config_values_hash(knot: Knot) -> str | None:
@@ -83,7 +83,7 @@ class InvocationIdentity:
         values = dict(knot.config_values)
         if not values:
             return None
-        return content_hash(values)
+        return ContentHasher.hash(values)
 
     @classmethod
     def is_comparable(cls, config_values_hash: str | None) -> bool:
@@ -103,4 +103,4 @@ class InvocationIdentity:
         """
         if config_values_hash is None:
             return True
-        return cls.UNCOMPARABLE_MARKER not in config_values_hash
+        return cls.uncomparable_marker not in config_values_hash

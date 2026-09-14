@@ -26,6 +26,7 @@ def _make_framer(round_index: int) -> DebateRoundFramer:
             topic="the topic",
             round_index=round_index,
             rounds=3,
+            prior_rounds=(),
             _config=KnotConfig(id="frame"),
         )
 
@@ -33,7 +34,7 @@ def _make_framer(round_index: int) -> DebateRoundFramer:
 class TestDebateRoundFramerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_round_zero_reports_no_prior_rounds(self) -> None:
         framer = _make_framer(0)
-        framed = await framer.process(topic="the topic", round_index=0, rounds=3)
+        framed = await framer.process(topic="the topic", round_index=0, rounds=3, prior_rounds=())
         assert framed == (
             "Topic: the topic\n\nRound 1 of 3.\nNo prior rounds.\nMake your strongest argument."
         )
@@ -44,7 +45,7 @@ class TestDebateRoundFramerProcess(unittest.IsolatedAsyncioTestCase):
             topic="the topic",
             round_index=1,
             rounds=3,
-            round_0=[_resp("pro-1"), _resp("con-1")],
+            prior_rounds=([_resp("pro-1"), _resp("con-1")],),
         )
         assert framed == (
             "Topic: the topic\n\n"
@@ -61,8 +62,7 @@ class TestDebateRoundFramerProcess(unittest.IsolatedAsyncioTestCase):
             topic="the topic",
             round_index=2,
             rounds=3,
-            round_0=[_resp("a0"), _resp("b0")],
-            round_1=[_resp("a1"), _resp("b1")],
+            prior_rounds=([_resp("a0"), _resp("b0")], [_resp("a1"), _resp("b1")]),
         )
         assert "Round 1:\n  debater_0: a0\n  debater_1: b0" in framed
         assert "Round 2:\n  debater_0: a1\n  debater_1: b1" in framed
@@ -75,11 +75,11 @@ class TestDebateRoundFramerProcess(unittest.IsolatedAsyncioTestCase):
                 round_index=1,
                 rounds=2,
                 _config=KnotConfig(id="frame"),
-                round_0=Parameter(
-                    name="round_0_value",
-                    type_=list,
-                    default=[_resp("for"), _resp("against")],
-                    _config=KnotConfig(id="round_0_value"),
+                prior_rounds=Parameter(
+                    name="prior_rounds_value",
+                    type_=tuple,
+                    default=([_resp("for"), _resp("against")],),
+                    _config=KnotConfig(id="prior_rounds_value"),
                 ),
             )
         result = await t.run(RunRequest())
@@ -94,5 +94,5 @@ class TestDebateRoundFramerProcess(unittest.IsolatedAsyncioTestCase):
         # Named-scalar args are coerced to Parameter parents; this exercises the
         # render path with valid typed inputs and asserts the shape is a string.
         framer = _make_framer(0)
-        out: Any = await framer.process(topic="t", round_index=0, rounds=1)
+        out: Any = await framer.process(topic="t", round_index=0, rounds=1, prior_rounds=())
         assert isinstance(out, str)

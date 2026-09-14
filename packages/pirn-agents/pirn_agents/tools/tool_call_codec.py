@@ -110,9 +110,9 @@ class ToolCallCodec(PirnOpaqueValue):
             neutral content is the error string for an ``Err`` (``"<type>:
             <message>"``), ``"call skipped: <reason>"`` for a ``Skipped``
             (PIR-865: rendered through :meth:`ToolResult.from_result`, whose
-            view carries :attr:`~pirn_agents.tools.tool_status.ToolStatus.SKIPPED`
-            rather than ``ERROR`` — a caller reading ``status`` rather than
-            just this text still sees the call was skipped, not failed), and
+            view's outcome stays ``Skipped`` and whose ``status`` is
+            ``"skipped"`` rather than ``"error"`` — a caller reading it rather
+            than just this text still sees the call was skipped, not failed), and
             the produced value coerced to a JSON-safe form for an ``Ok``.
         """
         views = self.views(results, lineage=lineage)

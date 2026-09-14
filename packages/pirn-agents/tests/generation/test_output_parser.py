@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.generation.output_parser import OutputParser
@@ -13,7 +13,7 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 def _make_knot() -> OutputParser:
-    @knot
+    @KnotFactory.knot
     async def _r() -> dict:
         return {"content": "x"}
 

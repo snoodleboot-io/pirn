@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pyarrow as pa
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -23,7 +23,7 @@ def _empty_batch() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({}))
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({"id": [1, 2], "name": ["a", "b"]}))
 
@@ -56,7 +56,7 @@ class TestPyarrowRename(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_mapping_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_mapping() -> dict:
             return {"name": "username"}
 
@@ -75,7 +75,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowRename:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({}))
 

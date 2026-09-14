@@ -2,8 +2,8 @@
 
 Concrete implementations (asyncpg, aiosqlite, DuckDB, ...) inherit from
 :class:`DatabaseConnectionPool` and override every method. Following the
-existing pirn interface convention (see ``pirn/streaming/base.py``,
-``pirn/triggers/base.py``, ``pirn/backends/base/run_history.py``) — base
+existing pirn interface convention (see ``pirn/streaming/streaming_source.py``,
+``pirn/triggers/trigger.py``, ``pirn/backends/base/run_history.py``) — base
 methods raise :class:`NotImplementedError` naming the concrete subclass
 that failed to implement them.
 """

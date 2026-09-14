@@ -11,21 +11,21 @@ Suppose you have a knot that produces a list of IDs, and you want to enrich each
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.map_markers import Map
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def fetch_ids(category: str) -> list[str]:
     """Fetch a list of record IDs for the given category."""
     # In production this would query a database.
     return [f"{category}-001", f"{category}-002", f"{category}-003"]
 
 
-@knot
+@KnotFactory.knot
 async def enrich_record(record_id: str) -> dict:
     """Fetch details for a single record."""
     return {"id": record_id, "score": len(record_id) * 0.1, "status": "active"}
@@ -56,7 +56,7 @@ asyncio.run(main())
 ```
 
 1. `over=ids` — the parent knot that produces `list[str]`.
-2. `each=enrich_record` — the knot (or `@knot` function) applied to each element.
+2. `each=enrich_record` — the knot (or `@KnotFactory.knot` function) applied to each element.
 3. `bind="record_id"` — the parameter name in `enrich_record.process()` that receives each element.
 
 ---
@@ -66,7 +66,7 @@ asyncio.run(main())
 Pass static values shared across all element calls using `shared`:
 
 ```python
-@knot
+@KnotFactory.knot
 async def score_text(text: str, model: str) -> float:
     return 0.5  # placeholder
 
@@ -92,12 +92,12 @@ After fanning out with `Map`, use `Reduce` to fold the results back into a singl
 from pirn.nodes.reduce_ import Reduce
 
 
-@knot
+@KnotFactory.knot
 async def fetch_item_ids(batch: str) -> list[str]:
     return ["a", "b", "c"]
 
 
-@knot
+@KnotFactory.knot
 async def compute_cost(item_id: str) -> float:
     return {"a": 1.0, "b": 2.5, "c": 0.75}[item_id]
 

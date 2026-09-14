@@ -36,7 +36,7 @@ from pathlib import Path
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.result import Ok, Result
 from pirn.core.run_request import RunRequest
@@ -100,7 +100,7 @@ class FraudDecision:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def core_analysis(txn: Transaction) -> CoreRisk:
     """Required: velocity checks and account-history risk scoring."""
     rng = random.Random(txn.txn_id)
@@ -116,7 +116,7 @@ async def core_analysis(txn: Transaction) -> CoreRisk:
     )
 
 
-@knot
+@KnotFactory.knot
 async def device_check(txn: Transaction) -> DeviceSignal:
     """Optional: fingerprint device_id against known fraud device registry."""
     if txn.device_id is None:
@@ -128,7 +128,7 @@ async def device_check(txn: Transaction) -> DeviceSignal:
     )
 
 
-@knot
+@KnotFactory.knot
 async def geo_check(txn: Transaction) -> GeoSignal:
     """Optional: compare transaction country against account home country."""
     HIGH_RISK = {"NG", "RU", "KP", "IR"}
@@ -140,7 +140,7 @@ async def geo_check(txn: Transaction) -> GeoSignal:
     )
 
 
-@knot
+@KnotFactory.knot
 async def bureau_check(txn: Transaction) -> BureauSignal:
     """Optional: third-party fraud bureau lookup — may be rate-limited."""
     rng = random.Random(txn.txn_id + "bureau")
@@ -152,7 +152,7 @@ async def bureau_check(txn: Transaction) -> BureauSignal:
     )
 
 
-@knot
+@KnotFactory.knot
 async def decide(
     txn: Result[Transaction],
     core: Result[CoreRisk],

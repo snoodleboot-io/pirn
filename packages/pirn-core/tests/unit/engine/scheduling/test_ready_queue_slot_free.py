@@ -14,7 +14,7 @@ from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.engine.admission.admission_ticket import AdmissionTicket
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
 
@@ -37,7 +37,7 @@ def _shed(*knots: Knot) -> Shed:
 
 class TestAdmissionTicketHeld(unittest.TestCase):
     def test_a_gate_issued_ticket_is_held(self) -> None:
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         ticket = gate.try_admit(_Leaf(_config=KnotConfig(id="a")))
         assert ticket is not None
         self.assertTrue(ticket.held)
@@ -49,7 +49,7 @@ class TestAdmissionTicketHeld(unittest.TestCase):
 class TestContainersAreAdmittedWithoutTheGate(unittest.TestCase):
     def test_a_container_is_admitted_when_the_gate_is_full(self) -> None:
         # Arrange: the single slot is taken by a leaf.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         busy = gate.try_admit(_Leaf(_config=KnotConfig(id="busy")))
         assert busy is not None
         container = _Container(_config=KnotConfig(id="sub"))
@@ -68,7 +68,7 @@ class TestContainersAreAdmittedWithoutTheGate(unittest.TestCase):
 
     def test_a_leaf_ahead_of_a_container_is_still_refused_by_a_full_gate(self) -> None:
         # Arrange: readiness order is leaf then container; the gate is full.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         busy = gate.try_admit(_Leaf(_config=KnotConfig(id="busy")))
         assert busy is not None
         leaf = _Leaf(_config=KnotConfig(id="leaf"))
@@ -81,7 +81,7 @@ class TestContainersAreAdmittedWithoutTheGate(unittest.TestCase):
         self.assertEqual(len(queue), 2)
 
     def test_a_container_head_is_offered_before_a_later_leaf_when_full(self) -> None:
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         busy = gate.try_admit(_Leaf(_config=KnotConfig(id="busy")))
         assert busy is not None
         leaf = _Leaf(_config=KnotConfig(id="leaf"))
@@ -96,7 +96,7 @@ class TestContainersAreAdmittedWithoutTheGate(unittest.TestCase):
         self.assertIsNone(queue.pop_admissible(gate, _shed(leaf, container)))
 
     def test_a_leaf_still_takes_a_real_slot(self) -> None:
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2))
         leaf = _Leaf(_config=KnotConfig(id="leaf"))
         queue = ReadyQueue()
         queue.push_batch([(0, "leaf", None)])

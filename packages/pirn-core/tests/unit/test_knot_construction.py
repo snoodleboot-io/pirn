@@ -13,7 +13,7 @@ from typing import Any
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.optional import Optional
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
@@ -126,7 +126,7 @@ class _StandaloneTests(unittest.TestCase):
 # ------------------------------------------------------- decorator form
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
@@ -144,9 +144,9 @@ async def double(x: int) -> int:
     # ------------------------------------------------------- Optional wrapper
 
     def test_optional_decorator_is_optional(self):
-        from pirn.core.knot_factory import knot as knot_decorator
+        from pirn.core.knot_factory import KnotFactory
 
-        @knot_decorator
+        @KnotFactory.knot
         async def inner(x: int) -> int:
             return x
 

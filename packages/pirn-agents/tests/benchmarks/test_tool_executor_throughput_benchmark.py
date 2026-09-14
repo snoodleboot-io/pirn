@@ -20,7 +20,6 @@ from pirn.tapestry import Tapestry
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 from tests.benchmarks.conftest import BenchmarkRecorder
 
@@ -65,7 +64,7 @@ async def test_tool_executor_throughput(benchmark_recorder: BenchmarkRecorder) -
     assert run.succeeded, run.exceptions
     results = run.outputs["pte-bench-harness"]
 
-    assert all(r.status is ToolStatus.OK for r in results)
+    assert all(r.status == "ok" for r in results)
     serial = n * per_call
     assert elapsed < 0.5 * serial  # loose, non-flaky
 

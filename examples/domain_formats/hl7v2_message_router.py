@@ -38,7 +38,7 @@ from typing import Any
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
@@ -96,7 +96,7 @@ class ClinicalEvent:
 # ----------------------------------------------------------------- inner knots — admission
 
 
-@knot
+@KnotFactory.knot
 async def parse_admission(message: Hl7Message) -> AdmissionEvent:
     """Extract PV1 segment fields into an AdmissionEvent."""
     pv1 = next(
@@ -118,7 +118,7 @@ async def parse_admission(message: Hl7Message) -> AdmissionEvent:
     )
 
 
-@knot
+@KnotFactory.knot
 async def enrich_admission(admission: AdmissionEvent) -> ClinicalEvent:
     """Assign acuity score and check bed availability."""
     dept_acuity = {
@@ -145,7 +145,7 @@ async def enrich_admission(admission: AdmissionEvent) -> ClinicalEvent:
 # ----------------------------------------------------------------- inner knots — orders
 
 
-@knot
+@KnotFactory.knot
 async def parse_order(message: Hl7Message) -> ClinicalOrder:
     """Extract OBR segment fields into a ClinicalOrder."""
     obr = next(
@@ -168,7 +168,7 @@ async def parse_order(message: Hl7Message) -> ClinicalOrder:
     )
 
 
-@knot
+@KnotFactory.knot
 async def validate_order(order: ClinicalOrder) -> ClinicalEvent:
     """Check order completeness and confirm priority."""
     is_stat = order.priority in ("S", "STAT")
@@ -192,7 +192,7 @@ async def validate_order(order: ClinicalOrder) -> ClinicalEvent:
 # ----------------------------------------------------------------- inner knots — results
 
 
-@knot
+@KnotFactory.knot
 async def parse_results(message: Hl7Message) -> list[LabResult]:
     """Extract all OBX segments into LabResult records."""
     obx_segments = [s for s in message.segments if s["segment_id"] == "OBX"]
@@ -223,7 +223,7 @@ async def parse_results(message: Hl7Message) -> list[LabResult]:
     return results
 
 
-@knot
+@KnotFactory.knot
 async def interpret_results(results: list[LabResult]) -> ClinicalEvent:
     """Flag critical values and build a ClinicalEvent."""
     critical = [r for r in results if r.flag in ("H", "L", "C")]
@@ -282,7 +282,7 @@ class ResultProcessor(SubTapestry):
 # ----------------------------------------------------------------- outer knots
 
 
-@knot
+@KnotFactory.knot
 async def route_message(message: Hl7Message) -> RunResult:
     """Dispatch to the correct SubTapestry processor by message type prefix."""
     prefix = message.message_type[:3]
@@ -308,7 +308,7 @@ async def route_message(message: Hl7Message) -> RunResult:
     return await processor.process(message=message)
 
 
-@knot
+@KnotFactory.knot
 async def log_clinical_event(message: Hl7Message, routed_result: RunResult) -> dict[str, Any]:
     """Extract the ClinicalEvent from the routed result and create a log entry."""
     output_key = {

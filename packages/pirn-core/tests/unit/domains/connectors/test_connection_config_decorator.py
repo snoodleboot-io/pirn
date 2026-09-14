@@ -5,12 +5,12 @@ from __future__ import annotations
 import dataclasses
 import unittest
 
-from pirn.connectors.connection_config_decorator import connection_config
+from pirn.connectors.connection_config_decorator import ConnectionConfigDecorator
 
 
 class TestConnectionConfigDecorator(unittest.TestCase):
     def test_applied_directly_to_class(self) -> None:
-        @connection_config
+        @ConnectionConfigDecorator.apply
         class MyConfig:
             host: str = "localhost"
             port: int = 5432
@@ -20,7 +20,7 @@ class TestConnectionConfigDecorator(unittest.TestCase):
         self.assertEqual(cfg.port, 5432)
 
     def test_frozen_by_default(self) -> None:
-        @connection_config
+        @ConnectionConfigDecorator.apply
         class MyConfig:
             host: str = "localhost"
 
@@ -29,7 +29,7 @@ class TestConnectionConfigDecorator(unittest.TestCase):
             cfg.host = "other"  # type: ignore[misc]
 
     def test_repr_not_generated(self) -> None:
-        @connection_config
+        @ConnectionConfigDecorator.apply
         class MyConfig:
             host: str = "localhost"
 
@@ -37,7 +37,7 @@ class TestConnectionConfigDecorator(unittest.TestCase):
         self.assertNotIn("__repr__", MyConfig.__dict__)
 
     def test_applied_with_kwargs(self) -> None:
-        @connection_config(frozen=False)
+        @ConnectionConfigDecorator.apply(frozen=False)
         class MutableConfig:
             host: str = "localhost"
 
@@ -46,7 +46,7 @@ class TestConnectionConfigDecorator(unittest.TestCase):
         self.assertEqual(cfg.host, "changed")
 
     def test_is_dataclass(self) -> None:
-        @connection_config
+        @ConnectionConfigDecorator.apply
         class MyConfig:
             timeout: int = 30
 

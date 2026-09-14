@@ -12,8 +12,8 @@ from pirn.core.identity.identity_resolver import IdentityResolver
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.tapestry import Tapestry
 
@@ -37,7 +37,7 @@ class TestExecutionPlaneValue(unittest.TestCase):
     def test_is_frozen(self) -> None:
         plane = ExecutionPlane(
             dispatcher=LocalDispatcher(),
-            gate=UnboundedAdmissionGate(),
+            gate=UnboundedAdmission(),
             limits=None,
             admission_observers=(),
             replay=None,
@@ -62,7 +62,7 @@ class TestExecutionPlaneIsPublishedForTheRun(unittest.IsolatedAsyncioTestCase):
         (plane,) = seen
         assert plane is not None
         self.assertIs(plane.dispatcher, dispatcher)
-        self.assertIsInstance(plane.gate, LimitedAdmissionGate)
+        self.assertIsInstance(plane.gate, LimitedAdmission)
         self.assertEqual(plane.limits, ConcurrencyLimits(max_in_flight=2))
         self.assertIsNone(plane.replay)
         self.assertIs(plane.identity_resolver, t.identity_resolver)
@@ -80,5 +80,5 @@ class TestExecutionPlaneIsPublishedForTheRun(unittest.IsolatedAsyncioTestCase):
         await t.run(RunRequest())
         (plane,) = seen
         assert plane is not None
-        self.assertIsInstance(plane.gate, UnboundedAdmissionGate)
+        self.assertIsInstance(plane.gate, UnboundedAdmission)
         self.assertIsNone(plane.limits)

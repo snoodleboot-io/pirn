@@ -72,12 +72,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
 from pirn_data.transforms.aggregate_spec import AggregateSpec
+from pirn_data.value_shape import ValueShape
 
 
 class Aggregate(Knot):
@@ -111,14 +109,14 @@ class Aggregate(Knot):
         Returns:
             A new DataBatch with one row per group and columns for each aggregation output.
         """
-        if not _ValueShape.is_sequence(by) or isinstance(by, (str, bytes)):
+        if not ValueShape.is_sequence(by) or isinstance(by, (str, bytes)):
             raise TypeError("Aggregate: by must be a sequence of column names (e.g. tuple or list)")
         if not by:
             raise ValueError("Aggregate: by must be non-empty")
         for b in by:
             if not isinstance(b, str) or not b:
                 raise TypeError("Aggregate: every entry in by must be a non-empty string")
-        if not _ValueShape.is_mapping(aggs) or not aggs:
+        if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(
                 "Aggregate: aggs must be a non-empty Mapping[output_column, AggregateSpec]"
             )

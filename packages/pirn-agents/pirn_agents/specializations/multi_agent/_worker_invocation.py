@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
@@ -18,7 +20,7 @@ from pirn_agents.tools.tool_result import ToolResult
 class _WorkerInvocation(Knot):
     """Invoke one worker for one task.
 
-    Never raises: a failed call becomes a ``ToolStatus.ERROR`` result. An F7
+    Never raises: a failed call becomes a :class:`ToolResult` whose outcome is ``Err``. An F7
     :class:`~pirn_agents.tools.agent_tool.AgentTool`'s own ``ToolResult`` is
     passed through unchanged rather than double-wrapped, matching
     ``AgentTool.invoke()``'s documented contract of never raising itself.
@@ -57,13 +59,12 @@ class _WorkerInvocation(Knot):
             The worker's own :class:`ToolResult` when it returns one already
             (an F7 :class:`~pirn_agents.tools.agent_tool.AgentTool`), or a
             :class:`ToolResult` wrapping its plain return value, or a
-            :class:`ToolResult` with :attr:`ToolStatus.ERROR` when the call
-            raised.
+            :class:`ToolResult` whose outcome is ``Err`` when the call raised.
         """
         factory = ToolFactory.of(worker)
         call = ToolCall(tool_name=factory.name, arguments={"task": task}, call_id=task)
         try:
             outcome = await factory.run_call(call)
         except ToolArgumentValidationError as exc:
-            return ToolResult(call_id=task, result=None, error=str(exc))
+            return ToolResult(call_id=task, outcome=Err(record=ExceptionRecord.for_knot(task, exc)))
         return ToolResult.from_result(task, outcome)

@@ -35,10 +35,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+import pandas as pd
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PandasFilter(Knot):
@@ -69,11 +71,17 @@ class PandasFilter(Knot):
         Returns:
             A new PandasDataBatch containing only the rows for which the predicate returns True.
         """
-        if not callable(predicate):
+        if not ValueShape.is_callable(predicate):
             raise TypeError(
                 "PandasFilter: predicate must be a callable "
                 "(df) -> pandas.Series[bool]; for row-by-row Python callables "
                 "use the Tier-1 pirn_data.transforms.filter.Filter knot instead"
             )
         mask = predicate(batch.frame)
-        return batch.with_frame(batch.frame[mask].reset_index(drop=True))  # type: ignore[arg-type]
+        filtered = batch.frame[mask]
+        if not isinstance(filtered, pd.DataFrame):
+            raise TypeError(
+                "PandasFilter: predicate must return a boolean row mask; "
+                f"indexing with its result selected a {type(filtered).__name__}"
+            )
+        return batch.with_frame(filtered.reset_index(drop=True))

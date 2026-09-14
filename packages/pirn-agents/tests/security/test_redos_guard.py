@@ -16,7 +16,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.control.handoff_check import HandoffCheck
@@ -66,7 +66,7 @@ class TestSafetyCheckReDoSGuard(unittest.IsolatedAsyncioTestCase):
         long_pattern = "a" * (_MAX + 1)
         message = AgentMessage(role="user", content="hello")
 
-        @knot
+        @KnotFactory.knot
         async def m() -> AgentMessage:
             return message
 
@@ -84,7 +84,7 @@ class TestSafetyCheckReDoSGuard(unittest.IsolatedAsyncioTestCase):
     async def test_empty_deny_patterns_rejected(self) -> None:
         message = AgentMessage(role="user", content="hello")
 
-        @knot
+        @KnotFactory.knot
         async def m() -> AgentMessage:
             return message
 
@@ -101,7 +101,7 @@ class TestHandoffCheckReDoSGuard(unittest.IsolatedAsyncioTestCase):
         long_pattern = "b" * (_MAX + 1)
         response = AgentResponse(content="ok", finish_reason="stop")
 
-        @knot
+        @KnotFactory.knot
         async def r() -> AgentResponse:
             return response
 

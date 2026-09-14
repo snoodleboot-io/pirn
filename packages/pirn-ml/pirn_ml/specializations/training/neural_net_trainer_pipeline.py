@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NeuralNetTrainerPipeline`` — train, evaluate, serialise and register
 a neural-network model.
 
@@ -33,7 +35,7 @@ from typing import Any, ClassVar
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -46,7 +48,7 @@ from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _combine_neural_net_pipeline_result(
     model_id: str,
     eval_report: EvalReportPayload,

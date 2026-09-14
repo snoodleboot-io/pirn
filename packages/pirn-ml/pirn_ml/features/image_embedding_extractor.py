@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ImageEmbeddingExtractor`` — append an image-encoder-derived feature
 to every :class:`DatasetManifest` in a :class:`SplitManifest`.
 
@@ -74,9 +76,9 @@ class ImageEmbeddingExtractor(Knot):
             ValueError: If image_column is empty.
             TypeError: If image_encoder is not an ImageEncoderProvider.
         """
-        if not isinstance(image_column, str) or not image_column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(image_column, str) or not image_column:
             raise ValueError("ImageEmbeddingExtractor: image_column must be a non-empty string")
-        if not isinstance(image_encoder, ImageEncoderProvider):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(image_encoder, ImageEncoderProvider):
             raise TypeError(
                 "ImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )

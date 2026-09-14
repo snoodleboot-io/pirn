@@ -37,7 +37,6 @@ _S6_IMPORT_SURFACE: list[tuple[str, str]] = [
     # tools value objects
     ("pirn_agents.tools.tool_call", "ToolCall"),
     ("pirn_agents.tools.tool_result", "ToolResult"),
-    ("pirn_agents.tools.tool_status", "ToolStatus"),
     # planning
     ("pirn_agents.planning.plan", "Plan"),
     # specializations

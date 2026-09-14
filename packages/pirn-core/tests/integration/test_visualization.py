@@ -6,21 +6,21 @@ import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.tapestry import Tapestry
-from pirn.viz.mermaid_renderer import mermaid_for_run, mermaid_for_tapestry
-from pirn.viz.tapestry_html_renderer import html_for_run
+from pirn.viz.mermaid_renderer import MermaidRenderer
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 
 
-@knot
+@KnotFactory.knot
 async def _add(x: int, y: int) -> int:
     return x + y
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 
@@ -31,7 +31,7 @@ async def _double(x: int) -> int:
 def test_mermaid_for_tapestry_starts_with_graph_directive():
     with Tapestry() as t:
         Parameter("x", int, _config=KnotConfig(id="x"))
-    output = mermaid_for_tapestry(t)
+    output = MermaidRenderer.for_tapestry(t)
     assert output.startswith("graph TD")
 
 
@@ -40,7 +40,7 @@ def test_mermaid_for_tapestry_includes_all_knots():
         x = Parameter("x", int, _config=KnotConfig(id="x"))
         y = Parameter("y", int, _config=KnotConfig(id="y"))
         _add(x=x, y=y, _config=KnotConfig(id="sum"))
-    output = mermaid_for_tapestry(t)
+    output = MermaidRenderer.for_tapestry(t)
     assert "x[" in output
     assert "y[" in output
     assert "sum[" in output
@@ -51,7 +51,7 @@ def test_mermaid_for_tapestry_renders_edges():
         x = Parameter("x", int, _config=KnotConfig(id="x"))
         y = Parameter("y", int, _config=KnotConfig(id="y"))
         _add(x=x, y=y, _config=KnotConfig(id="sum"))
-    output = mermaid_for_tapestry(t)
+    output = MermaidRenderer.for_tapestry(t)
     assert "x --> sum" in output
     assert "y --> sum" in output
 
@@ -59,7 +59,7 @@ def test_mermaid_for_tapestry_renders_edges():
 def test_mermaid_for_tapestry_sanitizes_special_characters_in_ids():
     with Tapestry() as t:
         Parameter("x", int, _config=KnotConfig(id="my-knot.with:special.chars"))
-    output = mermaid_for_tapestry(t)
+    output = MermaidRenderer.for_tapestry(t)
     # Hyphens/dots/colons get mapped to underscores so the node id is a valid mermaid identifier.
     assert "my_knot_with_special_chars" in output
 
@@ -69,7 +69,7 @@ async def test_mermaid_for_run_overlays_outcomes():
         x = Parameter("x", int, default=5, _config=KnotConfig(id="x"))
         _double(x=x, _config=KnotConfig(id="d"))
     result = await t.run(RunRequest())
-    output = mermaid_for_run(result)
+    output = MermaidRenderer.for_run(result)
 
     # Both knots got class "ok".
     assert "class x ok;" in output
@@ -81,7 +81,7 @@ async def test_mermaid_for_run_overlays_outcomes():
 
 
 async def test_mermaid_for_run_marks_failed_knots():
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("oops")
 
@@ -89,7 +89,7 @@ async def test_mermaid_for_run_marks_failed_knots():
         x = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
         boom(x=x, _config=KnotConfig(id="b"))
     result = await t.run(RunRequest())
-    output = mermaid_for_run(result)
+    output = MermaidRenderer.for_run(result)
 
     assert "class b err;" in output
 
@@ -102,7 +102,7 @@ async def test_html_for_run_returns_complete_document():
         x = Parameter("x", int, default=5, _config=KnotConfig(id="x"))
         _double(x=x, _config=KnotConfig(id="d"))
     result = await t.run(RunRequest())
-    html = html_for_run(result)
+    html = TapestryHtmlRenderer.for_run(result)
 
     assert html.startswith("<!doctype html>")
     assert html.rstrip().endswith("</html>")
@@ -115,7 +115,7 @@ async def test_html_for_run_includes_run_id_in_summary():
         x = Parameter("x", int, default=5, _config=KnotConfig(id="x"))
         _double(x=x, _config=KnotConfig(id="d"))
     result = await t.run(RunRequest())
-    html = html_for_run(result)
+    html = TapestryHtmlRenderer.for_run(result)
 
     assert result.run_id in html
     # Summary block exists with knot ids visible.
@@ -124,7 +124,7 @@ async def test_html_for_run_includes_run_id_in_summary():
 
 
 async def test_html_for_run_marks_failed_run():
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("oops")
 
@@ -132,7 +132,7 @@ async def test_html_for_run_marks_failed_run():
         x = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
         boom(x=x, _config=KnotConfig(id="b"))
     result = await t.run(RunRequest())
-    html = html_for_run(result)
+    html = TapestryHtmlRenderer.for_run(result)
 
     assert "FAILED" in html
     assert "status-failed" in html
@@ -142,7 +142,7 @@ async def test_html_for_run_with_custom_title():
     with Tapestry() as t:
         Parameter("x", int, default=1, _config=KnotConfig(id="x"))
     result = await t.run(RunRequest())
-    html = html_for_run(result, title="Q3 Daily Sales Pipeline")
+    html = TapestryHtmlRenderer.for_run(result, title="Q3 Daily Sales Pipeline")
 
     assert "Q3 Daily Sales Pipeline" in html
 
@@ -154,7 +154,7 @@ async def test_html_for_run_renders_each_knot_as_svg_node():
         _double(x=x, _config=KnotConfig(id="d1"))
         _double(x=x, _config=KnotConfig(id="d2"))
     result = await t.run(RunRequest())
-    html = html_for_run(result)
+    html = TapestryHtmlRenderer.for_run(result)
 
     # Three lineage records → three node groups.
     n_groups = html.count('<g transform="translate(')
@@ -181,7 +181,7 @@ async def test_html_for_run_handles_empty_lineage():
         started_at=datetime.now(UTC),
         finished_at=datetime.now(UTC),
     )
-    html = html_for_run(result)
+    html = TapestryHtmlRenderer.for_run(result)
     assert html.startswith("<!doctype html>")
     assert "empty run" in html
 
@@ -202,7 +202,7 @@ async def test_mermaid_for_tapestry_uses_subroutine_shape_for_sub_tapestry():
         p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
         _Inner(x=p, _config=KnotConfig(id="sub"))
 
-    output = mermaid_for_tapestry(t)
+    output = MermaidRenderer.for_tapestry(t)
     # [[label]] is Mermaid's subroutine (double-bracket) shape
     assert "sub[[" in output
 
@@ -212,7 +212,7 @@ async def test_mermaid_for_tapestry_regular_knot_uses_normal_shape():
         Parameter("x", int, default=1, _config=KnotConfig(id="x"))
         _double(x=Parameter("x", int, _config=KnotConfig(id="x2")), _config=KnotConfig(id="d"))
 
-    output = mermaid_for_tapestry(t)
+    output = MermaidRenderer.for_tapestry(t)
     assert 'd["' in output or "d[" in output
 
 
@@ -221,7 +221,7 @@ async def test_html_for_tapestry_marks_sub_tapestry_node():
     from typing import Any
 
     from pirn.nodes.sub_tapestry import SubTapestry
-    from pirn.viz.tapestry_html_renderer import html_for_tapestry
+    from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 
     class _Inner(SubTapestry):
         async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]
@@ -231,7 +231,7 @@ async def test_html_for_tapestry_marks_sub_tapestry_node():
         p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
         _Inner(x=p, _config=KnotConfig(id="sub"))
 
-    output = html_for_tapestry(t)
+    output = TapestryHtmlRenderer.for_tapestry(t)
     assert "sub-tapestry" in output
 
 
@@ -251,5 +251,5 @@ async def test_html_for_run_marks_sub_tapestry_node():
         _Doubler(value=src, _config=KnotConfig(id="sub", validate_io=False))
 
     result = await t.run(RunRequest())
-    output = html_for_run(result)
+    output = TapestryHtmlRenderer.for_run(result)
     assert "sub-tapestry" in output

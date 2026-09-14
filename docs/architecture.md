@@ -33,7 +33,7 @@ pirn is an async Python pipeline framework for defining, executing, and observin
 - **Content-addressed lineage.** Every value that flows through a run is hashed and recorded in a lineage ledger. Two runs that produce identical values share the same hash, enabling cross-run comparisons without extra infrastructure.
 - **Failure isolation.** Three error policies (SKIP_IF_PARENT_FAILED, RECEIVE_ERRORS, REQUIRE_ALL_PARENTS) control how failure propagates through the graph without manually writing try/except chains.
 - **Swappable backends.** Storage (TapestryStore, RunHistory, DataStore), dispatch (LocalDispatcher, ThreadDispatcher, CeleryDispatcher, DaskDispatcher, RayDispatcher), and observability (Emitter) are all protocols. Production deployments swap to Postgres/S3/Kafka without touching pipeline code.
-- **Run replay and diffing.** `replay_run` / `compare_runs` in `pirn/replay.py` let operators re-execute a past run with altered parameters and diff the results knot-by-knot by output hash.
+- **Run replay and diffing.** `KnotDiff.replay_run` / `KnotDiff.compare_runs` in `pirn/knot_diff.py` let operators re-execute a past run with altered parameters and diff the results knot-by-knot by output hash.
 
 ### Version / Phase Status
 
@@ -48,7 +48,7 @@ pirn is an async Python pipeline framework for defining, executing, and observin
 ```
 User Code
     │
-    ├── @knot decorator / Knot subclasses   ← pirn/core/knot.py
+    ├── @KnotFactory.knot decorator / Knot subclasses   ← pirn/core/knot.py
     ├── KnotConfig / ErrorPolicy            ← pirn/core/knot_config.py + pirn/core/error_policy.py
     ├── Tapestry context manager            ← pirn/tapestry.py
     │       │
@@ -225,9 +225,9 @@ class FetchPrefs(Optional, Knot):
 
 ### 2.5 Content-Addressed Lineage
 
-**Files:** `pirn/core/hashing.py`, `pirn/core/lineage.py`
+**Files:** `pirn/core/content_hasher.py`, `pirn/core/knot_lineage.py`
 
-Every value that flows through the pipeline is identified by a stable content hash. `content_hash(value)` returns `sha256:<hex-digest>`.
+Every value that flows through the pipeline is identified by a stable content hash. `ContentHasher.hash(value)` returns `sha256:<hex-digest>`.
 
 **What gets hashed:**
 
@@ -237,7 +237,7 @@ Every value that flows through the pipeline is identified by a stable content ha
 
 **Why sha256:** collision resistance at acceptable cost. Hex-encoded because hashes appear in logs and JSON where hex is universally readable.
 
-**Canonicalisation rules** (`_ContentHasher._canonicalise`):
+**Canonicalisation rules** (`ContentHasher._canonicalise`):
 
 | Type | Canonical form |
 |------|---------------|
@@ -279,21 +279,21 @@ class EnrichUser(Knot):
         return lookup_table.get(user_id, {})
 ```
 
-**`@knot` decorator:**
+**`@KnotFactory.knot` decorator:**
 
 ```python
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 ```
 
-`@knot` creates a `KnotFactory` that returns a new `Knot` subclass on each call. The factory exposes `.fn` (the original function) and `.knot_class` (the generated subclass). Sync functions are wrapped via `asyncio.to_thread` automatically.
+`@KnotFactory.knot` creates a `KnotFactory` that returns a new `Knot` subclass on each call. The factory exposes `.fn` (the original function) and `.knot_class` (the generated subclass). Sync functions are wrapped via `asyncio.to_thread` automatically.
 
 **KnotFactory:**
 
-`KnotFactory.__call__(**kwargs)` delegates to `self.knot_class(**kwargs)`. This makes `@knot`-decorated functions call-compatible with Knot subclasses — both can be passed to Map's `each=` or the YAML loader's `known_callables`.
+`KnotFactory.__call__(**kwargs)` delegates to `self.knot_class(**kwargs)`. This makes `@KnotFactory.knot`-decorated functions call-compatible with Knot subclasses — both can be passed to Map's `each=` or the YAML loader's `known_callables`.
 
 **Tapestry context manager:**
 
@@ -373,7 +373,7 @@ The Shed is not part of the public API. It is an engine internal.
 ```
 tracker = DependencyTracker(shed)          # unresolved-parent counts, levels
 ready   = ReadyQueue(tracker.initially_ready())
-gate    = UnboundedAdmissionGate()         # the default admits everything
+gate    = UnboundedAdmission()         # the default admits everything
 
 loop:
     merge any mid-run-registered knots     # newcomers may be ready at once
@@ -395,7 +395,7 @@ loop:
 sort lineage, exceptions, skipped and outputs by (level, dispatched, topo index)
 ```
 
-A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
+A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `Admission` admits it; the default `UnboundedAdmission` admits every ready knot immediately.
 
 Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 
@@ -464,7 +464,7 @@ Adjacent layers interface: `Tapestry` holds references to all three stores. It p
 
 ### 3.5 Observability Layer
 
-**Files:** `pirn/emitters/base.py`, `pirn/emitters/log.py`, `pirn/emitters/kafka.py`, `pirn/emitters/otel.py`, `pirn/emitters/valkey.py`, `pirn/emitters/webhook.py`
+**Files:** `pirn/emitters/emitter.py`, `pirn/emitters/log.py`, `pirn/emitters/kafka.py`, `pirn/emitters/otel.py`, `pirn/emitters/valkey.py`, `pirn/emitters/webhook.py`
 
 **Emitter protocol:**
 
@@ -497,7 +497,7 @@ The engine wires emitters to `RunContext.status` (a `StatusManager`) at the star
 
 ### 3.6 Trigger Layer
 
-**Files:** `pirn/triggers/base.py`, `pirn/triggers/cron.py`, `pirn/triggers/http.py`, `pirn/triggers/kafka.py`, `pirn/triggers/valkey.py`
+**Files:** `pirn/triggers/trigger.py`, `pirn/triggers/cron.py`, `pirn/triggers/http.py`, `pirn/triggers/kafka.py`, `pirn/triggers/valkey.py`
 
 **Trigger protocol:**
 
@@ -509,7 +509,7 @@ class Trigger(Protocol):
     async def close(self) -> None: ...
 ```
 
-**`run_forever(trigger, tapestry, *, on_result=None, on_error=None)`** (`pirn/triggers/base.py`):
+**`trigger.run_forever(tapestry, *, on_result=None, on_error=None)`** (`pirn/triggers/trigger.py`):
 
 Consumes `RunRequest`s from `trigger.stream()` and calls `tapestry.run(request)` for each. Calls `trigger.close()` on exit (normal, cancelled, or errored). Optional callbacks `on_result` and `on_error` are awaited if provided.
 
@@ -524,7 +524,7 @@ Consumes `RunRequest`s from `trigger.stream()` and calls `tapestry.run(request)`
 
 ### 3.7 YAML Loader Layer
 
-**Files:** `pirn/yaml_loader/loader.py`, `pirn/yaml_loader/specs/`
+**Files:** `pirn/yaml_loader/pipeline_loader.py`, `pirn/yaml_loader/specs/`
 
 The YAML loader translates a pipeline definition file into a live `Tapestry`. It is an optional convenience layer; all pipeline constructions can be done programmatically.
 
@@ -566,11 +566,11 @@ Inside `_execute_loop` (`pirn/engine/engine.py:105`):
 2. Build a `DependencyTracker` over the shed (unresolved-parent counts, levels, `shed.topological_order()` positions) and push the roots onto a `ReadyQueue`.
 3. **Iteration:**
    a. Drain `pending_new` (mid-run extension).
-   b. Pop every knot the `AdmissionGate` admits. Call `_decide()`: if the decision is `Skipped` or synthetic `Err`, record it immediately and release its children; otherwise materialize its inputs and create an `asyncio.Task`.
+   b. Pop every knot the `Admission` admits. Call `_decide()`: if the decision is `Skipped` or synthetic `Err`, record it immediately and release its children; otherwise materialize its inputs and create an `asyncio.Task`.
    c. If nothing is running, stop. Otherwise wait for the next task to report completion on the queue.
    d. For each completed task, collect `(result, parent_hashes, started_at, finished_at)`.
    e. Call `_rebind_err` to register the `ExceptionRecord` with the live `ExceptionManager`.
-   f. If `Ok`: `content_hash(result.value)` + `await data_store.put(hash, value)`.
+   f. If `Ok`: `ContentHasher.hash(result.value)` + `await data_store.put(hash, value)`.
    g. Update `ctx.status` state machine.
    h. Call `LineageRecorder.record_lineage` — builds a `KnotLineage` record and adds it to `ctx`.
    i. `tracker.resolve(knot)` — push the children that became ready onto the queue.
@@ -590,7 +590,7 @@ On a clean path (all parents `Ok`), the input dict is `{name: result.value for n
 **Step 6: `_dispatch_with_timing(knot, inputs)`**
 
 ```python
-parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
+parent_hashes = {name: ContentHasher.hash(value) for name, value in inputs.items()}
 started_at = datetime.now(UTC)
 result = await self._dispatcher.dispatch(knot, inputs)
 return result, parent_hashes, started_at
@@ -603,7 +603,7 @@ The dispatcher calls `knot(inputs)` (which calls `knot.__call__`, which calls `k
 `LineageRecorder.record_lineage` (`pirn/engine/lineage_recorder.py`) builds a `KnotLineage`:
 
 - `run_id`, `knot_id`, `knot_class` (fully-qualified class name).
-- `knot_config_hash` = `content_hash(knot.config.model_dump(mode="json"))`.
+- `knot_config_hash` = `ContentHasher.hash(knot.config.model_dump(mode="json"))`.
 - `parent_input_hashes` = per-input content hashes captured before dispatch.
 - `output_hash` = content hash of `Ok.value`, or `None`.
 - `outcome` = `"ok"` | `"err"` | `"skipped"`.
@@ -753,7 +753,7 @@ ValKey (Redis-compatible) provides sub-millisecond get/put with optional TTL on 
 **File:** `pirn/engine/dispatchers/celery_dispatcher.py`
 
 ```python
-from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher, register_celery_worker_task
+from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
 # Driver side
 dispatcher = CeleryDispatcher(broker_url="redis://localhost:6379/0",
@@ -763,14 +763,14 @@ dispatcher = CeleryDispatcher(broker_url="redis://localhost:6379/0",
 from celery import Celery
 app = Celery("pirn", broker="redis://localhost:6379/0")
 app.conf.update(task_serializer="pickle", accept_content=["pickle"], result_serializer="pickle")
-register_celery_worker_task(app)
+CeleryDispatcher.register_worker_task(app)
 ```
 
 **How it works:**
 
 `CeleryDispatcher.dispatch(knot, inputs)` calls `app.send_task(PIRN_CELERY_TASK_NAME, args=(knot, dict(inputs)))` and bridges the blocking `async_result.get()` to async via `asyncio.to_thread`. The worker runs `asyncio.run(knot(inputs))` in a fresh event loop per task.
 
-**Serialization:** Celery's default JSON serializer cannot handle arbitrary Knot objects. The dispatcher configures `task_serializer="pickle"` and `accept_content=["pickle"]`. Knots must be pickle-serializable. This requires the knot class to be importable on the worker process — dynamic classes created by `@knot` may need explicit `__module__` and `__qualname__` if they are not defined at module scope.
+**Serialization:** Celery's default JSON serializer cannot handle arbitrary Knot objects. The dispatcher configures `task_serializer="pickle"` and `accept_content=["pickle"]`. Knots must be pickle-serializable. This requires the knot class to be importable on the worker process — dynamic classes created by `@KnotFactory.knot` may need explicit `__module__` and `__qualname__` if they are not defined at module scope.
 
 **What changes vs local:**
 
@@ -798,7 +798,7 @@ Submits knots as Ray remote tasks. Ray uses `cloudpickle` for serialization. Con
 For all distributed dispatchers:
 
 - **Knot classes defined at module scope** serialize reliably across processes.
-- **`@knot`-decorated functions at module scope** serialize reliably; `@knot` preserves `__module__` and `__qualname__` from the wrapped function.
+- **`@KnotFactory.knot`-decorated functions at module scope** serialize reliably; `@KnotFactory.knot` preserves `__module__` and `__qualname__` from the wrapped function.
 - **Lambdas and nested functions** in `selector`, `predicate`, or `combine` arguments (Branch, Gate, Aggregator) require cloudpickle (Dask/Ray) or explicit module-scope definitions (Celery).
 - **Config values** must be serializable. Pydantic models, dicts, lists, and primitives work. Custom classes need `__reduce__` or cloudpickle.
 - **Inputs at dispatch time** are already-resolved Python values (not Knot references). They are passed directly as `dict(inputs)` to the worker.
@@ -811,14 +811,14 @@ For all distributed dispatchers:
 
 | Concept | Model | Driver | Lifecycle |
 |---------|-------|--------|-----------|
-| **Trigger** | Event → one full `RunRequest` | `run_forever` | Async generator; external events create full parameter sets |
-| **StreamingSource** | Source → one parameter value per tick | `run_stream` | Async generator; source is the primary input |
+| **Trigger** | Event → one full `RunRequest` | `Trigger.run_forever` | Async generator; external events create full parameter sets |
+| **StreamingSource** | Source → one parameter value per tick | `StreamingSource.run_stream` | Async generator; source is the primary input |
 
 A `Trigger` yields fully-formed `RunRequest` objects — the trigger author decides all parameter values for each run. A `StreamingSource` yields raw values that are bound to a single parameter name; the rest of the parameters come from `extra_parameters`.
 
-### `run_forever()` Loop
+### `Trigger.run_forever()` Loop
 
-**File:** `pirn/triggers/base.py:run_forever`
+**File:** `pirn/triggers/trigger.py:run_forever`
 
 ```python
 async for request in trigger.stream():
@@ -831,9 +831,9 @@ async for request in trigger.stream():
 - `on_error` callback receives the original `RunRequest` and the exception.
 - Cancellation: wrap in `asyncio.create_task()` and `task.cancel()`.
 
-### `run_stream()` Loop
+### `StreamingSource.run_stream()` Loop
 
-**File:** `pirn/streaming/base.py:run_stream`
+**File:** `pirn/streaming/streaming_source.py:run_stream`
 
 ```python
 async for value in source.stream():
@@ -868,20 +868,20 @@ Built-in sources: `IterableStreamingSource` (wraps a Python iterable), `FileTail
 
 **File:** `pirn/streaming/trigger_adapter.py`
 
-`StreamingSourceTrigger` wraps a `StreamingSource` to implement the `Trigger` protocol. Each value from the source is converted to a `RunRequest` by binding `source.parameter_name = value`. This allows streaming sources to be driven by `run_forever` without a custom driver.
+`StreamingSourceTrigger` wraps a `StreamingSource` to implement the `Trigger` protocol. Each value from the source is converted to a `RunRequest` by binding `source.parameter_name = value`. This allows streaming sources to be driven by `Trigger.run_forever` without a custom driver.
 
 ---
 
 ## 8. YAML Pipeline Loader
 
-**Files:** `pirn/yaml_loader/loader.py`, `pirn/yaml_loader/specs/`
+**Files:** `pirn/yaml_loader/pipeline_loader.py`, `pirn/yaml_loader/specs/`
 
 ### Entry Point
 
 ```python
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
-tapestry = load_pipeline(
+tapestry = PipelineLoader.load_yaml(
     yaml_text,
     tapestry=existing_tapestry,         # optional; new Tapestry() if omitted
     known_callables={"my_fn": my_fn},   # strict mode: map names to callables
@@ -943,17 +943,17 @@ If a callable reference is not in `known_callables`, the loader treats it as a d
 
 ### `known_callables`
 
-A `Mapping[str, Any]` passed to `load_pipeline`. Values can be:
+A `Mapping[str, Any]` passed to `PipelineLoader.load_yaml`. Values can be:
 
 - Plain callables (sync or async).
-- `KnotFactory` instances (from `@knot`).
+- `KnotFactory` instances (from `@KnotFactory.knot`).
 - `Knot` subclasses.
 
 The loader's `_resolve_callable` checks `known_callables` first, then falls back to dotted import if `allow_callable_refs=True`.
 
 ### Topological Ordering Algorithm
 
-`_topo_order_specs` (`pirn/yaml_loader/loader.py:89`) implements Kahn's algorithm on the YAML specs before any Python objects are constructed. This ensures each spec is built only after all its referenced parent specs. The algorithm uses sorted ready-queues for determinism, identical to `Shed.topological_order()`.
+`_topo_order_specs` (`pirn/yaml_loader/pipeline_loader.py:89`) implements Kahn's algorithm on the YAML specs before any Python objects are constructed. This ensures each spec is built only after all its referenced parent specs. The algorithm uses sorted ready-queues for determinism, identical to `Shed.topological_order()`.
 
 ---
 
@@ -1026,7 +1026,7 @@ The dispatcher is passed to `Tapestry(dispatcher=...)` or `tapestry.run(dispatch
 
 ### 9.4 Custom Emitters
 
-Implement the Emitter protocol from `pirn/emitters/base.py`:
+Implement the Emitter protocol from `pirn/emitters/emitter.py`:
 
 ```python
 class MetricsEmitter:
@@ -1047,7 +1047,7 @@ Emitters must be safe to `await` concurrently and must not raise (exceptions are
 
 ### 9.5 Custom Triggers
 
-Implement `pirn/triggers/base.py:Trigger`:
+Implement `pirn/triggers/trigger.py:Trigger`:
 
 ```python
 class SQSTrigger:
@@ -1063,11 +1063,11 @@ class SQSTrigger:
         await self._client.close()
 ```
 
-Drive with `run_forever(trigger, tapestry)`.
+Drive with `trigger.run_forever(tapestry)`.
 
 ### 9.6 Custom StreamingSources
 
-Implement `pirn/streaming/base.py:StreamingSource`:
+Implement `pirn/streaming/streaming_source.py:StreamingSource`:
 
 ```python
 class WebSocketSource:
@@ -1085,7 +1085,7 @@ class WebSocketSource:
         await self._ws.close()
 ```
 
-Drive with `run_stream(source, tapestry, extra_parameters={...})`.
+Drive with `source.run_stream(tapestry, extra_parameters={...})`.
 
 ---
 
@@ -1097,7 +1097,7 @@ Drive with `run_stream(source, tapestry, extra_parameters={...})`.
 graph TD
     subgraph User["User API"]
         KnotCls["Knot (ABC)\npirn/core/knot.py"]
-        KnotDec["@knot decorator\nKnotFactory"]
+        KnotDec["@KnotFactory.knot decorator\nKnotFactory"]
         Tap["Tapestry\npirn/tapestry.py"]
         KnotCfg["KnotConfig / ErrorPolicy\npirn/core/knot_config.py\npirn/core/error_policy.py"]
     end
@@ -1120,7 +1120,7 @@ graph TD
     subgraph Core["Core Primitives"]
         Result["Result (Ok/Err/Skipped)\npirn/core/result.py"]
         Lineage["KnotLineage\npirn/core/lineage.py"]
-        Hashing["content_hash\npirn/core/hashing.py"]
+        Hashing["ContentHasher.hash\npirn/core/content_hasher.py"]
         Ctx["RunContext / RunRequest / RunResult\npirn/core/context.py"]
     end
 
@@ -1138,7 +1138,7 @@ graph TD
     end
 
     subgraph Obs["Observability"]
-        Emitter["Emitter protocol\npirn/emitters/base.py"]
+        Emitter["Emitter protocol\npirn/emitters/emitter.py"]
         LogE["LogEmitter"]
         KafkaE["KafkaEmitter"]
         OtelE["OpenTelemetryEmitter"]
@@ -1146,16 +1146,16 @@ graph TD
     end
 
     subgraph Trig["Triggers"]
-        TrigProto["Trigger protocol\npirn/triggers/base.py"]
-        RunForever["run_forever()"]
+        TrigProto["Trigger protocol\npirn/triggers/trigger.py"]
+        RunForever["Trigger.run_forever()"]
         CronT["CronTrigger"]
         HttpT["WebhookTrigger"]
         KafkaT["KafkaTrigger"]
     end
 
     subgraph Stream["Streaming"]
-        SrcProto["StreamingSource protocol\npirn/streaming/base.py"]
-        RunStream["run_stream()"]
+        SrcProto["StreamingSource protocol\npirn/streaming/streaming_source.py"]
+        RunStream["StreamingSource.run_stream()"]
         IterSrc["IterableSource"]
         FileSrc["FileTailSource"]
         KafkaSrc["KafkaStreamingSource"]
@@ -1163,7 +1163,7 @@ graph TD
     end
 
     subgraph YAML["YAML Loader"]
-        Loader["load_pipeline()\npirn/yaml_loader/loader.py"]
+        Loader["PipelineLoader.load_yaml()\npirn/yaml_loader/pipeline_loader.py"]
         Spec["PipelineSpec\npirn/yaml_loader/spec.py"]
     end
 
@@ -1258,7 +1258,7 @@ sequenceDiagram
             E->>E: _decide(knot, results) → inputs | Skipped | Err
             alt inputs resolved
                 E->>E: asyncio.create_task(_dispatch_with_timing)
-                E->>E: parent_hashes = {name: content_hash(value)}
+                E->>E: parent_hashes = {name: ContentHasher.hash(value)}
                 E->>D: dispatcher.dispatch(knot, inputs)
                 D->>K: await knot(inputs)
                 K->>K: validate_inputs (TypeAdapters)
@@ -1318,27 +1318,26 @@ flowchart TD
 
 | File | Role |
 |------|------|
-| `pirn/core/knot.py` | `Knot` ABC, `Optional` mixin, `@knot` decorator, `KnotFactory`, `_pending_record` |
+| `pirn/core/knot.py` | `Knot` ABC, `Optional` mixin, `@KnotFactory.knot` decorator, `KnotFactory`, `_pending_record` |
 | `pirn/core/knot_config.py` | `KnotConfig` |
 | `pirn/core/error_policy.py` | `ErrorPolicy` enum |
 | `pirn/core/run_request.py`, `pirn/core/run_result.py`, `pirn/core/run_context.py` | `RunRequest`, `RunResult`, `RunContext` |
-| `pirn/core/hashing.py` | `content_hash()` (thin wrapper) |
-| `pirn/core/_content_hasher.py` | `_ContentHasher` (`.hash()`, `._canonicalise()`) |
+| `pirn/core/content_hasher.py` | `ContentHasher` (`.hash()`, `._canonicalise()`) |
 | `pirn/core/_unhashable_error.py` | `_UnhashableError` |
 | `pirn/core/lineage.py` | `KnotLineage` Pydantic model |
 | `pirn/core/parameter.py` | `Parameter` knot (external input binding) |
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |
-| `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `current_tapestry()` |
+| `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `Tapestry.current()` |
 | `pirn/engine/engine.py` | `Engine`, admission loop, `_decide`, `_dispatch_with_timing` |
 | `pirn/engine/lineage_recorder.py` | `LineageRecorder` (`record_lineage`, `config_hash`) |
 | `pirn/engine/emitter_fanout.py` | `EmitterFanout` (`subscribe_emitters_to_status`, `handle_emitter_error`) |
 | `pirn/engine/scheduling/` | `DependencyTracker` (readiness, levels, reporting order), `ReadyQueue` |
-| `pirn/engine/admission/` | `AdmissionGate`, `UnboundedAdmissionGate`, `AdmissionTicket` |
+| `pirn/engine/admission/` | `Admission`, `UnboundedAdmission`, `AdmissionTicket` |
 | `pirn/engine/shed/shed.py` | `Shed`, `CycleDetector`, BFS construction, topological sort |
 | `pirn/engine/shed/edge.py` | `Edge` |
 | `pirn/engine/shed/shed_error.py` | `ShedError` |
 | `pirn/engine/dispatchers/dispatcher.py` | `Dispatcher` protocol, `LocalDispatcher`, `ThreadDispatcher` |
-| `pirn/engine/dispatchers/celery_dispatcher.py` | `CeleryDispatcher`, `register_celery_worker_task` |
+| `pirn/engine/dispatchers/celery_dispatcher.py` | `CeleryDispatcher`, `CeleryDispatcher.register_worker_task` |
 | `pirn/engine/dispatchers/dask_dispatcher.py` | `DaskDispatcher` |
 | `pirn/engine/dispatchers/ray_dispatcher.py` | `RayDispatcher` |
 | `pirn/backends/__init__.py` | `TapestryStore`, `RunHistory`, `DataStore` protocols, `TapestrySnapshot` |
@@ -1350,9 +1349,9 @@ flowchart TD
 | `pirn/backends/s3.py` | `S3DataStore` |
 | `pirn/backends/disk.py` | `LocalDiskDataStore` |
 | `pirn/backends/base/subscribable_store.py` | `SubscribableStore` protocol |
-| `pirn/emitters/base.py` | `Emitter` protocol |
-| `pirn/triggers/base.py` | `Trigger` protocol, `run_forever()` |
-| `pirn/streaming/base.py` | `StreamingSource` protocol, `run_stream()` |
+| `pirn/emitters/emitter.py` | `Emitter` protocol |
+| `pirn/triggers/trigger.py` | `Trigger` protocol, `Trigger.run_forever()` |
+| `pirn/streaming/streaming_source.py` | `StreamingSource` protocol, `StreamingSource.run_stream()` |
 | `pirn/streaming/trigger_adapter.py` | `StreamingSourceTrigger` |
 | `pirn/nodes/map_markers.py` | `Map`, `ZipMap`, `DictMap` — fan-out markers |
 | `pirn/nodes/branch/` | `Branch`, `BranchOutput` — selector routing |
@@ -1361,9 +1360,9 @@ flowchart TD
 | `pirn/nodes/aggregator.py` | `Aggregator` — multi-parent combine |
 | `pirn/nodes/source.py` | `Source` — no-parent producer |
 | `pirn/nodes/sink.py` | `Sink` — return-none consumer |
-| `pirn/yaml_loader/loader.py` | `load_pipeline()`, `_topo_order_specs`, `_resolve_callable` |
+| `pirn/yaml_loader/pipeline_loader.py` | `PipelineLoader.load_yaml()`, `_topo_order_specs`, `_resolve_callable` |
 | `pirn/yaml_loader/specs/` | `PipelineSpec`, all `*Spec` models |
-| `pirn/replay.py` | `replay_run()`, `compare_runs()`, `KnotDiff` |
-| `pirn/check/` | `validate_tapestry()`, `tapestry-check` CLI, `ValidationResult`, `ValidationIssue` |
+| `pirn/knot_diff.py` | `KnotDiff.replay_run()`, `KnotDiff.compare_runs()`, `KnotDiff` |
+| `pirn/check/` | `TapestryValidator.validate()`, `tapestry-check` CLI, `ValidationResult`, `ValidationIssue` |
 | `pirn/managers/exception_manager.py`, `pirn/managers/exception_record.py`, `pirn/managers/rebindable_exception.py` | `ExceptionRecord`, `ExceptionManager`, `RebindableException` |
 | `pirn/managers/status_manager.py`, `pirn/managers/knot_state.py`, `pirn/managers/status_event.py` | `StatusManager`, `KnotState`, `StatusEvent` |

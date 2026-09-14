@@ -53,7 +53,7 @@ class SourceDocument(PirnOpaqueValue):
             metadata: Optional metadata mapping; defaults to empty.
 
         Returns:
-            A frozen :class:`SourceDocument` with its ``content_hash`` filled in.
+            A frozen :class:`SourceDocument` with its ``ContentHasher.hash`` filled in.
         """
         return cls(
             source_id=source_id,

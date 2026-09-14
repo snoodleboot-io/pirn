@@ -29,7 +29,6 @@ from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.specializations.conftest import StubTool
 
 
@@ -188,7 +187,7 @@ class TestToolChainApproval(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         view = result.outputs["chain"]
-        assert view.status is ToolStatus.SKIPPED
+        assert view.status == "skipped"
         assert view.error == "call skipped: approval denied"
         assert step1.invocations == []
         assert step2.invocations == []
@@ -209,7 +208,7 @@ class TestToolChainApproval(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         view = result.outputs["chain"]
-        assert view.status is ToolStatus.OK
+        assert view.status == "ok"
         assert view.result == "a-b"
 
     async def test_denied_second_step_is_labelled_approval_denied_too(self) -> None:
@@ -226,6 +225,6 @@ class TestToolChainApproval(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         view = result.outputs["chain"]
-        assert view.status is ToolStatus.SKIPPED
+        assert view.status == "skipped"
         assert view.error == "call skipped: approval denied"
         assert step2.invocations == []

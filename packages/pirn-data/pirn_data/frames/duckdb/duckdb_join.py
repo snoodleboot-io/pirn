@@ -58,6 +58,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class DuckdbJoin(Knot):
@@ -123,7 +124,7 @@ class DuckdbJoin(Knot):
         if on is not None:
             if isinstance(on, str):
                 coerced_on = (on,)
-            elif isinstance(on, Sequence) and not isinstance(on, bytes):
+            elif ValueShape.is_sequence(on) and not isinstance(on, bytes):
                 coerced_on = tuple(on)
             else:
                 raise TypeError(

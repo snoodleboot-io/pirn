@@ -23,7 +23,7 @@ from typing import Any
 
 import pandas as pd
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -53,7 +53,7 @@ class TestElandToPandas(unittest.IsolatedAsyncioTestCase):
 
         with unittest.mock.patch.object(ed, "eland_to_pandas", fake_eland_to_pandas):
 
-            @knot
+            @KnotFactory.knot
             async def emit() -> ElandDataFrame:
                 return ElandDataFrame(frame=_FakeFrame(), source_uri="elasticsearch://x")
 

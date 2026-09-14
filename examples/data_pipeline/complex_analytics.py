@@ -23,7 +23,7 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -92,7 +92,7 @@ class DailyReport:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def ingest_orders(run_date: str, seed: int) -> OrdersSnapshot:
     """Fetch orders from the transactional database."""
     await asyncio.sleep(0.02)  # simulate DB query
@@ -110,7 +110,7 @@ async def ingest_orders(run_date: str, seed: int) -> OrdersSnapshot:
     return OrdersSnapshot(date=run_date, rows=rows)
 
 
-@knot
+@KnotFactory.knot
 async def ingest_events(run_date: str, seed: int) -> EventsSnapshot:
     """Fetch clickstream events from the analytics store."""
     await asyncio.sleep(0.015)
@@ -126,7 +126,7 @@ async def ingest_events(run_date: str, seed: int) -> EventsSnapshot:
     return EventsSnapshot(date=run_date, rows=rows)
 
 
-@knot
+@KnotFactory.knot
 async def ingest_users(run_date: str, seed: int) -> UsersSnapshot:
     """Fetch user activity counts from the user service."""
     await asyncio.sleep(0.01)
@@ -138,7 +138,7 @@ async def ingest_users(run_date: str, seed: int) -> UsersSnapshot:
     )
 
 
-@knot
+@KnotFactory.knot
 async def join_datasets(
     orders: OrdersSnapshot,
     events: EventsSnapshot,
@@ -153,7 +153,7 @@ async def join_datasets(
     )
 
 
-@knot
+@KnotFactory.knot
 async def aggregate_by_region(joined: JoinedDataset) -> RegionMetrics:
     """Compute per-region revenue, order count, and session count."""
     by_region: dict[str, dict] = {}
@@ -169,7 +169,7 @@ async def aggregate_by_region(joined: JoinedDataset) -> RegionMetrics:
     return RegionMetrics(date=joined.date, by_region=by_region)
 
 
-@knot
+@KnotFactory.knot
 async def aggregate_by_cohort(joined: JoinedDataset) -> CohortMetrics:
     """Compute per-cohort revenue and retention."""
     by_cohort: dict[str, dict] = {}
@@ -183,7 +183,7 @@ async def aggregate_by_cohort(joined: JoinedDataset) -> CohortMetrics:
     return CohortMetrics(date=joined.date, by_cohort=by_cohort)
 
 
-@knot
+@KnotFactory.knot
 async def build_report(
     region_metrics: RegionMetrics,
     cohort_metrics: CohortMetrics,

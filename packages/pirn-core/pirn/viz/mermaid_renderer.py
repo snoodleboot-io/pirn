@@ -137,9 +137,3 @@ class MermaidRenderer:
     def _short_class(qualname: str) -> str:
         """Last segment of a dotted qualname."""
         return qualname.rsplit(".", 1)[-1]
-
-
-#: Public names for :meth:`MermaidRenderer.for_tapestry` / :meth:`MermaidRenderer.for_run`
-#: (bare aliases, not ``def``\\s).
-mermaid_for_tapestry = MermaidRenderer.for_tapestry
-mermaid_for_run = MermaidRenderer.for_run

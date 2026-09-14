@@ -24,8 +24,8 @@ record has no retrieval path there.
 
 Algorithm:
     1. Validate ``specialists`` (non-empty mapping) and ``task`` (str).
-    2. Build one :class:`SpecialistInvocation` per specialist, each holding its
-       specialist on a ``_mutable_`` slot and receiving the shared ``task``.
+    2. Build one :class:`SpecialistInvocation` per specialist, each receiving its
+       specialist as a :class:`SpecialistHandle` and the shared ``task``.
     3. Wire all invocations as parents of an :class:`Aggregator` whose combine
        reassembles the ``{name: AgentResponse}`` mapping in registration order.
     4. Return the aggregator as the inner pipeline's sink.
@@ -37,6 +37,7 @@ References:
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Mapping
 from typing import Any
 
@@ -46,6 +47,7 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 from pirn_agents.specializations.multi_agent.specialist_invocation import (
     SpecialistInvocation,
 )
@@ -56,24 +58,16 @@ class ParallelSpecialistFanOut(AgentPipeline):
     """Runs every registered specialist concurrently on the same task."""
 
     @staticmethod
-    def _make_mapping_combine(
-        order: list[tuple[str, str]],
-    ) -> Any:
-        """Build the aggregator combine that reassembles ``{name: response}``.
+    def _reassemble(
+        order: list[tuple[str, str]], **responses: AgentResponse
+    ) -> dict[str, AgentResponse]:
+        """Aggregator combine (bound to ``order`` with ``functools.partial``): ``{name: response}``.
 
         ``order`` pairs each parent kwarg key with its original specialist
         name, so the mapping is rebuilt in the specialists' registration
         order regardless of the keys used to wire the parents.
         """
-
-        # design-decision-override: Aggregator's combine hook takes only the
-        # resolved **responses kwargs, so the parent-key-to-specialist-name
-        # mapping can only reach it by closing over `order` in a
-        # factory-built callable.
-        def combine(**responses: AgentResponse) -> dict[str, AgentResponse]:
-            return {name: responses[key] for key, name in order}
-
-        return combine
+        return {name: responses[key] for key, name in order}
 
     def __init__(
         self,
@@ -110,13 +104,13 @@ class ParallelSpecialistFanOut(AgentPipeline):
         for index, (name, specialist) in enumerate(specialists_dict.items()):
             key = f"invocation_{index}"
             parents[key] = SpecialistInvocation(
-                specialist=specialist,
+                specialist=SpecialistHandle(specialist),
                 task=task,
                 _config=KnotConfig(id=f"invoke_{index}"),
             )
             order.append((key, name))
         return Aggregator(
-            combine=ParallelSpecialistFanOut._make_mapping_combine(order),
+            combine=functools.partial(ParallelSpecialistFanOut._reassemble, order),
             _config=KnotConfig(id="fan_out_aggregate"),
             **parents,
         )

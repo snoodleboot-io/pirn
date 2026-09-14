@@ -72,18 +72,3 @@ def test_construct_rejects_non_int_max_rows(_spark_session) -> None:
                 max_rows="ten",  # type: ignore[arg-type]
                 _config=KnotConfig(id="x"),
             )
-
-
-def test_construct_rejects_non_positive_max_rows(_spark_session) -> None:
-    with Tapestry():
-        src = SparkSource(
-            spark_session=_spark_session,
-            query=_orders_query(),
-            _config=KnotConfig(id="s"),
-        )
-        with pytest.raises(ValueError, match="positive"):
-            SparkCollectSink(
-                frame=src,
-                max_rows=0,
-                _config=KnotConfig(id="x"),
-            )

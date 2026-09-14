@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from threading import Lock
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.base.run_retention import RunRetention
@@ -30,19 +30,19 @@ class InMemoryHistory(RunHistory):
     """
 
     #: Default retained-run ceiling.  Sized so normal use never evicts.
-    DEFAULT_MAX_RUNS: int = 10_000
+    default_max_runs: ClassVar[int] = 10_000
 
     def __init__(self, *, max_runs: int | None = None) -> None:
         """Initialise the store.
 
         Args:
             max_runs: Retained-run ceiling.  Defaults to
-                :attr:`DEFAULT_MAX_RUNS`.  Pass an explicit value to tighten it
+                :attr:`default_max_runs`.  Pass an explicit value to tighten it
                 for a long-running session.
         """
         if max_runs is not None and max_runs <= 0:
             raise ValueError(f"InMemoryHistory: max_runs must be positive, got {max_runs!r}")
-        self._max_runs: int = InMemoryHistory.DEFAULT_MAX_RUNS if max_runs is None else max_runs
+        self._max_runs: int = InMemoryHistory.default_max_runs if max_runs is None else max_runs
         self._runs: dict[str, Any] = {}
         self._lineage_by_output: dict[str, list[KnotLineage]] = {}
         self._lineage_by_input: dict[str, list[KnotLineage]] = {}

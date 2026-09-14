@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IbisSource`` — a pirn :class:`Source` that binds an Ibis connection and
 a table name, emitting an :class:`IbisTable` expression.
 

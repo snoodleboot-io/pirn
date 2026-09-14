@@ -6,7 +6,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -15,17 +15,17 @@ from pirn.tapestry import Tapestry
 # -------------------------------------------------------- inner knots
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
 
-@knot
+@KnotFactory.knot
 async def always_fail(x: int) -> int:
     raise RuntimeError("deliberate inner failure")
 
@@ -128,7 +128,7 @@ async def test_inner_failure_wraps_sub_tapestry_error():
 async def test_downstream_knot_receives_inner_value():
     """A knot downstream of SubTapestry receives the terminal value directly."""
 
-    @knot
+    @KnotFactory.knot
     async def negate(x: int) -> int:
         return -x
 
@@ -249,11 +249,11 @@ async def test_arbitrarily_nested_sub_tapestry():
 async def test_sub_tapestry_as_intermediate_node():
     """SubTapestry used as a step between two outer knots."""
 
-    @knot
+    @KnotFactory.knot
     async def square(x: int) -> int:
         return x * x
 
-    @knot
+    @KnotFactory.knot
     async def negate(x: int) -> int:
         return -x
 

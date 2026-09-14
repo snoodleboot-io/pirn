@@ -16,7 +16,7 @@ except ImportError as _e:
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -26,7 +26,7 @@ from pirn_signal.types.wavelet_payload import WaveletPayload
 from pirn_signal.wavelets.eemd_decomposer import EEMDDecomposer
 
 
-@knot
+@KnotFactory.knot
 async def emit_sine_payload_eemd() -> SignalPayload:
     """Upstream knot emitting a sinusoidal :class:`SignalPayload` for EEMD testing."""
     t = np.linspace(0, 1, 1024)

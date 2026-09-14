@@ -42,7 +42,7 @@ nodes:
 ```
 
 ```python
-tapestry = load_pipeline(yaml_text)        # no known_callables= needed
+tapestry = PipelineLoader.load_yaml(yaml_text)        # no known_callables= needed
 ```
 
 ---
@@ -52,7 +52,7 @@ tapestry = load_pipeline(yaml_text)        # no known_callables= needed
 There are three reasons you might want manual registration instead of (or in addition to) `fill_registry`:
 
 1. **Aliasing.** You want the same class registered under more than one name (e.g. a short alias for YAML readability).
-2. **`@knot`-decorated functions.** The `@knot` decorator returns a `KnotFactory`, not a `Knot` subclass — `fill_registry` does register the underlying class, but if you want a custom name you'll register the factory's `.knot_class` explicitly.
+2. **`@KnotFactory.knot`-decorated functions.** The `@KnotFactory.knot` decorator returns a `KnotFactory`, not a `Knot` subclass — `fill_registry` does register the underlying class, but if you want a custom name you'll register the factory's `.knot_class` explicitly.
 3. **Dynamic registration.** A class only known at runtime (loaded from a plugin manifest, configured at startup, etc.).
 
 ### One class
@@ -68,7 +68,7 @@ Registry.register(
 )
 ```
 
-### A `@knot`-decorated factory
+### A `@KnotFactory.knot`-decorated factory
 
 ```python
 from sweet_tea.registry import Registry
@@ -154,7 +154,7 @@ You probably called a factory query *before* registering the class, in a process
 |------|-----|
 | Auto-register everything in your project | `Registry.fill_registry()` from your project `__init__.py` |
 | Register one class | `Registry.register(key, cls, library="...")` |
-| Register a `@knot`-decorated factory | `Registry.register(key, factory.knot_class, library="...")` |
+| Register a `@KnotFactory.knot`-decorated factory | `Registry.register(key, factory.knot_class, library="...")` |
 | Look up a class by name | `AbstractInverterFactory[Knot].create(key)` |
 | Look up scoped to a library | `AbstractInverterFactory[Knot].create(key, library="...")` |
 | Iterate all registered Knots | `Registry.typed_entries(lookup_type=Knot)` |

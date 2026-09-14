@@ -20,16 +20,16 @@ Requires Python 3.11+.
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -262,18 +262,18 @@ metrics, message buses, or traces.
 ### Triggers
 
 ```python
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 from pirn.triggers.cron_trigger import CronTrigger
 from pirn.triggers.webhook_trigger import WebhookTrigger
 from pirn.triggers.kafka_trigger import KafkaTrigger
 
 # Run every five minutes.
 trigger = CronTrigger(every_seconds=300)
-await run_forever(trigger, tapestry)
+await trigger.run_forever(tapestry)
 
 # Run on each Kafka message.
 trigger = KafkaTrigger(topic="orders", bootstrap_servers="kafka:9092")
-await run_forever(trigger, tapestry)
+await trigger.run_forever(tapestry)
 
 # Run on each HTTP POST.  trigger.app is a Starlette ASGI app you mount on
 # any ASGI server (uvicorn, hypercorn, FastAPI).
@@ -319,17 +319,17 @@ Triggers fire whole runs (request/response). **Streaming sources**
 feed continuous data into a single long-running pipeline — ETL-style.
 
 ```python
-from pirn.streaming.streaming_source import run_stream
+from pirn.streaming.streaming_source import StreamingSource
 from pirn.streaming.file_tail_source import FileTailSource
 from pirn.streaming.iterable_source import IterableSource
 
 # Tail a log file forever.
 source = FileTailSource("/var/log/app.log", parameter_name="line")
-await run_stream(source, tapestry, on_result=handle)
+await source.run_stream(tapestry, on_result=handle)
 
 # Wrap any iterable.
 source = IterableSource([1, 2, 3], parameter_name="x")
-await run_stream(source, tapestry)
+await source.run_stream(tapestry)
 ```
 
 `KafkaStreamingSource` is available too. If you want to drive
@@ -345,16 +345,16 @@ own output, opt into **extensible** runs:
 result = await tapestry.run(extensible=True)
 ```
 
-Inside any knot's `process()`, call `get_current_store()` to register
+Inside any knot's `process()`, call `Tapestry.current_store()` to register
 successor knots into the running tapestry. The engine merges them as
 knots complete, and a newcomer starts as soon as its parents have resolved:
 
 ```python
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 
 class PlannerKnot(Knot):
     async def process(self, ctx: Context, **_) -> Context:
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is not None:
             for action in plan_actions(ctx):
                 store.register(ActionKnot(ctx=self, action=action,
@@ -367,17 +367,18 @@ data edge — the lineage reflects the true parent/child relationship, not
 a shared state blob.
 
 For continuation-style logic (deterministic next-steps attached to an
-existing knot without modifying it), use `continues()`:
+existing knot without modifying it), use `WithContinuation.attach()`:
 
 ```python
-from pirn.nodes.continuation import Next, continues
+from pirn.nodes.next import Next
+from pirn.nodes.with_continuation import WithContinuation
 
 def router(result) -> list[Next]:
     if result.score > 0.8:
         return [Next("publish", {"data": result.content})]
     return [Next("review", {"data": result.content})]
 
-continues(score_knot, fn=router, pool={"publish": PublishKnot, "review": ReviewKnot})
+WithContinuation.attach(score_knot, fn=router, pool={"publish": PublishKnot, "review": ReviewKnot})
 ```
 
 Requires `InMemoryStore` (the default). `SQLiteStore` and other
@@ -386,15 +387,15 @@ persistent stores do not yet support mid-run extension.
 ## Visualization
 
 ```python
-from pirn.viz.tapestry_html_renderer import html_for_run
-from pirn.viz.mermaid_renderer import mermaid_for_tapestry, mermaid_for_run
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
+from pirn.viz.mermaid_renderer import MermaidRenderer
 
 # Mermaid for embedding in docs.
-print(mermaid_for_tapestry(t))           # structure only
-print(mermaid_for_run(result))           # structure + outcome colors
+print(MermaidRenderer.for_tapestry(t))           # structure only
+print(MermaidRenderer.for_run(result))           # structure + outcome colors
 
 # Standalone HTML/SVG for browsing.
-Path("run.html").write_text(html_for_run(result))
+Path("run.html").write_text(TapestryHtmlRenderer.for_run(result))
 ```
 
 The HTML renderer produces a single self-contained file with hover
@@ -403,7 +404,7 @@ by outcome, and a longest-path layout — no server, no external assets.
 
 ## YAML pipelines
 
-Pipelines can be declared in YAML and loaded with `load_pipeline`.
+Pipelines can be declared in YAML and loaded with `PipelineLoader.load_yaml`.
 
 ```yaml
 name: simple
@@ -428,9 +429,9 @@ nodes:
 
 ```python
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
-t = load_pipeline(
+t = PipelineLoader.load_yaml(
     yaml_text,
     known_callables={"double": double, "add": add},
 )
@@ -465,16 +466,16 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Domain libraries
 
-pirn ships domain-specific knot libraries for common data engineering and ML workloads. All domain libraries live under `pirn/domains/` in the same package — dependencies are isolated via optional extras so you install only what your project uses.
+pirn ships domain-specific knot libraries for common data engineering and ML workloads. Each domain is its own distribution that imports as `pirn_<domain>` and depends on `pirn-core`, so you install only what your project uses; heavy backends stay behind per-domain extras.
 
-| Domain | Description | Extra |
+| Domain | Description | Install |
 |--------|-------------|-------|
-| Data | Tiered data-frame knots (pandas, Polars, Ibis, Spark, DuckDB), lakehouse adapters, tabular transforms | `pirn[data]` |
-| Agents | LLM-backed knots, tool use, memory stores, planning, RAG, ReAct, multi-agent patterns | `pirn[agents]` |
-| ML | Data prep, feature engineering, training, evaluation, deployment, feature stores | `pirn[ml]` |
-| Health | DICOM, FHIR, HL7v2, EDF/BDF, NIfTI, FASTA/FASTQ, VCF — medical imaging, genomics, clinical data | `pirn[health]` |
-| Signal | Time-series, DSP, audio (WAV/FLAC/MP3), EEG/BDF, wavelet transforms | `pirn[signal]` |
-| Oil & Gas | SEG-Y seismic, LAS well-log, WITSML — subsurface data connectors | `pirn[oilgas]` |
+| Data | Tiered data-frame knots (pandas, Polars, Ibis, Spark, DuckDB), lakehouse adapters, tabular transforms | `pip install pirn-data` |
+| Agents | LLM-backed knots, tool use, memory stores, planning, RAG, ReAct, multi-agent patterns | `pip install pirn-agents` |
+| ML | Data prep, feature engineering, training, evaluation, deployment, feature stores | `pip install pirn-ml` |
+| Health | DICOM, FHIR, HL7v2, EDF/BDF, NIfTI, FASTA/FASTQ, VCF — medical imaging, genomics, clinical data | `pip install pirn-health` |
+| Signal | Time-series, DSP, audio (WAV/FLAC/MP3), EEG/BDF, wavelet transforms | `pip install pirn-signal` |
+| Oil & Gas | SEG-Y seismic, LAS well-log, WITSML — subsurface data connectors | `pip install pirn-oilgas` |
 
 ### File format coverage
 

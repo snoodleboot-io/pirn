@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -23,24 +23,24 @@ from tests._stubs.recording_lineage_store import (
 )
 
 
-@knot
+@KnotFactory.knot
 async def emit_dataset() -> DatasetManifest:
     return DatasetManifest(name="ds", feature_names=("a",), target_name="y", row_count=100)
 
 
-@knot
+@KnotFactory.knot
 async def emit_split() -> SplitManifest:
     train = DatasetManifest(name="ds:train", feature_names=("a",), row_count=80)
     test = DatasetManifest(name="ds:test", feature_names=("a",), row_count=20)
     return SplitManifest(train=train, test=test)
 
 
-@knot
+@KnotFactory.knot
 async def emit_model() -> ModelManifest:
     return ModelManifest(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
 
 
-@knot
+@KnotFactory.knot
 async def emit_report() -> EvalReportPayload:
     return EvalReportPayload(
         metadata=EvalMetadata(model_id="m1", dataset_name="ds:test"),

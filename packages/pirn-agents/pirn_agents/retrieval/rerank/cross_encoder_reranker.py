@@ -13,7 +13,7 @@ import asyncio
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 
 
@@ -48,7 +48,9 @@ class CrossEncoderReranker(RerankerBackend):
             if self._model_factory is not None:
                 self._model = self._model_factory()
             else:
-                sentence_transformers = _require("cross-encoder", "sentence_transformers")
+                sentence_transformers = OptionalImport.require(
+                    "cross-encoder", "sentence_transformers"
+                )
                 self._model = sentence_transformers.CrossEncoder(self._model_name)
         return self._model
 

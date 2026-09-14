@@ -54,7 +54,7 @@ class AgentPipeline(SubTapestry):
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True
 
-    async def process(self, *args: Any, **kwargs: Any) -> Knot:
+    async def process(self, *_args: Any, **_: Any) -> Knot:
         """Declare the inner pipeline and return its terminal knot.
 
         Concrete subclasses override this with their own keyword parameters,

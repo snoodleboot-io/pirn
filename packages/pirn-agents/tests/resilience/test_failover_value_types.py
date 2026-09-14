@@ -2,8 +2,8 @@
 
 Covers :class:`FailoverCandidate` validation and the audit-dict projections of
 the trace value objects. ``FailoverAttempt`` now carries a core
-:class:`~pirn.core.result.Result` (Ok/Err/Skipped) rather than the historical
-``FailoverOutcome`` + ``error`` string pair (ADR agents-speaks-core WS5a);
+:class:`~pirn.core.result.Result` (Ok/Err/Skipped) — the parallel ``FailoverOutcome`` enum is deleted (ADR agents-speaks-core WS5a,
+PIR-872);
 these tests build the ``Result`` directly.
 """
 
@@ -50,7 +50,8 @@ class TestTraceProjection:
         attempt = FailoverAttempt("a", Err(record=record))
         assert attempt._pirn_audit_dict() == {
             "name": "a",
-            "outcome": "timeout",
+            "outcome": "err",
+            "error_type": "TimeoutError",
             "error": "timeout",
         }
 
@@ -59,15 +60,17 @@ class TestTraceProjection:
         attempt = FailoverAttempt("a", Err(record=record))
         assert attempt._pirn_audit_dict() == {
             "name": "a",
-            "outcome": "error",
+            "outcome": "err",
+            "error_type": "RuntimeError",
             "error": "boom",
         }
 
     def test_attempt_audit_dict_for_a_circuit_open_skip(self) -> None:
-        attempt = FailoverAttempt("a", Skipped(reason="circuit_open"))
+        attempt = FailoverAttempt("a", Skipped(reason=FailoverAttempt.circuit_open_reason))
         assert attempt._pirn_audit_dict() == {
             "name": "a",
-            "outcome": "circuit_open",
+            "outcome": "skipped",
+            "error_type": None,
             "error": "circuit_open",
         }
 
@@ -81,4 +84,6 @@ class TestTraceProjection:
         audit = result._pirn_audit_dict()
         assert audit["succeeded"] is True
         assert audit["chosen"] == "a"
-        assert audit["attempts"] == [{"name": "a", "outcome": "success", "error": None}]
+        assert audit["attempts"] == [
+            {"name": "a", "outcome": "ok", "error_type": None, "error": None}
+        ]

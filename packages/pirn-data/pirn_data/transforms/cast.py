@@ -50,10 +50,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
 from pirn_data.data_batch import DataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class Cast(Knot):
@@ -84,7 +82,7 @@ class Cast(Knot):
         Returns:
             A new DataBatch with cast column values and an updated schema reflecting the new types.
         """
-        if not _ValueShape.is_mapping(casts) or not casts:
+        if not ValueShape.is_mapping(casts) or not casts:
             raise TypeError("Cast: casts must be a non-empty Mapping[column, type]")
         for column, target in casts.items():
             if not isinstance(column, str) or not column:

@@ -29,14 +29,14 @@ Pass `traceback_filter` to `Tapestry` (constructor or `run()`) to sanitise
 every `traceback_text` before it is stored:
 
 ```python
-from pirn.managers.redact import redact_common_secrets
+from pirn.managers.traceback_redactor import TracebackRedactor
 from pirn.tapestry import Tapestry
 
 # Apply at construction — all runs use the filter.
-t = Tapestry(traceback_filter=redact_common_secrets)
+t = Tapestry(traceback_filter=TracebackRedactor.redact_common_secrets)
 
 # Or per-run only:
-result = await t.run(traceback_filter=redact_common_secrets)
+result = await t.run(traceback_filter=TracebackRedactor.redact_common_secrets)
 ```
 
 The filter is a plain callable `(str) -> str` applied after the traceback
@@ -44,7 +44,7 @@ string is assembled but before `ExceptionRecord` is created.
 
 ---
 
-## Built-in Filter: `redact_common_secrets`
+## Built-in Filter: `TracebackRedactor.redact_common_secrets`
 
 `pirn.redact_common_secrets` replaces the most common credential patterns
 with `<redacted>`.
@@ -60,7 +60,7 @@ with `<redacted>`.
 ### Example
 
 ```python
-from pirn.managers.redact import redact_common_secrets
+from pirn.managers.traceback_redactor import TracebackRedactor
 
 before = (
     "Traceback (most recent call last):\n"
@@ -69,7 +69,7 @@ before = (
     "ConnectionError: password=s3cr3t was rejected\n"
 )
 
-after = redact_common_secrets(before)
+after = TracebackRedactor.redact_common_secrets(before)
 # after contains:
 #   postgresql://<redacted>@prod-db:5432/app
 #   password=<redacted>
@@ -96,7 +96,7 @@ Filters can be chained:
 
 ```python
 def combined(text: str) -> str:
-    text = redact_common_secrets(text)
+    text = TracebackRedactor.redact_common_secrets(text)
     return my_filter(text)
 ```
 

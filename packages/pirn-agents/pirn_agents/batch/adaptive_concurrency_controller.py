@@ -6,7 +6,7 @@ bound (a private, engine-invisible concurrency limit). It is now an
 :class:`~pirn.engine.admission.admission_observer.AdmissionObserver`: the
 engine calls its ``on_admit``/``on_release`` hooks as knots of its group
 take and free their slot, and it reacts by calling
-``AdmissionGate.set_limit`` directly — the same "AIMD governor" math, now
+``Admission.set_limit`` directly — the same "AIMD governor" math, now
 steering the run's real admission budget instead of a shadow one.
 
 Two signals drive the AIMD, matching the pre-migration behaviour exactly:
@@ -32,15 +32,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.engine.admission.admission_observer import AdmissionObserver
 
 if TYPE_CHECKING:
+    from pirn.engine.admission.admission import Admission
     from pirn.engine.admission.admission_event import AdmissionEvent
-    from pirn.engine.admission.admission_gate import AdmissionGate
 
 
-class AdaptiveConcurrencyController(AdmissionObserver):
-    """A time-free AIMD governor that steers a run's ``AdmissionGate`` limit."""
+class AdaptiveConcurrencyController(AdmissionObserver, PirnOpaqueValue):
+    """A time-free AIMD governor that steers a run's ``Admission`` limit."""
 
     def __init__(
         self,
@@ -101,7 +102,7 @@ class AdaptiveConcurrencyController(AdmissionObserver):
         self._decrease = float(decrease_factor)
         self._limit = float(start)
         self._group = group
-        self._gate: AdmissionGate | None = None
+        self._gate: Admission | None = None
 
     def limit(self) -> int:
         """The current integer concurrency limit, clamped to ``[min, max]``."""

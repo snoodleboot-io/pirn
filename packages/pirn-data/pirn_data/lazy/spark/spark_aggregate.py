@@ -44,8 +44,10 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.identifier_validator import IdentifierValidator
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
+from pirn_data.value_shape import ValueShape
 
 
 class SparkAggregate(Knot):
@@ -92,21 +94,16 @@ class SparkAggregate(Knot):
         Returns:
             A new SparkDataFrame wrapping the grouped and aggregated deferred Spark plan.
         """
-        try:
-            from pyspark.sql import functions as spark_functions
-        except ImportError as exc:
-            raise ImportError(
-                "SparkAggregate requires pyspark; install with `pip install pirn[spark]`"
-            ) from exc
+        spark_functions = DataOptionalDependency.require("pyspark.sql", extra="spark").functions
         IdentifierValidator.validate_columns("SparkAggregate.by", by)
-        if not isinstance(aggs, Mapping) or not aggs:
+        if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(
                 "SparkAggregate: aggs must be a non-empty mapping of output_col -> (input_col, fn)"
             )
         for output_col, spec in aggs.items():
             IdentifierValidator.validate_column("SparkAggregate: output column", output_col)
             if (
-                not isinstance(spec, tuple)
+                not ValueShape.is_tuple(spec)
                 or len(spec) != 2
                 or not isinstance(spec[0], str)
                 or not isinstance(spec[1], str)
@@ -125,7 +122,7 @@ class SparkAggregate(Knot):
                     f"{sorted(self._allowed_fns)!r}, got {fn!r}"
                 )
         by_list = list(by)
-        agg_columns = []
+        agg_columns: list[Any] = []
         for output_col, (input_col, fn) in aggs.items():
             # spark_functions is pyspark.sql.functions; look up the named
             # aggregate function dynamically since fn is a caller-supplied

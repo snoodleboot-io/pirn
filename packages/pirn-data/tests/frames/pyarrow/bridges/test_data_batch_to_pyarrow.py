@@ -10,7 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -21,7 +21,7 @@ from pirn_data.frames.pyarrow.bridges.data_batch_to_pyarrow import (
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> DataBatch:
     rows = (
         {"id": 1, "name": "alice"},
@@ -30,7 +30,7 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, source_uri="memory://users")
 
 
-@knot
+@KnotFactory.knot
 async def emit_empty() -> DataBatch:
     return DataBatch()
 

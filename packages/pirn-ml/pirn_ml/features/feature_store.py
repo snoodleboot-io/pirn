@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatureStore`` — write feature rows from a :class:`SplitManifest` to a
 :class:`FeatureStoreProvider`.
 
@@ -51,7 +53,7 @@ class FeatureStore(Knot):
         Returns:
             Number of rows written to the feature store provider.
         """
-        if not isinstance(provider, FeatureStoreProvider):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(provider, FeatureStoreProvider):
             raise TypeError("FeatureStore: provider must be a FeatureStoreProvider")
         rows: list[dict[str, Any]] = []
         rows.append(self._row(split.train, "train"))

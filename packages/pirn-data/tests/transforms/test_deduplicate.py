@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -13,7 +13,7 @@ from pirn_data.data_batch import DataBatch
 from pirn_data.transforms.deduplicate import Deduplicate
 
 
-@knot
+@KnotFactory.knot
 async def emit_with_dups() -> DataBatch:
     rows = (
         {"id": 1, "version": 1, "name": "alice"},
@@ -64,7 +64,7 @@ class TestDeduplicate(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 5
 
     async def test_unhashable_value_does_not_crash(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def with_list_value() -> DataBatch:
             rows = (
                 {"id": 1, "tags": ["a", "b"]},
@@ -86,7 +86,7 @@ class TestDeduplicate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_keys_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_keys() -> tuple:
             return ("id",)
 
@@ -105,7 +105,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self) -> Deduplicate:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> DataBatch:
             return _make_batch()
 

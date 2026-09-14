@@ -12,9 +12,6 @@ Available extras: `ml`. `pirn_ml` depends on both `pirn-core` and `pirn-data` â€
 
 **Registration (ADR-4):** `import pirn_ml` self-registers the ML-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
 
-!!! warning "Legacy `pirn.domains.ml` is deprecated"
-    The old `pirn.domains.ml` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_ml`). Migrate to `pirn_ml` â€” see the [migration guide](../guides/migrating-to-split-packages.md).
-
 ---
 
 ## Overview

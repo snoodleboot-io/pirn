@@ -27,10 +27,12 @@ import asyncio
 import time
 from collections.abc import Awaitable, Callable
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
 from pirn_agents.resilience.rate_limiter_config import RateLimiterConfig
 
 
-class TokenBucketRateLimiter:
+class TokenBucketRateLimiter(PirnOpaqueValue):
     """A cooperative, shared token bucket for per-provider/key rate limiting."""
 
     def __init__(

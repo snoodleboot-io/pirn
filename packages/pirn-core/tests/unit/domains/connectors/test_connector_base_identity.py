@@ -18,7 +18,7 @@ import pytest
 
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.connectors.http_connector import HttpConnector
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.security.credential_ref import CredentialRef
 from tests.unit.core.identity_reuse_subprocess import IdentityReuseSubprocess
@@ -36,8 +36,8 @@ def test_live_connectors_with_different_endpoints_hash_differently() -> None:
     endpoint_b = HttpConnector(base_url="https://b.example/v1")
 
     # Act
-    hash_a = content_hash(endpoint_a)
-    hash_b = content_hash(endpoint_b)
+    hash_a = ContentHasher.hash(endpoint_a)
+    hash_b = ContentHasher.hash(endpoint_b)
 
     # Assert
     assert hash_a != hash_b
@@ -49,7 +49,7 @@ def test_identically_configured_separate_connectors_hash_differently() -> None:
     second = HttpConnector(base_url="https://a.example/v1")
 
     # Act
-    hashes = {content_hash(first), content_hash(second)}
+    hashes = {ContentHasher.hash(first), ContentHasher.hash(second)}
 
     # Assert
     assert len(hashes) == 2
@@ -60,7 +60,7 @@ def test_same_instance_hashes_stably_across_calls() -> None:
     connector = HttpConnector(base_url="https://a.example/v1")
 
     # Act
-    hashes = {content_hash(connector) for _ in range(5)}
+    hashes = {ContentHasher.hash(connector) for _ in range(5)}
 
     # Assert
     assert len(hashes) == 1
@@ -69,13 +69,13 @@ def test_same_instance_hashes_stably_across_calls() -> None:
 def test_hash_is_stable_across_credential_scrub(sentinel_secret: str) -> None:
     # Arrange — has_credential flips on scrub; the hash must not follow it.
     connector = ConnectorBase(credential=CredentialRef(secret=sentinel_secret))
-    before = content_hash(connector)
+    before = ContentHasher.hash(connector)
 
     # Act
     connector._clear_credentials()
 
     # Assert
-    assert content_hash(connector) == before
+    assert ContentHasher.hash(connector) == before
 
 
 def test_canonical_form_is_the_hardened_opaque_identity_token() -> None:
@@ -96,7 +96,7 @@ def test_hash_is_a_comparable_digest_not_the_unhashable_marker() -> None:
     connector = HttpConnector(base_url="https://a.example/v1")
 
     # Act
-    digest = content_hash(connector)
+    digest = ContentHasher.hash(connector)
 
     # Assert
     assert digest.startswith("sha256:")
@@ -109,8 +109,8 @@ def test_connectors_inside_a_literal_mapping_hash_differently() -> None:
     endpoint_b = HttpConnector(base_url="https://b.example/v1")
 
     # Act
-    hash_a = content_hash({"connector": endpoint_a})
-    hash_b = content_hash({"connector": endpoint_b})
+    hash_a = ContentHasher.hash({"connector": endpoint_a})
+    hash_b = ContentHasher.hash({"connector": endpoint_b})
 
     # Assert
     assert hash_a != hash_b
@@ -139,7 +139,7 @@ def test_no_credential_or_configuration_appears_in_the_canonical_form(
         credential=CredentialRef(secret=sentinel_secret),
     )
 
-    # Act — the canonical form and the token are what content_hash consumes.
+    # Act — the canonical form and the token are what ContentHasher.hash consumes.
     canonical = json.dumps(connector.__pirn_canonical__())
     token = connector._pirn_identity_token()
 

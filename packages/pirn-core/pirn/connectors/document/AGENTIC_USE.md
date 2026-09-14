@@ -13,7 +13,7 @@ Document query syntax is vendor-specific. Pass the native query language (MQL fo
 ## Source map
 
 ```
-pirn/domains/connectors/document/
+pirn/connectors/document/
 ├── mongodb_config.py      MongoDBConfig      — uri, database, collection, tls
 ├── mongodb_pool.py        MongoDBPool        — motor async client
 ├── arangodb_config.py     ArangoDBConfig     — host, port, database, user, password, tls

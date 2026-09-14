@@ -11,6 +11,10 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
+from pirn.core.ok import Ok
+from pirn.managers.exception_record import ExceptionRecord
+
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.content.image_block import ImageBlock
 from pirn_agents.types.content.media_handle import MediaHandle
@@ -25,44 +29,51 @@ def _image() -> ImageBlock:
 
 class TestFromToolResult(unittest.TestCase):
     def test_string_result_degrades_to_text_block(self) -> None:
-        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", result="42 rows"))
+        block = ToolResultBlock.from_tool_result(
+            ToolResult(call_id="c1", outcome=Ok(value="42 rows"))
+        )
         assert block.call_id == "c1"
         assert block.blocks == (TextBlock(text="42 rows"),)
 
     def test_non_string_scalar_uses_str(self) -> None:
-        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", result=42))
+        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", outcome=Ok(value=42)))
         assert block.blocks == (TextBlock(text="42"),)
 
     def test_none_result_yields_empty_text(self) -> None:
-        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", result=None))
+        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", outcome=Ok(value=None)))
         assert block.blocks == (TextBlock(text=""),)
 
     def test_error_result_uses_error_text(self) -> None:
         block = ToolResultBlock.from_tool_result(
-            ToolResult(call_id="c1", result=None, error="boom")
+            ToolResult(
+                call_id="c1",
+                outcome=Err(record=ExceptionRecord.for_knot("c1", RuntimeError("boom"))),
+            )
         )
-        assert block.blocks == (TextBlock(text="boom"),)
+        assert block.blocks == (TextBlock(text="RuntimeError: boom"),)
 
     def test_single_content_block_carried_through(self) -> None:
         img = _image()
-        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", result=img))
+        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", outcome=Ok(value=img)))
         assert block.blocks == (img,)
         assert block.as_text == "chart"
 
     def test_sequence_of_blocks_carried_through(self) -> None:
         img = _image()
         result = [TextBlock(text="see: "), img]
-        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", result=result))
+        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", outcome=Ok(value=result)))
         assert block.blocks == (TextBlock(text="see: "), img)
 
     def test_message_content_contributes_its_blocks(self) -> None:
         content = MessageContent.coerce([TextBlock(text="a"), _image()])
-        block = ToolResultBlock.from_tool_result(ToolResult(call_id="c1", result=content))
+        block = ToolResultBlock.from_tool_result(
+            ToolResult(call_id="c1", outcome=Ok(value=content))
+        )
         assert block.blocks == content.blocks
 
     def test_mixed_sequence_falls_back_to_text(self) -> None:
         block = ToolResultBlock.from_tool_result(
-            ToolResult(call_id="c1", result=[TextBlock(text="a"), "raw"])
+            ToolResult(call_id="c1", outcome=Ok(value=[TextBlock(text="a"), "raw"]))
         )
         assert len(block.blocks) == 1
         assert isinstance(block.blocks[0], TextBlock)

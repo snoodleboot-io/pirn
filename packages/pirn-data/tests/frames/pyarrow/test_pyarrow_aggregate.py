@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pyarrow as pa
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -23,7 +23,7 @@ def _empty_batch() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({"a": pa.array([], type=pa.int64())}))
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> PyarrowDataBatch:
     return PyarrowDataBatch(
         table=pa.table(
@@ -36,7 +36,7 @@ async def emit_orders() -> PyarrowDataBatch:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_empty() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({"a": pa.array([], type=pa.int64())}))
 
@@ -90,7 +90,7 @@ class TestPyarrowAggregate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> tuple:
             return ("region",)
 

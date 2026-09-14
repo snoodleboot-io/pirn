@@ -40,7 +40,7 @@ from typing import Any
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.connectors.connector_base import ConnectorBase
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -110,13 +110,15 @@ def opaque_hash_once() -> tuple[bool, bool]:
     freed = Opaque("a")
     freed_address = id(freed)
     freed_token = freed._pirn_identity_token()
-    freed_hash = content_hash(freed)
+    freed_hash = ContentHasher.hash(freed)
     gc.collect()
     release_by_refcount(freed)
     del freed
     fresh = claim_freed_address(new_args, freed_address, slots)
     fresh.__init__("b")
-    collided = fresh._pirn_identity_token() == freed_token or content_hash(fresh) == freed_hash
+    collided = (
+        fresh._pirn_identity_token() == freed_token or ContentHasher.hash(fresh) == freed_hash
+    )
     return id(fresh) == freed_address, collided
 
 
@@ -127,13 +129,13 @@ def connector_hash_once() -> tuple[bool, bool]:
     other_credential = CredentialRef(secret="sk-other")
     freed = ConnectorBase(credential=CredentialRef(secret="sk-recorded"))
     freed_address = id(freed)
-    freed_hash = content_hash({"connector": freed})
+    freed_hash = ContentHasher.hash({"connector": freed})
     gc.collect()
     release_by_refcount(freed)
     del freed
     fresh = claim_freed_address(new_args, freed_address, slots)
     fresh.__init__(credential=other_credential)
-    collided = content_hash({"connector": fresh}) == freed_hash
+    collided = ContentHasher.hash({"connector": fresh}) == freed_hash
     return id(fresh) == freed_address, collided
 
 

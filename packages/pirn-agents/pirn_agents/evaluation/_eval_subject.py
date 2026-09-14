@@ -6,7 +6,7 @@ constructor argument, so it is part of each item's recorded invocation identity
 (``KnotLineage.config_values_hash``) and a replay refuses to serve a recording
 made for a different subject.
 
-Callables have no value ``content_hash`` can canonicalise, so a subject
+Callables have no value ``ContentHasher.hash`` can canonicalise, so a subject
 identifies each one by its code through
 :class:`~pirn_agents.evaluation._callable_identity._CallableIdentity`: the
 bytecode, constants (nested code objects included), names, defaults, closure

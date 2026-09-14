@@ -16,7 +16,6 @@ from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_invocation import ToolInvocation
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _AgenticRagLoop(AgentLoopPipeline[_AgenticRagState]):
@@ -86,7 +85,7 @@ class _AgenticRagLoop(AgentLoopPipeline[_AgenticRagState]):
         from pirn_agents.specializations.rag.agentic_rag_pipeline import AgenticRagPipeline
 
         tool_result: ToolResult = result.outputs["call"]
-        if tool_result.status is not ToolStatus.OK:
+        if not tool_result.succeeded:
             raise RuntimeError(f"AgenticRagPipeline: rag_tool call failed: {tool_result.error}")
         answer = AgenticRagPipeline._tool_answer(tool_result.result)
         # Absent on the last round (no _FollowUpDecision was built) or when the

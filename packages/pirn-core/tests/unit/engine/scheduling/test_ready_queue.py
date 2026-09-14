@@ -8,15 +8,15 @@ from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_ticket import AdmissionTicket
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
 
 
-class _RefuseIds(AdmissionGate):
+class _RefuseIds(Admission):
     """Test double: refuses the named knots, admits the rest."""
 
     def __init__(self, refused: set[str], *, full: bool = False) -> None:
@@ -36,7 +36,7 @@ class _RefuseIds(AdmissionGate):
         return AdmissionTicket(knot_id=knot.knot_id)
 
 
-class _CountingGate(LimitedAdmissionGate):
+class _CountingGate(LimitedAdmission):
     """A real limited gate that counts how many knots it was offered."""
 
     def __init__(self, limits: ConcurrencyLimits) -> None:
@@ -69,7 +69,7 @@ def _shed(*knot_ids: str) -> Shed:
     )
 
 
-def _drain(queue: ReadyQueue, gate: AdmissionGate, shed: Shed) -> list[str]:
+def _drain(queue: ReadyQueue, gate: Admission, shed: Shed) -> list[str]:
     popped: list[str] = []
     while (admitted := queue.pop_admissible(gate, shed)) is not None:
         popped.append(admitted[0])
@@ -82,7 +82,7 @@ class TestReadyQueueOrdering(unittest.TestCase):
         queue = ReadyQueue()
 
         # Act
-        admitted = queue.pop_admissible(UnboundedAdmissionGate(), _shed("a"))
+        admitted = queue.pop_admissible(UnboundedAdmission(), _shed("a"))
 
         # Assert
         self.assertIsNone(admitted)
@@ -96,7 +96,7 @@ class TestReadyQueueOrdering(unittest.TestCase):
         queue.push_batch([(2, "c", None), (0, "a", None), (1, "b", None)])
 
         # Act
-        popped = _drain(queue, UnboundedAdmissionGate(), shed)
+        popped = _drain(queue, UnboundedAdmission(), shed)
 
         # Assert
         self.assertEqual(popped, ["a", "b", "c"])
@@ -109,7 +109,7 @@ class TestReadyQueueOrdering(unittest.TestCase):
         queue.push_batch([(0, "a", None)])
 
         # Act
-        popped = _drain(queue, UnboundedAdmissionGate(), shed)
+        popped = _drain(queue, UnboundedAdmission(), shed)
 
         # Assert
         self.assertEqual(popped, ["z", "a"])
@@ -123,7 +123,7 @@ class TestReadyQueueOrdering(unittest.TestCase):
         queue.push_batch([(0, "a", None)])
 
         # Act
-        popped = _drain(queue, UnboundedAdmissionGate(), shed)
+        popped = _drain(queue, UnboundedAdmission(), shed)
 
         # Assert
         self.assertEqual(popped, ["b", "a"])
@@ -134,7 +134,7 @@ class TestReadyQueueOrdering(unittest.TestCase):
         queue.push_batch([(0, "a", None)])
 
         # Act
-        admitted = queue.pop_admissible(UnboundedAdmissionGate(), _shed("a"))
+        admitted = queue.pop_admissible(UnboundedAdmission(), _shed("a"))
 
         # Assert
         self.assertEqual(admitted, ("a", AdmissionTicket(knot_id="a")))
@@ -235,7 +235,7 @@ class TestReadyQueueGroups(unittest.TestCase):
         queue.push_batch([(1, "g2", "api"), (2, "l2", None)])
 
         # Act
-        popped = _drain(queue, UnboundedAdmissionGate(), shed)
+        popped = _drain(queue, UnboundedAdmission(), shed)
 
         # Assert: batch first, then topological index within a batch.
         self.assertEqual(popped, ["g1", "h1", "l1", "g2", "l2"])
@@ -248,7 +248,7 @@ class TestReadyQueueGroups(unittest.TestCase):
         queue.push_batch([(0, "a_late", "api")])
 
         # Act
-        popped = _drain(queue, UnboundedAdmissionGate(), shed)
+        popped = _drain(queue, UnboundedAdmission(), shed)
 
         # Assert
         self.assertEqual(popped, ["z_early", "a_late"])
@@ -273,7 +273,7 @@ class TestReadyQueueGroups(unittest.TestCase):
         queue = ReadyQueue()
         shed = _shed("a", "b")
         queue.push_batch([(0, "a", "api")])
-        _drain(queue, UnboundedAdmissionGate(), shed)
+        _drain(queue, UnboundedAdmission(), shed)
         queue.push_batch([(1, "b", None)])
         gate = _RefuseIds(set())
 
@@ -380,7 +380,7 @@ class TestReadyQueueScaling(unittest.TestCase):
             queue.push_batch([entry])
 
         # Act
-        popped = _drain(queue, UnboundedAdmissionGate(), shed)
+        popped = _drain(queue, UnboundedAdmission(), shed)
 
         # Assert: pushed last-first as separate batches, so they come out so.
         self.assertEqual(popped, [kid for _, kid, _ in reversed(entries)])

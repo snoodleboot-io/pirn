@@ -64,24 +64,6 @@ def __init__(self, *, models: Sequence[Knot], _config: KnotConfig, **kwargs: Any
     super().__init__(models=models_node, _config=_config, **kwargs)
 ```
 
-**Deprecating a Knot-shaped shim.** A public Knot class kept importable for one
-deprecation cycle (`docs/contributing/knot-remediation-process.md`) must still obey
-Rule 1 — no statement beyond the single `super().__init__(...)` call — so it cannot
-itself call `warnings.warn(...)`. Set the class attribute `_deprecated_since:
-ClassVar[str | None]` instead; `Knot._bootstrap` (the seam both the standard
-`Knot.__init__` introspection and framework primitives that bypass it, e.g.
-`Parameter`, converge on) raises a `DeprecationWarning` on every construction when it
-is set, naming the class and the value. A shim deprecated for only one of its call
-shapes (e.g. a `Knot | T` argument, where the `Knot` case is still correct and only
-the constant case is being replaced by `Parameter`) overrides
-`_deprecation_notice(self, parents, config_values)` to inspect which shape this
-construction used and return `None` for the shapes that stay legitimate. See
-`pirn_data.specializations.scd.scd_type_1_overwrite.ScdType1Overwrite` for the
-unconditional shape (deprecated toward `MergeUpsert`, PIR-870); the ADR
-agents-speaks-core WS5b examples that motivated the conditional override
-(`ResolvedValueKnot`, `MessagesPassthrough`) were themselves one-cycle shims
-and have since been deleted (PIR-864).
-
 ---
 
 ## Rule 2 — `process()` is the execution layer: it takes resolved values
@@ -192,16 +174,14 @@ extension). These may be held as instance state *only* in a dedicated vending Kn
 sole purpose is to construct and return that resource (see Rule 6). Consumers of the
 resource receive its value in `process()` as a resolved argument.
 
-**Exception — policy values that must not be knot-driven.** A small number of
-constructor arguments are safety or governance policy, not data — a value that must be
-fixed at pipeline-build time and must never be swappable by wiring in a different
-upstream Knot at run time (e.g. `SQLAgent.read_only`, PIR-817: whether a SQL-executing
-agent may run mutating statements is a decision the pipeline author makes once, not
-something an upstream Knot's output should be able to flip). These may be held as
-constructor state — typed as a plain scalar, not `Knot | scalar_type` — **only** when the
-class docstring states which argument this applies to and why it must not be knot-driven.
-This is a narrow, documented exception, not a general escape from Rule 4; when in doubt,
-the input is data and belongs in `process()`.
+**Policy values that must not be knot-driven are classes, not state.** A small number of
+settings are safety or governance policy, not data — fixed at pipeline-build time and never
+swappable by wiring in a different upstream Knot at run time (e.g. whether a SQL-executing
+agent may run mutating statements, PIR-817). Such a policy is not a constructor argument at
+all: it is a `ClassVar` on distinct classes, and the pipeline author chooses the policy by
+choosing the class (`SQLAgent` is read-only, `ReadWriteSQLAgent` may write; each runs its
+statement through `_SQLExecutor` or `_ReadWriteSQLExecutor` respectively). Nothing is held on
+the instance, and because the class is not an input, no upstream Knot's output can flip it.
 
 ---
 
@@ -453,6 +433,15 @@ narrow allowlist for exactly these files (rules covering `__init__` purity, self
 state, and `@property` fields), reviewed the same way any other rule exception is. New
 files under `pirn/nodes/` do not inherit the allowlist automatically — extending it needs
 the same documented justification as the constructor-state exception above.
+
+The same reasoning covers the roots themselves. `Knot.__init__` is the introspection that
+turns a subclass's keyword arguments into parents, `Knot.knot_id` / `config` / `parents` /
+`config_values` / `input_names` are the framework's read-only accessors over its own
+`_mutable_` state, and `Aggregator.process(**inputs)` is the variadic fan-in whose parent
+names are given at construction rather than in a signature. The gate therefore does not
+apply Rules 1, 2 (catch-all naming) and 4 to pirn-core's own definition of a root it keys
+on (`Knot` in `pirn/core/knot.py`, `Aggregator` in `pirn/nodes/aggregator.py`, …); every
+subclass of a root, and a same-named class anywhere else, is checked like any other knot.
 
 ---
 

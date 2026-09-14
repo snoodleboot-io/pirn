@@ -16,7 +16,6 @@ from pirn_agents.specializations.multi_agent.orchestrator_workers_result import 
     OrchestratorWorkersResult,
 )
 from pirn_agents.tools.agent_tool import AgentTool
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.agent_tool_doubles import StubAgent, reset_doubles
 from tests.specializations.conftest import StubTool
@@ -93,8 +92,8 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
         result = run.outputs["ow"]
         assert result.succeeded == 2
         statuses = {r.task: r.result.status for r in result.results}
-        assert statuses["bad"] is ToolStatus.ERROR
-        assert statuses["ok1"] is ToolStatus.OK
+        assert statuses["bad"] == "error"
+        assert statuses["ok1"] == "ok"
 
     async def test_uses_f7_agent_as_tool(self) -> None:
         reset_doubles()

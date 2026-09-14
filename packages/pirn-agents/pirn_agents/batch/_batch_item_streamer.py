@@ -3,7 +3,7 @@
 ADR agents-speaks-core, WS0b. ``MapAgent`` joins its per-item knots through
 a core ``Aggregator``, which only produces its combined value once *every*
 item has settled — so the standalone ``async for result in map_agent.run(...)``
-shim could only yield the whole batch at the end of the run. Core's
+stream could only yield the whole batch at the end of the run. Core's
 :meth:`~pirn.emitters.emitter.Emitter.on_knot_result` fires inside the
 engine loop the instant each knot settles, with its full ``Result`` and
 lineage row, so this emitter is what restores the pre-migration streaming
@@ -18,7 +18,7 @@ Algorithm:
        aggregator, a resumed-batch parameter, knots of other emitters'
        runs).
     2. Look up the item's ``(index, key)`` by knot id.
-    3. Build ``BatchItemResult.from_result(index, key, result,
+    3. Build ``BatchItemResult(index, key, outcome=result,
        attempts=lineage.extra["attempts"], latency=lineage.duration_ms /
        1000)`` — the lineage row is what carries the attempt count and the
        wall-clock, which the aggregator's ``Result``-only combine could not
@@ -68,10 +68,10 @@ class _BatchItemStreamer(Emitter):
         index, key = located
         attempts = lineage.extra.get("attempts", 1)
         self._queue.put_nowait(
-            BatchItemResult.from_result(
+            BatchItemResult(
                 index=index,
                 key=key,
-                result=result,
+                outcome=result,
                 attempts=attempts if isinstance(attempts, int) else 1,
                 latency=lineage.duration_ms / 1000.0,
             )

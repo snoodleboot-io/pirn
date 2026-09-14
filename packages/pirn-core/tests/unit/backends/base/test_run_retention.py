@@ -42,7 +42,7 @@ class TestRetentionCapability(unittest.TestCase):
     def test_in_memory_history_declares_a_bound(self) -> None:
         retention = InMemoryHistory().retention
         self.assertTrue(retention.is_bounded)
-        self.assertEqual(retention.max_runs, InMemoryHistory.DEFAULT_MAX_RUNS)
+        self.assertEqual(retention.max_runs, InMemoryHistory.default_max_runs)
 
     def test_bound_is_configurable(self) -> None:
         self.assertEqual(InMemoryHistory(max_runs=7).retention.max_runs, 7)

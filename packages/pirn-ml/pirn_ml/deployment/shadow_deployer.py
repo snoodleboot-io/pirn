@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ShadowDeployer`` — record a shadow deployment of a new model alongside
 an existing one.
 
@@ -60,7 +62,7 @@ class ShadowDeployer(Knot):
         Raises:
             TypeError: If model does not resolve to a ModelManifest.
         """
-        if not isinstance(model, ModelManifest):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(model, ModelManifest):
             raise TypeError("ShadowDeployer: model must resolve to a ModelManifest")
         deployed_at = datetime.now(UTC)
         deployment_id = self._derive_deployment_id(model, deployed_at)

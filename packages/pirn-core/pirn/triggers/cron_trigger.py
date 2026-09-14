@@ -236,6 +236,6 @@ class CronTrigger(Trigger):
           after which the generator returns; the fire it was waiting for is
           not emitted.
 
-        Idempotent, as ``run_forever`` requires.
+        Idempotent, as ``Trigger.run_forever`` requires.
         """
         self._closed = True

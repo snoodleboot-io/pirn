@@ -17,7 +17,6 @@ pytestmark = _pytest.mark.cross_domain
 
 import sys
 import unittest
-from importlib import reload
 
 
 class TestDomainImportGuards(unittest.TestCase):
@@ -64,9 +63,3 @@ class TestDomainImportGuards(unittest.TestCase):
     def test_oilgas_namespace_imports_without_extras(self) -> None:
         sys.modules.pop("pirn_oilgas", None)
         import pirn_oilgas  # noqa: F401
-
-    def test_domains_namespace_always_imports(self) -> None:
-        sys.modules.pop("pirn.domains", None)
-        import pirn.domains
-
-        reload(pirn.domains)

@@ -4,13 +4,8 @@ Issues a per-row SELECT + INSERT or UPDATE to provide upsert semantics
 without requiring a database-level MERGE statement, keeping the
 implementation database-agnostic across the supported pool types.
 
-This is also the SCD Type 1 (overwrite, no history) upsert pattern; use
-this class for that rather than
-:class:`~pirn_data.specializations.scd.scd_type_1_overwrite.ScdType1Overwrite`,
-which is deprecated (PIR-870) — it duplicated this exact select/update/insert
-logic under a separate name. The two differ only in what the summary dict
-reports: this class splits ``rows_inserted`` / ``rows_updated`` where
-``ScdType1Overwrite`` reports a single combined ``rows_upserted``.
+This is also the SCD Type 1 (overwrite, no history) upsert pattern over a
+source query; the summary dict splits ``rows_inserted`` / ``rows_updated``.
 
 Algorithm:
     1. Receive resolved ``source_pool``, ``source_query``, ``target_pool``,
@@ -40,10 +35,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
 
 
-class MergeUpsert(_PoolMergeKnot):
+class MergeUpsert(PoolMergeKnot):
     """Insert new rows and update changed rows; never delete."""
 
     def __init__(

@@ -21,7 +21,7 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -67,28 +67,28 @@ class DeployReceipt:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def checkout(branch: str, commit_sha: str) -> CheckoutResult:
     """Clone the repo at the given commit."""
     await asyncio.sleep(0.05)
     return CheckoutResult(commit_sha=commit_sha, branch=branch, files_changed=42)
 
 
-@knot
+@KnotFactory.knot
 async def run_lint(source: CheckoutResult) -> QualityReport:
     t0 = time.monotonic()
     await asyncio.sleep(0.03)
     return QualityReport("ruff", issues=0, duration_ms=(time.monotonic() - t0) * 1000)
 
 
-@knot
+@KnotFactory.knot
 async def run_typecheck(source: CheckoutResult) -> QualityReport:
     t0 = time.monotonic()
     await asyncio.sleep(0.04)
     return QualityReport("pyright", issues=0, duration_ms=(time.monotonic() - t0) * 1000)
 
 
-@knot
+@KnotFactory.knot
 async def run_unit_tests(source: CheckoutResult, lint: QualityReport) -> TestReport:
     if lint.issues > 0:
         raise RuntimeError(f"unit tests blocked: {lint.issues} lint issue(s)")
@@ -97,7 +97,7 @@ async def run_unit_tests(source: CheckoutResult, lint: QualityReport) -> TestRep
     return TestReport("unit", passed=334, failed=0, duration_ms=(time.monotonic() - t0) * 1000)
 
 
-@knot
+@KnotFactory.knot
 async def run_integration_tests(source: CheckoutResult, tc: QualityReport) -> TestReport:
     if tc.issues > 0:
         raise RuntimeError(f"integration tests blocked: {tc.issues} type error(s)")
@@ -107,7 +107,7 @@ async def run_integration_tests(source: CheckoutResult, tc: QualityReport) -> Te
     return TestReport("integration", passed=48, failed=0, duration_ms=elapsed_ms)
 
 
-@knot
+@KnotFactory.knot
 async def build_image(
     source: CheckoutResult,
     unit: TestReport,
@@ -122,7 +122,7 @@ async def build_image(
     )
 
 
-@knot
+@KnotFactory.knot
 async def deploy(artifact: BuildArtifact, environment: str) -> DeployReceipt:
     await asyncio.sleep(0.05)
     return DeployReceipt(

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatureEngineeringImageEmbeddingExtractor`` — append an image-column embedding feature
 to every partition of a :class:`SplitManifest` via an
 :class:`ImageEncoderProvider`.
@@ -9,7 +11,7 @@ Algorithm:
     1. Receive ``split`` (SplitManifest), ``image_column`` (str), and
        ``image_encoder`` (ImageEncoderProvider) via process().
     2. Validate image_column and image_encoder.
-    3. Wire _ImageEncoderExtractor in an inner Tapestry.
+    3. Wire ImageEncoderExtractor in an inner Tapestry.
     4. Run via _run_inner() and return the extended SplitManifest.
 
 
@@ -27,8 +29,8 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.image_encoder_provider import ImageEncoderProvider
-from pirn_ml.specializations.feature_engineering._image_encoder_extractor import (
-    _ImageEncoderExtractor,
+from pirn_ml.specializations.feature_engineering.image_encoder_extractor import (
+    ImageEncoderExtractor,
 )
 from pirn_ml.types.split_manifest import SplitManifest
 
@@ -85,7 +87,7 @@ class FeatureEngineeringImageEmbeddingExtractor(SubTapestry):
         split_node = Parameter(
             "split", SplitManifest, default=split, _config=KnotConfig(id="split")
         )
-        return _ImageEncoderExtractor(
+        return ImageEncoderExtractor(
             split=split_node,
             image_column=image_column,
             image_encoder=image_encoder,

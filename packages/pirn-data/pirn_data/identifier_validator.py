@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Shared identifier-validation helper for tabular transform knots.
 
 Aggregations, joins, casts and renames all need to confirm that
@@ -30,7 +32,7 @@ class IdentifierValidator:
         (e.g. ``"by"``, ``"left_on"``, ``"output column"``). The label
         is interpolated into the raised :class:`ValueError`.
         """
-        if not isinstance(name, str) or not name:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(name, str) or not name:
             raise TypeError(f"{label}: must be a non-empty string")
         if not cls._pattern.match(name):
             raise ValueError(
@@ -45,7 +47,7 @@ class IdentifierValidator:
         callers can identify which element of a multi-column parameter
         was rejected.
         """
-        if not isinstance(names, Sequence) or isinstance(names, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(names, Sequence) or isinstance(names, (str, bytes)):
             raise TypeError(f"{label}: must be a sequence of column names")
         if not names:
             raise ValueError(f"{label}: must be non-empty")

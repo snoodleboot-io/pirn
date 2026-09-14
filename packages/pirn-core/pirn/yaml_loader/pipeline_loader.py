@@ -8,14 +8,14 @@ Steps:
 
 Strict mode (default): any ``callable``, ``selector``, ``predicate``,
 ``combine``, or ``each`` reference must be supplied via the
-``known_callables`` map passed to ``load_pipeline``.
+``known_callables`` map passed to ``PipelineLoader.load_yaml``.
 
 Loose mode (``PipelineSpec.allow_callable_refs=True``): same references
 may be dotted paths that the loader imports at load time.
 
 Import allowlist (``allowed_module_prefixes``): when loose mode is
 enabled, the optional ``allowed_module_prefixes`` parameter (accepted by
-both ``load_pipeline`` and ``PipelineSpec``) restricts which module
+both ``PipelineLoader.load_yaml`` and ``PipelineSpec``) restricts which module
 paths may be imported.  A callable ref is permitted only when its module
 path equals one of the prefixes or starts with ``<prefix>.``.  When the
 list is ``None``, any import is allowed (with a warning).  The spec-
@@ -38,7 +38,7 @@ import yaml
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import KnotFactory, knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.exceptions.pipeline_load_error import PipelineLoadError
 from pirn.nodes.aggregator import Aggregator
@@ -234,7 +234,7 @@ class PipelineLoader:
             elif isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
                 return callable_obj(_config=cfg, tapestry=tapestry)
             else:
-                factory = knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
+                factory = KnotFactory.knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
             return factory(_config=cfg, tapestry=tapestry)
 
         if isinstance(node_spec, (KnotSpec, SinkSpec)):
@@ -252,16 +252,15 @@ class PipelineLoader:
                 kwargs[input_name] = value
             # Three cases:
             # (1) callable_obj is a Knot class -> instantiate.
-            # (2) callable_obj is a KnotFactory (from @knot) -> call it.
-            # (3) callable_obj is a plain function -> wrap with @knot first.
+            # (2) callable_obj is a KnotFactory (from @KnotFactory.knot) -> call it.
+            # (3) callable_obj is a plain function -> wrap with @KnotFactory.knot first.
             if isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
                 return callable_obj(**kwargs)
             if isinstance(callable_obj, KnotFactory):
                 return callable_obj(**kwargs)
-            # Plain function — wrap with @knot.
-            from pirn.core.knot_factory import knot as _knot_decorator
+            # Plain function — wrap with @KnotFactory.knot.
 
-            factory = _knot_decorator(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
+            factory = KnotFactory.knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
             return factory(**kwargs)
 
         if isinstance(node_spec, AggregatorSpec):
@@ -380,7 +379,7 @@ class PipelineLoader:
                 f"reference {ref!r} not in known_callables and not registered as a Knot "
                 "in sweet_tea's Registry; if it belongs to a pirn domain, install & "
                 "import the owning package (e.g. pip install pirn-<x> then "
-                "import pirn_<x>, or call discover_installed_domains() from "
+                "import pirn_<x>, or call DomainDiscovery.discover_installed_domains() from "
                 "pirn.domain_discovery); otherwise set allow_callable_refs=True to enable "
                 "dotted-path imports, or call Registry.fill_registry() in your project so "
                 "your knots are auto-discovered"
@@ -446,7 +445,3 @@ class PipelineLoader:
         module_path, _, attr = ref.rpartition(".")
         module = importlib.import_module(module_path)
         return getattr(module, attr)
-
-
-#: Public name for :meth:`PipelineLoader.load_yaml` (bare alias, not a ``def``).
-load_pipeline = PipelineLoader.load_yaml

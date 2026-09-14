@@ -14,7 +14,7 @@ pirn is structured in three layers, each with a clean boundary:
 ```mermaid
 graph TD
     subgraph L1[Layer 1 - User API]
-        Knot["Knot / @knot decorator"]
+        Knot["Knot / @KnotFactory.knot decorator"]
         Tap["Tapestry"]
         Cfg["KnotConfig / ErrorPolicy"]
         Param["Parameter"]
@@ -51,7 +51,7 @@ graph TD
 | Weaving term | pirn concept | Technical meaning |
 |-------------|--------------|-------------------|
 | Thread | Dependency edge | `Edge(child_id, parent_id, name)` |
-| Knot | Processing node | `Knot` subclass or `@knot` function |
+| Knot | Processing node | `Knot` subclass or `@KnotFactory.knot` function |
 | Tapestry | Pipeline workspace | `Tapestry` context manager + store |
 | Loom | Execution graph | `Shed` — ephemeral per-run DAG |
 | Shed | Per-run execution context | `Shed.from_terminals(terminals)` |
@@ -135,7 +135,7 @@ Every value that flows through a pipeline is identified by `sha256:<hex-digest>`
 graph TD
     subgraph User[User API]
         KnotCls["Knot base class"]
-        KnotDec["@knot decorator"]
+        KnotDec["@KnotFactory.knot decorator"]
         Tap["Tapestry"]
         KnotCfg["KnotConfig / ErrorPolicy"]
     end

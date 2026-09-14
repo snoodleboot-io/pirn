@@ -1,32 +1,19 @@
-"""``DataProfile`` and ``ColumnProfile`` — descriptive statistics for a
-:class:`DataBatch`.
+"""``DataProfile`` — descriptive statistics for a :class:`DataBatch`.
 
 Emitted by :class:`pirn_data.quality.profiler.Profiler`. A profile
 is observation, not policy: every field describes the input batch, no
 field carries a pass/fail verdict. Compose with a downstream knot if you
 want thresholds enforced (or use :class:`NullRateCheck` /
-:class:`RowCountCheck` directly).
+:class:`RowCountCheck` directly). Per-column statistics live in
+:class:`pirn_data.column_profile.ColumnProfile`.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
 
-
-@dataclass(frozen=True)
-class ColumnProfile:
-    """Per-column statistics."""
-
-    name: str
-    observed_count: int
-    null_count: int
-    distinct_count: int
-    min_value: Any | None = None
-    max_value: Any | None = None
-    top_value: Any | None = None
-    top_value_count: int = 0
+from pirn_data.column_profile import ColumnProfile
 
 
 @dataclass(frozen=True)

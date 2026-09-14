@@ -19,7 +19,7 @@ It also declares
 :class:`~pirn_agents.tools.sql.sql_connector.SqlConnector`, the tool-side SQL
 interface, so the connector is accepted by
 :class:`~pirn_agents.tools.sql.sql_query_tool.SqlQueryTool` (which type-checks its
-injected connector) and therefore by ``data_toolset`` (PIR-786). Both bases derive
+injected connector) and therefore by ``Bundles.data_toolset`` (PIR-786). Both bases derive
 from ``PirnOpaqueValue``, so the two lineages linearise cleanly and ``ConnectorBase``
 keeps precedence for the lifecycle and audit behaviour.
 """
@@ -96,7 +96,7 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
     async def _create_client(self) -> ColumnAwarePool:
         """Build the core-backed column-aware pool for the configured driver."""
         # pyright can't see the config fields as __init__ params: core's
-        # @connection_config decorator wraps dataclasses.dataclass but is not
+        # @ConnectionConfigDecorator.apply decorator wraps dataclasses.dataclass but is not
         # annotated @dataclass_transform, so the synthesised __init__ is invisible.
         # The construction is runtime-correct (core's own tests build these the same
         # way). Tracked upstream as PIR-749.

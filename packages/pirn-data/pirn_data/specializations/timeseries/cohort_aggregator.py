@@ -50,7 +50,7 @@ class CohortAggregator(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         user_column: Knot | str,
         timestamp_column: Knot | str,
         metric_column: Knot | str,
@@ -117,7 +117,8 @@ class CohortAggregator(Knot):
             if user not in first_seen or ts < first_seen[user]:
                 first_seen[user] = ts
 
-        bucket: dict[tuple[datetime, int], dict] = {}
+        bucket_users: dict[tuple[datetime, int], set[Any]] = {}
+        bucket_values: dict[tuple[datetime, int], list[Any]] = {}
         for row in rows:
             user = row.get(user_column)
             ts = self._as_dt(row[timestamp_column])
@@ -125,16 +126,15 @@ class CohortAggregator(Knot):
             days_since = (ts - cohort_dt).days
             period_idx = int(days_since / period.days)
             key = (cohort_dt, period_idx)
-            if key not in bucket:
-                bucket[key] = {"users": set(), "values": []}
-            bucket[key]["users"].add(user)
+            bucket_users.setdefault(key, set()).add(user)
+            values = bucket_values.setdefault(key, [])
             metric = row.get(metric_column)
             if metric is not None:
-                bucket[key]["values"].append(metric)
+                values.append(metric)
 
         result: list[dict[str, Any]] = []
-        for (cohort_dt, period_idx), data in sorted(bucket.items()):
-            vals = data["values"]
+        for (cohort_dt, period_idx), users in sorted(bucket_users.items()):
+            vals = bucket_values[(cohort_dt, period_idx)]
             if not vals:
                 metric_value = None
             elif aggregation == "count":
@@ -147,7 +147,7 @@ class CohortAggregator(Knot):
                 {
                     "cohort": cohort_dt.date().isoformat(),
                     "period": period_idx,
-                    "users": len(data["users"]),
+                    "users": len(users),
                     "metric_value": metric_value,
                 }
             )

@@ -17,15 +17,14 @@ from unittest import mock
 
 import pytest
 
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
-from pirn_agents.tools.sql import aiosqlite_connector
 from pirn_agents.tools.sql.aiosqlite_connector import AiosqliteConnector
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.tools.tool_runner import ToolRunner
 
 
@@ -112,7 +111,7 @@ class TestRowCapAndShape:
         tool = SqlQueryTool.bind(connector=_StubSqlConnector(["n"], [[1]]))
         call = ToolCall(tool_name="sql_query", arguments={"query": "DROP TABLE t"}, call_id="c")
         outcome = await ToolRunner.view(tool, call)
-        assert outcome.status is ToolStatus.ERROR
+        assert outcome.status == "error"
 
     def test_rejects_non_connector(self) -> None:
         with pytest.raises(TypeError):
@@ -383,7 +382,7 @@ class TestAiosqliteConnectorDurability:
         connection = _FakeAiosqliteConnection(["id"], [[1]])
         connector = AiosqliteConnector(database=":memory:")
         with mock.patch.object(
-            aiosqlite_connector, "_require", return_value=_FakeAiosqliteModule(connection)
+            OptionalImport, "require", return_value=_FakeAiosqliteModule(connection)
         ):
             await connector.execute("INSERT INTO t (id) VALUES (?)", [1])
         assert (connection.commits, connection.rollbacks) == (1, 0)
@@ -392,7 +391,7 @@ class TestAiosqliteConnectorDurability:
         connection = _FakeAiosqliteConnection(["id"], [[1]], explode=True)
         connector = AiosqliteConnector(database=":memory:")
         with mock.patch.object(
-            aiosqlite_connector, "_require", return_value=_FakeAiosqliteModule(connection)
+            OptionalImport, "require", return_value=_FakeAiosqliteModule(connection)
         ):
             with pytest.raises(RuntimeError, match="blew up"):
                 await connector.execute("INSERT INTO t (id) VALUES (?)", [1])
@@ -406,7 +405,7 @@ class TestAiosqliteConnectorDurability:
         connection = _FakeAiosqliteConnection(["id"], [[1]])
         connector = AiosqliteConnector(database=":memory:")
         with mock.patch.object(
-            aiosqlite_connector, "_require", return_value=_FakeAiosqliteModule(connection)
+            OptionalImport, "require", return_value=_FakeAiosqliteModule(connection)
         ):
             await connector.execute(query)
         assert (connection.commits, connection.rollbacks) == (0, 0)

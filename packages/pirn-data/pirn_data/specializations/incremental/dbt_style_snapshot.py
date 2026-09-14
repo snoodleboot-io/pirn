@@ -32,7 +32,7 @@ References:
     [1] dbt — snapshot strategy documentation:
         https://docs.getdbt.com/docs/build/snapshots
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
     [4] Python — hashlib.md5 with usedforsecurity=False:

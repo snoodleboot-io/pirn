@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 from pirn_data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
@@ -80,7 +80,7 @@ class TestSparkWriteSink(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_path_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_path() -> str:
             return "/tmp/dynamic"
 

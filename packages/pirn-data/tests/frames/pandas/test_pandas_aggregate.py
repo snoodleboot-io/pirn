@@ -12,7 +12,7 @@ except ImportError as _e:
 import pandas as pd
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -21,7 +21,7 @@ from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
@@ -75,7 +75,7 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
         assert eu["n_customers"] == 2
 
     async def test_composite_group_by(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def two_dim() -> PandasDataBatch:
             return PandasDataBatch(
                 frame=pd.DataFrame(
@@ -102,7 +102,7 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> object:
             return ("region",)
 
@@ -122,7 +122,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PandasAggregate:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame({"a": [1]}))
 
@@ -171,3 +171,39 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
                 by=("a",),
                 aggs={},
             )
+
+    async def test_rejects_ambiguous_duplicate_source_column(self) -> None:
+        k = self._make_knot()
+        duplicated = pd.DataFrame([[1, 2, 3]], columns=["a", "b", "b"])
+        with self.assertRaisesRegex(ValueError, "ambiguous"):
+            await k.process(
+                batch=PandasDataBatch(frame=duplicated),
+                by=("a",),
+                aggs={"total": AggregateSpec(source="b", function="sum")},
+            )
+
+    async def test_every_function_on_values_and_on_an_all_null_group(self) -> None:
+        k = self._make_knot()
+        frame = pd.DataFrame({"g": ["x", "x", "x", "y"], "v": [3.0, 1.0, 3.0, None]})
+        functions = ("sum", "mean", "min", "max", "count", "count_distinct", "first", "last")
+        out = await k.process(
+            batch=PandasDataBatch(frame=frame),
+            by=("g",),
+            aggs={f: AggregateSpec(source="v", function=f) for f in functions},
+        )
+        rows = {r["g"]: r for r in out.frame.to_dict(orient="records")}
+        assert rows["x"]["sum"] == 7.0
+        assert rows["x"]["mean"] == 7.0 / 3
+        assert rows["x"]["min"] == 1.0
+        assert rows["x"]["max"] == 3.0
+        assert rows["x"]["count"] == 3
+        assert rows["x"]["count_distinct"] == 2
+        assert rows["x"]["first"] == 3.0
+        assert rows["x"]["last"] == 3.0
+        assert rows["y"]["sum"] == 0
+        assert rows["y"]["count"] == 0
+        assert rows["y"]["count_distinct"] == 0
+        assert pd.isna(rows["y"]["mean"])
+        assert pd.isna(rows["y"]["min"])
+        assert pd.isna(rows["y"]["max"])
+        assert pd.isna(rows["y"]["first"])

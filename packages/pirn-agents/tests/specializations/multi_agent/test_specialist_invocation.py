@@ -12,6 +12,7 @@ from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 from pirn_agents.specializations.multi_agent.specialist_invocation import (
     SpecialistInvocation,
 )
@@ -60,7 +61,7 @@ class _FailingSpecialist(SubTapestry):
 def _make_invocation(specialist: SubTapestry) -> SpecialistInvocation:
     with Tapestry():
         return SpecialistInvocation(
-            specialist=specialist,
+            specialist=SpecialistHandle(specialist),
             task="t",
             _config=KnotConfig(id="inv"),
         )
@@ -75,37 +76,38 @@ class TestSpecialistInvocationProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_specialist_agent_response(self) -> None:
         spec = _make_specialist(_EchoSpecialist, "echo")
         inv = _make_invocation(spec)
-        out = await inv.process(task="ask")
+        out = await inv.process(specialist=SpecialistHandle(spec), task="ask")
         assert isinstance(out, AgentResponse)
         assert out.content == "echo:ask"
 
     async def test_normalises_non_agent_response(self) -> None:
         spec = _make_specialist(_RawStringSpecialist, "raw")
         inv = _make_invocation(spec)
-        out = await inv.process(task="ask")
+        out = await inv.process(specialist=SpecialistHandle(spec), task="ask")
         assert isinstance(out, AgentResponse)
         assert out.content == "plain:ask"
         assert out.finish_reason == "stop"
 
     async def test_holds_specialist_off_the_parent_set(self) -> None:
-        # The specialist must NOT be a graph parent — it is opaque data this
-        # knot invokes itself, held on a _mutable_ slot.
+        # The specialist must NOT be a graph parent — it is an opaque handle
+        # declared as an ordinary input, not instance state.
         spec = _make_specialist(_EchoSpecialist, "echo")
         inv = _make_invocation(spec)
         assert spec not in inv.parents.values()
-        assert getattr(inv, "_mutable_specialist") is spec  # noqa: B009
+        assert isinstance(inv.config_values["specialist"], SpecialistHandle)
+        assert inv.config_values["specialist"].specialist is spec
 
     async def test_propagates_specialist_failure(self) -> None:
         spec = _make_specialist(_FailingSpecialist, "bad")
         inv = _make_invocation(spec)
         with self.assertRaises(SpecialistInvocationError):
-            await inv.process(task="ask")
+            await inv.process(specialist=SpecialistHandle(spec), task="ask")
 
     async def test_tapestry_run_integration(self) -> None:
         spec = _make_specialist(_EchoSpecialist, "echo")
         with Tapestry() as t:
             SpecialistInvocation(
-                specialist=spec,
+                specialist=SpecialistHandle(spec),
                 task="hello",
                 _config=KnotConfig(id="inv"),
             )

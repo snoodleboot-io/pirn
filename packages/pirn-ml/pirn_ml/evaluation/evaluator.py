@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Evaluator`` — compute metrics for a :class:`ModelManifest` on a
 :class:`SplitManifest.test` slice.
 
@@ -72,7 +74,7 @@ class Evaluator(Knot):
         if not metric_tuple:
             raise ValueError("Evaluator: metrics must be non-empty")
         for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+            if not isinstance(metric, str) or not metric:
                 raise ValueError("Evaluator: every metric name must be a non-empty string")
         scored = MappingProxyType(
             {metric: self._score(model, split, metric) for metric in metric_tuple}

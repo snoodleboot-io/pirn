@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.exceptions.pirn_error import PirnError
 
-class McpError(Exception):
+
+class McpError(PirnError):
     """Raised when an MCP exchange fails at the protocol or transport layer.
 
     Carries the JSON-RPC error ``code`` and optional ``data`` payload when the

@@ -7,19 +7,19 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.engine.scheduling.dependency_tracker import DependencyTracker
 from pirn.engine.shed.edge import Edge
 from pirn.engine.shed.shed import Shed
 
 
-@knot
+@KnotFactory.knot
 async def _one(x: Any) -> Any:
     return x
 
 
-@knot
+@KnotFactory.knot
 async def _two(x: Any, y: Any) -> Any:
     return (x, y)
 

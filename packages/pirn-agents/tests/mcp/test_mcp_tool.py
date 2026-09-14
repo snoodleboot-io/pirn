@@ -4,7 +4,7 @@ Proves the descriptor→``Tool`` mapping (name/description/parameters_schema), t
 raw-value ``tools/call`` path, structured-content handling, and the
 :meth:`~pirn_agents.tools.tool_result.ToolResult.from_result` view built over a
 call's ``Result`` — including a server-reported error becoming a
-``ToolStatus.ERROR`` result.
+``"error"`` result.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from pirn_agents.mcp.mcp_tool import McpTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.mcp.stub_mcp import StubMcpTransport
 
 
@@ -86,7 +85,7 @@ async def test_as_tool_result_ok_round_trips_call_id() -> None:
     result = ToolResult.from_result(call.call_id, outcome)
 
     assert result.call_id == "c-1"
-    assert result.status is ToolStatus.OK
+    assert result.status == "ok"
     assert result.result == "roundtrip"
     assert result.error is None
 
@@ -100,7 +99,7 @@ async def test_as_tool_result_maps_server_error_to_error_status() -> None:
     outcome = await tool.run_call(call)
     result = ToolResult.from_result(call.call_id, outcome)
 
-    assert result.status is ToolStatus.ERROR
+    assert result.status == "error"
     assert result.call_id == "c-2"
     assert result.error is not None
     assert "kaboom" in result.error

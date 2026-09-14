@@ -8,7 +8,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -21,14 +21,14 @@ from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def emit_split() -> SplitManifest:
     train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
     test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
     return SplitManifest(train=train, test=test)
 
 
-@knot
+@KnotFactory.knot
 async def emit_champion() -> ModelManifest:
     return ModelManifest(
         model_id="champ",
@@ -38,7 +38,7 @@ async def emit_champion() -> ModelManifest:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_challenger() -> ModelManifest:
     return ModelManifest(
         model_id="chal",

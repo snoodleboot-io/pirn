@@ -4,7 +4,7 @@
 hands a caller-owned live object (an ``LLMProvider``, a ``MemoryStore``, a
 ``Tool``) to core's YAML loader as a ``known_callables`` entry. The loader's
 ``source`` node resolves its ``callable:`` reference and wraps it with
-:func:`pirn.core.knot_factory.knot`, which expects an actual callable —
+:meth:`pirn.core.knot_factory.KnotFactory.knot`, which expects an actual callable —
 ``KnotFactory.create`` reads ``fn.__name__``, ``fn.__qualname__`` and
 ``fn.__doc__`` directly (not via ``getattr`` with a default), so a bare
 already-constructed object cannot stand in for the reference on its own.

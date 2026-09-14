@@ -14,8 +14,8 @@ import unittest
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.err import Err
-from pirn.core.hashing import content_hash
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -58,7 +58,7 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["a new fact"])
         response = AgentResponse(content="a new fact")
         await k.process(response=response, llm=llm, store=store)
-        key = content_hash("a new fact")
+        key = ContentHasher.hash("a new fact")
         stored = await store.get(namespace="semantic-memory", key=key)
         assert stored is not None
         assert stored["content"] == "a new fact"
@@ -75,7 +75,7 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
         assert first == 1
         assert second == 0
         rows = await store.history.query_lineage_by_knot_id(
-            KeyedLineageStore.identity("semantic-memory", content_hash("repeat me"))
+            KeyedLineageStore.identity("semantic-memory", ContentHasher.hash("repeat me"))
         )
         assert len(rows) == 1
 
@@ -84,7 +84,7 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
         store = _make_store()
         llm = StubLLMProvider(["existing fact"])
         response = AgentResponse(content="existing fact")
-        key = content_hash("existing fact")
+        key = ContentHasher.hash("existing fact")
         await store.put(namespace="semantic-memory", key=key, value={"fact": "existing fact"})
         count = await k.process(response=response, llm=llm, store=store)
         assert count == 0

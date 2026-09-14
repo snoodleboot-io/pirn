@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PerformanceTriggeredRetrainer`` — SubTapestry that monitors a live
 metric and triggers a retraining run when it drops below a threshold,
 returning the new model reference.
@@ -25,7 +27,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -36,7 +38,7 @@ from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _build_retrainer_result(
     eval_report: EvalReportPayload,
     retrained_model: ModelManifest,

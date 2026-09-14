@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -47,7 +47,7 @@ async def test_yaml_strict_mode_simple_chain():
           a: x
           b: doubled
     """
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         yaml_text,
         known_callables={"double": double, "add": add},
     )
@@ -77,7 +77,7 @@ async def test_yaml_with_aggregator():
           a: a
           b: b
     """
-    tapestry = load_pipeline(yaml_text, known_callables={"merge": merge_dicts})
+    tapestry = PipelineLoader.load_yaml(yaml_text, known_callables={"merge": merge_dicts})
     result = await tapestry.run(RunRequest())
     assert result.outputs["merged"] == {"x": 1, "y": 2}
 
@@ -96,7 +96,7 @@ async def test_yaml_with_gate():
         input: x
         predicate: is_positive
     """
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         yaml_text,
         known_callables={"is_positive": lambda v: v > 0},
     )
@@ -119,7 +119,7 @@ async def test_yaml_with_branch():
         selector: pick
         branches: [a, b]
     """
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         yaml_text,
         known_callables={"pick": lambda d: d["kind"]},
     )
@@ -144,7 +144,7 @@ async def test_yaml_missing_known_callable_raises():
           x: x
     """
     with pytest.raises(ValueError, match="not in known_callables"):
-        load_pipeline(yaml_text, known_callables={})
+        PipelineLoader.load_yaml(yaml_text, known_callables={})
 
 
 async def test_yaml_unknown_parent_raises():
@@ -158,7 +158,7 @@ async def test_yaml_unknown_parent_raises():
           x: nonexistent
     """
     with pytest.raises(ValueError, match="unknown parent"):
-        load_pipeline(yaml_text, known_callables={"double": double})
+        PipelineLoader.load_yaml(yaml_text, known_callables={"double": double})
 
 
 async def test_yaml_with_reduce():
@@ -175,7 +175,7 @@ async def test_yaml_with_reduce():
         of: xs
         combine: sum_all
     """
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         yaml_text,
         known_callables={"sum_all": sum},
     )
@@ -199,11 +199,11 @@ async def test_yaml_with_map():
         bind: idx
     """
 
-    @knot
+    @KnotFactory.knot
     async def make_user(idx: int) -> dict:
         return {"id": idx}
 
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         yaml_text,
         known_callables={"make_user": make_user},
     )
@@ -213,4 +213,4 @@ async def test_yaml_with_map():
 
 def test_yaml_top_level_must_be_mapping():
     with pytest.raises(ValueError, match="mapping"):
-        load_pipeline("- just a list")
+        PipelineLoader.load_yaml("- just a list")

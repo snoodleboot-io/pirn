@@ -45,9 +45,9 @@ References:
     [1] Debezium — Change Data Capture documentation:
         https://debezium.io/documentation/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — MessageBroker interface:
-        pirn/domains/connectors/message_broker.py
+        pirn/connectors/message_broker.py
     [4] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -64,6 +64,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 _logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class CDCDebezium(Knot):
             except json.JSONDecodeError:
                 _logger.warning("cdc.debezium.decode_failed topic=%s reason=invalid_json", topic)
                 return None
-        if not isinstance(value, dict):
+        if not ValueShape.is_str_mapping(value):
             _logger.warning("cdc.debezium.decode_failed topic=%s reason=not_object", topic)
             return None
         return value
@@ -178,8 +179,8 @@ class CDCDebezium(Knot):
         target_table: str,
     ) -> None:
         op = envelope.get("op")
-        before = envelope.get("before") or {}
-        after = envelope.get("after") or {}
+        before: dict[str, Any] = envelope.get("before") or {}
+        after: dict[str, Any] = envelope.get("after") or {}
         if op in ("c", "r"):
             await CDCDebezium._apply_insert(after, target_pool, target_table)
         elif op == "u":

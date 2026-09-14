@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.generation.llm_call import LLMCall
@@ -16,7 +16,7 @@ from tests.conftest import StubLLMProvider
 
 
 def _make_knot(llm: StubLLMProvider) -> LLMCall:
-    @knot
+    @KnotFactory.knot
     async def _ctx() -> ConversationPayload:
         return ConversationPayload(messages=())
 

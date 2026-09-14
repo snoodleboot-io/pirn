@@ -5,29 +5,29 @@ from __future__ import annotations
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.map_markers import DictMap, Map, ZipMap
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int, **_) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add_pair(a: int, b: int, **_) -> int:
     return a + b
 
 
-@knot
+@KnotFactory.knot
 async def show_entry(k: str, v: int, **_) -> str:
     return f"{k}={v}"
 
 
-@knot
+@KnotFactory.knot
 async def fail_negative(v: int, **_) -> int:
     if v < 0:
         raise ValueError("negative")
@@ -118,7 +118,7 @@ def test_dictmap_requires_same_source():
 
 
 def test_dictmap_requires_two_inputs():
-    @knot
+    @KnotFactory.knot
     async def single_dict_input(k: str, **_) -> str:
         return k
 

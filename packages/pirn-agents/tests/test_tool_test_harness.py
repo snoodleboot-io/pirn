@@ -10,25 +10,24 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
+from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.testing.tool_test_harness import ToolTestHarness
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class TestSchemaAssertions(unittest.TestCase):
     def test_assert_tool_schema_passes_on_match(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(
-            name="s", parameters_schema={"type": "object", "properties": {}}
-        )
+        stub = StubTool(name="s", parameters_schema={"type": "object", "properties": {}})
         ToolTestHarness.assert_tool_schema(stub, {"type": "object", "properties": {}})
 
     def test_assert_tool_schema_fails_on_mismatch(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(name="s")
+        stub = StubTool(name="s")
         with self.assertRaises(AssertionError):
             ToolTestHarness.assert_tool_schema(stub, {"type": "object", "properties": {}})
 
     def test_assert_schema_shape_required_and_properties(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def search(query: str, limit: int = 5) -> str:
             """Search."""
             return query
@@ -40,7 +39,7 @@ class TestSchemaAssertions(unittest.TestCase):
         )
 
     def test_assert_schema_shape_wrong_required_fails(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def search(query: str) -> str:
             """Search."""
             return query
@@ -49,14 +48,14 @@ class TestSchemaAssertions(unittest.TestCase):
             ToolTestHarness.assert_tool_schema_shape(search, required=[])
 
     def test_assert_schema_shape_missing_property_fails(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(name="s")
+        stub = StubTool(name="s")
         with self.assertRaises(AssertionError):
             ToolTestHarness.assert_tool_schema_shape(
                 stub, properties={"absent": {"type": "string"}}
             )
 
     def test_assert_schema_shape_property_value_mismatch_fails(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(name="s")  # input is a string
+        stub = StubTool(name="s")  # input is a string
         with self.assertRaises(AssertionError):
             ToolTestHarness.assert_tool_schema_shape(
                 stub, properties={"input": {"type": "integer"}}
@@ -64,13 +63,13 @@ class TestSchemaAssertions(unittest.TestCase):
 
 
 class TestInvocationDrivers(unittest.IsolatedAsyncioTestCase):
-    async def test_invoke_tool_sync_and_async(self) -> None:
-        @tool
+    async def test_run_tool_sync_and_async(self) -> None:
+        @ToolDecorator.decorate
         def sync_tool(x: str) -> str:
             """Sync."""
             return f"sync:{x}"
 
-        @tool
+        @ToolDecorator.decorate
         async def async_tool(x: str) -> str:
             """Async."""
             return f"async:{x}"
@@ -79,11 +78,11 @@ class TestInvocationDrivers(unittest.IsolatedAsyncioTestCase):
         assert await ToolTestHarness.run_tool(async_tool, {"x": "b"}) == "async:b"
 
     async def test_collect_tool_stream(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(name="gen", stream_chunks=["a", "b", "c"])
+        stub = StubTool(name="gen", stream_chunks=["a", "b", "c"])
         assert await ToolTestHarness.collect_tool_stream(stub, {}) == ["a", "b", "c"]
 
     async def test_collect_stream_on_non_streaming_raises(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(name="s")
+        stub = StubTool(name="s")
         with self.assertRaisesRegex(TypeError, "not a streaming tool"):
             await ToolTestHarness.collect_tool_stream(stub, {})
 
@@ -94,35 +93,35 @@ class TestToolTestHarness(unittest.IsolatedAsyncioTestCase):
             ToolTestHarness("not-a-tool")  # type: ignore[arg-type]
 
     def test_exposes_wrapped_tool(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(name="s")
+        stub = StubTool(name="s")
         assert ToolTestHarness(stub).tool is stub
 
     async def test_assert_invokes_to_passes(self) -> None:
-        harness = ToolTestHarness(ToolTestHarness.make_stub_tool(name="s", result="hi"))
+        harness = ToolTestHarness(StubTool(name="s", result="hi"))
         await harness.assert_invokes_to({"input": "x"}, "hi")
 
     async def test_assert_invokes_to_fails_on_mismatch(self) -> None:
-        harness = ToolTestHarness(ToolTestHarness.make_stub_tool(name="s", result="hi"))
+        harness = ToolTestHarness(StubTool(name="s", result="hi"))
         with self.assertRaises(AssertionError):
             await harness.assert_invokes_to({"input": "x"}, "bye")
 
     async def test_assert_streams_passes(self) -> None:
-        harness = ToolTestHarness(ToolTestHarness.make_stub_tool(name="g", stream_chunks=[1, 2]))
+        harness = ToolTestHarness(StubTool(name="g", stream_chunks=[1, 2]))
         await harness.assert_streams({}, [1, 2])
 
     async def test_assert_streams_fails_on_mismatch(self) -> None:
-        harness = ToolTestHarness(ToolTestHarness.make_stub_tool(name="g", stream_chunks=[1, 2]))
+        harness = ToolTestHarness(StubTool(name="g", stream_chunks=[1, 2]))
         with self.assertRaises(AssertionError):
             await harness.assert_streams({}, [1, 2, 3])
 
     async def test_run_goes_through_the_engine_and_honours_an_approval_gate(self) -> None:
-        stub = ToolTestHarness.make_stub_tool(
+        stub = StubTool(
             name="danger", permissions=ToolPermissions(approval_required=True), result="ran"
         )
         assert await ToolTestHarness(stub).run({"input": "x"}) == "ran"
 
     async def test_a_failed_call_raises(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def broken(x: str) -> str:
             """Broken."""
             raise RuntimeError("nope")
@@ -131,7 +130,7 @@ class TestToolTestHarness(unittest.IsolatedAsyncioTestCase):
             await ToolTestHarness.run_tool(broken, {"x": "a"})
 
     def test_assert_schema_shape_via_harness(self) -> None:
-        harness = ToolTestHarness(ToolTestHarness.make_stub_tool(name="s"))
+        harness = ToolTestHarness(StubTool(name="s"))
         harness.assert_schema_shape(properties={"input": {"type": "string"}})
 
 

@@ -3,12 +3,12 @@
 Inner stage knot used by :class:`DebateFramework`. The framed prompt for round
 ``r`` embeds a recap of *every prior round's responses*, so it cannot be
 rendered when the graph is built — the prior rounds have not run yet. This knot
-takes the prior rounds' aggregated response lists as parents and produces the
-framed task string the round's debaters receive.
+takes the prior rounds' response lists as one ``prior_rounds`` input (an
+``Aggregator`` over the prior rounds' aggregators, built by the framework) and
+produces the framed task string the round's debaters receive.
 
-Round 0 has no prior rounds, so its recap is ``"No prior rounds."`` and the
-knot's only parents are the coerced ``topic`` / ``round_index`` / ``rounds``
-scalars.
+Round 0 has no prior rounds: ``prior_rounds`` is the empty tuple, so its recap
+is ``"No prior rounds."``.
 
 The framing string is byte-for-byte identical to the one the old
 ``DebateFramework`` built inline inside its ``asyncio.gather`` loop, so debater
@@ -21,6 +21,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -37,17 +38,17 @@ class DebateRoundFramer(Knot):
         topic: Knot | str,
         round_index: Knot | int,
         rounds: Knot | int,
+        prior_rounds: Knot | Sequence[Sequence[AgentResponse]],
         _config: KnotConfig,
-        **prior_rounds: Knot,
+        **kwargs: Any,
     ) -> None:
-        # ``prior_rounds`` are keyed ``round_0``, ``round_1``, … — one parent per
-        # prior round, each resolving to that round's ordered list of responses.
         super().__init__(
             topic=topic,
             round_index=round_index,
             rounds=rounds,
+            prior_rounds=prior_rounds,
             _config=_config,
-            **prior_rounds,
+            **kwargs,
         )
 
     async def process(
@@ -55,7 +56,8 @@ class DebateRoundFramer(Knot):
         topic: str,
         round_index: int,
         rounds: int,
-        **prior_rounds: Sequence[AgentResponse],
+        prior_rounds: Sequence[Sequence[AgentResponse]],
+        **_: Any,
     ) -> str:
         """Render the framed task string for round ``round_index``.
 
@@ -63,12 +65,13 @@ class DebateRoundFramer(Knot):
             topic: The debate topic.
             round_index: Zero-based index of the round being framed.
             rounds: Total number of rounds (for the ``Round X of N`` line).
-            **prior_rounds: Prior rounds' response lists, keyed ``round_<i>``.
+            prior_rounds: Every prior round's ordered response list, oldest
+                first (empty for round 0).
 
         Returns:
             The framed task string handed to every debater this round.
         """
-        history = [list(prior_rounds[f"round_{index}"]) for index in range(round_index)]
+        history = [list(round_responses) for round_responses in prior_rounds]
         recap = self._render_recap(history)
         return (
             f"Topic: {topic}\n\n"

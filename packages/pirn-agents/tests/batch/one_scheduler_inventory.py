@@ -1,7 +1,7 @@
 """``OneSchedulerInventory`` — find classes that schedule work themselves.
 
 ADR agents-speaks-core, WS4b ("one scheduler"): batch/performance/resilience
-code should dispatch through the core engine's ``AdmissionGate`` +
+code should dispatch through the core engine's ``Admission`` +
 ``GovernedDispatch`` and resume through ``RunHistory`` lineage, not through a
 private ``asyncio.wait``/``asyncio.gather`` loop, a hand-held
 ``asyncio.Semaphore`` counting its own concurrency, or a checkpoint store
@@ -74,6 +74,17 @@ class OneSchedulerInventory:
                         found["checkpoints_outside_run_history"].add(label)
         return {name: frozenset(labels) for name, labels in found.items()}
 
+    @staticmethod
+    def walked_class_count() -> int:
+        """Return how many classes :meth:`discover` inspects across the owned dirs."""
+        root = Path(pirn_agents.__path__[0])
+        count = 0
+        for owned in _OWNED_DIRS:
+            for path in sorted((root / owned).rglob("*.py")):
+                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                count += sum(1 for node in ast.walk(tree) if isinstance(node, ast.ClassDef))
+        return count
+
     @classmethod
     def schedules_own_asyncio_loop(cls, node: ast.ClassDef) -> bool:
         """Whether *node*'s own body calls ``asyncio.wait``/``gather``/``ensure_future``.
@@ -108,7 +119,7 @@ class OneSchedulerInventory:
         Matches a call whose final identifier is or ends with ``Semaphore``
         (``asyncio.Semaphore(...)``, a bare ``Semaphore(...)``, or
         ``BackpressureSemaphore(...)``) — a private in-flight budget the
-        engine's ``AdmissionGate``/``ConcurrencyLimits`` cannot see or steer.
+        engine's ``Admission``/``ConcurrencyLimits`` cannot see or steer.
         Only ``ast.Name``/``ast.Attribute`` identifiers are matched, so a
         docstring's prose example never trips this.
         """

@@ -2,7 +2,7 @@
 
 The signal knots accept ``signal: Knot`` parents that resolve to
 :class:`SignalFrame` or :class:`SignalPayload` values at runtime.
-Tests build a tiny upstream knot via the ``@knot`` factory that emits
+Tests build a tiny upstream knot via the ``@KnotFactory.knot`` factory that emits
 a deterministic frame/payload so we can assert against exact lineage shape.
 """
 
@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 
 import numpy as np
 import pytest
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -71,7 +71,7 @@ def signal_frame() -> SignalFrame:
     return make_signal_frame()
 
 
-@knot
+@KnotFactory.knot
 async def emit_signal_frame() -> SignalFrame:
     """Upstream knot emitting a deterministic :class:`SignalFrame`."""
 
@@ -84,7 +84,7 @@ async def emit_signal_frame() -> SignalFrame:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_reference_frame() -> SignalFrame:
     """Upstream knot emitting a deterministic reference :class:`SignalFrame`."""
 
@@ -97,7 +97,7 @@ async def emit_reference_frame() -> SignalFrame:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_signal_b_frame() -> SignalFrame:
     """Upstream knot emitting a second :class:`SignalFrame` with same rate."""
 
@@ -110,7 +110,7 @@ async def emit_signal_b_frame() -> SignalFrame:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_signal_payload() -> SignalPayload:
     """Upstream knot emitting a deterministic :class:`SignalPayload`."""
 
@@ -124,7 +124,7 @@ async def emit_signal_payload() -> SignalPayload:
     return SignalPayload(metadata=frame, data=np.zeros(1024))
 
 
-@knot
+@KnotFactory.knot
 async def emit_signal_payload_b() -> SignalPayload:
     """Upstream knot emitting a second :class:`SignalPayload` with same rate."""
 
@@ -138,7 +138,7 @@ async def emit_signal_payload_b() -> SignalPayload:
     return SignalPayload(metadata=frame, data=np.zeros(1024))
 
 
-@knot
+@KnotFactory.knot
 async def emit_spectrum_payload() -> SpectrumPayload:
     """Upstream knot emitting a deterministic :class:`SpectrumPayload`."""
 

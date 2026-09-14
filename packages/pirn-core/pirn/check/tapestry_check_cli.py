@@ -6,9 +6,7 @@ import argparse
 import sys
 
 from pirn.check._loader import _Loader  # pyright: ignore[reportPrivateUsage]  # package-internal
-from pirn.check.validator import (
-    _TapestryValidator,  # pyright: ignore[reportPrivateUsage]  # package-internal
-)
+from pirn.check.tapestry_validator import TapestryValidator
 
 
 class TapestryCheckCli:
@@ -32,7 +30,7 @@ class TapestryCheckCli:
             print(f"error: factory raised {type(exc).__name__}: {exc}", file=sys.stderr)
             return 2
 
-        result = _TapestryValidator.validate(tapestry)
+        result = TapestryValidator.validate(tapestry)
 
         for issue in result.issues:
             print(issue)

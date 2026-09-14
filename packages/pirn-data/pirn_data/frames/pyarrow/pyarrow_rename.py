@@ -29,6 +29,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PyarrowRename(Knot):
@@ -60,7 +61,7 @@ class PyarrowRename(Knot):
         Returns:
             A new PyarrowDataBatch with the applicable columns renamed.
         """
-        if not isinstance(mapping, Mapping) or not mapping:
+        if not ValueShape.is_mapping(mapping) or not mapping:
             raise TypeError(
                 "PyarrowRename: mapping must be a non-empty Mapping[old_name, new_name]"
             )

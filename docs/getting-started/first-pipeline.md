@@ -41,11 +41,11 @@ Create `knots.py` with the processing functions:
 ```python
 # knots.py
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.nodes.sink import Sink
 
 
-@knot
+@KnotFactory.knot
 async def score_text(text: str) -> float:
     """Return a toxicity score between 0.0 (clean) and 1.0 (toxic)."""
     # In a real pipeline this would call a model API.
@@ -60,13 +60,13 @@ def route_selector(score: float) -> str:
     return "toxic" if score > 0.3 else "clean"
 
 
-@knot
+@KnotFactory.knot
 async def handle_clean(text: str) -> dict:
     """Process clean content — approve and enrich."""
     return {"status": "approved", "text": text, "action": "publish"}
 
 
-@knot
+@KnotFactory.knot
 async def handle_toxic(text: str, score: float) -> dict:
     """Handle toxic content — quarantine and annotate."""
     return {"status": "quarantined", "text": text, "score": score}
@@ -138,14 +138,14 @@ nodes:
 # run_moderation.py
 import asyncio
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 from knots import score_text, route_selector, handle_clean, handle_toxic, AuditLog
 
 YAML = open("content_moderation.yaml").read()
 
 
 async def main():
-    tapestry = load_pipeline(
+    tapestry = PipelineLoader.load_yaml(
         YAML,
         known_callables={
             "score_text": score_text,
@@ -218,7 +218,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-tapestry = load_pipeline(YAML, known_callables={...})
+tapestry = PipelineLoader.load_yaml(YAML, known_callables={...})
 tapestry.add_emitter(LogEmitter())
 
 result = await tapestry.run(RunRequest(parameters={"text": "..."}))
@@ -237,16 +237,16 @@ Each knot transition produces a JSON log line:
 Generate a Mermaid diagram or a self-contained HTML explorer:
 
 ```python
-from pirn.viz.tapestry_html_renderer import html_for_run
-from pirn.viz.mermaid_renderer import mermaid_for_tapestry
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
+from pirn.viz.mermaid_renderer import MermaidRenderer
 from pathlib import Path
 
 # Embed in docs
-print(mermaid_for_tapestry(tapestry))
+print(MermaidRenderer.for_tapestry(tapestry))
 
 # Standalone HTML file — open in a browser
 result = await tapestry.run(RunRequest(parameters={"text": "hello"}))
-Path("run.html").write_text(html_for_run(result))
+Path("run.html").write_text(TapestryHtmlRenderer.for_run(result))
 ```
 
 Or explore all pipelines in a directory with the CLI:

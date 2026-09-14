@@ -15,7 +15,7 @@ pip install 'pirn-oilgas[oilgas]'            # segyio + lasio + resfo (SEG-Y / L
 
 Available extras: `oilgas`.
 
-**Registration (ADR-4):** `import pirn_oilgas` self-registers the oil & gas domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+**Registration (ADR-4):** `import pirn_oilgas` self-registers the oil & gas domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `DomainDiscovery.discover_installed_domains()` (`pirn.domain_discovery`).
 
 ---
 

@@ -38,11 +38,11 @@ from pathlib import Path
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry, get_current_store
+from pirn.tapestry import Tapestry
 
 MAX_ITERATIONS_PER_MSG = 4
 MAX_TOTAL_ITERATIONS = 20
@@ -232,7 +232,7 @@ def plan_next_actions(ctx: SessionContext) -> list[PlannedAction]:
 # ----------------------------------------------------------------- action knots
 
 
-@knot
+@KnotFactory.knot
 async def run_tool_call(action: PlannedAction, ctx: SessionContext, **_) -> StepResult:
     """Execute a local tool function."""
     rng = _rng(ctx, extra=action.name)
@@ -246,7 +246,7 @@ async def run_tool_call(action: PlannedAction, ctx: SessionContext, **_) -> Step
     )
 
 
-@knot
+@KnotFactory.knot
 async def run_mcp_call(action: PlannedAction, ctx: SessionContext, **_) -> StepResult:
     """Execute a remote MCP service call (simulated)."""
     await asyncio.sleep(0)
@@ -268,11 +268,11 @@ class SubAgentRunner(SubTapestry):
         rng = _rng(ctx, extra=action.name)
         context = action.args.get("context", ctx.current_message)
 
-        @knot
+        @KnotFactory.knot
         async def prepare_context(raw: str, **__) -> str:
             return raw[:300].strip()
 
-        @knot
+        @KnotFactory.knot
         async def execute_subagent(prepared: str, **__) -> StepResult:
             raw_output = _fake_subagent(action.name, action.args, prepared, rng)
             return StepResult(
@@ -304,7 +304,7 @@ class AgentPlanner(Knot):
         new_ctx = ctx.evolve(iteration=ctx.iteration + 1, msg_iteration=ctx.msg_iteration + 1)
         actions = plan_next_actions(new_ctx)
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return new_ctx
 
@@ -380,7 +380,7 @@ class AgentDecider(Knot):
                     msg_iteration=0,
                 )
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return new_ctx
 

@@ -1,4 +1,4 @@
-"""Evaluation & quality harness (F12) — metrics, judge, runner, and CI gates.
+"""Evaluation & quality harness (F12) — metrics, judge, runner, and CI regression checks.
 
 A quality-evaluation harness distinct from F10's latency/throughput benchmarks:
 it proves patterns are *correct*, not just fast. The subpackage layers four
@@ -16,11 +16,12 @@ capabilities, each provider-neutral and backend-free at import time:
 * **LLM-as-judge** — :class:`~pirn_agents.evaluation.evaluation_judge.EvaluationJudge` with
   pairwise + rubric modes, position-swap and self-consistency bias controls, and
   gold-set calibration.
-* **Datasets, runner, and gates** — an
+* **Datasets, runner, and regression checks** — an
   :class:`~pirn_agents.evaluation.eval_dataset.EvalDataset` format, the
   :meth:`~pirn_agents.evaluation.run_eval.RunEval.run` runner, an
   :class:`~pirn_agents.evaluation.eval_report.EvalReport`, and an
-  :class:`~pirn_agents.evaluation.eval_gate.EvalGate` for CI regression control.
+  :class:`~pirn_agents.evaluation.eval_regression_check.EvalRegressionCheck`
+  for CI regression control.
 
 Determinism is core record/replay: the runner executes one knot per item, so
 an eval run is recorded to the ``RunHistory``/``DataStore`` it runs against and
@@ -28,7 +29,7 @@ an eval run is recorded to the ``RunHistory``/``DataStore`` it runs against and
 target (PIR-872).
 
 Importing this subpackage pulls in no backend; the optional RAGAS/embedding-judge
-backend is imported lazily through :func:`pirn_agents._internal._require._require` behind
+backend is imported lazily through :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` behind
 the flat ``ragas`` extra.
 """
 

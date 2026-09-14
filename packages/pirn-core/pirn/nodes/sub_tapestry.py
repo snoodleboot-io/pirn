@@ -151,7 +151,7 @@ class SubTapestry(NestedRunKnot):
         """
         return sink.knot_id
 
-    async def process(self, *args: Any, **kwargs: Any) -> Knot:
+    async def process(self, *args: Any, **_: Any) -> Knot:
         """Override to declare the inner pipeline and return its terminal knot.
 
         Build any knots inside this method — they auto-register into the

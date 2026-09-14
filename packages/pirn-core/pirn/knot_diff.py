@@ -1,12 +1,12 @@
 """Run replay and diff utilities.
 
-``replay_run`` re-executes a past run against a tapestry, optionally
-overriding parameters.  ``compare_runs`` diffs two results knot-by-knot
+``KnotDiff.replay_run`` re-executes a past run against a tapestry, optionally
+overriding parameters.  ``KnotDiff.compare_runs`` diffs two results knot-by-knot
 by output hash.
 
 Typical workflow::
 
-    from pirn.knot_diff import compare_runs, replay_run
+    from pirn.knot_diff import KnotDiff
     from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
     history = SQLiteHistory("pirn.db")
@@ -16,7 +16,7 @@ Typical workflow::
     result = await t.run(RunRequest(parameters={"x": 1, "y": 2}))
 
     # Replay with one parameter changed
-    new_result = await replay_run(
+    new_result = await KnotDiff.replay_run(
         history=history,
         run_id=result.run_id,
         tapestry=t,
@@ -25,7 +25,7 @@ Typical workflow::
     )
 
     # See what changed
-    for diff in compare_runs(result, new_result):
+    for diff in KnotDiff.compare_runs(result, new_result):
         if diff.changed:
             print(diff)
 """
@@ -154,9 +154,3 @@ class KnotDiff:
             )
             for knot_id in all_ids
         ]
-
-
-#: Public names for :meth:`KnotDiff.replay_run` / :meth:`KnotDiff.compare_runs`
-#: (bare aliases, not ``def``\s).
-replay_run = KnotDiff.replay_run
-compare_runs = KnotDiff.compare_runs

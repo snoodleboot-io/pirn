@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``InteractionFeatureGenerator`` — create pairwise interaction (product)
 features for specified column pairs.
 

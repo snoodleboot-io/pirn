@@ -70,7 +70,7 @@ from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.ok import Ok
 from pirn.core.skipped import Skipped
 from pirn.tapestry import Tapestry
@@ -90,7 +90,7 @@ from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
-@knot
+@KnotFactory.knot
 async def _constant_messages(value: tuple[AgentMessage, ...]) -> tuple[AgentMessage, ...]:
     """Terminal for a branch that needs no tool call: the value is already final.
 
@@ -101,7 +101,7 @@ async def _constant_messages(value: tuple[AgentMessage, ...]) -> tuple[AgentMess
     return value
 
 
-@knot
+@KnotFactory.knot
 async def _observation_assembler(
     thought: AgentMessage,
     tool_call_message: AgentMessage,
@@ -117,7 +117,7 @@ async def _observation_assembler(
     view = (
         ToolResult.from_result(call_id, outcome)
         if isinstance(outcome, (Ok, Err, Skipped))
-        else ToolResult(call_id=call_id, result=outcome)
+        else ToolResult(call_id=call_id, outcome=Ok(value=outcome))
     )
     content = (
         str(view.result)

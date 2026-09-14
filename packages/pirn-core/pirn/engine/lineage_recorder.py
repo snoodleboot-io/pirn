@@ -10,8 +10,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.err import Err
-from pirn.core.hashing import content_hash
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
 from pirn.core.ok import Ok
@@ -30,7 +30,7 @@ class LineageRecorder:
     @staticmethod
     def config_hash(knot: Knot) -> str:
         """Hash the knot's canonical config — the value lineage records."""
-        return content_hash(knot.config.model_dump(mode="json"))
+        return ContentHasher.hash(knot.config.model_dump(mode="json"))
 
     @staticmethod
     def record_lineage(
@@ -67,13 +67,13 @@ class LineageRecorder:
             for parent_name, parent_knot in knot.parents.items():
                 pr = results.get(parent_knot.knot_id)
                 if pr is not None:
-                    parent_hashes[parent_name] = content_hash(
+                    parent_hashes[parent_name] = ContentHasher.hash(
                         pr.value if isinstance(pr, Ok) else pr
                     )
 
         if isinstance(result, Ok):
             outcome = "ok"
-            output_hash = content_hash(result.value)
+            output_hash = ContentHasher.hash(result.value)
             error_record_id = None
             skip_reason = None
         elif isinstance(result, Err):

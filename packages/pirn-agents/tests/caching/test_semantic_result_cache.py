@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import pytest
+from pirn.core.content_hasher import ContentHasher
 
-from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.semantic_result_cache import SemanticResultCache
 
 
@@ -77,10 +77,15 @@ class TestSemanticMatching:
         await cache.get_or_compute_semantic("stock prices", compute)
         assert compute_calls == 2  # no false hit
 
-    async def test_exact_key_interface_still_works(self) -> None:
+    async def test_exact_payload_and_invalidate_still_work(self) -> None:
         cache = SemanticResultCache(embed=_StubEmbedder({}))
-        await cache.put(CacheEntry(key="k", value="v"))
-        entry = await cache.get("k")
-        assert entry is not None and entry.value == "v"
-        await cache.invalidate("k")
-        assert await cache.get("k") is None
+
+        async def compute() -> str:
+            return "v"
+
+        assert await cache.get_or_compute("k", compute) == "v"
+        key = ContentHasher.hash("k", strict=True)
+        assert await cache.store.has(key) is True
+        await cache.invalidate(key)
+        assert await cache.store.has(key) is False
+        assert len(cache) == 0

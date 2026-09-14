@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatafusionFilter`` — Tier-2 row predicate using either a SQL
 predicate string or a callable producing a DataFusion expression.
 
@@ -44,6 +46,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
+from pirn_data.value_shape import ValueShape
 
 
 class DatafusionFilter(Knot):
@@ -100,11 +103,11 @@ class DatafusionFilter(Knot):
             filtered = batch.frame.filter(predicate)
         else:
             assert expression is not None
-            if not callable(expression):
+            if not ValueShape.is_callable(expression):
                 raise TypeError(
                     "DatafusionFilter: expression must be callable(frame) -> datafusion.Expr"
                 )
-            filtered = batch.frame.filter(expression(batch.frame))  # type: ignore[arg-type]
+            filtered = batch.frame.filter(expression(batch.frame))
         return batch.with_frame(filtered)
 
     @staticmethod

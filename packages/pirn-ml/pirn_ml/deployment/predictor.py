@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Predictor`` — load a model id from the lineage store + object store
 and emit predictions for a feature set.
 
@@ -80,7 +82,7 @@ class Predictor(Knot):
         Raises:
             ValueError: If model_id resolves to an empty string.
         """
-        if not isinstance(model_id, str) or not model_id:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(model_id, str) or not model_id:
             raise ValueError("Predictor: model_id must resolve to a non-empty string")
         # Touch the lineage store so misconfigured connectors fail loudly at
         # run time. The fetch results aren't required for deterministic scoring.

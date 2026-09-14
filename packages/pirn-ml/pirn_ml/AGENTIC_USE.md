@@ -18,7 +18,7 @@ DatasetLoader → TrainTestSplit → [Scaler / Encoder / Imputer / EmbeddingExtr
 
 Each stage is a `Knot`. Wire them in a `Tapestry` context; pirn handles execution order, content-addressed lineage, and result routing. Swap any knot without touching adjacent knots.
 
-**Artifact formats** are separate connector classes (`pirn/domains/connectors/file_formats/`) and plug into `ModelSerializer` (or are used standalone). Each format class receives or emits raw bytes and surfaces metadata alongside the artifact. Two formats — `JoblibFormat` and `PytorchFormat` — wrap pickle-based serialisation; both enforce an HMAC-SHA256 signing contract by default. `SafetensorsFormat`, `OnnxFormat`, `GgufFormat`, and `TfliteFormat` have no pickle path and need no signer.
+**Artifact formats** are separate connector classes (`pirn/connectors/file_formats/`) and plug into `ModelSerializer` (or are used standalone). Each format class receives or emits raw bytes and surfaces metadata alongside the artifact. Two formats — `JoblibFormat` and `PytorchFormat` — wrap pickle-based serialisation; both enforce an HMAC-SHA256 signing contract by default. `SafetensorsFormat`, `OnnxFormat`, `GgufFormat`, and `TfliteFormat` have no pickle path and need no signer.
 
 **Provider interfaces** (`EmbeddingProvider`, `FeatureStoreProvider`, `ImageEncoderProvider`, `LineageStore`) define the external-system contracts. You supply the implementation; pirn defines what it calls.
 
@@ -158,7 +158,7 @@ Do not replace these with disassemblers.
 
 ## Artifact formats and security
 
-All format classes live in `pirn/domains/connectors/file_formats/`.
+All format classes live in `pirn/connectors/file_formats/`.
 
 | Format | Class | Extra | Signer required | Notes |
 |--------|-------|-------|-----------------|-------|
@@ -253,7 +253,7 @@ pipeline = BinaryClassificationPipeline(
 )
 ```
 
-For dynamic registry sweeps (e.g. evaluating N models in sequence without knowing N upfront), use `get_current_store()` inside `process()` to register successor knots at runtime and pass `extensible=True` to `t.run()`. See `examples/domain_formats/ml_evaluation_loop.py`.
+For dynamic registry sweeps (e.g. evaluating N models in sequence without knowing N upfront), use `Tapestry.current_store()` inside `process()` to register successor knots at runtime and pass `extensible=True` to `t.run()`. See `examples/domain_formats/ml_evaluation_loop.py`.
 
 ---
 
@@ -293,7 +293,7 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 - **`MetricCheck` raises `KeyError` on unknown metric names.** The knot does not silently skip absent metrics — it raises. Ensure the metric key matches exactly what `Evaluator` puts in `EvalReport.metrics`.
 - **`ShadowDeployer` does not surface the challenger result.** Challenger responses are logged to the `LineageStore` but not returned to callers. Do not use `ShadowDeployer` if you need the challenger result in your application logic.
 - **`ModelRegistrar` depends on a `LineageStore` implementation.** There is no default built-in store. Wire in an MLflow, Weights & Biases, or custom `LineageStore` implementation before running.
-- **Dynamic DAG expansion requires `extensible=True`.** When knots register successor knots at runtime via `get_current_store()`, call `await t.run(extensible=True)`. Without the flag, pirn treats the initial graph as final and will not resolve the dynamically registered knots.
+- **Dynamic DAG expansion requires `extensible=True`.** When knots register successor knots at runtime via `Tapestry.current_store()`, call `await t.run(extensible=True)`. Without the flag, pirn treats the initial graph as final and will not resolve the dynamically registered knots.
 - **`TrainTestSplit.stratify` requires a label column.** If `MLDataset.labels` is `None`, stratification raises at runtime — not at graph construction time.
 
 ---
@@ -329,7 +329,7 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 | Full train-to-deploy pipeline | `specializations/production/FullTrainDeployPipeline` |
 | A/B test pipeline | `specializations/production/ABTestPipeline` |
 | Drift monitoring | `specializations/production/DriftMonitor` |
-| Dynamic multi-model evaluation | `get_current_store()` + `extensible=True` (see `ml_evaluation_loop.py`) |
+| Dynamic multi-model evaluation | `Tapestry.current_store()` + `extensible=True` (see `ml_evaluation_loop.py`) |
 | k-fold (plain) | `specializations/experiments/KFoldCrossValidator` |
 | k-fold (time series) | `specializations/experiments/TimeSeriesCrossValidator` |
 | k-fold (grouped) | `specializations/experiments/GroupKFoldCrossValidator` |

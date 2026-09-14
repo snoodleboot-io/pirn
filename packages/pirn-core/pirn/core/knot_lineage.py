@@ -143,7 +143,7 @@ class KnotLineage(BaseModel):
     # "this value came from upstream knot X" and "this constant was baked in".
     #
     # Caveat, by design rather than oversight: the hash is only as comparable
-    # as `content_hash` can make the literals. A `PirnOpaqueValue` (an LLM
+    # as `ContentHasher.hash` can make the literals. A `PirnOpaqueValue` (an LLM
     # provider, a tool, a connection pool) is identity-keyed, so the same
     # logical object hashes differently in a different process; a fully opaque
     # object with no pydantic schema collapses to `sha256:unhashable:<Type>`,

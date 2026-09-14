@@ -31,6 +31,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PandasDeduplicate(Knot):
@@ -61,7 +62,7 @@ class PandasDeduplicate(Knot):
         Returns:
             A new PandasDataBatch with duplicate rows removed, keeping the first occurrence per key.
         """
-        if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
+        if not ValueShape.is_sequence(keys) or isinstance(keys, (str, bytes)):
             raise TypeError("PandasDeduplicate: keys must be a sequence of column names")
         if not keys:
             raise ValueError("PandasDeduplicate: keys must be non-empty")

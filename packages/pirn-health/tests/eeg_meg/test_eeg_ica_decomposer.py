@@ -15,7 +15,7 @@ from typing import Any
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_health.eeg_meg.eeg_ica_decomposer import EEGICADecomposer
@@ -43,7 +43,7 @@ _EEG_DATA: dict[str, Any] = {
 }
 
 
-@knot
+@KnotFactory.knot
 async def emit_eeg_data() -> dict[str, Any]:
     return _EEG_DATA
 

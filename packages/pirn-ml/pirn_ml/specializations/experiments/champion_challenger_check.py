@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ChampionChallengerCheck`` — compare a challenger model against the
 current champion on a shared test split and check downstream by an
 improvement threshold on a primary metric.
@@ -36,7 +38,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -47,12 +49,12 @@ from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _emit_value(value: Any) -> Any:
     return value
 
 
-@knot
+@KnotFactory.knot
 async def _build_champion_challenger_result(
     champion_report: EvalReportPayload,
     challenger_report: EvalReportPayload,

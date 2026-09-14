@@ -34,6 +34,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sink import Sink
 
+from pirn_data.data_optional_dependency import DataOptionalDependency
+
 
 class ArrowToLanceSink(Sink):
     """Write a :class:`pyarrow.Table` to a Lance dataset at ``path``."""
@@ -71,11 +73,8 @@ class ArrowToLanceSink(Sink):
                 "{'create', 'append', 'overwrite'}, got "
                 f"{mode!r}"
             )
-        # ``from ... import``: ``lance.dataset`` the attribute is the ``lance.dataset()``
-        # function, which shadows the submodule of the same name.
-        from lance.dataset import (  # pyright: ignore[reportMissingImports]  # optional extra; absent from the CI image
-            write_dataset,  # pyright: ignore[reportUnknownVariableType]  # lance's signature has untyped params
-        )
-
-        write_dataset(table, path, mode=mode)
+        # Import the ``lance.dataset`` submodule by name: the package attribute of
+        # the same name is the ``lance.dataset()`` function, which shadows it.
+        lance_dataset = DataOptionalDependency.require("lance.dataset", extra="lance")
+        lance_dataset.write_dataset(table, path, mode=mode)
         return path

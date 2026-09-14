@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -28,7 +28,7 @@ _N = 250  # samples — 10 seconds of data, enough for multiple peaks at 1 Hz
 _PPG_WAVE = [math.sin(2 * math.pi * 1.0 * i / _FS) for i in range(_N)]
 
 
-@knot
+@KnotFactory.knot
 async def emit_ppg_data() -> dict[str, Any]:
     return {
         "red": _PPG_WAVE,

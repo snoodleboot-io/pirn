@@ -11,7 +11,7 @@ Each store has a `*Config` (endpoint, credentials, bucket/container name) and a 
 ## Source map
 
 ```
-pirn/domains/connectors/object_storage/
+pirn/connectors/object_storage/
 ├── s3_config.py                  S3Config                — region, bucket, prefix, credentials (key/secret or role)
 ├── s3_store.py                   S3Store                 — AWS S3 via aiobotocore
 ├── gcs_config.py                 GCSConfig               — project, bucket, prefix, credentials_json

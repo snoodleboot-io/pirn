@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pandas as pd  # type: ignore[import-untyped]
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -43,7 +42,7 @@ class ElandToPandas(Knot):
         """
         import eland as ed
 
-        materialised: pd.DataFrame = ed.eland_to_pandas(frame.frame)
+        materialised = ed.eland_to_pandas(frame.frame)
         return PandasDataBatch(
             frame=materialised,
             source_uri=frame.source_uri,

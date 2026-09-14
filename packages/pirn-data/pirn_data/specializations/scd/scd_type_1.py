@@ -27,7 +27,7 @@ References:
     [1] Kimball Group — SCD Type 1 (overwrite):
         https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-1/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -40,11 +40,11 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
-from pirn_data.specializations.scd.scd_type_1_merge_knot import ScdType1MergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
+from pirn_data.specializations.scd.scd_type_1_queries import ScdType1Queries
 
 
-class ScdType1(_PoolMergeKnot):
+class ScdType1(PoolMergeKnot):
     """Perform a Type 1 SCD merge: overwrite changed rows, insert new rows."""
 
     def __init__(
@@ -81,9 +81,9 @@ class ScdType1(_PoolMergeKnot):
         non_key_columns = tuple(c for c in column_tuple if c not in primary_key_tuple)
         if not source_rows:
             return {"inserted": 0, "updated": 0}
-        select_q = ScdType1MergeKnot._select_query(target_table, column_tuple)
-        insert_q = ScdType1MergeKnot._insert_query(target_table, column_tuple)
-        update_q = ScdType1MergeKnot._update_query(target_table, primary_key_tuple, non_key_columns)
+        select_q = ScdType1Queries.select_query(target_table, column_tuple)
+        insert_q = ScdType1Queries.insert_query(target_table, column_tuple)
+        update_q = ScdType1Queries.update_query(target_table, primary_key_tuple, non_key_columns)
         existing_rows = await target_pool.fetch_all(select_q)
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)

@@ -20,7 +20,7 @@ Algorithm:
 References:
     [1] pirn — DataBatch: pirn_data/data_batch.py
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ class SilverCleanTransform(Knot):
     @staticmethod
     def _deduplicate_batch(batch: DataBatch, primary_keys: tuple[str, ...]) -> DataBatch:
         seen: set[tuple[Any, ...]] = set()
-        kept = []
+        kept: list[Mapping[str, Any]] = []
         for row in batch.rows:
             key = tuple(row.get(k) for k in primary_keys)
             if key not in seen:

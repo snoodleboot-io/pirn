@@ -24,7 +24,6 @@ from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -184,14 +183,14 @@ class TestEncodeCoreResults(unittest.TestCase):
 
         views = codec.views({"c1": Skipped(reason="gate_closed")})
 
-        assert views[0].status is ToolStatus.SKIPPED
+        assert views[0].status == "skipped"
         assert views[0].error == "call skipped: gate closed"
 
 
 class TestEncodeResults(unittest.TestCase):
     def test_ok_result_uses_result_value(self) -> None:
         codec = ToolCallCodec(StubAdapter())
-        results = [ToolResult(call_id="call-1", result={"echo": {"q": "cats"}})]
+        results = [ToolResult(call_id="call-1", outcome=Ok(value={"echo": {"q": "cats"}}))]
 
         native = codec.encode_results(results)
 
@@ -201,17 +200,24 @@ class TestEncodeResults(unittest.TestCase):
 
     def test_error_result_uses_error_string(self) -> None:
         codec = ToolCallCodec(StubAdapter())
-        results = [ToolResult(call_id="call-2", result=None, error="boom")]
-        assert results[0].status is ToolStatus.ERROR
+        results = [
+            ToolResult(
+                call_id="call-2",
+                outcome=Err(record=ExceptionRecord.for_knot("call-2", RuntimeError("boom"))),
+            )
+        ]
+        assert results[0].status == "error"
 
         native = codec.encode_results(results)
 
-        assert native == [{"role": "tool", "tool_call_id": "call-2", "content": "boom"}]
+        assert native == [
+            {"role": "tool", "tool_call_id": "call-2", "content": "RuntimeError: boom"}
+        ]
 
     def test_non_json_result_falls_back_to_str(self) -> None:
         codec = ToolCallCodec(StubAdapter())
         sentinel = object()
-        results = [ToolResult(call_id="call-3", result=sentinel)]
+        results = [ToolResult(call_id="call-3", outcome=Ok(value=sentinel))]
 
         native = codec.encode_results(results)
 
@@ -290,7 +296,7 @@ class TestProviderNeutrality(unittest.TestCase):
         assert calls[0].call_id == "u1"
         assert calls[0].arguments == {"q": "x"}
 
-        native_results = codec.encode_results([ToolResult(call_id="u1", result="done")])
+        native_results = codec.encode_results([ToolResult(call_id="u1", outcome=Ok(value="done"))])
         assert native_results == [{"toolResult": {"ref": "u1", "body": "done"}}]
 
     def test_codec_module_has_no_provider_imports(self) -> None:

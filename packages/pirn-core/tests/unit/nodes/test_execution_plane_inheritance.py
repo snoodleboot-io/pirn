@@ -36,8 +36,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.engine.admission.admission_observer import AdmissionObserver
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
@@ -366,7 +366,7 @@ class TestInnerLeavesShareTheOuterGate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(seen), 1)
         inner_plane = seen[0]
         assert inner_plane is not None
-        self.assertIsInstance(inner_plane.gate, LimitedAdmissionGate)
+        self.assertIsInstance(inner_plane.gate, LimitedAdmission)
         self.assertEqual(inner_plane.limits, ConcurrencyLimits(max_in_flight=4))
 
     async def test_a_container_may_not_join_a_concurrency_group(self) -> None:
@@ -765,7 +765,7 @@ class TestInnerRunsInheritReplayPosture(unittest.IsolatedAsyncioTestCase):
     def _plane(replay: ReplaySession | None) -> ExecutionPlane:
         return ExecutionPlane(
             dispatcher=LocalDispatcher(),
-            gate=UnboundedAdmissionGate(),
+            gate=UnboundedAdmission(),
             limits=None,
             admission_observers=(),
             replay=replay,

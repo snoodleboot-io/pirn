@@ -11,11 +11,11 @@ from typing import Any
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.streaming.file_tail_source import FileTailSource
 from pirn.streaming.iterable_source import IterableSource
-from pirn.streaming.streaming_source import StreamingSource, run_stream
+from pirn.streaming.streaming_source import StreamingSource
 from pirn.tapestry import Tapestry
 
 try:
@@ -56,10 +56,10 @@ def test_iterable_source_name_and_parameter():
     assert source.parameter_name == "my_param"
 
 
-# ============================================================ run_stream
+# ============================================================ StreamingSource.run_stream
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 
@@ -77,7 +77,7 @@ async def test_run_stream_drives_tapestry_per_value():
     async def on_result(value, result):
         captured.append((value, result.outputs["d"]))
 
-    await run_stream(source, t, on_result=on_result)
+    await source.run_stream(t, on_result=on_result)
 
     assert captured == [(1, 2), (2, 4), (3, 6), (4, 8)]
 
@@ -85,7 +85,7 @@ async def test_run_stream_drives_tapestry_per_value():
 async def test_run_stream_extra_parameters_merged_with_source_value():
     """Constants for the run merged into each tick's parameters."""
 
-    @knot
+    @KnotFactory.knot
     async def add_const(x: int, const: int) -> int:
         return x + const
 
@@ -100,8 +100,7 @@ async def test_run_stream_extra_parameters_merged_with_source_value():
     async def on_result(value, result):
         sums.append(result.outputs["r"])
 
-    await run_stream(
-        source,
+    await source.run_stream(
         t,
         on_result=on_result,
         extra_parameters={"const": 100},
@@ -128,9 +127,9 @@ async def test_run_stream_on_error_called_for_engine_errors():
         successes.append(result.outputs["d"])
 
     # Source's exception isn't an engine error — it propagates from
-    # the stream itself, which run_stream's try/finally catches.
+    # the stream itself, which StreamingSource.run_stream's try/finally catches.
     with pytest.raises(RuntimeError, match="source died"):
-        await run_stream(source, t, on_result=on_result)
+        await source.run_stream(t, on_result=on_result)
 
     assert successes == [2]  # the one tick that got through
 

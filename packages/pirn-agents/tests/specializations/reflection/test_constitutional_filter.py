@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -17,12 +17,12 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 
-@knot
+@KnotFactory.knot
 async def good_response() -> AgentResponse:
     return AgentResponse(content="A helpful and safe reply.")
 
 
-@knot
+@KnotFactory.knot
 async def bad_response() -> AgentResponse:
     return AgentResponse(content="A harmful reply.")
 

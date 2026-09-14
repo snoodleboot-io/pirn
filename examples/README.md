@@ -196,7 +196,7 @@ The key thing this example illustrates is that pirn's dependency graph naturally
 uv run python examples/llm_agent/agent_loop.py
 ```
 
-An agentic session over multiple messages where the execution graph grows dynamically at runtime. There is no pre-planned loop structure — each `AgentPlanner` knot runs, decides what actions to take, and registers those knots directly into the running extensible tapestry using `get_current_store()`. Data flows through real parent edges; there is no shared mutable state blob.
+An agentic session over multiple messages where the execution graph grows dynamically at runtime. There is no pre-planned loop structure — each `AgentPlanner` knot runs, decides what actions to take, and registers those knots directly into the running extensible tapestry using `Tapestry.current_store()`. Data flows through real parent edges; there is no shared mutable state blob.
 
 The shape of one iteration:
 
@@ -242,7 +242,7 @@ Compare this with `agent_loop.py` in the explorer: the outer topology is identic
 uv run python examples/document_analysis/document_analysis.py
 ```
 
-A document analysis pipeline that demonstrates subclassing `Knot` directly rather than using the `@knot` decorator. All processing nodes are class-based — typed, named, and composable through inheritance.
+A document analysis pipeline that demonstrates subclassing `Knot` directly rather than using the `@KnotFactory.knot` decorator. All processing nodes are class-based — typed, named, and composable through inheritance.
 
 The pipeline runs four parallel analysis branches from a shared `TextNormaliser` output, then converges into a single `AnalysisReport`:
 

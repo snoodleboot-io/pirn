@@ -25,7 +25,7 @@ import pytest
 import pirn.core.pirn_identity_nonce as pirn_identity_nonce_module
 import pirn.core.pirn_opaque_value as pirn_opaque_value_module
 from pirn.connectors.connector_base import ConnectorBase
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_identity_nonce import PirnIdentityNonce
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from tests.unit.core.identity_reuse_subprocess import IdentityReuseSubprocess
@@ -337,35 +337,35 @@ def test_simulated_shared_address_would_expose_an_id_only_token(
 
 def test_non_weakrefable_mutated_shallow_copy_does_not_hash_equal_to_the_original() -> None:
     # Arrange — copy.copy shares the instance dict's values, nonce included.
-    # A connector is the realistic case: content_hash reaches the token through
+    # A connector is the realistic case: ContentHasher.hash reaches the token through
     # ConnectorBase.__pirn_canonical__ (a bare tuple subclass hashes its items).
     original = TupleConnector()
     original.base_url = "https://a.example/v1"
-    original_hash = content_hash({"value": original})
+    original_hash = ContentHasher.hash({"value": original})
     duplicate = copy.copy(original)
 
     # Act
     duplicate.base_url = "https://b.example/v1"
-    duplicate_hash = content_hash({"value": duplicate})
+    duplicate_hash = ContentHasher.hash({"value": duplicate})
 
     # Assert
     assert duplicate_hash != original_hash
-    assert content_hash({"value": original}) == original_hash
+    assert ContentHasher.hash({"value": original}) == original_hash
 
 
 def test_mutated_shallow_copy_does_not_hash_equal_to_the_original() -> None:
     # Arrange — the weakref-registry path: the copy is a new object with no entry.
     original = Opaque("https://a.example/v1")
-    original_hash = content_hash({"value": original})
+    original_hash = ContentHasher.hash({"value": original})
     duplicate = copy.copy(original)
 
     # Act
     duplicate.label = "https://b.example/v1"
-    duplicate_hash = content_hash({"value": duplicate})
+    duplicate_hash = ContentHasher.hash({"value": duplicate})
 
     # Assert
     assert duplicate_hash != original_hash
-    assert content_hash({"value": original}) == original_hash
+    assert ContentHasher.hash({"value": original}) == original_hash
 
 
 def test_instance_without_a_dict_refuses_with_a_fresh_token_per_read() -> None:

@@ -13,7 +13,7 @@ Time-series pools are interchangeable with `DatabaseConnectionPool` for query/ex
 ## Source map
 
 ```
-pirn/domains/connectors/timeseries/
+pirn/connectors/timeseries/
 ├── influxdb_config.py        InfluxDBConfig        — url, token, org, bucket
 ├── influxdb_pool.py          InfluxDBPool          — InfluxDB v2 client (influxdb-client-python async)
 ├── timescaledb_config.py     TimescaleDBConfig     — host, port, database, user, password, ssl_mode

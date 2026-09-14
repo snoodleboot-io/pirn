@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
@@ -100,7 +100,7 @@ class TestLatestOutputHash:
     ) -> None:
         value = {"v": 1}
         await store.put(namespace="ns", key="k1", value=value)
-        assert await store.latest_output_hash(namespace="ns", key="k1") == content_hash(value)
+        assert await store.latest_output_hash(namespace="ns", key="k1") == ContentHasher.hash(value)
 
     async def test_changes_when_the_value_changes(self, store: KeyedLineageStore) -> None:
         await store.put(namespace="ns", key="k1", value={"v": 1})

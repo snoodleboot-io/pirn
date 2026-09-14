@@ -5,7 +5,7 @@ protocol; this transport owns only the *plumbing* — spawning the server proces
 and moving frames over its stdin/stdout. It uses the optional ``mcp`` SDK's
 low-level ``stdio_client`` for the subprocess + framing (the piece worth reusing)
 and translates each frame between the SDK's message object and the plain
-mappings the core speaks. The backend is imported lazily via ``_require`` so
+mappings the core speaks. The backend is imported lazily via ``OptionalImport.require`` so
 ``import pirn_agents`` — and even importing this module — never pulls in ``mcp``.
 """
 
@@ -15,7 +15,7 @@ from collections.abc import Mapping, Sequence
 from contextlib import AsyncExitStack
 from typing import Any
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.mcp.mcp_transport import McpTransport
 
 
@@ -57,7 +57,7 @@ class StdioTransport(McpTransport):
         """Spawn the server and enter its stdio stream context."""
         if self.is_open:
             return
-        mcp = _require("mcp", "mcp")
+        mcp = OptionalImport.require("mcp", "mcp")
         stdio = mcp.client.stdio  # type: ignore[attr-defined]
         params = stdio.StdioServerParameters(command=self._command, args=self._args, env=self._env)
         stack = AsyncExitStack()
@@ -70,7 +70,7 @@ class StdioTransport(McpTransport):
         """Serialise ``message`` to an SDK JSON-RPC object and write it."""
         if self._write is None:
             raise RuntimeError("StdioTransport.send: transport is not open")
-        mcp = _require("mcp", "mcp")
+        mcp = OptionalImport.require("mcp", "mcp")
         rpc = mcp.types.JSONRPCMessage.model_validate(dict(message))  # type: ignore[attr-defined]
         await self._write.send(StdioTransport._wrap_session_message(mcp, rpc))
 

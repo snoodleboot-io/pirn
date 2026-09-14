@@ -15,7 +15,7 @@ Algorithm:
     2. Validate all inputs: pool types, non-empty strings, identifier
        safety, pk ⊆ column_names, and no bookkeeping columns in column_names.
     3. Fetch all source rows via ``source_pool.fetch_all``.
-    4. Delegate to ``ScdType7MergeKnot`` static helpers to classify,
+    4. Build the statements with ``ScdType7Queries`` and classify,
        allocate surrogate ids, expire old rows, and insert new rows.
     5. Return a summary dict with ``succeeded``, ``target_table``,
        ``rows_inserted``, and ``rows_expired``.
@@ -24,7 +24,7 @@ References:
     [1] Kimball Group — SCD Type 7 (dual-type surrogate):
         https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-7/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -38,11 +38,11 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
-from pirn_data.specializations.scd.scd_type_7_merge_knot import ScdType7MergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
+from pirn_data.specializations.scd.scd_type_7_queries import ScdType7Queries
 
 
-class ScdType7(_PoolMergeKnot):
+class ScdType7(PoolMergeKnot):
     """Perform a Type 7 SCD merge: surrogate-keyed history with current-row flag."""
 
     def __init__(
@@ -90,9 +90,9 @@ class ScdType7(_PoolMergeKnot):
     ) -> dict[str, int]:
         if not source_rows:
             return {"inserted": 0, "expired": 0}
-        select_q = ScdType7MergeKnot._select_query(target_table, column_tuple, current_flag_column)
-        max_q = ScdType7MergeKnot._max_surrogate_query(target_table, surrogate_key_column)
-        insert_q = ScdType7MergeKnot._insert_query(
+        select_q = ScdType7Queries.select_query(target_table, column_tuple, current_flag_column)
+        max_q = ScdType7Queries.max_surrogate_query(target_table, surrogate_key_column)
+        insert_q = ScdType7Queries.insert_query(
             target_table,
             surrogate_key_column,
             column_tuple,
@@ -100,7 +100,7 @@ class ScdType7(_PoolMergeKnot):
             expiry_date_column,
             current_flag_column,
         )
-        expire_q = ScdType7MergeKnot._expire_query(
+        expire_q = ScdType7Queries.expire_query(
             target_table, primary_key_tuple, expiry_date_column, current_flag_column
         )
         existing_rows = await target_pool.fetch_all(select_q)

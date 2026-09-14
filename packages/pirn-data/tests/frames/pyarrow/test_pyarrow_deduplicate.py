@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pyarrow as pa
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -25,7 +25,7 @@ def _empty_batch() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({}))
 
 
-@knot
+@KnotFactory.knot
 async def emit_dupes() -> PyarrowDataBatch:
     return PyarrowDataBatch(
         table=pa.table(
@@ -54,7 +54,7 @@ class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
         assert names == ["a", "b", "c"]
 
     async def test_composite_keys(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_two_keys() -> PyarrowDataBatch:
             return PyarrowDataBatch(
                 table=pa.table(
@@ -79,7 +79,7 @@ class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
         assert sorted(out.table.column("rev").to_pylist()) == [1, 3, 4]
 
     async def test_empty_table_passes_through(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_empty() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({"id": pa.array([], type=pa.int64())}))
 
@@ -97,7 +97,7 @@ class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_keys_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_keys() -> tuple:
             return ("id",)
 
@@ -117,7 +117,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowDeduplicate:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({}))
 

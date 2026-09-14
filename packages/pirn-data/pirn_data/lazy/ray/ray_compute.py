@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RayCompute`` — terminal sink that materialises a deferred Ray Data plan.
 
 Three operating modes:
@@ -54,6 +56,7 @@ from pirn_data.lazy.ray.ray_dataset import RayDataset
 from pirn_data.lazy.ray.ray_execution_receipt import (
     RayExecutionReceipt,
 )
+from pirn_data.value_shape import ValueShape
 
 
 class RayCompute(Sink):
@@ -153,9 +156,9 @@ class RayCompute(Sink):
         # not present on every Ray version/dataset variant.
         for attr in ("num_blocks",):
             method = getattr(dataset, attr, None)
-            if callable(method):
+            if ValueShape.is_callable(method):
                 try:
-                    return int(method())  # type: ignore[arg-type]
+                    return int(method())
                 except Exception:
                     return None
         return None

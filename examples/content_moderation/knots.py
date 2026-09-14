@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
 # ── Domain types ─────────────────────────────────────────────────────────────
 
@@ -42,33 +42,33 @@ _PII_PATTERN = re.compile(
 )
 
 
-@knot
+@KnotFactory.knot
 def normalise(raw_text: str) -> str:
     """Strip and lowercase the input text."""
     return raw_text.strip().lower()
 
 
-@knot
+@KnotFactory.knot
 def detect_language(text: str) -> str:
     """Detect language from character set (stub: returns 'en' or 'unknown')."""
     ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(len(text), 1)
     return "en" if ascii_ratio > 0.85 else "unknown"
 
 
-@knot
+@KnotFactory.knot
 def check_profanity(text: str) -> bool:
     """Return True if the text contains known profanity."""
     words = set(re.findall(r"\w+", text))
     return bool(words & _PROFANITY)
 
 
-@knot
+@KnotFactory.knot
 def check_pii(text: str) -> bool:
     """Return True if the text contains personally identifiable information."""
     return bool(_PII_PATTERN.search(text))
 
 
-@knot
+@KnotFactory.knot
 def score_toxicity(text: str) -> float:
     """Compute a simple heuristic toxicity score (0.0 - 1.0)."""
     bad_words = sum(1 for w in re.findall(r"\w+", text) if w in _PROFANITY)
@@ -76,7 +76,7 @@ def score_toxicity(text: str) -> float:
     return min(1.0, bad_words * 0.4 + caps_ratio * 0.3)
 
 
-@knot
+@KnotFactory.knot
 def classify(
     has_profanity: bool,
     has_pii: bool,
@@ -92,7 +92,7 @@ def classify(
     )
 
 
-@knot
+@KnotFactory.knot
 def decide(flags: ContentFlags) -> ModerationDecision:
     """Apply moderation policy and return a final decision."""
     if flags.has_pii:
@@ -104,7 +104,7 @@ def decide(flags: ContentFlags) -> ModerationDecision:
     return ModerationDecision("allow", "Passed all checks", flags.toxicity_score)
 
 
-@knot
+@KnotFactory.knot
 def audit_log(raw_text: str, decision: ModerationDecision) -> str:
     """Emit an audit log entry and return a summary string."""
     summary = (

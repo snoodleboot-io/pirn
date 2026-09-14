@@ -19,7 +19,7 @@ Algorithm:
 
 References:
     [1] pirn MessageBroker interface:
-        pirn/domains/connectors/message_broker.py
+        pirn/connectors/message_broker.py
 """
 
 from __future__ import annotations

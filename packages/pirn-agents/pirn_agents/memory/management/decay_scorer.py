@@ -2,7 +2,7 @@
 
 The S2 scoring knot. Given a record and the current time it returns the record's
 decayed value via the shared
-:func:`~pirn_agents.memory.management.decay_function.decay_score` primitive,
+:meth:`~pirn_agents.memory.management.decay_function.DecayFunction.score` primitive,
 measuring age from the record's recency anchor (``last_accessed`` when set, else
 ``created_at``). The half-life is a construction-time config, so the same knot
 expresses fast-forgetting working memory (short half-life) or durable semantic
@@ -19,7 +19,7 @@ Math:
     A record at age zero keeps its full importance; after one half-life its
     value halves, and so on. A negative age (a recency anchor in the future,
     e.g. clock skew) is not separately clamped here — see
-    :func:`~pirn_agents.memory.management.decay_function.decay_score` for the
+    :meth:`~pirn_agents.memory.management.decay_function.DecayFunction.score` for the
     shared primitive's own edge-case handling.
 """
 
@@ -31,7 +31,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.memory.management.decay_function import decay_score
+from pirn_agents.memory.management.decay_function import DecayFunction
 from pirn_agents.memory.management.memory_record import MemoryRecord
 
 
@@ -76,4 +76,4 @@ class DecayScorer(Knot):
             ValueError: If ``half_life_seconds`` is not positive.
         """
         age_seconds = (now - record.recency_anchor()).total_seconds()
-        return decay_score(record.importance, age_seconds, half_life_seconds)
+        return DecayFunction.score(record.importance, age_seconds, half_life_seconds)

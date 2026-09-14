@@ -18,7 +18,7 @@ geospatial  — CRS transforms, lease grouping, boundary proximity (requires pyp
 workflows   — Pre-built SubTapestry pipelines that compose the sub-domains above
 ```
 
-File format connectors live in `pirn/domains/connectors/file_formats/` (shared with other domains) and are wired into oilgas knots via their typed record dicts. Formats carry raw data to the knot boundary; knots own all domain logic.
+File format connectors live in `pirn/connectors/file_formats/` (shared with other domains) and are wired into oilgas knots via their typed record dicts. Formats carry raw data to the knot boundary; knots own all domain logic.
 
 Composition pattern: connector (`ObjectStoreReadSource`) → assembler (`SegyObjectStoreAssembler` / `LasObjectStoreAssembler`) → processing knots → optional `SubTapestry` workflow → `Tapestry` root. The ingestor pattern is abolished — assemblers receive already-materialised bytes and perform no I/O.
 
@@ -143,7 +143,7 @@ pirn_oilgas/
 
 File format connectors (separate package path):
 ```
-pirn/domains/connectors/file_formats/
+pirn/connectors/file_formats/
 ├── segy_format.py
 ├── las_format.py
 ├── dlis_format.py

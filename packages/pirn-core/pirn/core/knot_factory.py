@@ -1,4 +1,4 @@
-"""KnotFactory and the ``knot`` decorator.
+"""``KnotFactory`` and its ``KnotFactory.knot`` decorator.
 
 These live in a separate module from ``Knot`` to keep the core class
 lightweight and to allow decorating functions without importing all of
@@ -20,7 +20,7 @@ from pirn.core.knot import Knot
 class KnotFactory:
     """Callable that constructs a ``Knot`` instance per invocation.
 
-    Returned by ``@knot``.  Calling a factory ``f(**kwargs)`` constructs
+    Returned by ``@KnotFactory.knot``.  Calling a factory ``f(**kwargs)`` constructs
     one of the underlying knot class.  Exposes the original function as
     ``.fn`` and the generated Knot subclass as ``.knot_class`` for
     introspection (used by the YAML loader, ``Map``'s ``each=`` handling,
@@ -142,46 +142,46 @@ class KnotFactory:
     def _decorate_with_schema(
         input_schema: Mapping[str, Any], fn: Callable[..., Any]
     ) -> KnotFactory:
-        """``@knot(input_schema=...)``'s decorator body: the function's name names the knot."""
+        """``@KnotFactory.knot(input_schema=...)``'s decorator body: the function's name names the knot."""
         return KnotFactory.from_schema(fn.__name__, input_schema, fn)
 
+    @staticmethod
+    def knot(
+        func: Callable[..., Any] | None = None,
+        *,
+        input_schema: Mapping[str, Any] | None = None,
+    ) -> Any:
+        """Promote a function into a Knot factory.
 
-def knot(
-    func: Callable[..., Any] | None = None,
-    *,
-    input_schema: Mapping[str, Any] | None = None,
-) -> Any:
-    """Promote a function into a Knot factory.
+        The returned object is callable like the original function, but the
+        call site constructs a Knot instance::
 
-    The returned object is callable like the original function, but the
-    call site constructs a Knot instance::
+            @KnotFactory.knot
+            async def double(value: int) -> int:
+                return value * 2
 
-        @knot
-        async def double(value: int) -> int:
-            return value * 2
+            # Construct an instance — looks like a normal call.
+            d = double(value=p, _config=KnotConfig(id="double"))
 
-        # Construct an instance — looks like a normal call.
-        d = double(value=p, _config=KnotConfig(id="double"))
+        Sync functions are auto-wrapped via ``asyncio.to_thread``; the
+        function's signature becomes the knot's input contract.
 
-    Sync functions are auto-wrapped via ``asyncio.to_thread``; the
-    function's signature becomes the knot's input contract.
+        The factory exposes the original function as ``.fn`` for introspection,
+        and the generated Knot subclass as ``.knot_class`` for explicit
+        instantiation if needed.
 
-    The factory exposes the original function as ``.fn`` for introspection,
-    and the generated Knot subclass as ``.knot_class`` for explicit
-    instantiation if needed.
+        Pass ``input_schema=`` to declare the inputs with a JSON object schema
+        instead of the function's signature (``KnotFactory.from_schema``)::
 
-    Pass ``input_schema=`` to declare the inputs with a JSON object schema
-    instead of the function's signature (``KnotFactory.from_schema``)::
-
-        @knot(input_schema={"type": "object", "properties": {"q": {"type": "string"}},
-                            "required": ["q"]})
-        async def search(**arguments: Any) -> list[str]:
-            ...
-    """
-    if input_schema is not None:
+            @KnotFactory.knot(input_schema={"type": "object", "properties": {"q": {"type": "string"}},
+                                "required": ["q"]})
+            async def search(**arguments: Any) -> list[str]:
+                ...
+        """
+        if input_schema is not None:
+            if func is not None:
+                return KnotFactory.from_schema(func.__name__, input_schema, func)
+            return functools.partial(KnotFactory._decorate_with_schema, input_schema)
         if func is not None:
-            return KnotFactory.from_schema(func.__name__, input_schema, func)
-        return functools.partial(KnotFactory._decorate_with_schema, input_schema)
-    if func is not None:
-        return KnotFactory.create(func)
-    return KnotFactory.create
+            return KnotFactory.create(func)
+        return KnotFactory.create

@@ -14,7 +14,7 @@ from typing import Any, ClassVar
 from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -32,7 +32,6 @@ from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation import ToolInvocation
 from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _CapturingEmitter(Emitter):
@@ -222,7 +221,7 @@ class TestATooCallIsAKnot(unittest.IsolatedAsyncioTestCase):
         assert row_one.config_values_hash != row_two.config_values_hash
 
     async def test_call_may_arrive_from_an_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def plan() -> ToolCall:
             return _call("from-upstream", a=2)
 
@@ -274,8 +273,8 @@ class TestFanOut(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
 
         assert result.succeeded
-        assert result.outputs["ok"].status is ToolStatus.OK
-        assert result.outputs["bad"].status is ToolStatus.ERROR
+        assert result.outputs["ok"].status == "ok"
+        assert result.outputs["bad"].status == "error"
 
 
 class TestOutcomes(unittest.IsolatedAsyncioTestCase):
@@ -286,7 +285,7 @@ class TestOutcomes(unittest.IsolatedAsyncioTestCase):
 
         assert result.succeeded
         view = result.outputs["inv"]
-        assert view.status is ToolStatus.ERROR
+        assert view.status == "error"
         assert view.result is None
         assert view.latency is not None
         children = await t.history.children_of(result.run_id)
@@ -312,7 +311,7 @@ class TestOutcomes(unittest.IsolatedAsyncioTestCase):
 
         assert result.succeeded
         view = result.outputs["inv"]
-        assert view.status is ToolStatus.ERROR
+        assert view.status == "error"
         assert view.exception is not None
         assert view.exception.exc_type == "ToolArgumentValidationError"
         assert "missing_required" in view.error
@@ -321,7 +320,7 @@ class TestOutcomes(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ToolInvocation(tool=Slow, call=_call(a=1), timeout=0.01, _config=KnotConfig(id="inv"))
         view = (await t.run(RunRequest())).outputs["inv"]
-        assert view.status is ToolStatus.TIMEOUT
+        assert view.status == "timeout"
         assert view.exception is not None
         assert view.exception.exc_type == "KnotTimeoutError"
 
@@ -336,7 +335,7 @@ class TestOutcomes(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         view = result.outputs["inv"]
-        assert view.status is ToolStatus.OK
+        assert view.status == "ok"
         assert Flaky.attempts == 3
         children = await t.history.children_of(result.run_id)
         row = next(r for c in children for r in c.lineage if r.knot_id == "c1")
@@ -392,7 +391,7 @@ class TestApprovalGating(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         view = result.outputs["inv"]
-        assert view.status is ToolStatus.OK
+        assert view.status == "ok"
         assert view.result == {"a": 1}
         assert Gated.calls == [{"a": 1}]
 
@@ -407,7 +406,7 @@ class TestApprovalGating(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         view = result.outputs["inv"]
-        assert view.status is ToolStatus.SKIPPED
+        assert view.status == "skipped"
         assert view.error == "call skipped: approval denied"
         assert Gated.calls == []
 

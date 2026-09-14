@@ -11,9 +11,9 @@ The fundamental unit of work. A knot is a typed, async function with explicit in
 Knots are immutable after construction — you cannot change a knot's parents or config once it has been built. This makes pipelines safe to reason about statically.
 
 ```python
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
-@knot
+@KnotFactory.knot
 async def score(text: str, threshold: float) -> float:
     return sentiment_model(text)
 ```
@@ -143,7 +143,7 @@ A broken emitter never breaks a run — exceptions inside emitters are isolated.
 
 A source of `RunRequest` objects that starts a new pipeline run for each external event. Triggers implement `name`, `stream() -> AsyncIterator[RunRequest]`, and `close()`.
 
-Drive a trigger with `run_forever(trigger, tapestry)`.
+Drive a trigger with `trigger.run_forever(tapestry)`.
 
 Built-in triggers: `CronTrigger`, `WebhookTrigger` (HTTP), `KafkaTrigger`, `ValKeyTrigger`.
 

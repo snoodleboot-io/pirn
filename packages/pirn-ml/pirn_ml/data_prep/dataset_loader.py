@@ -1,12 +1,10 @@
-# pirn_data (the one retained domain-to-domain edge, ADR-3) ships no py.typed.
-# pyright: reportMissingTypeStubs=false
 """``DatasetLoader`` — load a :class:`DatasetPayload` from any configured source.
 
 Tries all configured sources concurrently inside an inner tapestry.  Each
 source is wrapped with :class:`Optional` so a missing or failing source
 produces ``Skipped`` rather than an error.  An :class:`Aggregator` picks
 whichever source succeeded; exactly one must produce a result.  A
-:class:`_DatasetAssembler` knot converts the raw :class:`DataBatch` into
+:class:`DatasetAssembler` knot converts the raw :class:`DataBatch` into
 a typed :class:`DatasetPayload` as the terminal step of the inner graph.
 
 Because ``Optional`` intercepts both construction failures (e.g. ``store=None``
@@ -47,9 +45,7 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
-from pirn_ml.data_prep._dataset_assembler import (
-    _DatasetAssembler,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
+from pirn_ml.data_prep.dataset_assembler import DatasetAssembler
 
 
 class DatasetLoader(SubTapestry):
@@ -58,7 +54,7 @@ class DatasetLoader(SubTapestry):
     Constructs an inner tapestry with all three source knots wrapped in
     :class:`Optional`.  Whichever source is configured succeeds; the rest
     skip.  The :class:`Aggregator` surfaces the live result and
-    :class:`_DatasetAssembler` converts it into a :class:`DatasetPayload`.
+    :class:`DatasetAssembler` converts it into a :class:`DatasetPayload`.
 
     Parameters
     ----------
@@ -155,7 +151,7 @@ class DatasetLoader(SubTapestry):
             sql=sql_src,
             _config=KnotConfig(id="agg"),
         )
-        return _DatasetAssembler(
+        return DatasetAssembler(
             batch=agg,
             name=name,
             feature_names=feature_names,

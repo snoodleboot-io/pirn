@@ -46,7 +46,7 @@ from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.aggregator import Aggregator
-from pirn.tapestry import Tapestry, get_current_store
+from pirn.tapestry import Tapestry
 
 TRIAGE_COMPLETE_ID = "triage_complete"
 
@@ -290,7 +290,7 @@ class StudyDispatcher(Knot):
         study = queue.current_study
         new_queue = queue.evolve(study_idx=queue.study_idx + 1)
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return new_queue
 
@@ -378,7 +378,7 @@ class TriageDecider(Knot):
         )
         new_queue = queue.evolve(outcomes=(*queue.outcomes, outcome))
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return new_queue
 

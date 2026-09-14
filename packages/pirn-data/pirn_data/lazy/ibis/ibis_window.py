@@ -55,6 +55,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ibis.ibis_table import IbisTable
+from pirn_data.value_shape import ValueShape
 
 
 class IbisWindow(Knot):
@@ -80,14 +81,14 @@ class IbisWindow(Knot):
         Returns:
             A new IbisTable with the window-function columns appended to the deferred expression.
         """
-        if not callable(windows):
+        if not ValueShape.is_callable(windows):
             raise TypeError(
                 "IbisWindow: windows must be a callable (table) -> ibis.Expr "
                 "or sequence of ibis.Expr"
             )
         result = windows(batch.expression)
-        if isinstance(result, (list, tuple)):
-            mutated = batch.expression.mutate(*result)  # type: ignore[arg-type]
+        if ValueShape.is_list_or_tuple(result):
+            mutated = batch.expression.mutate(*result)
         else:
-            mutated = batch.expression.mutate(result)  # type: ignore[arg-type]
+            mutated = batch.expression.mutate(result)
         return batch.with_expression(mutated)

@@ -41,8 +41,8 @@ from pirn.core.parameter import Parameter
 from pirn.core.result import Result
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
@@ -211,8 +211,8 @@ class _Counter(Knot):
         return self.knot_id
 
 
-class _SpyGate(LimitedAdmissionGate):
-    """A LimitedAdmissionGate that remembers every instance built."""
+class _SpyGate(LimitedAdmission):
+    """A LimitedAdmission that remembers every instance built."""
 
     built: list[_SpyGate] = []  # noqa: RUF012 -- test-local registry
 
@@ -224,7 +224,7 @@ class _SpyGate(LimitedAdmissionGate):
 @pytest.fixture
 def spy_gates(monkeypatch: pytest.MonkeyPatch) -> list[_SpyGate]:
     _SpyGate.built = []
-    monkeypatch.setattr("pirn.engine.engine.LimitedAdmissionGate", _SpyGate)
+    monkeypatch.setattr("pirn.engine.engine.LimitedAdmission", _SpyGate)
     return _SpyGate.built
 
 
@@ -891,9 +891,9 @@ async def test_no_limits_anywhere_uses_the_unbounded_gate(
     monkeypatch: pytest.MonkeyPatch, spy_gates: list[_SpyGate]
 ) -> None:
     # Arrange
-    built: list[UnboundedAdmissionGate] = []
+    built: list[UnboundedAdmission] = []
     monkeypatch.setattr(
-        "pirn.engine.engine.UnboundedAdmissionGate",
+        "pirn.engine.engine.UnboundedAdmission",
         functools.partial(_record_unbounded, built),
     )
     gauge = _Gauge()
@@ -908,8 +908,8 @@ async def test_no_limits_anywhere_uses_the_unbounded_gate(
     assert spy_gates == []
 
 
-def _record_unbounded(built: list[UnboundedAdmissionGate]) -> UnboundedAdmissionGate:
-    gate = UnboundedAdmissionGate()
+def _record_unbounded(built: list[UnboundedAdmission]) -> UnboundedAdmission:
+    gate = UnboundedAdmission()
     built.append(gate)
     return gate
 

@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import polars as pl
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -22,7 +22,7 @@ from pirn_data.frames.polars.bridges.polars_to_data_batch import (
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_polars_batch() -> PolarsDataBatch:
     frame = pl.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
     return PolarsDataBatch(frame=frame, source_uri="memory://x")

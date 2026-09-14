@@ -16,7 +16,6 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_toolset import McpToolset
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 from tests.mcp.stub_mcp import StubMcpTransport
 
@@ -70,7 +69,7 @@ async def test_result_round_trips_through_parallel_executor() -> None:
 
     assert len(results) == 1
     assert results[0].call_id == "c-1"
-    assert results[0].status is ToolStatus.OK
+    assert results[0].status == "ok"
     assert results[0].result == "hello"
 
 
@@ -80,7 +79,7 @@ async def test_error_tool_round_trips_to_error_result() -> None:
 
     results = await _execute(calls, toolset, max_concurrency=1)
 
-    assert results[0].status is ToolStatus.ERROR
+    assert results[0].status == "error"
 
 
 async def test_refresh_rediscovers() -> None:

@@ -5,7 +5,7 @@ WS0 adds six seams to ``pirn-core``: ``KnotConfig.timeout`` / ``KnotConfig.retry
 (``KnotRetryPolicy``, ``KnotTimeoutError``), the nested-run depth and cycle guard
 (``RunNesting``, ``NestingDepthExceededError``, ``NestedRunCycleError``), the
 declared input schema for factory-built knots, the admission-gate runtime feedback
-(``AdmissionGate.set_limit`` + ``AdmissionObserver``), the ``Check`` node role,
+(``Admission.set_limit`` + ``AdmissionObserver``), the ``Check`` node role,
 and the awaitable ``LoopSubTapestry.astep`` / ``afold``.  Each of them replaces a
 parallel implementation that grew inside ``pirn_agents`` while core lacked the
 seam.  Downstream workstreams (WS1-WS6) migrate those onto the core seams; this
@@ -69,7 +69,7 @@ class CoreSeamShadowInventory:
                 r"^_FanoutRunner$",
                 r"^BatchScheduler$",
             ),
-            frozenset({"AdmissionObserver", "AdmissionGate", "ConcurrencyLimits"}),
+            frozenset({"AdmissionObserver", "Admission", "ConcurrencyLimits"}),
         ),
         "check_role": (
             (r"^GatedAgentResponse$",),

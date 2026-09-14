@@ -26,7 +26,7 @@ References:
     [1] Kimball Group — SCD Type 1 (overwrite):
         https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-1/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -39,10 +39,11 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
+from pirn_data.specializations.scd.scd_type_1_queries import ScdType1Queries
 
 
-class ScdType1MergeKnot(_PoolMergeKnot):
+class ScdType1MergeKnot(PoolMergeKnot):
     """Merge a source row stream into a target table by overwriting on change."""
 
     def __init__(
@@ -65,27 +66,6 @@ class ScdType1MergeKnot(_PoolMergeKnot):
             _config=_config,
             **kwargs,
         )
-
-    @staticmethod
-    def _select_query(target_table: str, column_names: tuple[str, ...]) -> str:
-        column_list = ", ".join(column_names)
-        return f"SELECT {column_list} FROM {target_table}"
-
-    @staticmethod
-    def _insert_query(target_table: str, column_names: tuple[str, ...]) -> str:
-        column_list = ", ".join(column_names)
-        placeholders = ", ".join(["?"] * len(column_names))
-        return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
-
-    @staticmethod
-    def _update_query(
-        target_table: str,
-        primary_keys: tuple[str, ...],
-        non_key_columns: tuple[str, ...],
-    ) -> str:
-        set_clause = ", ".join(f"{c} = ?" for c in non_key_columns)
-        where_clause = " AND ".join(f"{k} = ?" for k in primary_keys)
-        return f"UPDATE {target_table} SET {set_clause} WHERE {where_clause}"
 
     async def process(
         self,
@@ -110,9 +90,9 @@ class ScdType1MergeKnot(_PoolMergeKnot):
         materialised: list[tuple[Any, ...]] = [tuple(r) for r in rows]
         if not materialised:
             return {"inserted": 0, "updated": 0}
-        select_q = ScdType1MergeKnot._select_query(target_table, column_tuple)
-        insert_q = ScdType1MergeKnot._insert_query(target_table, column_tuple)
-        update_q = ScdType1MergeKnot._update_query(target_table, primary_key_tuple, non_key_columns)
+        select_q = ScdType1Queries.select_query(target_table, column_tuple)
+        insert_q = ScdType1Queries.insert_query(target_table, column_tuple)
+        update_q = ScdType1Queries.update_query(target_table, primary_key_tuple, non_key_columns)
         existing_rows = await target_pool.fetch_all(select_q)
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)

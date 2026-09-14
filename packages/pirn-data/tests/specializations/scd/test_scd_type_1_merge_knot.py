@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_data.specializations.scd.scd_type_1_merge_knot import ScdType1MergeKnot
+from pirn_data.specializations.scd.scd_type_1_queries import ScdType1Queries
 
 _TARGET_TABLE = "dim_customer"
 _PRIMARY_KEYS = ("id",)
@@ -47,15 +48,15 @@ class TestScdType1MergeKnotConstruction(unittest.TestCase):
     def test_query_static_methods(self) -> None:
         self.assertIn(
             "dim_customer",
-            ScdType1MergeKnot._select_query("dim_customer", ("id", "name")),
+            ScdType1Queries.select_query("dim_customer", ("id", "name")),
         )
         self.assertIn(
             "INSERT INTO dim_customer",
-            ScdType1MergeKnot._insert_query("dim_customer", ("id", "name")),
+            ScdType1Queries.insert_query("dim_customer", ("id", "name")),
         )
         self.assertIn(
             "UPDATE dim_customer",
-            ScdType1MergeKnot._update_query("dim_customer", ("id",), ("name",)),
+            ScdType1Queries.update_query("dim_customer", ("id",), ("name",)),
         )
 
 

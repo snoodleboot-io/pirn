@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.specializations.specialized_agents.read_write_sql_agent import ReadWriteSQLAgent
 from pirn_agents.specializations.specialized_agents.sql_agent import (
     SQLAgent,
 )
@@ -166,11 +167,10 @@ class TestSQLAgentOptedInWriteIsDurable:
         pool = SqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
         try:
             with Tapestry() as t:
-                SQLAgent(
+                ReadWriteSQLAgent(
                     question="add Ada",
                     llm=llm,
                     pool=pool,
-                    read_only=False,
                     _config=KnotConfig(id="sql"),
                 )
             result = await t.run(RunRequest())

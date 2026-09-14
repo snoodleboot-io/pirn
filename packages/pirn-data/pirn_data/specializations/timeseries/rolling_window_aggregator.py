@@ -44,7 +44,7 @@ class RollingWindowAggregator(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         timestamp_column: Knot | str,
         value_column: Knot | str,
         window_size: Knot | int,
@@ -63,7 +63,7 @@ class RollingWindowAggregator(Knot):
         )
 
     @staticmethod
-    def _apply(window: deque, statistic: str) -> float:
+    def _apply(window: deque[Any], statistic: str) -> float:
         vals = list(window)
         if statistic == "sum":
             return sum(vals)
@@ -116,7 +116,7 @@ class RollingWindowAggregator(Knot):
         output_column = f"{value_column}_{statistic}"
 
         sorted_rows = sorted(rows, key=lambda r: self._as_dt(r[timestamp_column]))
-        window: deque = deque(maxlen=window_size)
+        window: deque[Any] = deque(maxlen=window_size)
         result: list[dict[str, Any]] = []
         for row in sorted_rows:
             window.append(row[value_column])

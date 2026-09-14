@@ -58,7 +58,9 @@ class StoreInventory:
 
     #: Bare names whose import marks a module as a session/determinism
     #: lifecycle-value importer.
-    _LIFECYCLE_NAMES: ClassVar[frozenset[str]] = frozenset({"RunState", "RunCheckpoint"})
+    #: ``RunState`` is not one (PIR-872): it is a read model projected from a
+    #: session's ``RunHistory`` chain and never persisted.
+    _LIFECYCLE_NAMES: ClassVar[frozenset[str]] = frozenset({"RunCheckpoint"})
 
     @staticmethod
     def discover_store_classes() -> dict[str, type]:

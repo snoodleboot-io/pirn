@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class RateLimitSignal(Exception):
+
+class RateLimitSignal(PirnError):
     """Raised by a per-item agent callable to signal an upstream rate limit.
 
     The batch engine treats this distinctly from an ordinary item failure: it is

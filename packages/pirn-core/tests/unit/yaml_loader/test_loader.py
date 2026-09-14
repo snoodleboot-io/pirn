@@ -1,10 +1,10 @@
-"""Tests for PipelineLoader and load_pipeline."""
+"""Tests for PipelineLoader."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.pipeline_loader import PipelineLoader, load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
 
@@ -173,8 +173,8 @@ class TestAllowlistMerge(unittest.TestCase):
 
 class TestLoadPipelineWrapper(unittest.TestCase):
     def test_load_pipeline_is_callable(self) -> None:
-        self.assertTrue(callable(load_pipeline))
+        self.assertTrue(callable(PipelineLoader.load_yaml))
 
     def test_non_mapping_yaml_raises(self) -> None:
         with self.assertRaises(ValueError):
-            load_pipeline("- just_a_list")
+            PipelineLoader.load_yaml("- just_a_list")

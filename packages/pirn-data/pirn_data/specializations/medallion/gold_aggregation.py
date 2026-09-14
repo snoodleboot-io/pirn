@@ -22,7 +22,7 @@ Algorithm:
 References:
     [1] pirn — AggregateSpec: pirn_data/transforms/aggregate_spec.py
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
 """
 
 from __future__ import annotations

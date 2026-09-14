@@ -126,7 +126,7 @@ with Tapestry(store=store, history=history) as t:
 
 ### Using extensible runs with non-memory `TapestryStore`
 
-`tapestry.run(extensible=True)` (required by `WithContinuation` and `LoopSubTapestry`) calls `get_current_store()` mid-run to register new knots. Only `InMemoryStore`, `PostgresStore`, and `ValKeyStore` (all `SubscribableStore` implementors) support this. `SQLiteStore` does not.
+`tapestry.run(extensible=True)` (required by `WithContinuation` and `LoopSubTapestry`) calls `Tapestry.current_store()` mid-run to register new knots. Only `InMemoryStore`, `PostgresStore`, and `ValKeyStore` (all `SubscribableStore` implementors) support this. `SQLiteStore` does not.
 
 ### Scrubbing `DataStore` values and expecting lineage to break
 

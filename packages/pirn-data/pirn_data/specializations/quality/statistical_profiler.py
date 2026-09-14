@@ -27,7 +27,7 @@ Math:
 
 References:
     [1] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [2] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -169,7 +169,7 @@ class StatisticalProfiler(Knot):
             raise ValueError("StatisticalProfiler: top_n must be a positive integer")
         total_rows_result = await pool.fetch_all(f"SELECT COUNT(*) FROM {monitored_table}")
         total_rows = total_rows_result[0][0]
-        profiles = []
+        profiles: list[dict[str, Any]] = []
         for column in column_tuple:
             profile = await StatisticalProfiler._profile_column(
                 pool, column, monitored_table, total_rows, top_n

@@ -7,7 +7,7 @@ needs no separate keyed write any more: it simply *returns* a
 ``process()`` output, and the engine content-addresses that value into the
 tapestry's ``DataStore`` and records a ``KnotLineage`` row for it — the same
 thing it already does for every knot's output (see
-``pirn.engine.engine``: ``content_hash(result.value)`` /
+``pirn.engine.engine``: ``ContentHasher.hash(result.value)`` /
 ``data_store.put(out_hash, result.value)``). Recall is the read side of that:
 look up every invocation of one writer knot across history, and fetch the
 records those invocations produced.

@@ -17,7 +17,7 @@ except ImportError as _e:
 import numpy as np
 import pywt
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -27,7 +27,7 @@ from pirn_signal.types.wavelet_payload import WaveletPayload
 from pirn_signal.wavelets.idwt_reconstructor import IDWTReconstructor
 
 
-@knot
+@KnotFactory.knot
 async def emit_wavelet_payload() -> WaveletPayload:
     """Upstream knot emitting a deterministic WaveletPayload."""
     data = np.zeros(1024)

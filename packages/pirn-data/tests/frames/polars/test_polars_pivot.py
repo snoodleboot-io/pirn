@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import polars as pl
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,7 +19,7 @@ from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.frames.polars.polars_pivot import PolarsPivot
 
 
-@knot
+@KnotFactory.knot
 async def emit_long() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
@@ -63,7 +63,7 @@ class TestPolarsPivot(unittest.IsolatedAsyncioTestCase):
         assert alice["views"] == 100
 
     async def test_aggregate_function_sum(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def with_dups() -> PolarsDataBatch:
             return PolarsDataBatch(
                 frame=pl.DataFrame(
@@ -94,7 +94,7 @@ class TestPolarsPivot(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_aggregate_function_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_agg_fn() -> object:
             return "first"
 
@@ -116,7 +116,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PolarsPivot:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PolarsDataBatch:
             return PolarsDataBatch(frame=pl.DataFrame())
 
@@ -152,3 +152,23 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
                 values="value",
                 aggregate_function="first",
             )
+
+    async def test_count_is_the_len_aggregation(self) -> None:
+        k = self._make_knot()
+        long = PolarsDataBatch(
+            frame=pl.DataFrame(
+                {
+                    "user": ["alice", "alice", "alice"],
+                    "metric": ["clicks", "clicks", "views"],
+                    "value": [1, 2, 3],
+                }
+            )
+        )
+        counted = await k.process(
+            batch=long, on="metric", index="user", values="value", aggregate_function="count"
+        )
+        with_len = await k.process(
+            batch=long, on="metric", index="user", values="value", aggregate_function="len"
+        )
+        assert counted.frame.equals(with_len.frame)
+        assert counted.frame["clicks"].to_list() == [2]

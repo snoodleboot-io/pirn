@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -47,7 +47,7 @@ class TestQueryNewRowsKnot(unittest.IsolatedAsyncioTestCase):
         await self.pool.close()
 
     async def test_initial_load_returns_all_rows(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def no_hwm() -> None:
             return None
 
@@ -59,7 +59,7 @@ class TestQueryNewRowsKnot(unittest.IsolatedAsyncioTestCase):
         assert result.outputs["qnr"] == [(1, "2024-01-01"), (2, "2024-06-01")]
 
     async def test_incremental_load_uses_where_clause(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def hwm_value() -> str:
             return "2024-01-01"
 
@@ -81,11 +81,11 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_high_water_mark_from_upstream_knot(self) -> None:
         pool = self.pool
 
-        @knot
+        @KnotFactory.knot
         async def emit_pool() -> SqlitePool:
             return pool
 
-        @knot
+        @KnotFactory.knot
         async def emit_hwm() -> None:
             return None
 

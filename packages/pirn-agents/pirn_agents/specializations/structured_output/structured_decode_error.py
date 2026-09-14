@@ -9,6 +9,8 @@ next available strategy and, ultimately, the extract-validate-retry pipeline.
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class StructuredDecodeError(Exception):
+
+class StructuredDecodeError(PirnError):
     """A selected native structured-output strategy failed to produce a value."""

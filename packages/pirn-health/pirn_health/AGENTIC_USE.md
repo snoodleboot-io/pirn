@@ -79,7 +79,7 @@ pirn_health/
 │   ├── dicom_object_store_disassembler.py    — DICOMPayload → bytes
 │   └── wsi_object_store_disassembler.py      — WSITilePayload → bytes
 
-pirn/domains/connectors/file_formats/
+pirn/connectors/file_formats/
 ├── dicom_format.py              ← DicomFormat        (pirn[health])
 ├── fhir_json_format.py          ← FhirJsonFormat     (pirn[health])
 ├── fhir_xml_format.py           ← FhirXmlFormat      (pirn[health])

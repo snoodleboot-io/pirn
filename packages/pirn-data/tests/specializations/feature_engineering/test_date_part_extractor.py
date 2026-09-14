@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -85,7 +85,7 @@ class TestDatePartExtractor(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_rows_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return [{"ts": datetime(2024, 6, 15)}]
 

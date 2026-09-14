@@ -2,7 +2,7 @@
 
 The "agents speaks core" ADR (2026-09-13), WS4b ("one scheduler"): batch
 execution should be the core engine's ``Map``/``Aggregator``/``Dispatcher``/
-``AdmissionGate`` — not a private ``asyncio.wait`` loop, a hand-held
+``Admission`` — not a private ``asyncio.wait`` loop, a hand-held
 ``asyncio.Semaphore``, or a checkpoint store outside ``RunHistory``. WS4b's
 own migration (``MapAgent`` → per-item knots + ``Aggregator``;
 ``AdaptiveConcurrencyController`` → ``AdmissionObserver``) left one
@@ -11,7 +11,7 @@ deliberately-kept deprecated shim (``BatchScheduler`` plus
 deletes both outright, so ``ASYNCIO_LOOP`` is now empty. PIR-866 migrated
 the two primitives WS4b did not own the blast radius for
 (``BackpressureSemaphore``, ``Bulkhead``) onto a real
-``LimitedAdmissionGate`` per pool, and PIR-864 deletes both of those too
+``LimitedAdmission`` per pool, and PIR-864 deletes both of those too
 (``OWN_CONCURRENCY_LIMIT`` was already empty).
 
 The allowlists are asserted by **exact equality**, deliberately:
@@ -43,16 +43,11 @@ ASYNCIO_LOOP: frozenset[str] = frozenset()
 # directories still fails loudly here.
 OWN_CONCURRENCY_LIMIT: frozenset[str] = frozenset()
 
-# BatchCheckpointer/BatchScheduler deleted (PIR-864); BatchProgress remains --
-# it is not itself a deprecated shim, and TriggeredBatch's live run() still
-# returns it as its per-fire summary (its to_run_state()/from_run_state()
-# bridge, the only reason it names RunState here, has no production caller
-# left but is kept, tested and correct -- see its module docstring).
-CHECKPOINTS_OUTSIDE_RUN_HISTORY = frozenset(
-    {
-        "batch/batch_progress.py::BatchProgress",
-    }
-)
+# BatchCheckpointer/BatchScheduler deleted (PIR-864). BatchProgress's
+# to_run_state()/from_run_state() RunState bridge is deleted (PIR-872): it is a
+# pure per-fire summary that checkpoints nothing, and resume state is the
+# RunHistory lineage query on each item's knot id. Empty, not deleted.
+CHECKPOINTS_OUTSIDE_RUN_HISTORY: frozenset[str] = frozenset()
 
 
 class TestOneSchedulerShadowsAreFrozen(unittest.TestCase):
@@ -62,11 +57,18 @@ class TestOneSchedulerShadowsAreFrozen(unittest.TestCase):
         self.found = OneSchedulerInventory.discover()
 
     def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
-        # PIR-864 deleted BatchScheduler/BatchCheckpointer/BackpressureSemaphore/
-        # Bulkhead; only BatchProgress remains in CHECKPOINTS_OUTSIDE_RUN_HISTORY.
-        total = sum(len(labels) for labels in self.found.values())
-        assert total >= 1, self.found
+        """A guard that walks nothing passes for the wrong reason.
+
+        Every inventory is empty now, so vacuity is checked on the walk itself:
+        the owned directories must still hold the classes the detectors read.
+        """
+        assert set(self.found) == {
+            "asyncio_loop",
+            "own_concurrency_limit",
+            "checkpoints_outside_run_history",
+        }
+        walked = OneSchedulerInventory.walked_class_count()
+        assert walked >= 10, walked
 
     def test_asyncio_loop_shadows_are_frozen(self) -> None:
         found = self.found["asyncio_loop"]

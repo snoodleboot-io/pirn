@@ -140,56 +140,6 @@ The last standing entries in `tests/specializations/base/test_no_engine_bypass.p
   `DeprecationWarning`. The `max_entries` bound is now enforced by
   `InMemoryDataStore` (evicts the least-recently-*read* entry), not the
   previous first-inserted-wins policy.
-#### `Bulkhead`/`BackpressureSemaphore`/`ConcurrencyConfig` onto core concurrency groups (ADR agents-speaks-core WS4b, PIR-866)
-`pirn_agents.resilience.bulkhead.Bulkhead`, `pirn_agents.resilience.bulkhead_config.BulkheadConfig`,
-`pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`, and
-`pirn_agents.performance.concurrency_config.ConcurrencyConfig` no longer hold
-a private `asyncio.Semaphore`; each is now a one-cycle deprecated shim built
-on a core concurrency seam, warning `DeprecationWarning` on construction:
-- `ConcurrencyConfig` and `BulkheadConfig` are now subclasses of
-  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`.
-  `ConcurrencyConfig.to_concurrency_limits(group=...)` returns the exact
-  `ConcurrencyLimits` a real engine run would declare for it.
-- `ConcurrencyConfig.to_concurrency_limits(group=...)` and
-  `BulkheadConfig.to_concurrency_limits()` return the exact
-  `ConcurrencyLimits` a real engine run would declare for the same posture.
-  Both stay plain frozen dataclasses rather than `ConcurrencyLimits`
-  subclasses: `agent/parallel_tool_executor.py` and three `specializations/`
-  pipelines read `ConcurrencyConfig.max_concurrency` as a **class-level**
-  literal default, which a pydantic `BaseModel` subclass cannot support (no
-  class-level field-default access; a `@property` returns the descriptor on
-  class access, not its value).
-- `BackpressureSemaphore` and `Bulkhead` are now subclasses of
-  `pirn.engine.admission.admission_gate.AdmissionGate`, delegating every
-  admission decision to a real `LimitedAdmissionGate` through the new,
-  shared, private `pirn_agents.performance._backpressure_gate._BackpressureGate` —
-  the one place `max_queue_depth`/`acquire_timeout` (backpressure knobs core
-  has no equivalent for outside a running `Tapestry`) are still implemented
-  directly, documented there as the seam.
-- **The replacement pattern:** declare `KnotConfig(concurrency_group=<backend>)`
-  on the knots that call a backend and `ConcurrencyLimits(groups={<backend>: n})`
-  on the run — two independently-built pipelines whose knots share one group
-  are bounded together by the run's one `AdmissionGate`, exactly the
-  isolation `Bulkhead` used to promise (`tests/performance/test_shared_concurrency_group.py`).
-- **Public API unchanged:** `Bulkhead.slot(backend)`, `BackpressureSemaphore.slot()`/
-  `.acquire()`/`.release()`, and every constructor signature still work as
-  before; `agent/parallel_tool_executor.py` already used the replacement
-  pattern (WS1) and needed no change.
-- **Disclosed behaviour change:** a `Bulkhead` backend name now doubles as a
-  `ConcurrencyLimits` group name, so it must satisfy the knot id charset
-  (alphanumeric, underscore, hyphen, dot, colon) — a name with other
-  characters, accepted before this migration, now raises when that backend's
-  pool is first used (`Bulkhead.slot(backend)` / `.try_admit`), not at
-  `BulkheadConfig` construction.
-- `evaluation/run_eval.py` (then a bare `asyncio.gather` loop, no
-  `Tapestry`) still constructed `BackpressureSemaphore` directly — moved onto
-  the engine by PIR-872; two
-  `specializations/` files (`document_processing/_ingestion_runner.py`,
-  `multi_agent/orchestrator_workers.py`) build their own unrelated bare
-  `asyncio.Semaphore`, outside this migration's ownership. See
-  `packages/pirn-core/docs/FRAMEWORK_REFERENCE.md` §6 "Scheduling and
-  concurrency" for the full detail.
-
 #### Denied tool-call approval is `Skipped`, not `Err` (PIR-865)
 
 A tool call whose `ToolPermissions.approval_required` is set and whose
@@ -245,14 +195,8 @@ naming the innermost unhashable type instead of returning a best-effort sentinel
 - **`IdempotencyKeyAssigner.assign`** — an operator-facing breaking change: an
   idempotency key sent to an external backend for retry dedup changes form, so
   **in-flight idempotent requests must be drained before/during the upgrade**
-  or a retry that lands after it will double-apply. `IdempotencyKeyAssigner.legacy_key(...)`
-  reproduces the pre-upgrade key for one deprecation cycle so an operator can
-  reconcile a backend's dedupe table across the window. See "Idempotency keys"
+  or a retry that lands after it will double-apply. See "Idempotency keys"
   in `docs/domains/agents.md`.
-- `pirn_agents.caching.content_address.ContentAddress`/`content_address` also
-  moved onto `content_hash(..., strict=True)` and are now one-cycle deprecated
-  wrappers; every caller is an in-memory-only cache key, so this carries no
-  migration risk.
 
 #### Run-level and group concurrency limits (PIR-841, slice 2)
 
@@ -323,15 +267,105 @@ Deleted outright (no shims); every caller, test and doc moved in the same change
 | `pirn_agents.exceptions.tool_timeout_error.ToolTimeoutError` | `KnotConfig(timeout=)` → `Err(pirn.exceptions.knot_timeout_error.KnotTimeoutError)`. |
 | `AgentRecursionError`, `AgentDepthExceededError`, `AgentCycleError` | `pirn.core.run_nesting.RunNesting` with `Tapestry(max_nesting_depth=)` → `NestingDepthExceededError` / `NestedRunCycleError`. |
 | `pirn_agents.agent.agent_tool_context.AgentToolContext`, `current_agent_tool_context()`, `bind_agent_tool_context()` | Depth, run ids, path and cap: `RunNesting.current()`. The shared budget meter and pooled provider: `pirn_agents.agent.agent_tool_policy.AgentToolPolicy` (`meter`, `provider`, `bound()`/`current()`/`bind()`). |
-| `pirn_agents.agent.agent_nesting_config.AgentNestingConfig` | The `max_depth=8` default on `AgentTool`/`as_tool`/`AgentAsToolMixin.as_tool`/`AgentToolCall`, applied as core's `max_nesting_depth`. |
+| `pirn_agents.agent.agent_nesting_config.AgentNestingConfig` | The `max_depth=8` default on `AgentTool`/`AsTool.wrap`/`AgentAsToolMixin.as_tool`/`AgentToolCall`, applied as core's `max_nesting_depth`. |
 | `pirn_agents.specializations.base.gated_agent_response.GatedAgentResponse` | A core `Check` and `Gate(input=value, check=verdict)` (see `_EvaluatorOptimizerLoop`'s `_CandidateRejectedCheck`); `AcceptCheck` is now a `Check`. |
 | `CascadeTier.invoke` and `specializations/routing/_tier_invocation.py::_TierInvocation` | `CascadeTier(llm=LLMProvider)`: each tier runs as an `LLMChatCall` knot; `ModelCascadeRouter`'s `request` is the prompt string. |
 
 `ParallelToolExecutor` keeps its public shape: each call is a tool knot with `KnotConfig(retry=, timeout=, concurrency_group="tools")` under an `Aggregator`, so core's `GovernedDispatch` owns the per-call backoff and timeout. The shadow and bypass ratchets (`tests/core_seams/test_core_seam_shadows.py`, `tests/specializations/base/test_no_engine_bypass.py`) are all `frozenset()` assertions now.
 
-#### The ADR "agents speaks core" one-cycle deprecation shims (PIR-864)
+#### `pirn-agents` vocabulary onto core: outcomes, hashing, conventions (PIR-872)
 
-Every public name below was kept importable for exactly one deprecation cycle (each raising `DeprecationWarning` on construction) after the ADR "agents speaks core" workstream that replaced it; this release deletes them outright. Each entry names its replacement.
+Deleted outright (no shims, no aliases); every caller, test and doc moved in the same change.
+
+| Removed | Replacement |
+|---|---|
+| `PromptCache.invalidate()`, `.purge_expired()`, `len(cache)` | `await cache.ainvalidate(...)`, `await cache.apurge_expired()`, `await cache.asize()`. |
+| `pirn_agents.serialization.canonical_json.CanonicalJson`, `pirn_agents.serialization.opaque_policy.OpaquePolicy` (the whole `pirn_agents.serialization` package) | `pirn.core.content_hasher.ContentHasher.hash(value, strict=True)`; a type that needs a canonical form declares `__pirn_canonical__()`. `ContentDigest.digest` and `TrajectoryCallKey.args_key` now return core's `sha256:`-prefixed hash (cassette/trace keys and trajectory keys change value; neither is persisted across an upgrade). |
+| `pirn_agents._internal._require._require` | `pirn_agents._internal.optional_import.OptionalImport.require`. |
+| `ApprovalHook` module function `authorize_tool_call()` | `ApprovalHook.authorize()`. |
+| `connector_lifespan()` | `ConnectorLifespan.manage()`. |
+| `pirn_agents.tools.as_tool.as_tool()` | `AsTool.wrap()` (or `agent.as_tool()`). |
+| `pirn_agents.tools.tool_decorator.tool` (`@tool`) | `ToolDecorator.decorate` (`@ToolDecorator.decorate`). |
+| `reciprocal_rank_fusion()` | `ReciprocalRankFusion.fuse()`. |
+| `decay_score()` | `DecayFunction.score()`. |
+| `pirn_agents.testing.tool_test_harness.make_stub_tool`, `assert_tool_schema`, `assert_schema_shape`, `invoke_tool`, `collect_tool_stream` | `StubTool(...)`; `ToolTestHarness.assert_tool_schema`, `.assert_tool_schema_shape`, `.invoke_tool`, `.collect_tool_stream` (static methods). |
+| `pirn_agents.tools.bundles.calculator_toolset`/`web_toolset`/`filesystem_toolset`/`data_toolset`/`retrieval_toolset`/`sandbox_toolset` | `Bundles.calculator_toolset()` … `Bundles.sandbox_toolset()`. |
+| `pirn_agents.evaluation.eval_gate.EvalGate`, `evaluation.gate_result.GateResult` (not a core `Gate`) | `evaluation.eval_regression_check.EvalRegressionCheck`, `evaluation.eval_regression_verdict.EvalRegressionVerdict`. |
+| `SQLAgent(read_only=)` / `_SQLExecutor(read_only=)` instance state | The class is the policy: `SQLAgent` is read-only; `specializations.specialized_agents.read_write_sql_agent.ReadWriteSQLAgent` (pattern `read_write_sql_agent`) may write. No upstream knot can flip it (PIR-817). |
+| `specializations/multi_agent/_specialist_invoker.py::_SpecialistInvoker` | `specializations.multi_agent.specialist_handle.SpecialistHandle` — `SpecialistInvocation(specialist=SpecialistHandle(agent), ...)`, `_ReviewerInvocation(reviewer=SpecialistHandle(agent), ...)`, `await SpecialistHandle(agent).run(**inputs)`. |
+| `MapAgent(run_item, ...)` positional form and its default `_config` | `MapAgent(run_item=..., _config=KnotConfig(id=...), ...)`; every setting is a declared knot input and is validated when the batch runs. |
+| `DebateRoundFramer(**round_<i>=...)` | `DebateRoundFramer(prior_rounds=...)` — one declared input (an `Aggregator` over the prior rounds, or `()` for round 0). |
+| `pirn_agents.batch.batch_item_status.BatchItemStatus`; `BatchItemResult(status=, output=, exception=)`, `.to_result()`, `.from_result()`, `.from_payload()` | `BatchItemResult(outcome=Ok \| Err \| Skipped)`; `succeeded`, `output`, `exception`, `error`, `timed_out` are derived; a resumed item is `Skipped(reason="resumed")`. |
+| `BatchProgress.to_run_state()`, `.from_run_state()`, `.with_completed()`, `.with_all()`, `.from_payload()` | None — `BatchProgress` is a per-fire summary only; resume state is `RunHistory` lineage on `item:<batch_id>:<key>`. |
+| `pirn_agents.tools.tool_status.ToolStatus`; `ToolResult(result=, error=, status=, exception=)`, `.to_result()` | `ToolResult(call_id=, outcome=Ok \| Err \| Skipped, latency=, tokens=)` (or `ToolResult.from_result(...)`); `result`, `error`, `exception`, `succeeded` and the model-facing `status` string (`"ok"`/`"error"`/`"timeout"`/`"skipped"`) are derived. An error-only view carries an `Err` record, so its text is `"<type>: <message>"`. `ToolResult.with_latency()` is new. |
+| `pirn_agents.resilience.failover_outcome.FailoverOutcome` | `FailoverAttempt.result` (`Ok`/`Err`/`Skipped(reason=FailoverAttempt.circuit_open_reason)`); the trace dict carries `outcome` (`"ok"`/`"err"`/`"skipped"`) plus `error_type`. |
+| `pirn_agents.resilience.retry_classification.RetryClassification`, `RetrySafetyClassifier.classify()` | `RetrySafetyClassifier.is_safe(error) -> bool` (a retry-safety verdict, not an outcome). |
+| `pirn_agents.memory.stores.key_index_unreadable_error.KeyIndexUnreadableError` | None — its only raiser (`MemoryStoreKeyIndex`) was deleted in PIR-864. |
+| `ResultCache.get()`/`.put()`/`.has()` (and the subclass overrides) | `cache.get_or_compute(payload, compute)`; raw keyed access is `cache.store` (the core `DataStore`). |
+| `pirn_agents.caching.vector_memo_index.VectorMemoIndex` | `EmbeddingCache` stores vectors in a core `InMemoryDataStore`; `EmbeddingCache.invalidate()` is now a coroutine. |
+
+Also changed: `BudgetBreachError`, `StructuredDecodeError`, `SpecialistInvocationError`, `ConstitutionalViolationError`, `McpError`, `PromptRenderError`, `CircuitOpenError`, `LLMProviderError` and `RateLimitSignal` subclass `pirn.exceptions.pirn_error.PirnError` (keeping their builtin base); `TokenBucketRateLimiter` and `AdaptiveConcurrencyController` mix in `PirnOpaqueValue`; the `Retriever`/`Router`/`Writer`/`AgentPipeline` `process()` catch-alls are `**_`. The agents conventions baseline is 0 in every category, and the vocabulary ratchets (`EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR`, `CANONICAL_JSON_IMPORTERS`, `OUTCOME_ENUMS_BESIDE_RESULT`, `PARALLEL_VOCABULARY_IMPORTERS`, `CHECKPOINTS_OUTSIDE_RUN_HISTORY`, `LIFECYCLE_IMPORTERS`) are empty; the keyed-store and structural-type ratchets are now named design inventories with a reason per entry.
+
+#### Core deletions and module-level functions folded into classes (PIR-872)
+
+pirn is alpha: a replaced name is deleted in the same change, never deprecated
+(`docs/guides/versioning.md`). Apply this table when upgrading.
+
+| Removed | Use instead |
+|---|---|
+| `pirn.emitters.base` / `pirn.triggers.base` / `pirn.streaming.base` (module shims) | `pirn.emitters.emitter.Emitter`, `pirn.triggers.trigger.Trigger`, `pirn.streaming.streaming_source.StreamingSource` |
+| `pirn.domains.*` import shim (`pirn/domains/`, `DomainCompatFinder`/loader) | `import pirn_<domain>` (`pirn_data`, `pirn_ml`, `pirn_signal`, `pirn_agents`, `pirn_health`, `pirn_oilgas`) |
+| `pirn-migrate-imports` console script and `pirn._migrate` | rewrite `pirn.domains.<x>` to `pirn_<x>` directly |
+| `Knot._deprecated_since`, `Knot._deprecation_notice` | — (no construction-warning seam; a replaced knot is deleted) |
+| `pirn_data.specializations.scd.scd_type_1_overwrite.ScdType1Overwrite` | `pirn_data.specializations.incremental.merge_upsert.MergeUpsert` |
+| `pirn.core.hashing.content_hash` (and the `pirn.core.hashing` module) | `pirn.core.content_hasher.ContentHasher.hash` |
+| `pirn.yaml_loader.pipeline_loader.load_pipeline` | `PipelineLoader.load_yaml` |
+| `pirn.engine.shed.shed.detect_cycle` | `pirn.engine.shed.cycle_detector.CycleDetector.detect` |
+| `pirn.check.validator.validate_tapestry` (and the `pirn.check.validator` module) | `pirn.check.tapestry_validator.TapestryValidator.validate` |
+| `pirn.managers.redact.redact_common_secrets` (and the `pirn.managers.redact` module) | `pirn.managers.traceback_redactor.TracebackRedactor.redact_common_secrets` |
+| `pirn.nodes.continuation.continues` | `pirn.nodes.with_continuation.WithContinuation.attach` |
+| `pirn.connectors.connection_config_decorator.connection_config` | `@ConnectionConfigDecorator.apply` |
+| `pirn.core.async_callable.is_async_callable` | `AsyncCallable.is_async_callable` |
+| `pirn.core.knot_source_record.extract_knot_source` | `KnotSourceRecord.from_knot` |
+| `pirn.knot_diff.replay_run` / `compare_runs` | `KnotDiff.replay_run` / `KnotDiff.compare_runs` |
+| `pirn.engine.dispatchers.celery_dispatcher.register_celery_worker_task` | `CeleryDispatcher.register_worker_task` |
+| `pirn.tapestry.current_emitters` / `current_emitter_error_policy` | `Tapestry.current_emitters()` / `Tapestry.current_emitter_error_policy()` |
+| `pirn.viz.tapestry_html_renderer.html_for_tapestry` / `html_for_run` | `TapestryHtmlRenderer.for_tapestry` / `TapestryHtmlRenderer.for_run` |
+| `pirn.viz.mermaid_renderer.mermaid_for_tapestry` / `mermaid_for_run` | `MermaidRenderer.for_tapestry` / `MermaidRenderer.for_run` |
+| `pirn.viz.tapestry_graph_scanner.scan_folder` | `TapestryGraphScanner.scan` |
+| `pirn.viz.explorer_html_generator.generate_explorer_html` | `ExplorerHtmlGenerator.generate` |
+| `pirn.tapestry.get_current_store()` | `Tapestry.current_store()` |
+| `pirn.tapestry.current_tapestry()` | `Tapestry.current()` |
+| `pirn.tapestry.current_run_id()` | `Tapestry.current_run_id()` |
+| `pirn.domain_discovery.discover_installed_domains()` | `DomainDiscovery.discover_installed_domains()` |
+| `pirn.triggers.trigger.run_forever(trigger, tapestry, ...)` | `trigger.run_forever(tapestry, ...)` |
+| `pirn.streaming.streaming_source.run_stream(source, tapestry, ...)` | `source.run_stream(tapestry, ...)` |
+| `@pirn.core.knot_factory.knot` / `knot(fn)` | `@KnotFactory.knot` / `KnotFactory.knot(fn)` |
+
+#### Renamed (PIR-872)
+
+| Old | New |
+|---|---|
+| `pirn.engine.admission.admission_gate.AdmissionGate` | `pirn.engine.admission.admission.Admission` |
+| `pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate` | `pirn.engine.admission.limited_admission.LimitedAdmission` |
+| `pirn.engine.admission.unbounded_admission_gate.UnboundedAdmissionGate` | `pirn.engine.admission.unbounded_admission.UnboundedAdmission` |
+| `pirn.nodes.continuation` (module) | `pirn.nodes.with_continuation` |
+| `pirn.core._content_hasher._ContentHasher` | `pirn.core.content_hasher.ContentHasher` |
+| `pirn.managers.redact._TracebackRedactor` | `pirn.managers.traceback_redactor.TracebackRedactor` |
+| `pirn.check.validator._TapestryValidator` | `pirn.check.tapestry_validator.TapestryValidator` |
+| `pirn.domain_discovery._DomainDiscovery` | `pirn.domain_discovery.DomainDiscovery` |
+| `InMemoryDataStore.DEFAULT_MAX_VALUES` | `InMemoryDataStore.default_max_values` |
+| `InMemoryHistory.DEFAULT_MAX_RUNS` | `InMemoryHistory.default_max_runs` |
+| `InvocationIdentity.UNCOMPARABLE_MARKER` | `InvocationIdentity.uncomparable_marker` |
+
+`Knot.process` and `SubTapestry.process` declare their catch-all as `**_`, and
+the conventions gate no longer applies the knot-subclass rules to pirn-core's
+own definition of a framework root (`Knot`, `Aggregator`, …); every subclass is
+still checked.
+
+#### Names superseded by the ADR "agents speaks core" (PIR-864)
+
+Every public name below was replaced by an ADR "agents speaks core" workstream and is deleted outright. Each entry names its replacement.
 
 **Tool / agents (WS1):**
 - `Tool.invoke()` and the invoke-shaped `Tool` subclass path (`Tool.__init_subclass__`'s legacy detection, `_legacy_tool`/`_legacy_init`/`_legacy_factory`/`_legacy_declaration`) — construct the tool knot and run it in a `Tapestry`, or `ToolFactory.for_call(call)`.
@@ -345,7 +379,7 @@ Every public name below was kept importable for exactly one deprecation cycle (e
 - `_FanoutRunner`, `AsyncFanoutEngine` — one knot per item under a core `Aggregator`; per-item timeout/retry via `KnotConfig.timeout`/`KnotConfig.retry`.
 - `AgentTool.invoke()` — `AgentTool.for_call(call)` run as a knot, or `run_view()`.
 
-`ToolResult`/`ToolStatus` are **not** removed: PIR-865 (#348) gave `ToolResult.from_result`/`ToolStatus.SKIPPED` a live role rendering gated/approval outcomes to the model, so they remain the codec's rendering type.
+`ToolResult` was **not** removed: PIR-865 (#348) gave `ToolResult.from_result` a live role rendering gated/approval outcomes to the model (PIR-872 later deleted `ToolStatus` and the `gated=` flag; see above).
 
 **Observability (WS4a):**
 - `Tracer`, `OtelSink`, `LoggingSink`, `SpanEmittingToolInvocationHook`, `Span`, `SpanKind`, `SpanStatus`, `OpenSpanEntry`, `ObservabilitySink` — `AgentCallRecorder.record(...)` emits a core `StatusEvent` through the run's own emitters (`OpenTelemetryEmitter`, `LogEmitter`, or any custom `Emitter`); no separate sink or hook to build.
@@ -358,10 +392,10 @@ Every public name below was kept importable for exactly one deprecation cycle (e
 **Batch (WS4b):**
 - `BatchScheduler`, `BatchCheckpointer` — `MapAgent` resumes from a `RunHistory` lineage query on the item's knot id; pass `history=`/`data_store=`.
 
-`BatchProgress` is **not** removed: it is not itself a deprecation shim, and `TriggeredBatch`'s live `run()` still returns it as its per-fire summary.
+`BatchProgress` was **not** removed: `TriggeredBatch`'s `run()` returns it as its per-fire summary (PIR-872 reduced it to a pure summary; see above).
 
 **Concurrency (WS4b/PIR-866):**
-- `BackpressureSemaphore`, `Bulkhead`, `ConcurrencyConfig`, `BulkheadConfig` (and their private `_backpressure_admission`/`_admission_slot_knot` implementation) — declare `KnotConfig(concurrency_group=<backend>)` on the knots that call a backend and `ConcurrencyLimits(groups={<backend>: n})` on the run; every knot in that group is metered together by one shared `AdmissionGate`. `agent/parallel_tool_executor.py` and three `specializations/` pipelines (`document_processing/ingestion_pipeline.py`, `multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`) that read `ConcurrencyConfig.max_concurrency` as a class-level default now default to a plain literal `8`. `evaluation/run_eval.py::RunEval.run` — the one caller with no `Tapestry` to attach a group to — now bounds its per-item concurrency with a plain `asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8) instead.
+- `BackpressureSemaphore`, `Bulkhead`, `ConcurrencyConfig`, `BulkheadConfig` (and their private `_backpressure_admission`/`_admission_slot_knot` implementation) — declare `KnotConfig(concurrency_group=<backend>)` on the knots that call a backend and `ConcurrencyLimits(groups={<backend>: n})` on the run; every knot in that group is metered together by one shared `Admission`. `agent/parallel_tool_executor.py` and three `specializations/` pipelines (`document_processing/ingestion_pipeline.py`, `multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`) that read `ConcurrencyConfig.max_concurrency` as a class-level default now default to a plain literal `8`. `evaluation/run_eval.py::RunEval.run` — the one caller with no `Tapestry` to attach a group to — now bounds its per-item concurrency with a plain `asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8) instead.
 
 **Naming (`*Gate` → `*Check`, Knot Design Rule 7):**
 - `FactCheckGate`, `InputGuardrailGate`, `OutputGuardrailGate`, `AcceptGate` (pirn-agents), `ChampionChallengerGate` (pirn-ml), `SeismicQCGate` (pirn-oilgas), `ClinicalDataQualityGate`, `GenomicsQCGate` (pirn-health) — construct `FactCheck`, `InputGuardrailCheck`, `OutputGuardrailCheck`, `AcceptCheck`, `ChampionChallengerCheck`, `SeismicQCCheck`, `ClinicalDataQualityCheck`, `GenomicsQCCheck` respectively.
@@ -371,9 +405,9 @@ Every public name below was kept importable for exactly one deprecation cycle (e
 - `MessagesPassthrough` (WS5a/WS5b) — `Parameter("seed_messages", tuple[AgentMessage, ...], default=..., ...)` for the constant-seed case (the class's other call shape, an upstream `Knot`, had no in-tree or external caller).
 - `ConsensusAggregator` (WS5b) — `ConsensusPipeline`.
 - `AgentContext` (WS6b) — `ConversationPayload` (its `extra=` kwarg replaces `AgentContext`'s `metadata`).
-- `ContentAddress`, `content_address()` (WS2) — `pirn.core.hashing.content_hash(value, strict=True)` directly.
+- `ContentAddress`, `content_address()` (WS2) — `ContentHasher.hash(value, strict=True)` (`pirn.core.content_hasher`) directly.
 - `IdempotencyKeyAssigner.legacy_key()` (WS2 part 2) — `IdempotencyKeyAssigner.assign()` (already the default derivation).
-- `AgentSpecLoader`'s legacy flat-dict dialect (WS6a) — `AgentSpecLoader.from_mapping`/`from_json`/`from_yaml`/`from_path` now accept only a core pipeline document (a top-level `nodes:` list); `AgentSpecLoader.to_json`/`to_yaml` now write that same shape (previously the flat dict) so read/write keep round-tripping. `AgentSpec.from_dict()`/`.to_dict()` are unaffected — they were never deprecated and still construct/serialise the flat shape directly for a caller that already has one.
+- `AgentSpecLoader`'s legacy flat-dict dialect (WS6a) — `AgentSpecLoader.from_mapping`/`from_json`/`from_yaml`/`from_path` now accept only a core pipeline document (a top-level `nodes:` list); `AgentSpecLoader.to_json`/`to_yaml` now write that same shape (previously the flat dict) so read/write keep round-tripping. `AgentSpec.from_dict()`/`.to_dict()` are unaffected — they still construct/serialise the flat shape directly for a caller that already has one.
 
 **Module-level functions folded into their class (PIR-869 follow-through):**
 - `pirn_agents.evaluation.run_eval:run_eval` — `RunEval.run(...)` (already the implementation; the free function was a thin wrapper).

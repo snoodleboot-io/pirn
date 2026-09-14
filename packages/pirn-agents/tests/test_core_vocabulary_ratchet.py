@@ -5,10 +5,13 @@ retires three agents-local parallels to a core primitive:
 
 (a) an agents exception hierarchy that does not root on
     :class:`pirn.exceptions.pirn_error.PirnError`;
-(b) :class:`~pirn_agents.serialization.canonical_json.CanonicalJson` as a
-    parallel canonicaliser to :func:`pirn.core.hashing.content_hash`;
+(b) ``CanonicalJson`` (deleted, PIR-872) as a parallel canonicaliser to
+    :meth:`pirn.core.content_hasher.ContentHasher.hash`;
 (c) an outcome enum modelling success/failure/skip beside core's
     ``Ok | Err | Skipped`` ``Result``.
+
+PIR-872 burned all three inventories down to empty; each is kept as an empty
+exact-equality assertion so a reintroduction fails loudly.
 
 Like ``tests/specializations/base/test_no_engine_bypass.py``, this is a
 ratchet, not a clean assertion: WS2 burns down (a) for the files it owns
@@ -53,79 +56,38 @@ _PACKAGE_ROOT = Path(__file__).parent.parent / "pirn_agents"
 # WS2 fixed the 8 roots under exceptions/** and security/** (its lane):
 # ToolInvocationError, AgentRecursionError (since deleted, PIR-872), SandboxDisabledError,
 # UnsupportedModalityError, MissingCassetteEntryError (since deleted, PIR-872), InjectionDetectedError,
-# McpTrustError, UntrustedDirectiveError. The 10 below predate this ticket and
-# sit outside WS2's owned directories.
-EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
-    {
-        "performance/budget_breach_error.py::BudgetBreachError",
-        "specializations/structured_output/structured_decode_error.py::StructuredDecodeError",
-        "specializations/multi_agent/specialist_invocation_error.py::SpecialistInvocationError",
-        "specializations/reflection/constitutional_violation_error.py::ConstitutionalViolationError",
-        "mcp/mcp_error.py::McpError",
-        "prompt/prompt_render_error.py::PromptRenderError",
-        "resilience/circuit_open_error.py::CircuitOpenError",
-        "memory/stores/key_index_unreadable_error.py::KeyIndexUnreadableError",
-        "llm/llm_provider_error.py::LLMProviderError",
-        "batch/rate_limit_signal.py::RateLimitSignal",
-    }
-)
+# McpTrustError, UntrustedDirectiveError. PIR-872 rooted the remaining nine on
+# PirnError (keeping each one's builtin base where callers catch it):
+# BudgetBreachError, StructuredDecodeError, SpecialistInvocationError,
+# ConstitutionalViolationError, McpError, PromptRenderError, CircuitOpenError,
+# LLMProviderError, RateLimitSignal -- and deleted KeyIndexUnreadableError,
+# whose only raiser (MemoryStoreKeyIndex) PIR-864 had already deleted. Empty,
+# not deleted: a new agents exception root without PirnError fails here.
+EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR: frozenset[str] = frozenset()
 
-# --- (b) modules importing CanonicalJson, frozen ----------------------------
+# --- (b) modules importing CanonicalJson ------------------------------------
 #
-# ADR agents-speaks-core WS2 part 2 sanctioned the digest cutover: the
-# `sha256:` prefix core emits IS the format version.
-# `builder/agent_knot_id_factory.py` now calls `pirn.core.hashing.content_hash`
-# directly and is off this list; `caching/content_address.py` migrated too
-# (part 2 added `content_hash`'s `strict=True` mode, which closes the PIR-785
-# gap that blocked it in part 1) and its `ContentAddress`/`content_address`
-# one-cycle wrapper is deleted (PIR-864). `resilience/idempotency_key_assigner.py`
-# ALSO switched its `assign()` derivation to `content_hash`; its `legacy_key()`
-# bridge (the last thing that imported `CanonicalJson` there) is deleted
-# (PIR-864), taking it off this list. `sessions/run_checkpoint.py` -- WS3 part
-# 2's versioned-checkpoint-migration importer -- is itself a deleted (PIR-864)
-# one-cycle shim, taking it off this list too. `agent/parallel_tool_executor.py`
-# dropped it with WS1 (the executor no longer digests arguments itself);
-# `determinism/content_digest.py` and `evaluation/trajectory_call_key.py`
-# remain -- non-durable/in-memory-only callers per their own module
-# docstrings, but migrating them off `CanonicalJson` is a decision for
-# whichever lane owns `CanonicalJson`'s own retirement, not this one.
-CANONICAL_JSON_IMPORTERS = frozenset(
-    {
-        "determinism/content_digest.py",
-        "evaluation/trajectory_call_key.py",
-    }
-)
+# `CanonicalJson`/`OpaquePolicy` are deleted (PIR-872): every former caller
+# (`determinism/content_digest.py`, `evaluation/trajectory_call_key.py`, and
+# earlier `builder/agent_knot_id_factory.py`,
+# `resilience/idempotency_key_assigner.py`) calls
+# `pirn.core.content_hasher.ContentHasher.hash(..., strict=True)` directly. Kept as an empty
+# assertion so a reintroduced parallel canonicaliser is loud.
+CANONICAL_JSON_IMPORTERS: frozenset[str] = frozenset()
 
-# --- (c) outcome enums beside Result, frozen --------------------------------
+# --- (c) outcome enums beside Result ----------------------------------------
 #
-# Hand-curated, not purely structural: "models success/failure/skip beside
-# Result" is a semantic judgment (see the ADR review), not something member
-# names alone determine cleanly — `RetryClassification`'s SAFE/UNSAFE members
-# don't textually match an OK/ERROR shape the way the other three do, yet the
-# ADR review named it explicitly as one of these four. The self-test below
-# guards the parts that *are* mechanical: every name here must resolve to a
-# real `Enum` subclass discovered by the walk (catches a rename/deletion),
-# and the walk's total count must not collapse to zero (catches the walk
-# itself silently breaking).
-#
-# `BatchItemStatus` is WS2's own lane: it now has `to_result()`/`from_result()`
-# bridges to `Ok | Err | Skipped` (see `batch/batch_item_result.py`), kept
-# for one deprecation cycle because `MapAgent`'s scheduling (WS4b) still
-# produces/consumes it directly — so it remains in this inventory until that
-# lane retires it, not because WS2 left it untouched. `ToolStatus` is not a
-# one-cycle shim (PIR-865 gave it a live rendering role — see
-# `tools/tool_result.py`); it stays in this inventory because it is still,
-# structurally, an outcome enum beside `Result`, independent of whether it is
-# deprecated. `SpanStatus` (`observability/span_status.py`) was the
-# observability plane's one-cycle shim and is deleted (PIR-864).
-OUTCOME_ENUMS_BESIDE_RESULT = frozenset(
-    {
-        "tools/tool_status.py::ToolStatus",
-        "batch/batch_item_status.py::BatchItemStatus",
-        "resilience/failover_outcome.py::FailoverOutcome",
-        "resilience/retry_classification.py::RetryClassification",
-    }
-)
+# An outcome is `Ok | Err | Skipped`. PIR-872 deleted the last four parallel
+# enums: `BatchItemStatus` (`BatchItemResult.outcome` is the item's `Result`; a
+# timeout is an `Err` whose error type is `KnotTimeoutError`), `ToolStatus`
+# (`ToolResult.outcome` is the call's `Result`; the model-facing `status` is a
+# string derived from it), `FailoverOutcome` (`FailoverAttempt.result` already
+# carried the `Result`; a circuit-open skip is `Skipped(reason="circuit_open")`),
+# and `RetryClassification` -- not an outcome at all but a two-valued
+# retry-safety verdict about an error, now `RetrySafetyClassifier.is_safe()`
+# returning a `bool`. Empty, not deleted: the self-test below still fails on any
+# new enum with both an OK-like and an ERROR-like member.
+OUTCOME_ENUMS_BESIDE_RESULT: frozenset[str] = frozenset()
 
 
 class TestExceptionRootsFrozen(unittest.TestCase):
@@ -140,7 +102,7 @@ class TestExceptionRootsFrozen(unittest.TestCase):
             for name in self.classes
             if VocabularyInventory.is_exception_class(name, self.classes)
         ]
-        assert len(exception_classes) >= 15, exception_classes
+        assert len(exception_classes) >= 10, exception_classes
 
     def test_roots_without_pirn_error_are_frozen(self) -> None:
         roots_without_pirn_error = {
@@ -167,12 +129,27 @@ class TestExceptionRootsFrozen(unittest.TestCase):
             ),
         }
 
+    def test_pir872_roots_now_have_pirn_error(self) -> None:
+        """The 9 roots PIR-872 fixed must actually resolve PirnError."""
+        for name in (
+            "BudgetBreachError",
+            "StructuredDecodeError",
+            "SpecialistInvocationError",
+            "ConstitutionalViolationError",
+            "McpError",
+            "PromptRenderError",
+            "CircuitOpenError",
+            "LLMProviderError",
+            "RateLimitSignal",
+        ):
+            assert name in self.classes, f"{name} not found by the walk"
+            assert VocabularyInventory.roots_on_pirn_error(name, self.classes), name
+
     def test_ws2_owned_roots_now_have_pirn_error(self) -> None:
         """The roots WS2 fixed must actually resolve PirnError, not just be absent above.
 
         WS2 fixed 8; ``AgentRecursionError`` (core ``RunNesting``) and
-        ``MissingCassetteEntryError`` (core replay) were since deleted (PIR-872),
-        leaving 6.
+        ``MissingCassetteEntryError`` (core replay) were since deleted (PIR-872).
         """
         fixed = [
             "ToolInvocationError",
@@ -211,10 +188,6 @@ class TestCanonicalJsonImportersFrozen(unittest.TestCase):
             ),
         }
 
-    def test_canonical_json_itself_is_not_counted_as_its_own_importer(self) -> None:
-        canonical_json_path = _PACKAGE_ROOT / "serialization" / "canonical_json.py"
-        assert not VocabularyInventory.imports_canonical_json(canonical_json_path)
-
     def test_detector_recognises_a_from_import_shape(self) -> None:
         import tempfile
 
@@ -230,12 +203,12 @@ class TestCanonicalJsonImportersFrozen(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             module = Path(tmp) / "user.py"
-            module.write_text("from pirn_agents.serialization.opaque_policy import OpaquePolicy\n")
+            module.write_text("from pirn.core.content_hasher import ContentHasher\n")
             assert not VocabularyInventory.imports_canonical_json(module)
 
 
 class TestOutcomeEnumsFrozen(unittest.TestCase):
-    """(c) outcome enums beside Result are listed here, and are real Enums."""
+    """(c) outcome enums beside Result are listed here (none remain), and are real Enums."""
 
     def setUp(self) -> None:
         self.classes = VocabularyInventory.discover_classes(_PACKAGE_ROOT)
@@ -244,7 +217,7 @@ class TestOutcomeEnumsFrozen(unittest.TestCase):
         enums = [
             name for name in self.classes if VocabularyInventory.is_enum_class(name, self.classes)
         ]
-        assert len(enums) >= 15, enums
+        assert len(enums) >= 10, enums
 
     def test_every_listed_outcome_enum_resolves_to_a_real_enum(self) -> None:
         for label in OUTCOME_ENUMS_BESIDE_RESULT:

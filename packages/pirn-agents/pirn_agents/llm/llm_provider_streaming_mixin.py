@@ -108,15 +108,11 @@ class LLMProviderStreamingMixin:
             if delta.tool_call is not None:
                 tool_deltas.append(delta.tool_call)
 
-        # design-decision-override: StreamingToolCallParser.parse_to_list wants
-        # an AsyncIterator, and the tool-call fragments are already fully
-        # collected in-memory here; closing over tool_deltas to re-wrap it as
-        # one is simpler than adding a list-accepting overload to the parser.
-        async def _emit() -> AsyncIterator[Mapping[str, Any]]:
-            for fragment in tool_deltas:
-                yield fragment
-
-        calls = tuple(await StreamingToolCallParser().parse_to_list(_emit()))
+        calls = tuple(
+            await StreamingToolCallParser().parse_to_list(
+                LLMProviderStreamingMixin._replay_fragments(tool_deltas)
+            )
+        )
         return AgentResponse(
             content="".join(content_parts),
             tool_calls=calls,
@@ -124,3 +120,11 @@ class LLMProviderStreamingMixin:
             usage=usage,
             cost=self._mapper.estimate_cost(usage),
         )
+
+    @staticmethod
+    async def _replay_fragments(
+        fragments: Sequence[Mapping[str, Any]],
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        """Re-yield already-collected tool-call fragments as the async stream the parser reads."""
+        for fragment in fragments:
+            yield fragment

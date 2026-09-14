@@ -46,6 +46,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ibis.ibis_table import IbisTable
+from pirn_data.value_shape import ValueShape
 
 
 class IbisFilter(Knot):
@@ -71,7 +72,7 @@ class IbisFilter(Knot):
         Returns:
             A new IbisTable with the filter predicate appended to the deferred expression.
         """
-        if not callable(predicate):
+        if not ValueShape.is_callable(predicate):
             raise TypeError("IbisFilter: predicate must be a callable (table) -> ibis.Expr")
         expression = predicate(batch.expression)
-        return batch.with_expression(batch.expression.filter(expression))  # type: ignore[arg-type]
+        return batch.with_expression(batch.expression.filter(expression))

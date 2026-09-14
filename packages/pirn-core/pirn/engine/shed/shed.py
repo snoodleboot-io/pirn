@@ -116,7 +116,3 @@ class Shed:
         if len(order) != len(self.knots):
             raise ShedError("cycle detected during topological sort")
         return order
-
-
-#: Public name for :meth:`CycleDetector.detect` (bare alias, not a ``def``).
-detect_cycle = CycleDetector.detect

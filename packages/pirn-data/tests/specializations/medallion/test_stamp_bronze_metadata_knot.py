@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -48,11 +48,11 @@ class TestStampBronzeMetadataKnot(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_source_uri_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return [(1, "alice")]
 
-        @knot
+        @KnotFactory.knot
         async def emit_uri() -> str:
             return "db://src/t"
 

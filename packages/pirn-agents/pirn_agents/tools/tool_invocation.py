@@ -98,7 +98,7 @@ class ToolInvocation(SubTapestry):
 
         Args:
             tool: The capability to call — a :class:`ToolFactory`, a ``Tool``
-                class, a ``@tool``/``@knot`` factory, or an upstream knot
+                class, a ``@ToolDecorator.decorate``/``@KnotFactory.knot`` factory, or an upstream knot
                 producing one.
             call: The :class:`ToolCall` to execute, either as a literal or as
                 an upstream knot the engine resolves first.
@@ -217,22 +217,14 @@ class ToolInvocation(SubTapestry):
                 None,
             )
             if row is not None:
-                view = ToolResult(
-                    call_id=view.call_id,
-                    result=view.result,
-                    error=view.error,
-                    status=view.status,
-                    latency=ToolResult.latency_of(row),
-                    tokens=view.tokens,
-                    exception=view.exception,
-                )
+                view = view.with_latency(ToolResult.latency_of(row))
         call = parent_results.get("call") if isinstance(parent_results, Mapping) else None
         if not isinstance(call, ToolCall):
             call = self.config_values.get("call")
         await AgentCallRecorder.record(
             knot_id=self.knot_id,
             kind="tool",
-            ok=view.error is None,
+            ok=view.succeeded,
             latency=view.latency if view.latency is not None else elapsed,
             detail=view.error,
             tool_name=call.tool_name if isinstance(call, ToolCall) else None,

@@ -5,7 +5,7 @@ The ADR "agents speaks core" (WS1) makes the *class* the capability and an
 :class:`~pirn_agents.tools.toolset.Toolset`, as a knot input named ``tools``,
 in a registry — and a bare class cannot carry the dependencies a call never
 supplies (a filesystem root, a database connector).  ``ToolFactory`` is that
-value: a :class:`~pirn.core.knot_factory.KnotFactory` (``@tool`` is ``@knot``
+value: a :class:`~pirn.core.knot_factory.KnotFactory` (``@ToolDecorator.decorate`` is ``@KnotFactory.knot``
 plus a declaration) over any ``Knot`` class, with the inputs :meth:`bind`
 pre-fills, and the model-facing envelope read off the class.
 
@@ -30,7 +30,7 @@ Algorithm (``for_call``):
        timeout=..., retry=..., concurrency_group=...))``.  A ``call_id`` that
        is not a valid knot id is hashed into one.
 
-Any ``Knot`` class is a capability.  A ``SubTapestry`` agent, a ``@knot``
+Any ``Knot`` class is a capability.  A ``SubTapestry`` agent, a ``@KnotFactory.knot``
 function, a plain knot — :meth:`of` accepts the class, a ``KnotFactory``, or
 an already-configured instance (whose literal inputs become the binding).
 Only :class:`~pirn_agents.tools.tool.Tool` subclasses add the envelope
@@ -135,8 +135,8 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
     def of(cls, candidate: Any) -> ToolFactory:
         """Return *candidate* as a :class:`ToolFactory`.
 
-        Accepts a factory (returned as is), a ``KnotFactory`` (``@knot``,
-        ``@tool``), a ``Knot`` class, or a configured ``Knot`` instance (its
+        Accepts a factory (returned as is), a ``KnotFactory`` (``@KnotFactory.knot``,
+        ``@ToolDecorator.decorate``), a ``Knot`` class, or a configured ``Knot`` instance (its
         literal inputs and defaulted parameters become the binding).
 
         Raises:

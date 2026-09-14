@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WalkForwardValidator`` — SubTapestry that performs walk-forward
 cross-validation for time-series models.
 
@@ -31,7 +33,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -43,7 +45,7 @@ from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _collect_walk_forward_reports(
     reports: list[EvalReportPayload],
 ) -> tuple[EvalReportPayload, ...]:
@@ -127,7 +129,7 @@ class WalkForwardValidator(SubTapestry):
                 f"test_window={test_window}; need at least {required} rows"
             )
         now = datetime.now(UTC)
-        eval_nodes = []
+        eval_nodes: list[Knot] = []
         for step in range(n_steps):
             train_partition = self._mk(dataset, step, "train", train_window, now)
             test_partition = self._mk(dataset, step, "test", test_window, now)
@@ -156,7 +158,7 @@ class WalkForwardValidator(SubTapestry):
                 )
             )
         collected = Aggregator(
-            combine=lambda **kw: list(kw.values()),
+            combine=self._reports_in_order,
             _config=KnotConfig(id="collect-reports"),
             **{f"r{i}": eval_nodes[i] for i in range(n_steps)},
         )
@@ -181,3 +183,8 @@ class WalkForwardValidator(SubTapestry):
             source_uri=source.source_uri,
             fetched_at=fetched_at,
         )
+
+    @staticmethod
+    def _reports_in_order(**reports: EvalReportPayload) -> list[EvalReportPayload]:
+        """Aggregator ``combine``: the parent evaluation reports as a list, in wiring order."""
+        return list(reports.values())

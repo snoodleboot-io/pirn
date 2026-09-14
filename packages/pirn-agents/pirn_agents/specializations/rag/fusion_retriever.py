@@ -29,7 +29,7 @@ Algorithm:
     3. A :class:`~pirn.nodes.reduce_.Reduce` keys each hit by its ``id`` (or a
        stable fallback), records the first-seen mapping, builds per-query
        ranked key lists, and fuses them via
-       :func:`~pirn_agents.retrieval.reciprocal_rank_fusion.reciprocal_rank_fusion`.
+       :meth:`~pirn_agents.retrieval.reciprocal_rank_fusion.ReciprocalRankFusion.fuse`.
     4. Return the top ``top_k`` fused documents, each with a ``fusion_score``.
 
 Math:

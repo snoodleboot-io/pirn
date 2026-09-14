@@ -5,19 +5,19 @@ from __future__ import annotations
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.map_markers import Map
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def make_user(idx: int, **_) -> dict:
     return {"id": idx, "name": f"u{idx}"}
 
 
-@knot
+@KnotFactory.knot
 async def maybe_pos(v: int, **_) -> int:
     if v < 0:
         raise ValueError("negative")
@@ -56,7 +56,7 @@ async def test_map_inner_failure_propagates():
 
 
 def test_map_cross_product_rejected():
-    @knot
+    @KnotFactory.knot
     async def add(a: int, b: int, **_) -> int:
         return a + b
 
@@ -69,7 +69,7 @@ def test_map_cross_product_rejected():
 async def test_map_with_shared_config_value():
     """Non-Knot kwargs are still forwarded as config values."""
 
-    @knot
+    @KnotFactory.knot
     async def label(value: int, prefix: str, **_) -> str:
         return f"{prefix}{value}"
 

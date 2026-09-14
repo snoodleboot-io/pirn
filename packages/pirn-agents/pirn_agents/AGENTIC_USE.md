@@ -47,7 +47,7 @@ pirn_agents/
 │   └── llm_provider.py          LLMProvider           — interface you must implement
 ├── tools/
 │   ├── tool.py                  Tool                  — interface you must implement (a Knot class)
-│   └── tool_decorator.py        @tool / FunctionTool  — shorthand for plain functions
+│   └── tool_decorator.py        @ToolDecorator.decorate / FunctionTool  — shorthand for plain functions
 ├── memory/stores/
 │   └── memory_store.py          MemoryStore           — interface you must implement
 ├── types/messaging/
@@ -152,7 +152,7 @@ class AnthropicProvider(LLMProvider):
 
 ---
 
-### Tool / @tool decorator
+### Tool / @ToolDecorator.decorate decorator
 
 **Contract:** A `Tool` is a `Knot` subclass — the capability is the class, one
 call is an instance built with `KnotConfig(id=call_id)` plus the call's
@@ -164,20 +164,20 @@ runs. A dependency a call never supplies — an API key, an HTTP client, a
 connection pool — is bound once with `bind()`, which hides it from the
 model's declaration.
 
-**When to use `@tool` vs subclassing:** Use `@tool` for plain functions with
+**When to use `@ToolDecorator.decorate` vs subclassing:** Use `@ToolDecorator.decorate` for plain functions with
 no bound dependencies. Use `Tool` subclassing when the tool needs an injected
 API key, HTTP client, or connection pool via `bind()`.
 
 ```python
-# @tool form — name, description, and schema derived automatically
-from pirn_agents.tools.tool_decorator import tool
+# @ToolDecorator.decorate form — name, description, and schema derived automatically
+from pirn_agents.tools.tool_decorator import ToolDecorator
 
-@tool
+@ToolDecorator.decorate
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web and return a summary of the top results."""
     ...  # your implementation
 
-@tool
+@ToolDecorator.decorate
 def lookup_policy(topic: str) -> str:
     """Look up an internal policy document by topic keyword."""
     return POLICIES.get(topic, "No policy found.")
@@ -570,7 +570,7 @@ Every entry below was checked against the real `__init__` signature (grep it you
 | Retry on parse failure | `RetryOnParseFailure(prompt=..., llm=..., parser=..., max_retries=3, _config=...)` |
 | Multi-agent fan-out | `ParallelSpecialistFanOut(task=..., specialists={...}, _config=...)` |
 | Round-robin review | `RoundRobinReview(response=..., reviewers=[...], _config=...)` |
-| Decentralised swarm handoff | Implement `Knot.process` to call `get_current_store().register(next_agent)` |
+| Decentralised swarm handoff | Implement `Knot.process` to call `Tapestry.current_store().register(next_agent)` |
 | Chain-of-thought reasoning | `ChainOfThought(prompt=..., llm=..., _config=...)` |
 | Self-consistency ensemble | `SelfConsistencyEnsemble(prompt=..., llm=..., samples=5, _config=...)` |
 | Tree-of-thought search | `TreeOfThought(prompt=..., llm=..., k_candidates=3, beam_width=2, depth=3, _config=...)` |

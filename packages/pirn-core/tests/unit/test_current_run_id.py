@@ -1,4 +1,4 @@
-"""Tests for the public ``current_run_id()`` accessor.
+"""Tests for the public ``Tapestry.current_run_id()`` accessor.
 
 The run id has always been carried in a ContextVar, but only as the private
 ``_current_run_id``.  Downstream packages that want to correlate their own
@@ -15,20 +15,20 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry, current_run_id
+from pirn.tapestry import Tapestry
 
 _seen: list[str | None] = []
 
 
-@knot
+@KnotFactory.knot
 async def _capture(x: int) -> int:
     """Record the run id visible from inside a knot's process()."""
-    _seen.append(current_run_id())
+    _seen.append(Tapestry.current_run_id())
     return x
 
 
@@ -38,7 +38,7 @@ class CurrentRunIdTests(unittest.IsolatedAsyncioTestCase):
 
     def test_returns_none_outside_a_run(self):
         """No run in flight means no run id — not a stale one, not a guess."""
-        assert current_run_id() is None
+        assert Tapestry.current_run_id() is None
 
     async def test_returns_the_run_id_during_a_run(self):
         with Tapestry() as t:
@@ -59,7 +59,7 @@ class CurrentRunIdTests(unittest.IsolatedAsyncioTestCase):
 
         await t.run(RunRequest(parameters={"x": 1}), terminals=a)
 
-        assert current_run_id() is None
+        assert Tapestry.current_run_id() is None
 
     async def test_survives_a_copy_context_thread_hop(self):
         """ThreadDispatcher hands work to threads via copy_context() (PIR-767).
@@ -74,10 +74,12 @@ class CurrentRunIdTests(unittest.IsolatedAsyncioTestCase):
         request = RunRequest(parameters={"x": 1})
         hopped: list[str | None] = []
 
-        @knot
+        @KnotFactory.knot
         async def _hop(x: int) -> int:
             ctx = contextvars.copy_context()
-            thread = threading.Thread(target=lambda: hopped.append(ctx.run(current_run_id)))
+            thread = threading.Thread(
+                target=lambda: hopped.append(ctx.run(Tapestry.current_run_id))
+            )
             thread.start()
             thread.join()
             return x
@@ -104,10 +106,12 @@ class CurrentRunIdTests(unittest.IsolatedAsyncioTestCase):
 
         seen: list[str | None] = []
 
-        @knot
+        @KnotFactory.knot
         async def _boundary(x: int) -> int:
             empty = contextvars.Context()
-            thread = threading.Thread(target=lambda: seen.append(empty.run(current_run_id)))
+            thread = threading.Thread(
+                target=lambda: seen.append(empty.run(Tapestry.current_run_id))
+            )
             thread.start()
             thread.join()
             return x
@@ -139,7 +143,7 @@ class SubTapestryRunIdTests(unittest.IsolatedAsyncioTestCase):
             async def process(self, **_: Any) -> Any:
                 class _Leaf(Source):
                     async def process(self, **_kw: Any) -> int:
-                        inner_seen.append(current_run_id())
+                        inner_seen.append(Tapestry.current_run_id())
                         return 1
 
                 return _Leaf(_config=KnotConfig(id="leaf"))
@@ -155,7 +159,7 @@ class SubTapestryRunIdTests(unittest.IsolatedAsyncioTestCase):
         assert inner_seen[0] is not None
         assert inner_seen[0] != outer_request.run_id, (
             "the inner run has its own id; if this ever equals the outer id, "
-            "current_run_id()'s docstring is wrong"
+            "Tapestry.current_run_id()'s docstring is wrong"
         )
 
 

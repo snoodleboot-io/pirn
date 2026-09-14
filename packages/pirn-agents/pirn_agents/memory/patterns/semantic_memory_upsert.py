@@ -18,7 +18,7 @@ Algorithm
 Dedup (ADR "agents speaks core" WS3 part 4)
 --------------------------------------------
 A keyed identity is a knot id, not a KV slot: each fact's identity is
-``pirn.core.hashing.content_hash(fact)`` itself — the *same* fact text always
+``pirn.core.content_hasher.ContentHasher.hash(fact)`` itself — the *same* fact text always
 maps to the *same* identity. That makes "has this fact already been recorded"
 a single, cheap ``RunHistory`` lookup
 (:meth:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore.latest_output_hash`)
@@ -42,7 +42,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -128,7 +128,7 @@ class SemanticMemoryUpsert(Knot):
         namespace = type(self)._namespace
         upserted = 0
         for fact in facts:
-            key = content_hash(fact)
+            key = ContentHasher.hash(fact)
             already_recorded = (
                 await store.latest_output_hash(namespace=namespace, key=key) is not None
             )

@@ -26,7 +26,7 @@ from pirn.core.ok import Ok
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.emitters.emitter import Emitter
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
 from pirn.nodes.aggregator import Aggregator
@@ -346,7 +346,7 @@ class TestInheritedReplayPicksTheInnerRunByOrdinal(unittest.IsolatedAsyncioTestC
     def _plane(replay: ReplaySession | None) -> ExecutionPlane:
         return ExecutionPlane(
             dispatcher=LocalDispatcher(),
-            gate=UnboundedAdmissionGate(),
+            gate=UnboundedAdmission(),
             limits=None,
             admission_observers=(),
             replay=replay,

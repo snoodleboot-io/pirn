@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pandas as pd
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,7 +19,7 @@ from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.frames.pandas.pandas_filter import PandasFilter
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
@@ -72,7 +72,7 @@ class TestPandasFilter(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_predicate_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_predicate() -> object:
             return lambda df: df["active"]
 
@@ -91,7 +91,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PandasFilter:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame())
 
@@ -110,4 +110,12 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 batch=_users_batch(),
                 predicate="active == True",
+            )
+
+    async def test_rejects_predicate_that_selects_a_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "boolean row mask"):
+            await k.process(
+                batch=_users_batch(),
+                predicate=lambda df: "region",
             )

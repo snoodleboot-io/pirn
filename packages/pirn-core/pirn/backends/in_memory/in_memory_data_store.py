@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from threading import Lock
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.value_retention import ValueRetention
@@ -41,14 +41,14 @@ class InMemoryDataStore(DataStore):
     """
 
     #: Default retained-value ceiling.  Sized so normal use never evicts.
-    DEFAULT_MAX_VALUES: int = 10_000
+    default_max_values: ClassVar[int] = 10_000
 
     def __init__(self, *, max_values: int | None = None) -> None:
         """Initialise the store.
 
         Args:
             max_values: Retained-value ceiling.  Defaults to
-                :attr:`DEFAULT_MAX_VALUES`.  Pass an explicit value to tighten
+                :attr:`default_max_values`.  Pass an explicit value to tighten
                 it for a long-running session.
 
         Raises:
@@ -57,7 +57,7 @@ class InMemoryDataStore(DataStore):
         if max_values is not None and max_values <= 0:
             raise ValueError(f"InMemoryDataStore: max_values must be positive, got {max_values!r}")
         self._max_values: int = (
-            InMemoryDataStore.DEFAULT_MAX_VALUES if max_values is None else max_values
+            InMemoryDataStore.default_max_values if max_values is None else max_values
         )
         self._values: OrderedDict[str, Any] = OrderedDict()
         # Hashes this store evicted, so a later read can say *why* the value

@@ -15,7 +15,7 @@ backends (``RunHistory``, ``DataStore``), the engine:
 
 Concurrency model: an admission queue (PIR-841).  A knot becomes ready the
 moment its last parent resolves and waits in a ``ReadyQueue`` until the run's
-``AdmissionGate`` admits it; only then is it decided, materialized and
+``Admission`` admits it; only then is it decided, materialized and
 dispatched as an ``asyncio`` task.  Completions are processed one at a time as
 they happen, so a knot's children start as soon as *their* parents are done,
 never held back by an unrelated slow knot.  The default gate admits everything.
@@ -44,9 +44,9 @@ from pirn.core.concurrency.undefined_concurrency_group_error import (
     UndefinedConcurrencyGroupError,
 )
 from pirn.core.concurrency.unused_concurrency_group_warning import UnusedConcurrencyGroupWarning
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
-from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
@@ -61,12 +61,12 @@ from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_observer import AdmissionObserver
 from pirn.engine.admission.admission_ticket import AdmissionTicket
 from pirn.engine.admission.admission_ticket_holder import AdmissionTicketHolder
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 from pirn.engine.admission_feedback import AdmissionFeedback
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
@@ -113,7 +113,7 @@ class Engine:
         concurrency: ConcurrencyLimits | None = None,
         nesting: RunNesting | None = None,
         admission_observers: list[AdmissionObserver] | None = None,
-        gate: AdmissionGate | None = None,
+        gate: Admission | None = None,
         limits_inherited: bool = False,
     ) -> RunResult:
         """Run the shed rooted at *terminals* and return its ``RunResult``.
@@ -211,7 +211,7 @@ class Engine:
         transport: DataTransport | None = None,
         replay: ReplaySession | None = None,
         registrars: dict[str, str] | None = None,
-        gate: AdmissionGate | None = None,
+        gate: Admission | None = None,
         admission_observers: list[AdmissionObserver] | None = None,
     ) -> RunResult:
         active_transport: DataTransport = transport or InlineTransport()
@@ -248,7 +248,7 @@ class Engine:
         tracker = DependencyTracker(shed)
         ready = ReadyQueue()
         if gate is None:
-            gate = UnboundedAdmissionGate()
+            gate = UnboundedAdmission()
         # Admission feedback (WS0): every admission and release is reported to
         # the run's observers with queue depth, wait, hold time and outcome,
         # so an adaptive controller can steer ``gate.set_limit``.  Silent and
@@ -414,7 +414,7 @@ class Engine:
                     if isinstance(result, Ok):
                         ctx.status.transition(kid, KnotState.SUCCEEDED)
                         # Persist value to data store keyed by hash.
-                        out_hash = content_hash(result.value)
+                        out_hash = ContentHasher.hash(result.value)
                         await data_store.put(out_hash, result.value)
                         # Write through transport.  Per-knot override takes
                         # priority; lazy begin_run for newly-seen transports.
@@ -467,7 +467,7 @@ class Engine:
             # so their cleanup has finished before the caller sees the error.
             #
             # Only the asyncio side can be interrupted.  A knot running on a
-            # worker thread (``ThreadDispatcher``, a sync ``@knot`` via
+            # worker thread (``ThreadDispatcher``, a sync ``@KnotFactory.knot`` via
             # ``asyncio.to_thread``) or on a remote worker keeps running until
             # it returns; its task completes as cancelled at once, so this wait
             # never blocks on it, but the thread itself is not stopped.
@@ -481,7 +481,7 @@ class Engine:
                 await asyncio.gather(*running, return_exceptions=True)
             finally:
                 # Known limitation: a knot on a worker thread (ThreadDispatcher,
-                # sync @knot) is still running when its cancelled task
+                # sync @KnotFactory.knot) is still running when its cancelled task
                 # completes, yet its slot is released here.  Harmless for a
                 # root run, since the run is over; a gate shared with an
                 # enclosing run that carries on may briefly admit one knot
@@ -547,7 +547,7 @@ class Engine:
     @staticmethod
     async def _next_completions(
         completions: asyncio.Queue[asyncio.Task[Any]],
-        gate: AdmissionGate,
+        gate: Admission,
         *,
         waiting: bool,
     ) -> list[asyncio.Task[Any]]:
@@ -595,17 +595,17 @@ class Engine:
         return done
 
     @staticmethod
-    def gate_for(limits: ConcurrencyLimits | None) -> AdmissionGate:
+    def gate_for(limits: ConcurrencyLimits | None) -> Admission:
         """Return the admission gate that enforces *limits* for one run.
 
         No limits, or limits that constrain nothing, get the lock-free
-        ``UnboundedAdmissionGate``, so an unlimited run pays nothing for the
+        ``UnboundedAdmission``, so an unlimited run pays nothing for the
         feature.  ``Tapestry.run`` builds a run's gate here before publishing
         it on the run's ``ExecutionPlane`` for inner runs to share.
         """
         if limits is None or limits.is_unbounded:
-            return UnboundedAdmissionGate()
-        return LimitedAdmissionGate(limits)
+            return UnboundedAdmission()
+        return LimitedAdmission(limits)
 
     @staticmethod
     def _outcome_name(result: Result[Any]) -> str:
@@ -617,7 +617,7 @@ class Engine:
         return "err"
 
     @staticmethod
-    def _release(gate: AdmissionGate, ready: ReadyQueue, ticket: AdmissionTicket) -> None:
+    def _release(gate: Admission, ready: ReadyQueue, ticket: AdmissionTicket) -> None:
         """Return *ticket*'s slots and re-offer whatever they could now admit.
 
         A freed slot can admit a knot of the ticket's own group, which the
@@ -779,7 +779,7 @@ class Engine:
         inputs: dict[str, Any],
         replay: ReplaySession | None,
         data_store: DataStore,
-        gate: AdmissionGate,
+        gate: Admission,
         ticket_holder: AdmissionTicketHolder,
     ) -> tuple[Result[Any], dict[str, str], datetime, bool, datetime]:
         """Run ``_invoke`` as an admitted knot's task and stamp its finish time.
@@ -1016,7 +1016,7 @@ class Engine:
         inputs: dict[str, Any],
         replay: ReplaySession | None,
         data_store: DataStore,
-        gate: AdmissionGate,
+        gate: Admission,
         ticket_holder: AdmissionTicketHolder,
     ) -> tuple[Result[Any], dict[str, str], datetime, bool]:
         """Produce a knot's outcome — by executing it, or from a recording.
@@ -1065,11 +1065,11 @@ class Engine:
             if isinstance(result, Ok):
                 replay.verify_executed(
                     knot_id=knot.knot_id,
-                    output_hash=content_hash(result.value),
+                    output_hash=ContentHasher.hash(result.value),
                 )
             return result, parent_hashes, started_at, False
 
-        parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
+        parent_hashes = {name: ContentHasher.hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
         result = await replay.resolve(
             knot=knot,
@@ -1083,7 +1083,7 @@ class Engine:
         self,
         knot: Knot,
         inputs: dict[str, Any],
-        gate: AdmissionGate,
+        gate: Admission,
         ticket_holder: AdmissionTicketHolder,
     ) -> tuple[Result[Any], dict[str, str], datetime]:
         """Wrap dispatch with timing and parent-hash capture.
@@ -1103,7 +1103,7 @@ class Engine:
         # For RECEIVE_ERRORS knots the inputs may be Result objects; we
         # hash them as they are (they're already canonicalisable).  For
         # other policies inputs are raw values.
-        parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
+        parent_hashes = {name: ContentHasher.hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
         result, attempts = await self._governed.dispatch(
             knot, inputs, gate=gate, ticket_holder=ticket_holder

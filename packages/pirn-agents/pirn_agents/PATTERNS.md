@@ -65,20 +65,20 @@ application layer so pirn stays provider-agnostic. The test suite ships
 `tests/unit/domains/agents/conftest.py`; copy or adapt them for your own stubs
 during development.
 
-### `@tool` decorator
+### `@ToolDecorator.decorate` decorator
 
-For plain functions, use `@tool` instead of subclassing `Tool`. Name, description,
+For plain functions, use `@ToolDecorator.decorate` instead of subclassing `Tool`. Name, description,
 and JSON Schema are derived from the function signature automatically.
 
 ```python
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 
-@tool
+@ToolDecorator.decorate
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web and return a summary of the top results."""
     ...
 
-@tool
+@ToolDecorator.decorate
 def lookup_policy(topic: str) -> str:
     """Look up an internal policy document by topic keyword."""
     return POLICIES.get(topic, "No policy found.")
@@ -211,7 +211,7 @@ critique = LLMCall(context=ctx, llm=critic_llm,    _config=KnotConfig(id="critiq
 
 For a dynamic loop (unknown number of iterations), use an extensible Tapestry
 and have the critiquing knot register the next generator knot via
-`get_current_store()` — identical to the `agent_loop` example pattern.
+`Tapestry.current_store()` — identical to the `agent_loop` example pattern.
 
 ---
 
@@ -243,7 +243,7 @@ response: AgentResponse = await orchestrator.run()
 by name; then that specialist's `process(task=task)` is called.
 
 For a *dynamic* dispatcher that can change routing mid-run, implement a
-custom `Knot` that calls `get_current_store().register(next_specialist)` —
+custom `Knot` that calls `Tapestry.current_store().register(next_specialist)` —
 see `examples/llm_agent/agent_loop.py` for this pattern.
 
 ---
@@ -342,7 +342,7 @@ class ResearchSubAgent(SubTapestry):
 class TopLevelDecomposer(Knot):
     async def process(self, goal: str, llm, **_):
         sub_tasks = decompose(goal)   # your decomposition logic
-        store = get_current_store()
+        store = Tapestry.current_store()
         agents = [
             ResearchSubAgent(sub_task=t, llm=llm,
                              _config=KnotConfig(id=f"sub_{i}"))
@@ -556,7 +556,8 @@ Pre-built `SubTapestry` agents backed by `ReActLoop`:
 |---|---|
 | `BrowserAgent` | Web search + scraping tasks |
 | `CodeAgent` | Code generation + linting loop |
-| `SQLAgent` | NL → SQL → execute → format |
+| `SQLAgent` | NL → SQL → execute → format (read-only) |
+| `ReadWriteSQLAgent` | `SQLAgent` whose generated statement may write |
 | `ResearchAgent` | Multi-source research with citations |
 | `DataAnalystAgent` | Statistical analysis with tool use |
 
@@ -591,8 +592,8 @@ or a "swarm" of agents each callable by name.
 
 **Agent-as-tool is first-class** (F7): any `SubTapestry` agent that mixes in
 `AgentAsToolMixin` (the shipped specialist agents do) becomes a `Tool` in one
-call via `agent.as_tool()`, or wrap any agent with the `as_tool(agent)` free
-function. No hand-written adapter, no manual schema:
+call via `agent.as_tool()`, or wrap any agent with the `AsTool.wrap(agent)` static
+method. No hand-written adapter, no manual schema:
 
 - `name`/`description` default from the agent and are overridable.
 - `parameters_schema` is derived from the agent's `process` inputs (falling back
@@ -613,7 +614,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.tools.as_tool import as_tool  # or: agent.as_tool()
+from pirn_agents.tools.as_tool import AsTool  # or: agent.as_tool()
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (
@@ -648,7 +649,7 @@ with Tapestry() as tapestry:
 result = await tapestry.run(RunRequest())
 ```
 
-Equivalently, `as_tool(researcher, name="research")` returns the same
+Equivalently, `AsTool.wrap(researcher, name="research")` returns the same
 `AgentTool`. A swarm is just a `ReActLoop` whose `tools` are several
 `agent.as_tool()` wrappers — the loop hands off to whichever the planner names.
 
@@ -700,10 +701,9 @@ react = ReActLoop(
 
 Schemas and results **round-trip through F1's protocol**: `toolset.schema()` is
 the provider-neutral tool schema, and a `ToolCall` dispatched through
-`ParallelToolExecutor` invokes `McpTool.invoke` → `tools/call` and wraps the
-result into a `ToolResult` (a server `isError` becomes `ToolStatus.ERROR`). For
-executor-free use, `McpTool.as_tool_result(call)` returns the `ToolResult`
-directly.
+`ParallelToolExecutor` runs the MCP tool knot → `tools/call` and renders the
+call's `Result` as a `ToolResult` (a server `isError` is an `Err` outcome, whose
+`status` is `"error"`).
 
 **Resources** map to context injection: `McpResourceAdapter(client=session)`
 lists/reads resources and yields either system-role `AgentMessage`s
@@ -730,14 +730,14 @@ Use pirn's extensible Tapestry: each agent knot decides at runtime which
 agent to register as the next node.
 
 ```python
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 class TriageAgent(Knot):
     async def process(self, message: str, llm, search_tool, **_):
         intent = classify_intent(message)   # lightweight local check
-        store = get_current_store()
+        store = Tapestry.current_store()
         if intent == "code":
             store.register(CodeAgent(task=message, llm=llm,
                                      _config=KnotConfig(id="code")))
@@ -989,8 +989,7 @@ registry, with no LLM provider baked in.
 | Type | Role |
 |---|---|
 | `ToolCall` | One decided invocation: `tool_name`, `arguments`, `call_id`, optional `raw`. |
-| `ToolResult` | Its outcome: `call_id`, `result`, `error`, `status`, `latency`, `tokens`. |
-| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`. |
+| `ToolResult` | Its model-facing view: `call_id`, `outcome` (the call's core `Ok \| Err \| Skipped`), `latency`, `tokens`, and derived `result`, `error`, `status` (`"ok"`/`"error"`/`"timeout"`/`"skipped"`). |
 | `Toolset` | Immutable, ordered, unique-by-name registry of `Tool`s. |
 
 `ParallelToolExecutor` runs a batch of `ToolCall`s concurrently against a
@@ -1009,7 +1008,6 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class SearchTool(Tool):
@@ -1037,7 +1035,7 @@ with Tapestry() as tapestry:
 run = await tapestry.run()
 
 for r in run.outputs["pte"]:
-    assert r.status is ToolStatus.OK
+    assert r.succeeded
     print(r.call_id, r.result, f"{r.latency:.4f}s")
 ```
 
@@ -1227,7 +1225,7 @@ per backend) were one-cycle shims over this pattern and are deleted (PIR-864).
 ### Caching — content-addressed result cache + semantic + prompt-cache passthrough
 
 `ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
-and embedding lookups keyed off a `content_hash` of the inputs (mirrors the
+and embedding lookups keyed off a `ContentHasher.hash` of the inputs (mirrors the
 DAG's content addressing). `SemanticResultCache.get_or_compute_semantic(text,
 compute)` matches on embedding similarity using a caller-injected embedding fn
 (no backend). `PromptCachePassthrough` defers to a provider's native prompt
@@ -1247,9 +1245,9 @@ ADR "agents speaks core" (WS4a) retired the standalone span/callback plane
 `SpanEmittingToolInvocationHook` — removed after their one-cycle deprecation
 window, PIR-864) in favour of one call:
 `AgentCallRecorder.record(...)` emits a core `StatusEvent` — `run_id` sourced
-from `pirn.tapestry.current_run_id`, `knot_id` supplied by the caller (never
+from `pirn.tapestry.Tapestry.current_run_id`, `knot_id` supplied by the caller (never
 ambient) — through the run's own emitters
-(`pirn.tapestry.current_emitters`/`EmitterFanout.emit_status`), the same
+(`pirn.tapestry.Tapestry.current_emitters`/`EmitterFanout.emit_status`), the same
 stream the engine's own per-knot lifecycle transitions use. `extra` carries
 whatever span-like fields the call wants to report (`kind`, `model`,
 `tokens`, `cost`, `latency`, …); `OpenTelemetryEmitter` renders a non-empty
@@ -1400,6 +1398,7 @@ class-name mismatch here fails that suite.
 | `rag_fusion` | `RagFusionPipeline` | `query` |
 | `raptor_tree_builder` | `RaptorTreeBuilder` | `text` |
 | `react` | `ReActLoop` | `messages` |
+| `read_write_sql_agent` | `ReadWriteSQLAgent` | `question` |
 | `reflexion` | `ReflexionPipeline` | `task` |
 | `reranker` | `Reranker` | `query` |
 | `research_agent` | `ResearchAgent` | `topic` |

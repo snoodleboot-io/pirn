@@ -11,13 +11,13 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.engine.shed.shed import Shed
 from pirn.engine.shed.shed_error import ShedError
 
 
-@knot
+@KnotFactory.knot
 async def f(x: int) -> int:
     return x
 
@@ -43,7 +43,7 @@ class _StandaloneTests(unittest.TestCase):
         a = f(x=p, _config=KnotConfig(id="a"))
         b = f(x=p, _config=KnotConfig(id="b"))
 
-        @knot
+        @KnotFactory.knot
         async def join(left: int, right: int) -> int:
             return left + right
 

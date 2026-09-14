@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BlendingEnsembleBuilder`` — train base models on 80% of data, blend
 predictions on 20% holdout using a weighted average.
 
@@ -29,7 +31,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -42,7 +44,7 @@ from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _combine_blending_result(
     ensemble_model: ModelManifest,
     eval_report: EvalReportPayload,
@@ -137,7 +139,7 @@ class BlendingEnsembleBuilder(SubTapestry):
         split_node = Parameter(
             "blend_split", SplitManifest, default=blend_split, _config=KnotConfig(id="blend_split")
         )
-        base_models = []
+        base_models: list[Knot] = []
         for i, alg in enumerate(base_tuple):
             model = Trainer(
                 split=split_node,

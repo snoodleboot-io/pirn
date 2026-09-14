@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DriftMonitor`` — Knot that detects feature, target, or prediction drift
 between a baseline split and a current split.
 

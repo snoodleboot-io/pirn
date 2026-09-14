@@ -14,7 +14,7 @@ import pytest
 from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 from pirn.backends.valkey.valkey_store import ValKeyStore
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
 # ---------------------------------------------------- fake glide client
@@ -77,7 +77,7 @@ class _FakeGlideClient:
 # ---------------------------------------------------- ValKeyStore tests
 
 
-@knot
+@KnotFactory.knot
 async def _f(x: int) -> int:
     return x
 

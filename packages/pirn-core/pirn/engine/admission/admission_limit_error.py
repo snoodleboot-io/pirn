@@ -6,7 +6,7 @@ from pirn.exceptions.pirn_error import PirnError
 
 
 class AdmissionLimitError(PirnError):
-    """``AdmissionGate.set_limit`` was asked for something the gate cannot do.
+    """``Admission.set_limit`` was asked for something the gate cannot do.
 
     The group is not one the run's ``ConcurrencyLimits`` define (groups
     cannot be added mid-run: the ready queue and the fail-fast group check

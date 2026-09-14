@@ -17,7 +17,7 @@ Algorithm:
     2. Validate all inputs: pool types, non-empty strings, identifier
        safety, pk ⊆ column_names, and no bookkeeping columns in column_names.
     3. Fetch all source rows via ``source_pool.fetch_all``.
-    4. Delegate to ``ScdType2MergeKnot`` static helpers to classify and
+    4. Build the statements with ``ScdType2Queries``, then classify and
        apply expiry + inserts.
     5. Return a summary dict with ``succeeded``, ``target_table``,
        ``rows_inserted``, and ``rows_expired``.
@@ -26,7 +26,7 @@ References:
     [1] Kimball Group — SCD Type 2 (add row):
         https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-2/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -40,11 +40,11 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
-from pirn_data.specializations.scd.scd_type_2_merge_knot import ScdType2MergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
+from pirn_data.specializations.scd.scd_type_2_queries import ScdType2Queries
 
 
-class ScdType2(_PoolMergeKnot):
+class ScdType2(PoolMergeKnot):
     """Perform a Type 2 SCD merge: expire changed rows, insert new rows."""
 
     def __init__(
@@ -89,15 +89,15 @@ class ScdType2(_PoolMergeKnot):
     ) -> dict[str, int]:
         if not source_rows:
             return {"inserted": 0, "expired": 0}
-        select_q = ScdType2MergeKnot._select_query(target_table, column_tuple, current_flag_column)
-        insert_q = ScdType2MergeKnot._insert_query(
+        select_q = ScdType2Queries.select_query(target_table, column_tuple, current_flag_column)
+        insert_q = ScdType2Queries.insert_query(
             target_table,
             column_tuple,
             effective_date_column,
             expiry_date_column,
             current_flag_column,
         )
-        expire_q = ScdType2MergeKnot._expire_query(
+        expire_q = ScdType2Queries.expire_query(
             target_table, primary_key_tuple, expiry_date_column, current_flag_column
         )
         existing_rows = await target_pool.fetch_all(select_q)

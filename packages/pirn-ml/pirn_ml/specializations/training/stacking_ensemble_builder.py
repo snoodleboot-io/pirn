@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StackingEnsembleBuilder`` — train base models, use their OOF predictions
 as features for a meta-learner.
 
@@ -28,7 +30,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -40,7 +42,7 @@ from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _combine_stacking_result(
     ensemble_model: ModelManifest,
     eval_report: EvalReportPayload,
@@ -120,7 +122,7 @@ class StackingEnsembleBuilder(SubTapestry):
         split_node = Parameter(
             "split", SplitManifest, default=split, _config=KnotConfig(id="split")
         )
-        base_models = []
+        base_models: list[Knot] = []
         for i, alg in enumerate(base_tuple):
             model = Trainer(
                 split=split_node,

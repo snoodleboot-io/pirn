@@ -14,7 +14,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.react.react_loop import ReActLoop
-from pirn_agents.tools.bundles import calculator_toolset, retrieval_toolset, web_toolset
+from pirn_agents.tools.bundles import Bundles
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.conftest import StubLLMProvider, StubMemoryStore
@@ -24,7 +24,11 @@ async def test_react_loop_solves_task_with_three_base_tools() -> None:
     store = StubMemoryStore()
     await store.store("g", {"text": "Hello from the knowledge base."})
 
-    toolset = calculator_toolset() + web_toolset() + retrieval_toolset(store=store)
+    toolset = (
+        Bundles.calculator_toolset()
+        + Bundles.web_toolset()
+        + Bundles.retrieval_toolset(store=store)
+    )
     # The bundle assembly must expose the three tools the agent will call.
     assert {"calculator", "html_to_text", "retriever"} <= {t.name for t in toolset}
 

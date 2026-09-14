@@ -8,7 +8,7 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.engine.shed.cycle_detector import CycleDetector
-from pirn.engine.shed.shed import Shed, detect_cycle
+from pirn.engine.shed.shed import Shed
 from pirn.engine.shed.shed_error import ShedError
 from pirn.nodes.sink import Sink
 from pirn.nodes.source import Source
@@ -38,7 +38,7 @@ class TestCycleDetector(unittest.TestCase):
         self.assertFalse(CycleDetector.detect([], {}))
 
     def test_detect_cycle_wrapper(self) -> None:
-        self.assertFalse(detect_cycle(["x"], {"x": []}))
+        self.assertFalse(CycleDetector.detect(["x"], {"x": []}))
 
     def test_child_outside_knot_ids_is_explored(self) -> None:
         """Children absent from ``knot_ids`` are white and get walked."""

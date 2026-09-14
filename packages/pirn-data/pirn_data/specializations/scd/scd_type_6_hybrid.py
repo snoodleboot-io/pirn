@@ -39,7 +39,7 @@ References:
     [1] Kimball Group — SCD Type 6 (hybrid):
         https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-6/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -55,6 +55,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class ScdType6Hybrid(Knot):
@@ -192,9 +193,9 @@ class ScdType6Hybrid(Knot):
             raise ValueError(
                 f"ScdType6Hybrid: key_columns and tracked_columns overlap on {sorted(overlap)!r}"
             )
-        if not isinstance(current_columns, Mapping):
+        if not ValueShape.is_mapping(current_columns):
             raise TypeError("ScdType6Hybrid: current_columns must be a Mapping[str, str]")
-        if not isinstance(previous_columns, Mapping):
+        if not ValueShape.is_mapping(previous_columns):
             raise TypeError("ScdType6Hybrid: previous_columns must be a Mapping[str, str]")
         missing_current = [c for c in tracked_tuple if c not in current_columns]
         if missing_current:

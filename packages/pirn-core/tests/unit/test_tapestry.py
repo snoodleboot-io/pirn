@@ -5,14 +5,14 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_result import RunResult
 from pirn.emitters.emitter import Emitter
-from pirn.tapestry import Tapestry, _current_tapestry, current_tapestry
+from pirn.tapestry import Tapestry, _current_tapestry
 
 
-@knot
+@KnotFactory.knot
 async def _f(x: int) -> int:
     return x
 
@@ -44,7 +44,7 @@ class _ClosableEmitter(Emitter):
 _pending_emitter: list[tuple[Tapestry, Emitter]] = []
 
 
-@knot
+@KnotFactory.knot
 async def _adds_emitter(x: int) -> int:
     """Subscribe an emitter from inside the run that must not see it."""
     for tapestry, emitter in _pending_emitter:
@@ -62,16 +62,16 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         assert _current_tapestry.get(None) is None
         with Tapestry() as t:
             assert _current_tapestry.get(None) is t
-            assert current_tapestry() is t
+            assert Tapestry.current() is t
         assert _current_tapestry.get(None) is None
 
     def test_with_block_restores_outer_context(self):
         """Nested with-blocks restore the outer tapestry on exit."""
         with Tapestry() as outer:
-            assert current_tapestry() is outer
+            assert Tapestry.current() is outer
             with Tapestry() as inner:
-                assert current_tapestry() is inner
-            assert current_tapestry() is outer
+                assert Tapestry.current() is inner
+            assert Tapestry.current() is outer
 
     def test_registration_via_with(self):
         with Tapestry() as t:

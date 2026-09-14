@@ -16,7 +16,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_retry_policy import KnotRetryPolicy
@@ -98,7 +98,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
                 second = provider_type(model="m-a", base_url="https://a.example/v1")
 
                 # Act / Assert
-                assert content_hash(first) == content_hash(second)
+                assert ContentHasher.hash(first) == ContentHasher.hash(second)
 
     def test_the_provider_class_separates_equal_configurations(self) -> None:
         # Arrange
@@ -106,7 +106,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
         messages = AnthropicMessagesProvider(model="m", base_url="https://a.example/v1")
 
         # Act / Assert
-        assert content_hash(chat) != content_hash(messages)
+        assert ContentHasher.hash(chat) != ContentHasher.hash(messages)
 
     def test_the_canonical_form_names_the_class_and_its_configuration(self) -> None:
         # Arrange
@@ -150,7 +150,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
 
     def test_each_endpoint_component_changes_the_hash(self) -> None:
         # Arrange
-        reference = content_hash(
+        reference = ContentHasher.hash(
             OpenAICompatibleProvider(model="m", base_url="https://a.example/v1")
         )
         variants = (
@@ -168,7 +168,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
 
                 # Assert
                 assert varied.content_identity() is not None
-                assert content_hash(varied) != reference
+                assert ContentHasher.hash(varied) != reference
 
     def test_host_case_and_trailing_slashes_do_not_change_the_hash(self) -> None:
         # Arrange — the provider joins base_url.rstrip("/") with its path, and DNS
@@ -177,11 +177,11 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
         same = OpenAICompatibleProvider(model="m", base_url="HTTPS://A.EXAMPLE/v1//")
 
         # Act / Assert
-        assert content_hash(same) == content_hash(reference)
+        assert ContentHasher.hash(same) == ContentHasher.hash(reference)
 
     def test_every_value_of_retry_policy_changes_the_hash(self) -> None:
         # Arrange
-        reference = content_hash(OpenAICompatibleProvider(model="m", base_url="https://a/v1"))
+        reference = ContentHasher.hash(OpenAICompatibleProvider(model="m", base_url="https://a/v1"))
         policies = (
             KnotRetryPolicy(max_attempts=6),
             KnotRetryPolicy(max_attempts=3, base_delay=1.0),
@@ -199,11 +199,11 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
                 )
 
                 # Assert
-                assert content_hash(varied) != reference
+                assert ContentHasher.hash(varied) != reference
 
     def test_every_price_changes_the_hash(self) -> None:
         # Arrange
-        reference = content_hash(
+        reference = ContentHasher.hash(
             OpenAICompatibleProvider(model="m", base_url="https://a/v1", pricing=ModelPricing())
         )
         sheets = (
@@ -221,7 +221,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
                 )
 
                 # Assert
-                assert content_hash(varied) != reference
+                assert ContentHasher.hash(varied) != reference
 
     def test_a_plain_mapping_of_the_same_shape_does_not_hash_like_a_provider(self) -> None:
         # Arrange
@@ -230,7 +230,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
         lookalike = {"provider": canonical["provider"], "config": canonical["config"]}
 
         # Act / Assert
-        assert content_hash(lookalike) != content_hash(provider)
+        assert ContentHasher.hash(lookalike) != ContentHasher.hash(provider)
 
     def test_the_hash_follows_the_pricing_and_retry_policy_that_actually_run(self) -> None:
         """Swapping a private attribute after construction must not re-key the hash.
@@ -246,7 +246,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
             pricing=ModelPricing(input_per_million=1.0),
             retry_policy=KnotRetryPolicy(max_attempts=3),
         )
-        before = content_hash(provider)
+        before = ContentHasher.hash(provider)
         running_cost = provider._mapper.estimate_cost({"input_tokens": 1_000_000})
 
         # Act
@@ -256,7 +256,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
         # Assert — cost and retries still come from the built collaborators, and so does the hash.
         assert provider._mapper.estimate_cost({"input_tokens": 1_000_000}) == running_cost
         assert provider._transport.retry_policy == KnotRetryPolicy(max_attempts=3)
-        assert content_hash(provider) == before
+        assert ContentHasher.hash(provider) == before
         assert provider.__pirn_canonical__()["config"]["pricing"]["input_per_million"] == 1.0
         assert provider.__pirn_canonical__()["config"]["retry_policy"]["max_attempts"] == 3
 
@@ -275,14 +275,14 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
         provider = OpenAICompatibleProvider(
             model="m", base_url="https://a/v1", credential=CredentialRef(secret="sk-X")
         )
-        before = content_hash(provider)
+        before = ContentHasher.hash(provider)
 
         # Act
         asyncio.run(provider.close())
 
         # Assert
         assert provider._credential is None
-        assert content_hash(provider) == before
+        assert ContentHasher.hash(provider) == before
 
     def test_the_audit_form_is_unchanged(self) -> None:
         # Arrange
@@ -300,8 +300,8 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
 class TestProvidersFallBackToIdentity(unittest.TestCase):
     def assert_identity_keyed(self, first: BaseLLMProvider, second: BaseLLMProvider) -> None:
         assert first.__pirn_canonical__() == PirnOpaqueValue._pirn_audit_dict(first)
-        assert content_hash(first) != content_hash(second)
-        assert content_hash(first) == content_hash(first)
+        assert ContentHasher.hash(first) != ContentHasher.hash(second)
+        assert ContentHasher.hash(first) == ContentHasher.hash(first)
 
     def test_a_subclass_that_does_not_redeclare_the_opt_in_is_identity_keyed(self) -> None:
         # Arrange
@@ -324,7 +324,7 @@ class TestProvidersFallBackToIdentity(unittest.TestCase):
         assert canonical["provider"].endswith(
             "test_llm_provider_content_identity._RedeclaredOpenAICompatibleProvider"
         )
-        assert content_hash(provider) != content_hash(parent)
+        assert ContentHasher.hash(provider) != ContentHasher.hash(parent)
 
     def test_a_factory_built_class_is_identity_keyed_even_when_it_redeclares(self) -> None:
         # Arrange

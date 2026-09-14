@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from pirn.viz._tapestry_graph import TapestryGraph
-from pirn.viz.explorer_html_generator import ExplorerHtmlGenerator, generate_explorer_html
+from pirn.viz.explorer_html_generator import ExplorerHtmlGenerator
 
 
 class TestExplorerHtmlGeneratorGenerate(unittest.TestCase):
@@ -38,10 +38,10 @@ class TestExplorerHtmlGeneratorGenerate(unittest.TestCase):
 
     def test_folder_string_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            html = generate_explorer_html(tmp)
+            html = ExplorerHtmlGenerator.generate(tmp)
         self.assertIn("<!DOCTYPE html", html)
 
     def test_folder_path_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            html = generate_explorer_html(Path(tmp))
+            html = ExplorerHtmlGenerator.generate(Path(tmp))
         self.assertIn("<!DOCTYPE html", html)

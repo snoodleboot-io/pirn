@@ -32,7 +32,7 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.transport.dual_write_transport import DualWriteTransport
@@ -65,14 +65,14 @@ class Report:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def ingest(source_csv: str) -> RawBatch:
     reader = csv.DictReader(io.StringIO(source_csv))
     rows = list(reader)
     return RawBatch(rows=rows, row_count=len(rows))
 
 
-@knot
+@KnotFactory.knot
 async def score(raw: RawBatch, score_field: str) -> ScoredBatch:
     """Attach a numeric score to each row, normalised to [0, 1]."""
     scored = []
@@ -84,7 +84,7 @@ async def score(raw: RawBatch, score_field: str) -> ScoredBatch:
     return ScoredBatch(rows=scored, mean_score=mean)
 
 
-@knot
+@KnotFactory.knot
 async def summarise(scored: ScoredBatch, threshold: float) -> Report:
     high = sum(1 for r in scored.rows if r["score"] >= threshold)
     low = len(scored.rows) - high

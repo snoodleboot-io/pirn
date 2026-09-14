@@ -1,41 +1,36 @@
-"""Mirrored tests for :class:`InMemoryResultCache` hit/miss/invalidation (PIR-292)."""
+"""Mirrored tests for :class:`InMemoryResultCache` hit/miss/invalidation (PIR-292, PIR-872)."""
 
 from __future__ import annotations
 
 import pytest
+from pirn.core.content_hasher import ContentHasher
 
-from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.in_memory_result_cache import InMemoryResultCache
 
 
-class TestGetPut:
+async def _one() -> int:
+    return 1
+
+
+class TestCounters:
     async def test_miss_then_hit(self) -> None:
         cache = InMemoryResultCache()
-        assert await cache.get("k") is None
+        assert await cache.get_or_compute("k", _one) == 1
         assert cache.misses == 1
-        await cache.put(CacheEntry(key="k", value="v"))
-        entry = await cache.get("k")
-        assert entry is not None and entry.value == "v"
+        assert await cache.get_or_compute("k", _one) == 1
         assert cache.hits == 1
 
     async def test_invalidate_removes_entry(self) -> None:
         cache = InMemoryResultCache()
-        await cache.put(CacheEntry(key="k", value=1))
-        await cache.invalidate("k")
-        assert await cache.get("k") is None
+        await cache.get_or_compute("k", _one)
+        key = ContentHasher.hash("k", strict=True)
+        await cache.invalidate(key)
+        assert await cache.store.has(key) is False
+        assert len(cache) == 0
 
     async def test_invalidate_absent_key_is_noop(self) -> None:
         cache = InMemoryResultCache()
         await cache.invalidate("nope")  # no raise
-
-    async def test_has_reflects_put_and_invalidate(self) -> None:
-        # ADR agents-speaks-core WS2: has() is thin over the backing DataStore.
-        cache = InMemoryResultCache()
-        assert await cache.has("k") is False
-        await cache.put(CacheEntry(key="k", value=1))
-        assert await cache.has("k") is True
-        await cache.invalidate("k")
-        assert await cache.has("k") is False
 
 
 class TestBounding:
@@ -43,24 +38,21 @@ class TestBounding:
         with pytest.raises(ValueError, match="max_entries"):
             InMemoryResultCache(max_entries=0)
 
-    async def test_fifo_eviction_at_bound(self) -> None:
+    async def test_eviction_at_bound(self) -> None:
         cache = InMemoryResultCache(max_entries=2)
-        await cache.put(CacheEntry(key="a", value=1))
-        await cache.put(CacheEntry(key="b", value=2))
-        await cache.put(CacheEntry(key="c", value=3))  # evicts "a"
-        assert await cache.get("a") is None
-        assert (await cache.get("b")) is not None
-        assert (await cache.get("c")) is not None
-        assert len(cache) == 2
+        await cache.get_or_compute("a", _one)
+        await cache.get_or_compute("b", _one)
+        await cache.get_or_compute("c", _one)  # evicts "a"
+        assert await cache.store.has(ContentHasher.hash("a", strict=True)) is False
+        assert await cache.store.has(ContentHasher.hash("b", strict=True)) is True
+        assert await cache.store.has(ContentHasher.hash("c", strict=True)) is True
 
-    async def test_overwrite_existing_does_not_evict(self) -> None:
+    async def test_recomputing_an_existing_key_does_not_grow(self) -> None:
         cache = InMemoryResultCache(max_entries=2)
-        await cache.put(CacheEntry(key="a", value=1))
-        await cache.put(CacheEntry(key="b", value=2))
-        await cache.put(CacheEntry(key="a", value=99))  # update, not insert
+        await cache.get_or_compute("a", _one)
+        await cache.get_or_compute("b", _one)
+        await cache.get_or_compute("a", _one)  # hit, not insert
         assert len(cache) == 2
-        entry = await cache.get("a")
-        assert entry is not None and entry.value == 99
 
 
 class TestGetOrCompute:

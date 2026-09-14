@@ -1,7 +1,7 @@
 """``_CallableIdentity`` — a content identity for a callable, for replay guards.
 
 An eval run's target and metrics are callables, and a callable is not a value
-``content_hash`` can canonicalise: it collapses to a shared
+``ContentHasher.hash`` can canonicalise: it collapses to a shared
 ``sha256:unhashable:<type>`` sentinel. Identifying one by name alone
 (``module.qualname``) would let an edited function body under the same name
 replay a stale recording. This class derives the identity from what the
@@ -18,11 +18,11 @@ Algorithm:
        qualified name, its code identity, the content hashes of its defaults
        and keyword-only defaults, and the identity of every closure cell's
        value (a function-valued cell is identified recursively; anything else
-       by ``content_hash``; an empty cell as ``None``).
+       by ``ContentHasher.hash``; an empty cell as ``None``).
     4. Code identity — the bytecode, the names and local/free/cell variable
        names it uses, and its constants, each nested code object identified
        recursively (so an inner function or comprehension body counts) and
-       every other constant by ``content_hash``. Line-number tables are left
+       every other constant by ``ContentHasher.hash``. Line-number tables are left
        out on purpose: moving a function does not change what it computes.
     5. An object whose type defines a Python ``__call__`` — that method's
        function identity plus the object's content hash.
@@ -43,7 +43,7 @@ import inspect
 import types
 from typing import Any
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 
 class _CallableIdentity:
@@ -70,15 +70,15 @@ class _CallableIdentity:
             bound: functools.partial[Any] = candidate
             return {
                 "partial": _CallableIdentity._identify(bound.func, active),
-                "args": [content_hash(arg) for arg in bound.args],
+                "args": [ContentHasher.hash(arg) for arg in bound.args],
                 "keywords": {
-                    key: content_hash(value) for key, value in sorted(bound.keywords.items())
+                    key: ContentHasher.hash(value) for key, value in sorted(bound.keywords.items())
                 },
             }
         if isinstance(candidate, types.MethodType):
             return {
                 "method": _CallableIdentity._identify(candidate.__func__, active),
-                "self": content_hash(candidate.__self__),
+                "self": ContentHasher.hash(candidate.__self__),
             }
         if isinstance(candidate, types.FunctionType):
             return _CallableIdentity._function(candidate, active)
@@ -87,7 +87,7 @@ class _CallableIdentity:
             return {
                 "callable_object": _CallableIdentity._name(type(candidate)),
                 "call": _CallableIdentity._function(call, active),
-                "state": content_hash(candidate),
+                "state": ContentHasher.hash(candidate),
             }
         return {"name": _CallableIdentity._name(candidate)}
 
@@ -107,12 +107,12 @@ class _CallableIdentity:
             if isinstance(value, (types.FunctionType, types.MethodType, functools.partial)):
                 cells.append(_CallableIdentity._identify(value, inner))
             else:
-                cells.append(content_hash(value))
+                cells.append(ContentHasher.hash(value))
         return {
             "function": name,
             "code": _CallableIdentity._code(function.__code__),
-            "defaults": content_hash(function.__defaults__),
-            "kwdefaults": content_hash(function.__kwdefaults__),
+            "defaults": ContentHasher.hash(function.__defaults__),
+            "kwdefaults": ContentHasher.hash(function.__kwdefaults__),
             "closure": cells,
         }
 
@@ -134,4 +134,4 @@ class _CallableIdentity:
             return _CallableIdentity._code(const)
         if isinstance(const, tuple):
             return {"tuple": [_CallableIdentity._constant(item) for item in const]}
-        return content_hash(const)
+        return ContentHasher.hash(const)

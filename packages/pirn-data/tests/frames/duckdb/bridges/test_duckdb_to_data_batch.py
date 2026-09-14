@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import duckdb
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -22,7 +22,7 @@ from pirn_data.frames.duckdb.bridges.duckdb_to_data_batch import (
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_duckdb_batch() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
     connection.execute(

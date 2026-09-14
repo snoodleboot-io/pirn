@@ -1,4 +1,4 @@
-"""Unit tests for the ``@tool`` decorator."""
+"""Unit tests for the ``@ToolDecorator.decorate`` decorator."""
 
 from __future__ import annotations
 
@@ -7,32 +7,32 @@ import unittest
 
 from pirn_agents.tools.function_tool import FunctionTool
 from pirn_agents.tools.tool import Tool
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 from pirn_agents.tools.tool_factory import ToolFactory
 from tests.tools.tool_runner import ToolRunner
 
 # ----------------------------------------------------------------- fixtures
 
 
-@tool
+@ToolDecorator.decorate
 async def async_search(query: str, max_results: int = 5) -> str:
     """Search the web and return a summary of results."""
     return f"results:{query}"
 
 
-@tool
+@ToolDecorator.decorate
 def sync_calc(expression: str) -> str:
     """Evaluate a mathematical expression."""
     return str(eval(expression, {"__builtins__": {}}))
 
 
-@tool
+@ToolDecorator.decorate
 async def optional_param(topic: str, context: str | None = None) -> str:
     """Look up a document, optionally scoped to a context."""
     return topic
 
 
-@tool
+@ToolDecorator.decorate
 async def list_param(items: list[str]) -> str:
     """Process a list of items."""
     return ",".join(items)
@@ -56,7 +56,7 @@ class _StandaloneTests(unittest.TestCase):
         assert sync_calc.description == "Evaluate a mathematical expression."
 
     def test_description_first_paragraph_only(self):
-        @tool
+        @ToolDecorator.decorate
         async def multi_para() -> str:
             """First paragraph.
 
@@ -67,7 +67,7 @@ class _StandaloneTests(unittest.TestCase):
         assert multi_para.description == "First paragraph."
 
     def test_description_fallback_to_name_when_no_docstring(self):
-        @tool
+        @ToolDecorator.decorate
         async def no_doc() -> str:
             return ""
 
@@ -101,7 +101,7 @@ class _StandaloneTests(unittest.TestCase):
 
     def test_schema_no_self_or_cls(self):
         class _Wrapper:
-            @tool
+            @ToolDecorator.decorate
             async def method(self, x: str) -> str:
                 """A method wrapped as a tool."""
                 return x
@@ -128,4 +128,4 @@ class _StandaloneTests(unittest.TestCase):
 
     def test_non_callable_raises(self):
         with self.assertRaisesRegex(TypeError, "callable"):
-            tool("not a function")  # type: ignore[arg-type]
+            ToolDecorator.decorate("not a function")  # type: ignore[arg-type]

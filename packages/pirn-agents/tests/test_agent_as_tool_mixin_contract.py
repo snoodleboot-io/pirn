@@ -6,7 +6,7 @@ the ``SubTapestry`` requirement structural rather than asserted. These tests pin
 the behaviour that must survive that change:
 
 1. ``agent.as_tool(...)`` builds an :class:`AgentTool` indistinguishable from the
-   one :func:`~pirn_agents.tools.as_tool.as_tool` builds for the same agent and
+   one :meth:`~pirn_agents.tools.as_tool.AsTool.wrap` builds for the same agent and
    the same arguments — every keyword is a pure pass-through.
 2. Every class that mixes in ``AgentAsToolMixin`` is a ``SubTapestry``, and its
    MRO carries ``SubTapestry`` exactly once.
@@ -27,7 +27,7 @@ from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.specializations.specialized_agents.research_agent import ResearchAgent
 from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.tools.agent_tool import AgentTool
-from pirn_agents.tools.as_tool import as_tool
+from pirn_agents.tools.as_tool import AsTool
 from tests.agent_tool_doubles import (
     NestingAgent,
     NoInputAgent,
@@ -58,7 +58,7 @@ def _construct_stub_agent(knot_id: str) -> StubAgent:
 
 
 class TestMixinMatchesFreeFunction(unittest.IsolatedAsyncioTestCase):
-    """``AgentAsToolMixin.as_tool`` must be a pure delegation to ``as_tool``."""
+    """``AgentAsToolMixin.as_tool`` must be a pure delegation to ``AsTool.wrap``."""
 
     def setUp(self) -> None:
         reset_doubles()
@@ -71,7 +71,7 @@ class TestMixinMatchesFreeFunction(unittest.IsolatedAsyncioTestCase):
 
         # Act
         method_tool = via_method.as_tool()
-        function_tool = as_tool(via_function)
+        function_tool = AsTool.wrap(via_function)
 
         # Assert
         self.assertIsInstance(method_tool, AgentTool)
@@ -96,7 +96,7 @@ class TestMixinMatchesFreeFunction(unittest.IsolatedAsyncioTestCase):
             budget=budget,
             max_depth=2,
         )
-        function_tool = as_tool(
+        function_tool = AsTool.wrap(
             via_function,
             name="helper",
             description="a helper",
@@ -143,7 +143,7 @@ class TestMixerSubTapestryContract(unittest.TestCase):
 
     def test_the_mixin_itself_is_a_sub_tapestry(self) -> None:
         # Arrange / Act / Assert — the requirement is structural, not asserted,
-        # which is what lets ``as_tool`` drop its ``cast(SubTapestry, self)``.
+        # which is what lets ``AsTool.wrap`` drop its ``cast(SubTapestry, self)``.
         self.assertTrue(issubclass(AgentAsToolMixin, SubTapestry))
 
     def test_every_mixer_is_a_sub_tapestry_subclass(self) -> None:
@@ -200,4 +200,4 @@ class TestNonSubTapestryRejection(unittest.TestCase):
     def test_free_function_rejects_a_non_sub_tapestry(self) -> None:
         # Arrange / Act / Assert
         with self.assertRaisesRegex(TypeError, "must be a SubTapestry"):
-            as_tool(object())  # type: ignore[arg-type]
+            AsTool.wrap(object())  # type: ignore[arg-type]

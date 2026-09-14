@@ -72,7 +72,7 @@ Click any node in the graph to open the knot detail panel. This implements **7W 
 
 ### Error details
 
-When a knot has `outcome == "err"`, the detail panel shows the exception type, message, and full formatted traceback. If a traceback filter was applied (e.g. `redact_common_secrets`), the stored traceback is already redacted.
+When a knot has `outcome == "err"`, the detail panel shows the exception type, message, and full formatted traceback. If a traceback filter was applied (e.g. `TracebackRedactor.redact_common_secrets`), the stored traceback is already redacted.
 
 ---
 
@@ -128,19 +128,19 @@ The explorer defaults to dark mode. Click the **Dark** button in the top right t
 
 ## Mermaid diagrams
 
-### `mermaid_for_tapestry(tapestry)`
+### `MermaidRenderer.for_tapestry(tapestry)`
 
 Generates Mermaid `graph LR` syntax for the tapestry structure. Use it in Markdown documentation that supports Mermaid (MkDocs, GitHub, GitLab):
 
 ```python
-from pirn.viz.mermaid_renderer import mermaid_for_tapestry
+from pirn.viz.mermaid_renderer import MermaidRenderer
 
 with Tapestry() as t:
     x = Parameter("x", int)
     d = double(x=x, _config=KnotConfig(id="d"))
     answer = add(a=x, b=d, _config=KnotConfig(id="answer"))
 
-print(mermaid_for_tapestry(t))
+print(MermaidRenderer.for_tapestry(t))
 ```
 
 Output:
@@ -156,41 +156,41 @@ graph LR
     d --> answer
 ```
 
-### `mermaid_for_run(result)`
+### `MermaidRenderer.for_run(result)`
 
 Generates Mermaid syntax with knot outcomes overlaid. Nodes are coloured by outcome — `ok` green, `err` red, `skipped` grey. Useful for embedding execution traces in incident reports or CI artifacts.
 
 ```python
-from pirn.viz.mermaid_renderer import mermaid_for_run
+from pirn.viz.mermaid_renderer import MermaidRenderer
 
 result = await tapestry.run(RunRequest(parameters={"x": 5}))
-print(mermaid_for_run(result))
+print(MermaidRenderer.for_run(result))
 ```
 
 ---
 
 ## HTML export
 
-### `html_for_run(result)`
+### `TapestryHtmlRenderer.for_run(result)`
 
 Generates a self-contained HTML file with the run graph and outcome overlays — status colours, hover tooltips with content hashes and duration, and outcome filter buttons.
 
 ```python
-from pirn.viz.tapestry_html_renderer import html_for_run
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 from pathlib import Path
 
 result = await tapestry.run(RunRequest(parameters={"x": 5}))
-Path("run.html").write_text(html_for_run(result))
+Path("run.html").write_text(TapestryHtmlRenderer.for_run(result))
 ```
 
-### `html_for_tapestry(tapestry)`
+### `TapestryHtmlRenderer.for_tapestry(tapestry)`
 
 Generates a self-contained HTML file showing the tapestry structure without run outcomes. Use it for documentation, architecture reviews, or sharing pipeline designs before running.
 
 ```python
-from pirn.viz.tapestry_html_renderer import html_for_tapestry
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 
-Path("tapestry.html").write_text(html_for_tapestry(tapestry))
+Path("tapestry.html").write_text(TapestryHtmlRenderer.for_tapestry(tapestry))
 ```
 
 ---

@@ -53,7 +53,7 @@ from urllib.parse import urlparse
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.security.ssrf_guard import SsrfGuard
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 
 
 @dataclass(frozen=True)
@@ -155,7 +155,7 @@ class _DocumentSourceReader(PirnOpaqueValue):
         ).assert_public_host(url)
         # Resolved only after every check passes: the guard must reject a hostile URL
         # identically whether or not the optional ``web`` extra is installed (PIR-739).
-        httpx = _require("web", "httpx")
+        httpx = OptionalImport.require("web", "httpx")
         timeout = httpx.Timeout(self.request_timeout, connect=self.connect_timeout)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
             # Pinned to the vetted address: handing the original URL back to httpx

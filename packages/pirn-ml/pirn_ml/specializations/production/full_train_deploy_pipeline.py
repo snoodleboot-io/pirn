@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FullTrainDeployPipeline`` — end-to-end SubTapestry: data load,
 train/test split, train, evaluate, serialise, register, predict on a
 holdout slice.
@@ -32,7 +34,7 @@ from pirn.connectors.database_connection_pool import (
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.data_prep.dataset_loader import DatasetLoader
@@ -47,20 +49,20 @@ from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
     # Emit one placeholder feature row per holdout test row so the
     # downstream :class:`Predictor` has something to score. The orchestration
     # layer never materialises actual data here; concrete subclasses replace
     # this with a real feature loader.
-    rows = []
+    rows: list[Mapping[str, Any]] = []
     for index in range(int(split.test.row_count)):
         row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
         rows.append(row)
     return rows
 
 
-@knot
+@KnotFactory.knot
 async def _combine_full_train_deploy(
     model_id: str,
     eval_report: EvalReportPayload,

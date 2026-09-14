@@ -20,7 +20,7 @@ Algorithm:
 
 References:
     [1] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [2] pirn — WatermarkIncrementalExtract:
         pirn_data/specializations/ingestion/watermark_incremental_extract.py
 """
@@ -68,7 +68,7 @@ class QueryNewRowsKnot(Knot):
         watermark_column: Any,
         high_water_mark: Any,
         **_: Any,
-    ) -> list:
+    ) -> list[Any]:
         """Validate inputs, build the SELECT query, execute it, and return the rows.
 
         Args:

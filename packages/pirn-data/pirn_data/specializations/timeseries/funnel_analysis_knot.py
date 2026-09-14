@@ -38,6 +38,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class FunnelAnalysisKnot(Knot):
@@ -46,7 +47,7 @@ class FunnelAnalysisKnot(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         user_column: Knot | str,
         event_column: Knot | str,
         funnel_steps: Knot | Sequence[str],
@@ -88,7 +89,7 @@ class FunnelAnalysisKnot(Knot):
         """
         IdentifierValidator.validate_column("user_column", user_column)
         IdentifierValidator.validate_column("event_column", event_column)
-        if not funnel_steps or not isinstance(funnel_steps, (list, tuple)):
+        if not funnel_steps or not ValueShape.is_list_or_tuple(funnel_steps):
             raise ValueError("FunnelAnalysisKnot: funnel_steps must be a non-empty sequence")
 
         steps = list(funnel_steps)

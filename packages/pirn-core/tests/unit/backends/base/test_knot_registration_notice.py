@@ -6,7 +6,7 @@ import json
 import unittest
 
 from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
-from pirn.tapestry import _current_dispatching_knot_id, _current_run_id, current_run_id
+from pirn.tapestry import Tapestry, _current_dispatching_knot_id, _current_run_id
 
 
 class TestKnotRegistrationNoticeRoundTrip(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestKnotRegistrationNoticeForCurrentRun(unittest.TestCase):
         self.assertEqual(notice.run_id, "run-a")
 
     def test_no_ambient_run_yields_none(self) -> None:
-        self.assertIsNone(current_run_id())
+        self.assertIsNone(Tapestry.current_run_id())
         self.assertIsNone(KnotRegistrationNotice.for_current_run("k1").run_id)
 
 
@@ -72,10 +72,10 @@ class TestKnotRegistrationNoticeDecodeTolerance(unittest.TestCase):
 
 class TestKnotRegistrationNoticeRunScope(unittest.TestCase):
     def test_binds_and_restores_run_identity(self) -> None:
-        self.assertIsNone(current_run_id())
+        self.assertIsNone(Tapestry.current_run_id())
         with KnotRegistrationNotice("k1", "run-a").run_scope():
-            self.assertEqual(current_run_id(), "run-a")
-        self.assertIsNone(current_run_id())
+            self.assertEqual(Tapestry.current_run_id(), "run-a")
+        self.assertIsNone(Tapestry.current_run_id())
 
     def test_unowned_notice_binds_no_run(self) -> None:
         token = _current_run_id.set("stale-run")
@@ -83,8 +83,8 @@ class TestKnotRegistrationNoticeRunScope(unittest.TestCase):
             with KnotRegistrationNotice("k1", None).run_scope():
                 # Explicitly clears whatever the delivering task carried,
                 # rather than letting it leak into the subscriber.
-                self.assertIsNone(current_run_id())
-            self.assertEqual(current_run_id(), "stale-run")
+                self.assertIsNone(Tapestry.current_run_id())
+            self.assertEqual(Tapestry.current_run_id(), "stale-run")
         finally:
             _current_run_id.reset(token)
 

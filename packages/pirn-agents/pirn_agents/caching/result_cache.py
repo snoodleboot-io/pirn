@@ -1,13 +1,12 @@
-"""``ResultCache`` — provider-neutral async cache, thin over a core ``DataStore``.
+"""``ResultCache`` — compute-on-miss memoisation whose values live in a core ``DataStore``.
 
-ADR agents-speaks-core WS2: this used to be a house-interface base class (three
-``NotImplementedError`` storage methods) with :class:`InMemoryResultCache` as
-its only real backend — a second, parallel key-value store next to
-:class:`pirn.backends.base.data_store.DataStore`, which already exists for
-exactly this job ("where intermediate values live, keyed by content hash").
-``ResultCache`` now composes a ``DataStore`` and is concrete: :meth:`get`,
-:meth:`put`, :meth:`has`, and :meth:`invalidate` all delegate to it, keyed by
-the content-address string the caller (or :meth:`get_or_compute`) supplies.
+ADR agents-speaks-core WS2, collapsed further by PIR-872: ``DataStore`` is
+already "where intermediate values live, keyed by content hash", so a cache
+that re-exposed ``get``/``put``/``has`` over one was a second keyed-store
+surface shadowing the core seam. ``ResultCache`` now adds only what a store
+lacks — deriving a content-address key from an operation's *inputs* and
+computing on a miss (:meth:`get_or_compute`), plus dropping a key
+(:meth:`invalidate`). Raw keyed access is the store itself (:attr:`store`).
 Swapping the store — in-memory today, a durable backend later — needs no
 change here.
 """
@@ -18,24 +17,22 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from pirn.backends.base.data_store import DataStore
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.caching.cache_entry import CacheEntry
 
 
 class ResultCache:
-    """Content-addressed result cache backed by a core :class:`DataStore`.
+    """Content-addressed compute-on-miss memoisation over a core :class:`DataStore`.
 
-    The concrete :meth:`get_or_compute` layered on top is the ergonomic entry
-    point callers actually use: it derives a content-address key from the
-    *inputs*, returns a hit when present, and otherwise computes, stores, and
-    returns — the opt-in caching of an idempotent tool call or embedding
-    lookup in one call.
+    :meth:`get_or_compute` is the entry point: it derives a content-address
+    key from the *inputs*, returns a hit when present, and otherwise computes,
+    stores, and returns — the opt-in caching of an idempotent tool call or
+    embedding lookup in one call.
 
     It stays a *plain* class (no :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`)
-    because no knot holds a cache as a config value; a future story that wires
-    a cache into a ``KnotConfig`` would flip it to the opaque base.
+    because no knot holds a cache as a config value.
     """
 
     def __init__(self, *, store: DataStore) -> None:
@@ -49,33 +46,10 @@ class ResultCache:
         """
         self._store = store
 
-    async def get(self, key: str) -> CacheEntry | None:
-        """Return the entry stored under ``key``, or ``None`` on a miss.
-
-        A value the store evicted to stay within its
-        :attr:`~pirn.backends.base.data_store.DataStore.retention` ceiling is
-        reported the same way as one that was never stored — a cache miss,
-        never a raised error — because a cache is optional by construction:
-        an evicted result is simply recomputed.
-        """
-        try:
-            return await self._store.get(key)
-        except ValueEvictedError:
-            return None
-        except KeyError:
-            return None
-
-    async def put(self, entry: CacheEntry) -> None:
-        """Store ``entry`` under its :attr:`CacheEntry.key`."""
-        await self._store.put(entry.key, entry)
-
-    async def has(self, key: str) -> bool:
-        """Return ``True`` if an entry is stored under ``key``."""
-        return await self._store.has(key)
-
-    async def invalidate(self, key: str) -> None:
-        """Drop any entry stored under ``key`` (a no-op if absent)."""
-        await self._store.scrub(key)
+    @property
+    def store(self) -> DataStore:
+        """The core ``DataStore`` holding this cache's entries — its keyed access."""
+        return self._store
 
     async def get_or_compute(
         self,
@@ -96,10 +70,32 @@ class ResultCache:
         Returns:
             The cached (on hit) or freshly computed (on miss) value.
         """
-        key = content_hash(payload, strict=True)
-        hit = await self.get(key)
+        key = ContentHasher.hash(payload, strict=True)
+        hit = await self._lookup(key)
         if hit is not None:
             return hit.value
         value = await compute()
-        await self.put(CacheEntry(key=key, value=value, embedding=embedding))
+        await self._record(CacheEntry(key=key, value=value, embedding=embedding))
         return value
+
+    async def invalidate(self, key: str) -> None:
+        """Drop any entry stored under ``key`` (a no-op if absent)."""
+        await self._store.scrub(key)
+
+    async def _lookup(self, key: str) -> CacheEntry | None:
+        """Return the entry under ``key``, or ``None`` on a miss.
+
+        A value the store evicted to stay within its
+        :attr:`~pirn.backends.base.data_store.DataStore.retention` ceiling is
+        reported the same way as one never stored — a miss, never a raised
+        error — because a cache is optional by construction: an evicted result
+        is simply recomputed.
+        """
+        try:
+            return await self._store.get(key)
+        except (KeyError, ValueEvictedError):
+            return None
+
+    async def _record(self, entry: CacheEntry) -> None:
+        """Store ``entry`` under its :attr:`CacheEntry.key`."""
+        await self._store.put(entry.key, entry)

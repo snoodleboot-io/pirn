@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -38,7 +38,7 @@ class TestRollingWindowAggregator(unittest.IsolatedAsyncioTestCase):
     async def test_rolling_mean(self) -> None:
         rows = [{"ts": _ts(i), "v": float(i + 1)} for i in range(4)]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -61,7 +61,7 @@ class TestRollingWindowAggregator(unittest.IsolatedAsyncioTestCase):
     async def test_rolling_sum(self) -> None:
         rows = [{"ts": _ts(i), "v": 1.0} for i in range(3)]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -83,7 +83,7 @@ class TestRollingWindowAggregator(unittest.IsolatedAsyncioTestCase):
     async def test_output_column_name(self) -> None:
         rows = [{"ts": _ts(0), "v": 1.0}]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -105,7 +105,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_rows_from_upstream_knot(self) -> None:
         rows = [{"ts": _ts(i), "v": float(i)} for i in range(3)]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 

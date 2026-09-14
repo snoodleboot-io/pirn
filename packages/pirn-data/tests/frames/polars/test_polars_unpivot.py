@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import polars as pl
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,7 +19,7 @@ from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.frames.polars.polars_unpivot import PolarsUnpivot
 
 
-@knot
+@KnotFactory.knot
 async def emit_wide() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
@@ -78,7 +78,7 @@ class TestPolarsUnpivot(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_on_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_on() -> object:
             return ("clicks", "views")
 
@@ -98,7 +98,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PolarsUnpivot:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PolarsDataBatch:
             return PolarsDataBatch(frame=pl.DataFrame())
 

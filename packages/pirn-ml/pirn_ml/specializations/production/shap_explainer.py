@@ -57,10 +57,6 @@ class SHAPExplainer(Knot):
             Mapping with ``feature_importance`` (dict[str, float]),
             ``mean_abs_shap`` (dict[str, float]), and ``model_id`` (str).
         """
-        try:
-            import shap  # noqa: F401
-        except ImportError:
-            pass
 
         features = model.feature_names if model.feature_names else split.test.feature_names
         feature_importance: dict[str, float] = {}

@@ -26,6 +26,8 @@ from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.value_shape import ValueShape
+
 
 class DataBatchToTuplesKnot(Disassembler):
     """Map a :class:`DataBatch` to a list of column-ordered tuples."""
@@ -60,7 +62,7 @@ class DataBatchToTuplesKnot(Disassembler):
             TypeError: If ``column_names`` is not a sequence of strings.
             ValueError: If ``column_names`` is empty.
         """
-        if not isinstance(column_names, Sequence) or isinstance(column_names, (str, bytes)):
+        if not ValueShape.is_sequence(column_names) or isinstance(column_names, (str, bytes)):
             raise TypeError("DataBatchToTuplesKnot: column_names must be a sequence of strings")
         column_tuple = tuple(column_names)
         if not column_tuple:

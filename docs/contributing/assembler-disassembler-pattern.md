@@ -41,7 +41,7 @@ An Assembler knot converts raw connector output into a domain `Payload`.
 
 - **Input:** raw types — `bytes`, `list[tuple]`, `list[dict]`, etc.
 - **Output:** a `Payload[M, D]` subclass
-- **Location:** `pirn/domains/{domain}/assemblers/{name}.py`
+- **Location:** `pirn_{domain}/assemblers/{name}.py`
 - **Naming:** `{Subject}{Source}Assembler`
   - `SignalObjectStoreAssembler` — bytes from an object store → `SignalPayload`
   - `ScadaDatabaseAssembler` — rows from a database → `ScadaPayload`
@@ -53,7 +53,7 @@ A Disassembler knot converts a domain `Payload` into raw types for a connector s
 
 - **Input:** a `Payload[M, D]` subclass
 - **Output:** raw types — `bytes`, `list[tuple]`, etc.
-- **Location:** `pirn/domains/{domain}/disassemblers/{name}.py`
+- **Location:** `pirn_{domain}/disassemblers/{name}.py`
 - **Naming:** `{Subject}{Sink}Disassembler`
   - `TrainedModelObjectStoreDisassembler` — `TrainedModelPayload` → `bytes` for object store
 
@@ -197,7 +197,7 @@ Note: `TuplesToDataBatchKnot` and `DataBatchToTuplesKnot` predated the `Assemble
 `Disassembler` base classes and extended `Knot` directly; the data lane is rebasing both
 onto `Assembler`/`Disassembler` in the same PIR-856 merge window, so by the time this
 lands they demonstrate the required base class inheritance like every other knot in
-`pirn/domains/{domain}/assemblers/` and `pirn/domains/{domain}/disassemblers/`. If you
+`pirn_{domain}/assemblers/` and `pirn_{domain}/disassemblers/`. If you
 encounter either class still extending `Knot` directly, treat it as not yet migrated
 rather than as the intended pattern, and follow the `Assembler`/`Disassembler` examples
 elsewhere in the tree instead.
@@ -209,7 +209,7 @@ Read these before writing a new Assembler or Disassembler.
 ## Folder Layout
 
 ```
-pirn/domains/{domain}/
+pirn_{domain}/
     assemblers/
         __init__.py
         {subject}_{source}_assembler.py

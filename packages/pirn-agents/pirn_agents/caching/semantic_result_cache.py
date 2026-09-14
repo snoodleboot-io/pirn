@@ -7,14 +7,13 @@ which needs enumeration —
 (``put``/``get``/``has``/``scrub`` only, keyed lookups by design). The
 embeddings therefore live in a vended
 :class:`~pirn_agents.caching.similarity_index.SimilarityIndex` resource
-(exactly like a vector-store backend), keyed by the same ``content_hash``
+(exactly like a vector-store backend), keyed by the same ``ContentHasher.hash``
 string the matched entry is stored under; the entries themselves — the
 actual cached *values* — live in an
 :class:`~pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore`,
 the same store :class:`~pirn_agents.caching.in_memory_result_cache.InMemoryResultCache`
-uses. Exact-key ``get``/``put``/``has``/``invalidate`` therefore delegate to
-that store, keeping the index in sync alongside it, rather than overriding
-every storage method with a private dict as before this pass.
+uses. Every write and invalidation keeps the index in sync with that store;
+raw keyed access is the store itself (:attr:`ResultCache.store`, PIR-872).
 """
 
 from __future__ import annotations
@@ -23,8 +22,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
-from pirn.core.hashing import content_hash
-from pirn.exceptions.value_evicted_error import ValueEvictedError
+from pirn.core.content_hasher import ContentHasher
 
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.result_cache import ResultCache
@@ -34,13 +32,13 @@ from pirn_agents.caching.similarity_index import SimilarityIndex
 class SemanticResultCache(ResultCache):
     """Cache that treats *near-identical* queries as hits, not just exact ones.
 
-    Exact-key ``get``/``put``/``invalidate`` behave like the in-memory cache, so
-    it is a drop-in :class:`ResultCache`. The extra
-    :meth:`get_or_compute_semantic` path embeds the query text with a
-    caller-injected embedding function and returns a stored value whose cosine
-    similarity clears ``threshold`` — so paraphrased or reordered inputs still
-    hit. The embedding function is injected (no vendor SDK is imported here),
-    keeping the cache provider-neutral and backend-free.
+    :meth:`get_or_compute` behaves like the in-memory cache, so it is a
+    drop-in :class:`ResultCache`. The extra :meth:`get_or_compute_semantic`
+    path embeds the query text with a caller-injected embedding function and
+    returns a stored value whose cosine similarity clears ``threshold`` — so
+    paraphrased or reordered inputs still hit. The embedding function is
+    injected (no vendor SDK is imported here), keeping the cache
+    provider-neutral and backend-free.
     """
 
     def __init__(
@@ -84,34 +82,9 @@ class SemanticResultCache(ResultCache):
     def __len__(self) -> int:
         return len(self._keys)
 
-    async def get(self, key: str) -> CacheEntry | None:
-        """Exact-key lookup (bumps hit/miss counters)."""
-        try:
-            entry = await self._store.get(key)
-        except (KeyError, ValueEvictedError):
-            entry = None
-        if entry is None:
-            self.misses += 1
-            self._keys.discard(key)
-            self._index.discard(key)
-            return None
-        self.hits += 1
-        return entry
-
-    async def put(self, entry: CacheEntry) -> None:
-        """Store ``entry``, indexing its embedding (if any) for the semantic scan."""
-        await self._store.put(entry.key, entry)
-        self._keys.add(entry.key)
-        if entry.embedding is not None:
-            self._index.put(entry.key, entry.embedding)
-
-    async def has(self, key: str) -> bool:
-        """Return whether an entry is stored under the exact ``key``."""
-        return await self._store.has(key)
-
     async def invalidate(self, key: str) -> None:
         """Drop the entry under ``key`` if present, from both the store and the index."""
-        await self._store.scrub(key)
+        await super().invalidate(key)
         self._keys.discard(key)
         self._index.discard(key)
 
@@ -129,18 +102,31 @@ class SemanticResultCache(ResultCache):
         query = tuple(float(x) for x in await self._embed(text))
         best_key = self._index.best_match(query, self._threshold)
         if best_key is not None:
-            try:
-                entry = await self._store.get(best_key)
-            except (KeyError, ValueEvictedError):
-                entry = None
-                self._keys.discard(best_key)
-                self._index.discard(best_key)
+            entry = await self._lookup(best_key)
             if entry is not None:
-                self.hits += 1
                 return entry.value
-        self.misses += 1
+        else:
+            self.misses += 1
         value = await compute()
-        await self.put(
-            CacheEntry(key=content_hash(text, strict=True), value=value, embedding=query)
+        await self._record(
+            CacheEntry(key=ContentHasher.hash(text, strict=True), value=value, embedding=query)
         )
         return value
+
+    async def _lookup(self, key: str) -> CacheEntry | None:
+        """Exact-key lookup (bumps hit/miss counters, drops an evicted key from the index)."""
+        entry = await super()._lookup(key)
+        if entry is None:
+            self.misses += 1
+            self._keys.discard(key)
+            self._index.discard(key)
+            return None
+        self.hits += 1
+        return entry
+
+    async def _record(self, entry: CacheEntry) -> None:
+        """Store ``entry``, indexing its embedding (if any) for the semantic scan."""
+        await super()._record(entry)
+        self._keys.add(entry.key)
+        if entry.embedding is not None:
+            self._index.put(entry.key, entry.embedding)

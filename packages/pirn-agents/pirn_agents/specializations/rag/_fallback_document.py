@@ -9,7 +9,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _FallbackDocument(Knot):
@@ -36,6 +35,6 @@ class _FallbackDocument(Knot):
         Raises:
             RuntimeError: If the fallback tool call itself failed.
         """
-        if tool_result.status is not ToolStatus.OK:
+        if not tool_result.succeeded:
             raise RuntimeError(f"CorrectiveRouter: fallback_tool call failed: {tool_result.error}")
         return [{"source": "fallback", "content": str(tool_result.result)}]
