@@ -119,3 +119,84 @@ class TestEveryTypeIsPayloadFrameOrAllowlisted(unittest.TestCase):
             assert not (cls.__name__.endswith("Frame") and issubclass(cls, PirnOpaqueValue)), (
                 f"{qualname} is now a *Frame type; remove it from ALLOWLISTED_STRUCTURAL."
             )
+
+
+# --- specializations/base *Result family (PIR-868) ------------------------
+#
+# PIR-868 rebased the eleven specialization ``*Result`` value objects
+# (previously plain frozen-dataclass ``AgentResult`` subclasses) onto the same
+# ``Payload[Frame, Data]`` split this module already ratchets for
+# ``pirn_agents.types``. Those result/frame pairs live under
+# ``specializations/<pattern>/``, not under ``pirn_agents/types/`` (they are
+# specialization-pattern outcomes, not general messaging types), so they
+# cannot be picked up by ``_iter_type_classes``'s directory walk -- this is an
+# explicit, pinned module list rather than a second directory walk, since
+# ``specializations/**`` also contains many Knot classes that are neither a
+# Payload nor a *Frame and must not be swept into this ratchet.
+
+# (dotted_module, ClassName) pairs for every AgentResult concrete and its Frame.
+_RESULT_FAMILY_MODULES: list[tuple[str, str]] = [
+    ("pirn_agents.specializations.base.agent_result", "AgentResult"),
+    (
+        "pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_frame",
+        "EvaluatorOptimizerFrame",
+    ),
+    (
+        "pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_result",
+        "EvaluatorOptimizerResult",
+    ),
+    ("pirn_agents.specializations.lats.lats_frame", "LatsFrame"),
+    ("pirn_agents.specializations.lats.lats_result", "LatsResult"),
+    (
+        "pirn_agents.specializations.multi_agent.orchestrator_workers_frame",
+        "OrchestratorWorkersFrame",
+    ),
+    (
+        "pirn_agents.specializations.multi_agent.orchestrator_workers_result",
+        "OrchestratorWorkersResult",
+    ),
+    ("pirn_agents.specializations.multi_agent.worker_task_frame", "WorkerTaskFrame"),
+    ("pirn_agents.specializations.multi_agent.worker_task_result", "WorkerTaskResult"),
+    ("pirn_agents.specializations.plan_react.plan_react_frame", "PlanReActFrame"),
+    ("pirn_agents.specializations.plan_react.plan_react_result", "PlanReActResult"),
+    ("pirn_agents.specializations.prompt_chaining.prompt_chain_frame", "PromptChainFrame"),
+    ("pirn_agents.specializations.prompt_chaining.prompt_chain_result", "PromptChainResult"),
+    ("pirn_agents.specializations.reflection.simulation_frame", "SimulationFrame"),
+    ("pirn_agents.specializations.reflection.simulation_result", "SimulationResult"),
+    ("pirn_agents.specializations.reflexion.reflexion_frame", "ReflexionFrame"),
+    ("pirn_agents.specializations.reflexion.reflexion_result", "ReflexionResult"),
+    ("pirn_agents.specializations.rewoo.rewoo_frame", "ReWooFrame"),
+    ("pirn_agents.specializations.rewoo.rewoo_result", "ReWooResult"),
+    ("pirn_agents.specializations.routing.fallback_frame", "FallbackFrame"),
+    ("pirn_agents.specializations.routing.fallback_result", "FallbackResult"),
+    ("pirn_agents.specializations.self_ask.self_ask_frame", "SelfAskFrame"),
+    ("pirn_agents.specializations.self_ask.self_ask_result", "SelfAskResult"),
+]
+
+_RESULT_FAMILY_IDS = [f"{mod}::{name}" for mod, name in _RESULT_FAMILY_MODULES]
+
+
+class TestResultFamilyIsPayloadOrFrame(unittest.TestCase):
+    """Extends this module's Payload-or-Frame ratchet to the AgentResult family."""
+
+    def test_classification(self) -> None:
+        for module_path, class_name in _RESULT_FAMILY_MODULES:
+            module = importlib.import_module(module_path)
+            cls = getattr(module, class_name)
+            is_payload = issubclass(cls, Payload)
+            is_frame = (
+                not is_payload
+                and cls.__name__.endswith("Frame")
+                and issubclass(cls, PirnOpaqueValue)
+            )
+            assert is_payload or is_frame, (
+                f"{module_path}::{class_name} is neither a Payload subclass nor a "
+                "*Frame PirnOpaqueValue dataclass."
+            )
+            if class_name == "AgentResult":
+                # The thin generic base itself: a Payload, never a *Frame.
+                assert is_payload
+            elif class_name.endswith("Frame"):
+                assert is_frame, f"{module_path}::{class_name} must be a *Frame, not a Payload."
+            else:
+                assert is_payload, f"{module_path}::{class_name} must be a Payload."

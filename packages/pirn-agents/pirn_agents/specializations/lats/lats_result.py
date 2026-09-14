@@ -2,38 +2,56 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from pirn_agents.specializations.base.agent_result import AgentResult
+from pirn_agents.specializations.lats.lats_frame import LatsFrame
 
 
-@dataclass(frozen=True)
-class LatsResult(AgentResult):
+class LatsResult(AgentResult[LatsFrame, tuple[str, ...]]):
     """Outcome of a budget-bounded LATS search.
 
-    Attributes
-    ----------
-    best_trajectory:
-        The highest-value action trajectory found within budget.
-    best_value:
-        The value of ``best_trajectory``.
-    nodes_expanded:
-        How many nodes were expanded before the search stopped.
-    budget_exhausted:
-        Whether the search stopped because the node/time budget was hit (as
-        opposed to exhausting the frontier).
+    ``LatsResult`` is ``Payload[LatsFrame, tuple[str, ...]]`` (PIR-868,
+    following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
+    highest-value action trajectory found within budget, and ``metadata``
+    is the :class:`LatsFrame` carrying the value/nodes-expanded/budget
+    facts. The pre-ADR field names (``best_trajectory``, ``best_value``,
+    ``nodes_expanded``, ``budget_exhausted``) stay available as read-only
+    properties, so every existing construction and attribute-access call
+    site keeps compiling unchanged.
     """
 
-    best_trajectory: tuple[str, ...]
-    best_value: float
-    nodes_expanded: int
-    budget_exhausted: bool
+    def __init__(
+        self,
+        best_trajectory: tuple[str, ...],
+        best_value: float,
+        nodes_expanded: int,
+        budget_exhausted: bool,
+    ) -> None:
+        frame = LatsFrame(
+            best_value=best_value,
+            nodes_expanded=nodes_expanded,
+            budget_exhausted=budget_exhausted,
+        )
+        super().__init__(metadata=frame, data=tuple(best_trajectory))
+
+    @property
+    def best_trajectory(self) -> tuple[str, ...]:
+        return self._data
+
+    @property
+    def best_value(self) -> float:
+        return self._metadata.best_value
+
+    @property
+    def nodes_expanded(self) -> int:
+        return self._metadata.nodes_expanded
+
+    @property
+    def budget_exhausted(self) -> bool:
+        return self._metadata.budget_exhausted
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            "best_trajectory": list(self.best_trajectory),
-            "best_value": self.best_value,
-            "nodes_expanded": self.nodes_expanded,
-            "budget_exhausted": self.budget_exhausted,
-        }
+        audit = dict(self._metadata._pirn_audit_dict())
+        audit["best_trajectory"] = list(self.best_trajectory)
+        return audit

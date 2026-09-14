@@ -74,6 +74,7 @@ PARALLEL_VOCABULARY_IMPORTERS = frozenset(
         "specializations/rag/_fallback_document.py",
         "specializations/rag/_follow_up_decision.py",
         "specializations/react/react_step_executor.py",
+        "specializations/rewoo/rewoo_frame.py",
         "specializations/rewoo/rewoo_result.py",
         "specializations/rewoo/rewoo_synthesizer.py",
         "specializations/routing/_fallback_chain_state.py",
