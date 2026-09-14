@@ -40,7 +40,8 @@ class AnthropicMessagesToolAdapter(ProviderAdapter):
         object (already a mapping).
         """
         calls: list[dict[str, Any]] = []
-        for block in provider_msg.get("content") or []:
+        blocks: list[Any] = provider_msg.get("content") or []
+        for block in blocks:
             if block.get("type") == "tool_use":
                 calls.append(
                     {

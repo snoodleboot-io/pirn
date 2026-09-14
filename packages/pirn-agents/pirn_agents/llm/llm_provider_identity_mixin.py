@@ -10,7 +10,9 @@ credential?" surface: :meth:`content_identity`, the
 and the private helpers that decide whether a collaborator's config can be
 named safely.
 
-It declares the host attributes it reads (set by
+It derives from :class:`~pirn.connectors.connector_base.ConnectorBase`, whose
+identity-keyed ``__pirn_canonical__`` its override falls back to through
+``super()``, and declares the host attributes it reads (set by
 :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider.__init__`) as bare
 annotations so it type-checks stand-alone; it contributes no ``__init__`` of
 its own and is always combined with that base, never instantiated directly.
@@ -22,6 +24,7 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 
 from pirn_agents.llm.endpoint_identity import EndpointIdentity
@@ -31,7 +34,7 @@ from pirn_agents.llm.response_mapper import ResponseMapper
 from pirn_agents.tools.definition_reference import DefinitionReference
 
 
-class LLMProviderIdentityMixin:
+class LLMProviderIdentityMixin(ConnectorBase):
     """Content-identity surface for :class:`BaseLLMProvider` (PIR-840)."""
 
     # -- host attributes this mixin reads (set by BaseLLMProvider.__init__) --
@@ -143,13 +146,13 @@ class LLMProviderIdentityMixin:
         """
         provider_type = type(self)
         if "content_identity" not in vars(provider_type):
-            return super().__pirn_canonical__()  # type: ignore[misc]
+            return super().__pirn_canonical__()
         reference = DefinitionReference.of(provider_type)
         if reference is None:
-            return super().__pirn_canonical__()  # type: ignore[misc]
+            return super().__pirn_canonical__()
         config = self.content_identity()
         if config is None:
-            return super().__pirn_canonical__()  # type: ignore[misc]
+            return super().__pirn_canonical__()
         return {"__pirn_type__": "llm_provider", "provider": reference, "config": config}
 
     @staticmethod

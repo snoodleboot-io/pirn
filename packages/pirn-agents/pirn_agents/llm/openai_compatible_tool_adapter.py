@@ -15,6 +15,7 @@ Native shapes handled:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from pirn_agents.llm.provider_adapter import ProviderAdapter
@@ -41,8 +42,9 @@ class OpenAICompatibleToolAdapter(ProviderAdapter):
         empty ``tool_calls`` yields an empty list.
         """
         calls: list[dict[str, Any]] = []
-        for call in provider_msg.get("tool_calls") or []:
-            function = call.get("function") or {}
+        tool_calls: list[Any] = provider_msg.get("tool_calls") or []
+        for call in tool_calls:
+            function: Mapping[str, Any] = call.get("function") or {}
             calls.append(
                 {
                     "id": call.get("id", ""),

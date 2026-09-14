@@ -202,6 +202,7 @@ strict = [
     "pirn_agents/generation",
     "pirn_agents/input",
     "pirn_agents/interfaces",
+    "pirn_agents/llm",
     "pirn_agents/mcp",
     "pirn_agents/memory",
     "pirn_agents/observability",
