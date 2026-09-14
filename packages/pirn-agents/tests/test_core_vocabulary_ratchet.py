@@ -53,22 +53,14 @@ _PACKAGE_ROOT = Path(__file__).parent.parent / "pirn_agents"
 # WS2 fixed the 8 roots under exceptions/** and security/** (its lane):
 # ToolInvocationError, AgentRecursionError, SandboxDisabledError,
 # UnsupportedModalityError, MissingCassetteEntryError, InjectionDetectedError,
-# McpTrustError, UntrustedDirectiveError. The 10 below predate this ticket and
-# sit outside WS2's owned directories.
-EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
-    {
-        "performance/budget_breach_error.py::BudgetBreachError",
-        "specializations/structured_output/structured_decode_error.py::StructuredDecodeError",
-        "specializations/multi_agent/specialist_invocation_error.py::SpecialistInvocationError",
-        "specializations/reflection/constitutional_violation_error.py::ConstitutionalViolationError",
-        "mcp/mcp_error.py::McpError",
-        "prompt/prompt_render_error.py::PromptRenderError",
-        "resilience/circuit_open_error.py::CircuitOpenError",
-        "memory/stores/key_index_unreadable_error.py::KeyIndexUnreadableError",
-        "llm/llm_provider_error.py::LLMProviderError",
-        "batch/rate_limit_signal.py::RateLimitSignal",
-    }
-)
+# McpTrustError, UntrustedDirectiveError. PIR-872 rooted the remaining nine on
+# PirnError (keeping each one's builtin base where callers catch it):
+# BudgetBreachError, StructuredDecodeError, SpecialistInvocationError,
+# ConstitutionalViolationError, McpError, PromptRenderError, CircuitOpenError,
+# LLMProviderError, RateLimitSignal -- and deleted KeyIndexUnreadableError,
+# whose only raiser (MemoryStoreKeyIndex) PIR-864 had already deleted. Empty,
+# not deleted: a new agents exception root without PirnError fails here.
+EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR: frozenset[str] = frozenset()
 
 # --- (b) modules importing CanonicalJson ------------------------------------
 #
@@ -149,6 +141,22 @@ class TestExceptionRootsFrozen(unittest.TestCase):
                 EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR - roots_without_pirn_error
             ),
         }
+
+    def test_pir872_roots_now_have_pirn_error(self) -> None:
+        """The 9 roots PIR-872 fixed must actually resolve PirnError."""
+        for name in (
+            "BudgetBreachError",
+            "StructuredDecodeError",
+            "SpecialistInvocationError",
+            "ConstitutionalViolationError",
+            "McpError",
+            "PromptRenderError",
+            "CircuitOpenError",
+            "LLMProviderError",
+            "RateLimitSignal",
+        ):
+            assert name in self.classes, f"{name} not found by the walk"
+            assert VocabularyInventory.roots_on_pirn_error(name, self.classes), name
 
     def test_ws2_owned_roots_now_have_pirn_error(self) -> None:
         """The 8 roots WS2 fixed must actually resolve PirnError, not just be absent above."""

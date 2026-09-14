@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class SpecialistInvocationError(Exception):
+
+class SpecialistInvocationError(PirnError):
     """Raised when a specialist ``SubTapestry`` completes without an output.
 
     A specialist is invoked through :meth:`SubTapestry.__call__`, which never

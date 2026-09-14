@@ -281,8 +281,13 @@ still built a knot per candidate past the lock point. 8 of the 18 agents
 exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.PirnError`
 (`ToolInvocationError`, `AgentRecursionError`, `SandboxDisabledError`,
 `UnsupportedModalityError`, `MissingCassetteEntryError`, `InjectionDetectedError`,
-`McpTrustError`, `UntrustedDirectiveError`); the other 10 are frozen in
-`tests/test_core_vocabulary_ratchet.py`. `content_hash` (§4.4) is the one
+`McpTrustError`, `UntrustedDirectiveError`); PIR-872 rooted the other nine
+(`BudgetBreachError`, `StructuredDecodeError`, `SpecialistInvocationError`,
+`ConstitutionalViolationError`, `McpError`, `PromptRenderError`,
+`CircuitOpenError`, `LLMProviderError`, `RateLimitSignal`) on `PirnError` too,
+keeping each builtin base callers catch, and deleted the orphaned
+`KeyIndexUnreadableError`; `tests/test_core_vocabulary_ratchet.py` holds the
+inventory at empty. `content_hash` (§4.4) is the one
 hashing path for new code; `ContentAddress`/`content_address()` were a
 one-cycle deprecated wrapper around it, deleted by PIR-864 — every caller now
 calls `content_hash(value, strict=True)` directly.
