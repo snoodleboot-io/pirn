@@ -9,7 +9,7 @@ ambient accessor for it), and zero production code imported ``pirn.emitters``
 from anywhere in this package.
 
 This module replaces that second bus with one core-shaped call: build a
-``StatusEvent`` whose ``run_id`` comes from :func:`pirn.tapestry.current_run_id`
+``StatusEvent`` whose ``run_id`` comes from :meth:`pirn.tapestry.Tapestry.current_run_id`
 and whose ``extra`` mapping carries the span-like fields (kind, model, tokens,
 cost, latency, ...) an LLM/tool/retrieval call wants to report, then hand it to
 :meth:`~pirn.engine.emitter_fanout.EmitterFanout.emit_status`, which delivers it
@@ -32,7 +32,7 @@ from typing import Any
 from pirn.engine.emitter_fanout import EmitterFanout
 from pirn.managers.knot_state import KnotState
 from pirn.managers.status_event import StatusEvent
-from pirn.tapestry import current_run_id
+from pirn.tapestry import Tapestry
 
 
 class AgentCallRecorder:
@@ -64,7 +64,7 @@ class AgentCallRecorder:
     ) -> None:
         """Emit one call's outcome as a ``StatusEvent`` through the run's emitters.
 
-        A no-op outside a run: :func:`~pirn.tapestry.current_run_id` returns
+        A no-op outside a run: :meth:`~pirn.tapestry.Tapestry.current_run_id` returns
         ``None`` when no run is in flight, and there is no well-formed run to
         attribute the event to, so nothing is emitted rather than an event
         naming an empty run id. This mirrors the deprecated ``Tracer``'s
@@ -73,7 +73,7 @@ class AgentCallRecorder:
         Args:
             knot_id: The enclosing knot's ``knot_id``. Never ambient — core
                 deliberately has no ``current_knot_id()`` companion to
-                ``current_run_id()`` (see that accessor's docstring), so
+                ``Tapestry.current_run_id()`` (see that accessor's docstring), so
                 every call site supplies its own, the same way a ``Knot``
                 reads ``self.knot_id``.
             kind: Short call-site kind, e.g. ``"llm"``, ``"tool"``,
@@ -92,7 +92,7 @@ class AgentCallRecorder:
                 ``cost``, a ``call_id``, and the like — merged with ``kind``
                 and ``latency`` into the event's ``extra`` mapping.
         """
-        run_id = current_run_id()
+        run_id = Tapestry.current_run_id()
         if run_id is None:
             return
         event = StatusEvent(

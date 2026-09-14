@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.conversation_buffer import ConversationBuffer
@@ -14,7 +14,7 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _make_knot() -> ConversationBuffer:
-    @knot
+    @KnotFactory.knot
     async def _m() -> AgentMessage:
         return AgentMessage(role="user", content="x")
 

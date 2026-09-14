@@ -8,12 +8,12 @@ The `Tapestry` is the central workspace. Build knots inside a `with Tapestry() a
 
 ```python
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
@@ -73,10 +73,10 @@ The default resolver is `ChainedIdentityResolver([EnvIdentityResolver(), OsIdent
 
 ---
 
-## get_current_store
+## Tapestry.current_store
 
 ```python
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 ```
 
 Returns the `TapestryStore` of the currently-executing extensible run, or `None` when called outside an extensible run.
@@ -84,13 +84,13 @@ Returns the `TapestryStore` of the currently-executing extensible run, or `None`
 Call this inside a knot's `process()` to register successor knots into the running tapestry. The engine merges them as knots complete and starts each one as soon as its parents have resolved — this is the mechanism for building dynamic DAGs where the graph structure is determined by runtime output.
 
 ```python
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 class RouterKnot(Knot):
     async def process(self, result: dict, **_) -> dict:
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is not None:
             if result["needs_enrichment"]:
                 store.register(EnrichKnot(data=self, _config=KnotConfig(id="enrich")))

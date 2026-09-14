@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -14,19 +14,19 @@ from pirn_data.quality.null_rate_check import NullRateCheck
 from pirn_data.quality_report import QualityReport
 
 
-@knot
+@KnotFactory.knot
 async def emit_mostly_filled() -> DataBatch:
     rows = tuple({"id": i, "email": f"u{i}@x" if i % 5 != 0 else None} for i in range(10))
     return DataBatch(rows=rows)
 
 
-@knot
+@KnotFactory.knot
 async def emit_all_null_email() -> DataBatch:
     rows = tuple({"id": i, "email": None} for i in range(5))
     return DataBatch(rows=rows)
 
 
-@knot
+@KnotFactory.knot
 async def emit_empty() -> DataBatch:
     return DataBatch(rows=())
 
@@ -83,7 +83,7 @@ class TestNullRateCheck(unittest.IsolatedAsyncioTestCase):
         assert report.passed is True
 
     async def test_multiple_columns_each_assessed(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def two_columns() -> DataBatch:
             rows = (
                 {"a": 1, "b": None},
@@ -109,7 +109,7 @@ class TestNullRateCheck(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_thresholds_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_thresholds() -> dict:
             return {"email": 0.3}
 
@@ -128,7 +128,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> NullRateCheck:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DataBatch:
             return DataBatch()
 

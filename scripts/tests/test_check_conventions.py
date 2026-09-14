@@ -11,7 +11,12 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import check_conventions  # noqa: E402
-from check_conventions import check_file, collect_counts, main, resolve_import_roots  # noqa: E402
+from check_conventions import (  # noqa: E402
+    check_file,
+    collect_counts,
+    main,
+    resolve_import_roots,
+)
 
 
 def _import_root(tmp_path: Path, dist_name: str, import_name: str) -> Path:
@@ -66,7 +71,7 @@ def test_knot_decorated_function_is_exempt(tmp_path: Path) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     f = root / "factory.py"
     f.write_text(
-        "from pirn.core.knot_factory import knot\n\n\n@knot\ndef make_thing():\n    pass\n"
+        "from pirn.core.knot_factory import KnotFactory\n\n\n@KnotFactory.knot\ndef make_thing():\n    pass\n"
     )
     assert "module_level_function" not in _rules(check_file(f, "acme", "factory.py"))
 

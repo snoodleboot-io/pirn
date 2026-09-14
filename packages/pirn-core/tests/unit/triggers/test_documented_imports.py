@@ -6,7 +6,7 @@ convention forbids import forwarding, and
 ``scripts/check_no_import_forwarding.py`` enforces that workspace-wide.
 
 The docs, however, still told users to write ``from pirn.triggers import
-run_forever``, which raises ``ImportError``.
+Trigger``, which raises ``ImportError``.
 
 These tests read the doc files themselves.  Every ``from pirn.triggers…`` and
 ``from pirn.streaming…`` line inside a fenced code block is extracted and
@@ -16,7 +16,7 @@ companion tests below pin the deliberate absence of the re-exports, so the
 two halves cannot drift apart.
 
 Prose is not scanned, only fenced code blocks: ``triggers/AGENTIC_USE.md``
-deliberately quotes ``from pirn.triggers import run_forever`` inline as the
+deliberately quotes ``from pirn.triggers import Trigger`` inline as the
 counter-example, and that must stay quotable.
 """
 
@@ -165,7 +165,6 @@ class TestConcreteModulePathsResolve(unittest.TestCase):
     def test_documented_trigger_paths_resolve(self) -> None:
         for module_name, symbol in (
             ("pirn.triggers.trigger", "Trigger"),
-            ("pirn.triggers.trigger", "run_forever"),
             ("pirn.triggers.cron_trigger", "CronTrigger"),
             ("pirn.triggers.webhook_trigger", "WebhookTrigger"),
             ("pirn.triggers.kafka_trigger", "KafkaTrigger"),
@@ -178,7 +177,6 @@ class TestConcreteModulePathsResolve(unittest.TestCase):
     def test_documented_streaming_paths_resolve(self) -> None:
         for module_name, symbol in (
             ("pirn.streaming.streaming_source", "StreamingSource"),
-            ("pirn.streaming.streaming_source", "run_stream"),
             ("pirn.streaming.iterable_source", "IterableSource"),
             ("pirn.streaming.kafka_streaming_source", "KafkaStreamingSource"),
             ("pirn.streaming.file_tail_source", "FileTailSource"),
@@ -189,8 +187,18 @@ class TestConcreteModulePathsResolve(unittest.TestCase):
                 self.assertTrue(hasattr(module, symbol))
 
 
-class TestTapestryHasNoRunStream(unittest.TestCase):
-    """``run_stream`` is a free function; the docs must not promise a method."""
+class TestDriversAreMethodsOnTheirSources(unittest.TestCase):
+    """The drivers are methods on the event source, not free functions or ``Tapestry`` methods."""
+
+    def test_trigger_drives_itself(self) -> None:
+        module = importlib.import_module("pirn.triggers.trigger")
+        self.assertTrue(callable(module.Trigger.run_forever))
+        self.assertFalse(hasattr(module, "run_forever"))
+
+    def test_streaming_source_drives_itself(self) -> None:
+        module = importlib.import_module("pirn.streaming.streaming_source")
+        self.assertTrue(callable(module.StreamingSource.run_stream))
+        self.assertFalse(hasattr(module, "run_stream"))
 
     def test_tapestry_does_not_define_run_stream(self) -> None:
         tapestry_module = importlib.import_module("pirn.tapestry")

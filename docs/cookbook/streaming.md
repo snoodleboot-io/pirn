@@ -6,7 +6,7 @@ Streaming sources feed continuous data into a long-running pipeline — ETL-styl
 
 ## When to use streaming vs triggers
 
-| | Streaming (`run_stream`) | Trigger (`run_forever`) |
+| | Streaming (`StreamingSource.run_stream`) | Trigger (`Trigger.run_forever`) |
 |-|--------------------------|------------------------|
 | Input shape | One value per tick | Full `RunRequest` per event |
 | Extra params | Constant across all ticks | Specified per event |
@@ -21,15 +21,15 @@ Wrap any Python iterable — lists, generators, range objects:
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn.streaming.streaming_source import run_stream
+from pirn.streaming.streaming_source import StreamingSource
 from pirn.streaming.iterable_source import IterableSource
 
 
-@knot
+@KnotFactory.knot
 async def process_record(record: dict) -> dict:
     return {**record, "processed": True, "score": record.get("value", 0) * 2}
 
@@ -57,7 +57,7 @@ async def main():
         parameter_name="record",   # must match the Parameter id
     )
 
-    await run_stream(source, t, on_result=handle_result)
+    await source.run_stream(t, on_result=handle_result)
 
 
 asyncio.run(main())
@@ -81,7 +81,7 @@ Tail a log file and process each new line as it arrives:
 from pirn.streaming.file_tail_source import FileTailSource
 
 
-@knot
+@KnotFactory.knot
 async def parse_log_line(line: str) -> dict | None:
     """Parse a structured log line."""
     parts = line.strip().split(" ", 3)
@@ -105,7 +105,7 @@ async def main():
     )
 
     # Runs until cancelled or the file disappears
-    await run_stream(source, t)
+    await source.run_stream(t)
 
 
 asyncio.run(main())
@@ -123,7 +123,7 @@ Consume a Kafka topic, one run per message:
 from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
 
 
-@knot
+@KnotFactory.knot
 async def enrich_event(event: dict) -> dict:
     return {**event, "enriched": True}
 
@@ -143,8 +143,7 @@ async def main():
         parameter_name="event",
     )
 
-    await run_stream(
-        source,
+    await source.run_stream(
         t,
         on_result=lambda val, res: print(res.outputs["enriched"]),
         on_error=lambda val, exc: print(f"Error: {exc}"),
@@ -161,10 +160,9 @@ asyncio.run(main())
 Pass constant values shared across all streaming ticks with `extra_parameters`:
 
 ```python
-from pirn.streaming.streaming_source import run_stream
+from pirn.streaming.streaming_source import StreamingSource
 
-await run_stream(
-    source,
+await source.run_stream(
     tapestry,
     extra_parameters={
         "model_version": "v2",
@@ -184,12 +182,12 @@ Adapt a streaming source to the `Trigger` protocol with `StreamingSourceTrigger`
 ```python
 from pirn.streaming.file_tail_source import FileTailSource
 from pirn.streaming.streaming_source_trigger import StreamingSourceTrigger
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
 trigger = StreamingSourceTrigger(source)
 
-await run_forever(trigger, tapestry, on_result=handle_result)
+await trigger.run_forever(tapestry, on_result=handle_result)
 ```
 
 This is useful when you want to use trigger-aware infrastructure (emitters, cancellation, backpressure) with a streaming source.
@@ -205,7 +203,7 @@ async def handle_error(value, exc: Exception) -> None:
     print(f"Failed to process {value!r}: {exc}")
     # Log, alert, or push to a dead-letter queue
 
-await run_stream(source, tapestry, on_error=handle_error)
+await source.run_stream(tapestry, on_error=handle_error)
 ```
 
 If `on_error` is not provided, exceptions from individual runs are logged and the stream continues.
@@ -214,12 +212,12 @@ If `on_error` is not provided, exceptions from individual runs are logged and th
 
 ## Graceful shutdown
 
-`run_stream` calls `source.close()` in its `finally` block — on normal completion, cancellation, or error:
+`StreamingSource.run_stream` calls `source.close()` in its `finally` block — on normal completion, cancellation, or error:
 
 ```python
 import asyncio
 
-task = asyncio.create_task(run_stream(source, tapestry))
+task = asyncio.create_task(source.run_stream(tapestry))
 
 # Shut down gracefully after 60 seconds
 await asyncio.sleep(60)

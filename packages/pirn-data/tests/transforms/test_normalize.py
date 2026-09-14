@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -14,7 +14,7 @@ from pirn_data.transforms.normalize import Normalize
 from pirn_data.transforms.normalize_column_rule import NormalizeColumnRule
 
 
-@knot
+@KnotFactory.knot
 async def emit_messy() -> DataBatch:
     rows = (
         {"name": "  Alice   Smith  ", "region": "EU", "comment": "n/a"},
@@ -90,7 +90,7 @@ class TestNormalize(unittest.IsolatedAsyncioTestCase):
         assert out.rows[1]["name"] == "Bob"
 
     async def test_non_string_values_unchanged(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def numbers() -> DataBatch:
             return DataBatch(rows=({"id": 1, "name": " alice "},))
 
@@ -122,7 +122,7 @@ class TestNormalizeColumnRule(unittest.TestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_rules_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_rules() -> dict:
             return {"name": NormalizeColumnRule(strip_whitespace=True)}
 
@@ -141,7 +141,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self) -> Normalize:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> DataBatch:
             return _make_batch()
 

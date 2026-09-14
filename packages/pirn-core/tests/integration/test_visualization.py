@@ -6,7 +6,7 @@ import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
@@ -15,12 +15,12 @@ from pirn.viz.mermaid_renderer import MermaidRenderer
 from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 
 
-@knot
+@KnotFactory.knot
 async def _add(x: int, y: int) -> int:
     return x + y
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 
@@ -81,7 +81,7 @@ async def test_mermaid_for_run_overlays_outcomes():
 
 
 async def test_mermaid_for_run_marks_failed_knots():
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("oops")
 
@@ -124,7 +124,7 @@ async def test_html_for_run_includes_run_id_in_summary():
 
 
 async def test_html_for_run_marks_failed_run():
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("oops")
 

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -55,7 +55,7 @@ class LoadResult:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def extract(source_csv: str) -> RawDataset:
     """Parse CSV text into a list of dicts."""
     reader = csv.DictReader(io.StringIO(source_csv))
@@ -63,7 +63,7 @@ async def extract(source_csv: str) -> RawDataset:
     return RawDataset(rows=rows, source="inline", row_count=len(rows))
 
 
-@knot
+@KnotFactory.knot
 async def clean(raw: RawDataset, drop_nulls: bool) -> CleanDataset:
     """Drop rows with null values in key columns and normalise types."""
     cleaned = []
@@ -83,7 +83,7 @@ async def clean(raw: RawDataset, drop_nulls: bool) -> CleanDataset:
     return CleanDataset(rows=cleaned, dropped=dropped, source=raw.source)
 
 
-@knot
+@KnotFactory.knot
 async def enrich(clean_data: CleanDataset, fx_rate: float) -> EnrichedDataset:
     """Add derived columns: amount_usd and region_group."""
     region_map = {"US": "americas", "CA": "americas", "GB": "emea", "DE": "emea", "JP": "apac"}
@@ -99,7 +99,7 @@ async def enrich(clean_data: CleanDataset, fx_rate: float) -> EnrichedDataset:
     return EnrichedDataset(rows=enriched, new_columns=["amount_usd", "region_group"])
 
 
-@knot
+@KnotFactory.knot
 async def load(enriched: EnrichedDataset, db_path: str, table_name: str) -> LoadResult:
     """Write the enriched rows to a SQLite table."""
     conn = sqlite3.connect(db_path)

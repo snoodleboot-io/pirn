@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.context.assembled_context import AssembledContext
@@ -26,11 +26,11 @@ def _counter() -> TokenCounter:
 
 
 def _make_knot() -> ContextAssembler:
-    @knot
+    @KnotFactory.knot
     async def _items() -> tuple:
         return ()
 
-    @knot
+    @KnotFactory.knot
     async def _counter_knot() -> TokenCounter:
         return _counter()
 

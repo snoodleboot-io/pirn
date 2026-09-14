@@ -65,7 +65,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
@@ -80,7 +80,7 @@ trace.set_tracer_provider(provider)
 # 2. Attach the emitter to your tapestry.
 emitter = OpenTelemetryEmitter()
 
-@knot
+@KnotFactory.knot
 async def my_knot(x: int) -> int:
     return x * 2
 

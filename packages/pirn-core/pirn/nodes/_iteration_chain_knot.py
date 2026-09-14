@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes._loop_terminal import _LoopTerminal
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
     from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
@@ -170,7 +170,7 @@ class _IterationChainKnot(Knot):
         # reason to stop.  See PIR-772.
         new_state = await loop.afold(state, result)
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return new_state
 

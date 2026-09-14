@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -17,7 +17,7 @@ from tests._stubs.recording_embedding_provider import (
 )
 
 
-@knot
+@KnotFactory.knot
 async def emit_split() -> SplitManifest:
     train = DatasetManifest(name="d:train", feature_names=("a",), row_count=10)
     test = DatasetManifest(name="d:test", feature_names=("a",), row_count=5)

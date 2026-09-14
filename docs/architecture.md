@@ -48,7 +48,7 @@ pirn is an async Python pipeline framework for defining, executing, and observin
 ```
 User Code
     │
-    ├── @knot decorator / Knot subclasses   ← pirn/core/knot.py
+    ├── @KnotFactory.knot decorator / Knot subclasses   ← pirn/core/knot.py
     ├── KnotConfig / ErrorPolicy            ← pirn/core/knot_config.py + pirn/core/error_policy.py
     ├── Tapestry context manager            ← pirn/tapestry.py
     │       │
@@ -279,21 +279,21 @@ class EnrichUser(Knot):
         return lookup_table.get(user_id, {})
 ```
 
-**`@knot` decorator:**
+**`@KnotFactory.knot` decorator:**
 
 ```python
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 ```
 
-`@knot` creates a `KnotFactory` that returns a new `Knot` subclass on each call. The factory exposes `.fn` (the original function) and `.knot_class` (the generated subclass). Sync functions are wrapped via `asyncio.to_thread` automatically.
+`@KnotFactory.knot` creates a `KnotFactory` that returns a new `Knot` subclass on each call. The factory exposes `.fn` (the original function) and `.knot_class` (the generated subclass). Sync functions are wrapped via `asyncio.to_thread` automatically.
 
 **KnotFactory:**
 
-`KnotFactory.__call__(**kwargs)` delegates to `self.knot_class(**kwargs)`. This makes `@knot`-decorated functions call-compatible with Knot subclasses — both can be passed to Map's `each=` or the YAML loader's `known_callables`.
+`KnotFactory.__call__(**kwargs)` delegates to `self.knot_class(**kwargs)`. This makes `@KnotFactory.knot`-decorated functions call-compatible with Knot subclasses — both can be passed to Map's `each=` or the YAML loader's `known_callables`.
 
 **Tapestry context manager:**
 
@@ -509,7 +509,7 @@ class Trigger(Protocol):
     async def close(self) -> None: ...
 ```
 
-**`run_forever(trigger, tapestry, *, on_result=None, on_error=None)`** (`pirn/triggers/trigger.py`):
+**`trigger.run_forever(tapestry, *, on_result=None, on_error=None)`** (`pirn/triggers/trigger.py`):
 
 Consumes `RunRequest`s from `trigger.stream()` and calls `tapestry.run(request)` for each. Calls `trigger.close()` on exit (normal, cancelled, or errored). Optional callbacks `on_result` and `on_error` are awaited if provided.
 
@@ -770,7 +770,7 @@ CeleryDispatcher.register_worker_task(app)
 
 `CeleryDispatcher.dispatch(knot, inputs)` calls `app.send_task(PIRN_CELERY_TASK_NAME, args=(knot, dict(inputs)))` and bridges the blocking `async_result.get()` to async via `asyncio.to_thread`. The worker runs `asyncio.run(knot(inputs))` in a fresh event loop per task.
 
-**Serialization:** Celery's default JSON serializer cannot handle arbitrary Knot objects. The dispatcher configures `task_serializer="pickle"` and `accept_content=["pickle"]`. Knots must be pickle-serializable. This requires the knot class to be importable on the worker process — dynamic classes created by `@knot` may need explicit `__module__` and `__qualname__` if they are not defined at module scope.
+**Serialization:** Celery's default JSON serializer cannot handle arbitrary Knot objects. The dispatcher configures `task_serializer="pickle"` and `accept_content=["pickle"]`. Knots must be pickle-serializable. This requires the knot class to be importable on the worker process — dynamic classes created by `@KnotFactory.knot` may need explicit `__module__` and `__qualname__` if they are not defined at module scope.
 
 **What changes vs local:**
 
@@ -798,7 +798,7 @@ Submits knots as Ray remote tasks. Ray uses `cloudpickle` for serialization. Con
 For all distributed dispatchers:
 
 - **Knot classes defined at module scope** serialize reliably across processes.
-- **`@knot`-decorated functions at module scope** serialize reliably; `@knot` preserves `__module__` and `__qualname__` from the wrapped function.
+- **`@KnotFactory.knot`-decorated functions at module scope** serialize reliably; `@KnotFactory.knot` preserves `__module__` and `__qualname__` from the wrapped function.
 - **Lambdas and nested functions** in `selector`, `predicate`, or `combine` arguments (Branch, Gate, Aggregator) require cloudpickle (Dask/Ray) or explicit module-scope definitions (Celery).
 - **Config values** must be serializable. Pydantic models, dicts, lists, and primitives work. Custom classes need `__reduce__` or cloudpickle.
 - **Inputs at dispatch time** are already-resolved Python values (not Knot references). They are passed directly as `dict(inputs)` to the worker.
@@ -811,12 +811,12 @@ For all distributed dispatchers:
 
 | Concept | Model | Driver | Lifecycle |
 |---------|-------|--------|-----------|
-| **Trigger** | Event → one full `RunRequest` | `run_forever` | Async generator; external events create full parameter sets |
-| **StreamingSource** | Source → one parameter value per tick | `run_stream` | Async generator; source is the primary input |
+| **Trigger** | Event → one full `RunRequest` | `Trigger.run_forever` | Async generator; external events create full parameter sets |
+| **StreamingSource** | Source → one parameter value per tick | `StreamingSource.run_stream` | Async generator; source is the primary input |
 
 A `Trigger` yields fully-formed `RunRequest` objects — the trigger author decides all parameter values for each run. A `StreamingSource` yields raw values that are bound to a single parameter name; the rest of the parameters come from `extra_parameters`.
 
-### `run_forever()` Loop
+### `Trigger.run_forever()` Loop
 
 **File:** `pirn/triggers/trigger.py:run_forever`
 
@@ -831,7 +831,7 @@ async for request in trigger.stream():
 - `on_error` callback receives the original `RunRequest` and the exception.
 - Cancellation: wrap in `asyncio.create_task()` and `task.cancel()`.
 
-### `run_stream()` Loop
+### `StreamingSource.run_stream()` Loop
 
 **File:** `pirn/streaming/streaming_source.py:run_stream`
 
@@ -868,7 +868,7 @@ Built-in sources: `IterableStreamingSource` (wraps a Python iterable), `FileTail
 
 **File:** `pirn/streaming/trigger_adapter.py`
 
-`StreamingSourceTrigger` wraps a `StreamingSource` to implement the `Trigger` protocol. Each value from the source is converted to a `RunRequest` by binding `source.parameter_name = value`. This allows streaming sources to be driven by `run_forever` without a custom driver.
+`StreamingSourceTrigger` wraps a `StreamingSource` to implement the `Trigger` protocol. Each value from the source is converted to a `RunRequest` by binding `source.parameter_name = value`. This allows streaming sources to be driven by `Trigger.run_forever` without a custom driver.
 
 ---
 
@@ -946,7 +946,7 @@ If a callable reference is not in `known_callables`, the loader treats it as a d
 A `Mapping[str, Any]` passed to `PipelineLoader.load_yaml`. Values can be:
 
 - Plain callables (sync or async).
-- `KnotFactory` instances (from `@knot`).
+- `KnotFactory` instances (from `@KnotFactory.knot`).
 - `Knot` subclasses.
 
 The loader's `_resolve_callable` checks `known_callables` first, then falls back to dotted import if `allow_callable_refs=True`.
@@ -1063,7 +1063,7 @@ class SQSTrigger:
         await self._client.close()
 ```
 
-Drive with `run_forever(trigger, tapestry)`.
+Drive with `trigger.run_forever(tapestry)`.
 
 ### 9.6 Custom StreamingSources
 
@@ -1085,7 +1085,7 @@ class WebSocketSource:
         await self._ws.close()
 ```
 
-Drive with `run_stream(source, tapestry, extra_parameters={...})`.
+Drive with `source.run_stream(tapestry, extra_parameters={...})`.
 
 ---
 
@@ -1097,7 +1097,7 @@ Drive with `run_stream(source, tapestry, extra_parameters={...})`.
 graph TD
     subgraph User["User API"]
         KnotCls["Knot (ABC)\npirn/core/knot.py"]
-        KnotDec["@knot decorator\nKnotFactory"]
+        KnotDec["@KnotFactory.knot decorator\nKnotFactory"]
         Tap["Tapestry\npirn/tapestry.py"]
         KnotCfg["KnotConfig / ErrorPolicy\npirn/core/knot_config.py\npirn/core/error_policy.py"]
     end
@@ -1147,7 +1147,7 @@ graph TD
 
     subgraph Trig["Triggers"]
         TrigProto["Trigger protocol\npirn/triggers/trigger.py"]
-        RunForever["run_forever()"]
+        RunForever["Trigger.run_forever()"]
         CronT["CronTrigger"]
         HttpT["WebhookTrigger"]
         KafkaT["KafkaTrigger"]
@@ -1155,7 +1155,7 @@ graph TD
 
     subgraph Stream["Streaming"]
         SrcProto["StreamingSource protocol\npirn/streaming/streaming_source.py"]
-        RunStream["run_stream()"]
+        RunStream["StreamingSource.run_stream()"]
         IterSrc["IterableSource"]
         FileSrc["FileTailSource"]
         KafkaSrc["KafkaStreamingSource"]
@@ -1318,7 +1318,7 @@ flowchart TD
 
 | File | Role |
 |------|------|
-| `pirn/core/knot.py` | `Knot` ABC, `Optional` mixin, `@knot` decorator, `KnotFactory`, `_pending_record` |
+| `pirn/core/knot.py` | `Knot` ABC, `Optional` mixin, `@KnotFactory.knot` decorator, `KnotFactory`, `_pending_record` |
 | `pirn/core/knot_config.py` | `KnotConfig` |
 | `pirn/core/error_policy.py` | `ErrorPolicy` enum |
 | `pirn/core/run_request.py`, `pirn/core/run_result.py`, `pirn/core/run_context.py` | `RunRequest`, `RunResult`, `RunContext` |
@@ -1327,7 +1327,7 @@ flowchart TD
 | `pirn/core/lineage.py` | `KnotLineage` Pydantic model |
 | `pirn/core/parameter.py` | `Parameter` knot (external input binding) |
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |
-| `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `current_tapestry()` |
+| `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `Tapestry.current()` |
 | `pirn/engine/engine.py` | `Engine`, admission loop, `_decide`, `_dispatch_with_timing` |
 | `pirn/engine/lineage_recorder.py` | `LineageRecorder` (`record_lineage`, `config_hash`) |
 | `pirn/engine/emitter_fanout.py` | `EmitterFanout` (`subscribe_emitters_to_status`, `handle_emitter_error`) |
@@ -1350,8 +1350,8 @@ flowchart TD
 | `pirn/backends/disk.py` | `LocalDiskDataStore` |
 | `pirn/backends/base/subscribable_store.py` | `SubscribableStore` protocol |
 | `pirn/emitters/emitter.py` | `Emitter` protocol |
-| `pirn/triggers/trigger.py` | `Trigger` protocol, `run_forever()` |
-| `pirn/streaming/streaming_source.py` | `StreamingSource` protocol, `run_stream()` |
+| `pirn/triggers/trigger.py` | `Trigger` protocol, `Trigger.run_forever()` |
+| `pirn/streaming/streaming_source.py` | `StreamingSource` protocol, `StreamingSource.run_stream()` |
 | `pirn/streaming/trigger_adapter.py` | `StreamingSourceTrigger` |
 | `pirn/nodes/map_markers.py` | `Map`, `ZipMap`, `DictMap` — fan-out markers |
 | `pirn/nodes/branch/` | `Branch`, `BranchOutput` — selector routing |

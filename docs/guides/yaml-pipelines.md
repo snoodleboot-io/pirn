@@ -189,7 +189,7 @@ Combines multiple parents via a merge function.
 A `Mapping[str, Any]` passed to `PipelineLoader.load_yaml`. Values can be:
 
 - Plain callables (sync or async functions)
-- `KnotFactory` instances (from `@knot` decorator)
+- `KnotFactory` instances (from `@KnotFactory.knot` decorator)
 - `Knot` subclasses
 
 The loader's `_resolve_callable` checks `known_callables` first. In strict mode, if a name is not found, `ValueError` is raised. In loose mode, the loader falls back to a dotted import.
@@ -209,7 +209,7 @@ After that, any `Knot` subclass under `myapp/` is resolvable from YAML by its sn
 
 `known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable needs multiple pipeline-specific aliases.
 
-**For the full registration story** — manual `Registry.register` calls, registering `@knot`-decorated factories, library scoping, troubleshooting, and lifecycle rules — see the [Knot Registration guide](knot-registration.md).
+**For the full registration story** — manual `Registry.register` calls, registering `@KnotFactory.knot`-decorated factories, library scoping, troubleshooting, and lifecycle rules — see the [Knot Registration guide](knot-registration.md).
 
 ---
 

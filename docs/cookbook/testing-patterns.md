@@ -6,13 +6,13 @@ Common patterns for testing pirn pipelines, from simple unit tests to full integ
 
 ## Pattern 1: Test the knot function directly
 
-`@knot`-decorated functions expose the original function as `.fn`:
+`@KnotFactory.knot`-decorated functions expose the original function as `.fn`:
 
 ```python
 # myapp/knots.py
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
-@knot
+@KnotFactory.knot
 async def compute_discount(base_price: float, tier: str) -> float:
     rates = {"standard": 0.0, "premium": 0.1, "enterprise": 0.25}
     return base_price * (1 - rates.get(tier, 0.0))
@@ -102,13 +102,13 @@ async def test_lineage_is_complete():
 ```python
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
-@knot
+@KnotFactory.knot
 async def divide(numerator: float, denominator: float) -> float:
     return numerator / denominator  # raises ZeroDivisionError when denominator=0
 
-@knot
+@KnotFactory.knot
 async def format_result(value: float) -> str:
     return f"Result: {value:.2f}"
 
@@ -157,11 +157,11 @@ class FallbackTotal(Knot):
 
 @pytest.mark.asyncio
 async def test_fallback_on_error():
-    @knot
+    @KnotFactory.knot
     async def always_errors(x: float) -> float:
         raise ValueError("primary failed")
 
-    @knot
+    @KnotFactory.knot
     async def always_works(x: float) -> float:
         return x * 0.5
 

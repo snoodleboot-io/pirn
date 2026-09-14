@@ -28,7 +28,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
@@ -39,13 +39,13 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def _identity(value: Any) -> Any:
     await asyncio.sleep(0.01)
     return value
 
 
-@knot
+@KnotFactory.knot
 async def _inner_double(x: int) -> int:
     await asyncio.sleep(0.01)
     return x * 2
@@ -66,19 +66,19 @@ async def _wait_for_siblings() -> None:
         await _barrier.wait()
 
 
-@knot
+@KnotFactory.knot
 async def _per_element(item: int) -> int:
     await _wait_for_siblings()
     return item
 
 
-@knot
+@KnotFactory.knot
 async def _pair(left: int, right: int) -> int:
     await _wait_for_siblings()
     return left + right
 
 
-@knot
+@KnotFactory.knot
 async def _entry(key: str, value: int) -> str:
     await _wait_for_siblings()
     return f"{key}={value}"

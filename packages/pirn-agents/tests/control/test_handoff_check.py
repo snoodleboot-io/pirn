@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.control.handoff_check import HandoffCheck
@@ -14,7 +14,7 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 def _make_knot() -> HandoffCheck:
-    @knot
+    @KnotFactory.knot
     async def _r() -> AgentResponse:
         return AgentResponse(content="x")
 

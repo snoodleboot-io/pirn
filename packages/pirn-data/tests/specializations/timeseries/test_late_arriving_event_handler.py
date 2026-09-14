@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -40,7 +40,7 @@ class TestLateArrivingEventHandler(unittest.IsolatedAsyncioTestCase):
             {"ts": _ts(30), "v": 2},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -67,7 +67,7 @@ class TestLateArrivingEventHandler(unittest.IsolatedAsyncioTestCase):
             {"ts": _ts(10), "v": 3},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -90,7 +90,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_rows_from_upstream_knot(self) -> None:
         rows = [{"ts": _ts(i * 10), "v": i} for i in range(5)]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 

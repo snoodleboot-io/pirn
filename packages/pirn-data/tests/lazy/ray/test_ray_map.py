@@ -12,7 +12,7 @@ except ImportError as _e:
 
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
@@ -65,7 +65,7 @@ class TestRayMap(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_fn_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_fn() -> Any:
             return lambda b: b
 

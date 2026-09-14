@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pyarrow as pa
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -23,7 +23,7 @@ def _empty_batch() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({"x": pa.array([], type=pa.int64())}))
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> PyarrowDataBatch:
     return PyarrowDataBatch(
         table=pa.table(
@@ -35,7 +35,7 @@ async def emit_users() -> PyarrowDataBatch:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> PyarrowDataBatch:
     return PyarrowDataBatch(
         table=pa.table(
@@ -47,7 +47,7 @@ async def emit_orders() -> PyarrowDataBatch:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_empty() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({"x": pa.array([], type=pa.int64())}))
 
@@ -90,11 +90,11 @@ class TestPyarrowJoin(unittest.IsolatedAsyncioTestCase):
         assert "carol" in names
 
     async def test_join_with_left_on_right_on(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_renamed_users() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({"uid": [1, 2], "name": ["alice", "bob"]}))
 
-        @knot
+        @KnotFactory.knot
         async def emit_renamed_orders() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({"customer_id": [1, 2], "amount": [10.0, 20.0]}))
 
@@ -116,7 +116,7 @@ class TestPyarrowJoin(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_how_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_how() -> str:
             return "inner"
 

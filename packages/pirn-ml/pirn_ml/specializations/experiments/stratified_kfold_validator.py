@@ -41,7 +41,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
 from pirn_ml.specializations.experiments._kfold_validator_base import (
@@ -53,7 +53,7 @@ from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 
 
-@knot
+@KnotFactory.knot
 async def _aggregate_stratified_kfold_reports(
     reports: list[EvalReportPayload],
     algorithm: str,

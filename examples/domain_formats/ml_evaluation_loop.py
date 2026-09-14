@@ -33,7 +33,7 @@ from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.aggregator import Aggregator
-from pirn.tapestry import Tapestry, get_current_store
+from pirn.tapestry import Tapestry
 
 REGISTRY_COMPLETE_ID = "registry_complete"
 
@@ -268,7 +268,7 @@ class ModelEvaluator(Knot):
     """Dynamic dispatcher — loads the current model and registers evaluation sub-graph."""
 
     async def process(self, queue: EvaluationQueue, **_) -> EvaluationQueue:  # type: ignore[override]
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return queue
 
@@ -441,7 +441,7 @@ class PromotionGate(Knot):
             decisions=new_decisions,
         )
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return decision
 

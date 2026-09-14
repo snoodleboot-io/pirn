@@ -4,7 +4,7 @@ A core :class:`pirn.triggers.trigger.Trigger` that fires when an external event
 arrives: a caller (a webhook handler, a queue consumer, a test) awaits
 :meth:`fire` to enqueue a fire signal, and the consumer — a
 :class:`~pirn_agents.batch.triggered_batch.TriggeredBatch`, or core's
-``run_forever`` against a tapestry — gets one ``RunRequest`` per signal.
+``Trigger.run_forever`` against a tapestry — gets one ``RunRequest`` per signal.
 :meth:`close` ends the stream so the consumer loop exits cleanly.
 
 Built on an in-process :class:`asyncio.Queue`; no message-broker backend is

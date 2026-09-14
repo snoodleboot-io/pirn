@@ -61,7 +61,7 @@ async def test_score_text_toxic():
     assert result > 0.3
 ```
 
-`@knot`-decorated functions expose their original function as `.fn`. For Knot subclasses, instantiate normally inside a `with Tapestry():` block (so the knot registers and wiring runs), then call `process()` directly with plain values:
+`@KnotFactory.knot`-decorated functions expose their original function as `.fn`. For Knot subclasses, instantiate normally inside a `with Tapestry():` block (so the knot registers and wiring runs), then call `process()` directly with plain values:
 
 ```python
 from pirn.core.knot_config import KnotConfig
@@ -91,18 +91,18 @@ Use all in-memory backends (the defaults). No database setup needed:
 import asyncio
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -143,12 +143,12 @@ async def test_lineage_records():
 Deliberately failing knots with `SKIP_IF_PARENT_FAILED`:
 
 ```python
-@knot
+@KnotFactory.knot
 async def always_fails(x: int) -> int:
     raise ValueError("intentional failure")
 
 
-@knot
+@KnotFactory.knot
 async def downstream(x: int) -> int:
     return x + 1
 

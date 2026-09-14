@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pandas as pd
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,7 +19,7 @@ from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.frames.pandas.pandas_deduplicate import PandasDeduplicate
 
 
-@knot
+@KnotFactory.knot
 async def emit_with_dups() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
@@ -72,7 +72,7 @@ class TestPandasDeduplicate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_keys_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_keys() -> object:
             return ("id",)
 
@@ -91,7 +91,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PandasDeduplicate:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame())
 

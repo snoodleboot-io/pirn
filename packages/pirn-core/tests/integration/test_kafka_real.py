@@ -17,7 +17,7 @@ import uuid
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
 
@@ -156,17 +156,16 @@ async def test_kafka_emitter_publishes_status_event_to_topic():
 # ------------------------------------------------------------- streaming tests
 
 
-@knot
+@KnotFactory.knot
 async def _echo(x: int) -> int:
     return x
 
 
 async def test_kafka_streaming_source_drives_run_per_message():
-    """Produce 5 messages; run_stream must complete 5 runs with correct outputs."""
+    """Produce 5 messages; StreamingSource.run_stream must complete 5 runs with correct outputs."""
     from aiokafka import AIOKafkaConsumer
 
     from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
-    from pirn.streaming.streaming_source import run_stream
 
     bootstrap = _bootstrap()
     topic = _unique_topic()
@@ -204,7 +203,7 @@ async def test_kafka_streaming_source_drives_run_per_message():
             raise asyncio.CancelledError
 
     try:
-        await run_stream(source, t, on_result=collect)
+        await source.run_stream(t, on_result=collect)
     except asyncio.CancelledError:
         pass
 

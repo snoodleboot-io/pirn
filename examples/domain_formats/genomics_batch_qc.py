@@ -54,7 +54,7 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.map_markers import Map, ZipMap
@@ -123,7 +123,7 @@ class RunSummary:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def qc_read(read: FastqRead) -> ReadQC:
     """Compute per-read QC metrics and pass/fail classification."""
     if not read.sequence:
@@ -162,7 +162,7 @@ async def qc_read(read: FastqRead) -> ReadQC:
     )
 
 
-@knot
+@KnotFactory.knot
 async def trim_adapters(read: FastqRead, qc: ReadQC) -> TrimmedRead:
     """Trim leading/trailing low-quality bases and known adapter prefix."""
     seq = read.sequence
@@ -199,7 +199,7 @@ async def trim_adapters(read: FastqRead, qc: ReadQC) -> TrimmedRead:
     )
 
 
-@knot
+@KnotFactory.knot
 async def align_read(trimmed: TrimmedRead) -> AlignmentResult:
     """Simulate alignment: assign contig/position and mapping quality."""
     # Use a deterministic RNG seeded from the seq_id for reproducibility
@@ -247,7 +247,7 @@ async def align_read(trimmed: TrimmedRead) -> AlignmentResult:
     )
 
 
-@knot
+@KnotFactory.knot
 async def summarise_run(alignments: list[AlignmentResult]) -> RunSummary:
     """Aggregate per-read alignment results into a run-level summary."""
     # alignments carries the full pipeline provenance via the graph; we

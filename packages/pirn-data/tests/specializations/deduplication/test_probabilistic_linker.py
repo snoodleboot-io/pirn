@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -121,11 +121,11 @@ class TestProbabilisticLinker(unittest.IsolatedAsyncioTestCase):
         assert result[0]["right_index"] == 0
 
     async def test_wired_tapestry_run(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_left() -> list[dict[str, Any]]:
             return [{"name": "Alice", "dob": "1990"}]
 
-        @knot
+        @KnotFactory.knot
         async def emit_right() -> list[dict[str, Any]]:
             return [{"name": "Alice", "dob": "1990"}]
 
@@ -146,7 +146,7 @@ class TestProbabilisticLinker(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_left_rows_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_left() -> list[dict[str, Any]]:
             return []
 

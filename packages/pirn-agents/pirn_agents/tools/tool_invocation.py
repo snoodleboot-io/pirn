@@ -98,7 +98,7 @@ class ToolInvocation(SubTapestry):
 
         Args:
             tool: The capability to call — a :class:`ToolFactory`, a ``Tool``
-                class, a ``@tool``/``@knot`` factory, or an upstream knot
+                class, a ``@tool``/``@KnotFactory.knot`` factory, or an upstream knot
                 producing one.
             call: The :class:`ToolCall` to execute, either as a literal or as
                 an upstream knot the engine resolves first.

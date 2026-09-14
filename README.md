@@ -20,16 +20,16 @@ Requires Python 3.11+.
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -262,18 +262,18 @@ metrics, message buses, or traces.
 ### Triggers
 
 ```python
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 from pirn.triggers.cron_trigger import CronTrigger
 from pirn.triggers.webhook_trigger import WebhookTrigger
 from pirn.triggers.kafka_trigger import KafkaTrigger
 
 # Run every five minutes.
 trigger = CronTrigger(every_seconds=300)
-await run_forever(trigger, tapestry)
+await trigger.run_forever(tapestry)
 
 # Run on each Kafka message.
 trigger = KafkaTrigger(topic="orders", bootstrap_servers="kafka:9092")
-await run_forever(trigger, tapestry)
+await trigger.run_forever(tapestry)
 
 # Run on each HTTP POST.  trigger.app is a Starlette ASGI app you mount on
 # any ASGI server (uvicorn, hypercorn, FastAPI).
@@ -319,17 +319,17 @@ Triggers fire whole runs (request/response). **Streaming sources**
 feed continuous data into a single long-running pipeline — ETL-style.
 
 ```python
-from pirn.streaming.streaming_source import run_stream
+from pirn.streaming.streaming_source import StreamingSource
 from pirn.streaming.file_tail_source import FileTailSource
 from pirn.streaming.iterable_source import IterableSource
 
 # Tail a log file forever.
 source = FileTailSource("/var/log/app.log", parameter_name="line")
-await run_stream(source, tapestry, on_result=handle)
+await source.run_stream(tapestry, on_result=handle)
 
 # Wrap any iterable.
 source = IterableSource([1, 2, 3], parameter_name="x")
-await run_stream(source, tapestry)
+await source.run_stream(tapestry)
 ```
 
 `KafkaStreamingSource` is available too. If you want to drive
@@ -345,16 +345,16 @@ own output, opt into **extensible** runs:
 result = await tapestry.run(extensible=True)
 ```
 
-Inside any knot's `process()`, call `get_current_store()` to register
+Inside any knot's `process()`, call `Tapestry.current_store()` to register
 successor knots into the running tapestry. The engine merges them as
 knots complete, and a newcomer starts as soon as its parents have resolved:
 
 ```python
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 
 class PlannerKnot(Knot):
     async def process(self, ctx: Context, **_) -> Context:
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is not None:
             for action in plan_actions(ctx):
                 store.register(ActionKnot(ctx=self, action=action,

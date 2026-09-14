@@ -38,7 +38,7 @@ import yaml
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import KnotFactory, knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.exceptions.pipeline_load_error import PipelineLoadError
 from pirn.nodes.aggregator import Aggregator
@@ -234,7 +234,7 @@ class PipelineLoader:
             elif isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
                 return callable_obj(_config=cfg, tapestry=tapestry)
             else:
-                factory = knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
+                factory = KnotFactory.knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
             return factory(_config=cfg, tapestry=tapestry)
 
         if isinstance(node_spec, (KnotSpec, SinkSpec)):
@@ -252,16 +252,15 @@ class PipelineLoader:
                 kwargs[input_name] = value
             # Three cases:
             # (1) callable_obj is a Knot class -> instantiate.
-            # (2) callable_obj is a KnotFactory (from @knot) -> call it.
-            # (3) callable_obj is a plain function -> wrap with @knot first.
+            # (2) callable_obj is a KnotFactory (from @KnotFactory.knot) -> call it.
+            # (3) callable_obj is a plain function -> wrap with @KnotFactory.knot first.
             if isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
                 return callable_obj(**kwargs)
             if isinstance(callable_obj, KnotFactory):
                 return callable_obj(**kwargs)
-            # Plain function — wrap with @knot.
-            from pirn.core.knot_factory import knot as _knot_decorator
+            # Plain function — wrap with @KnotFactory.knot.
 
-            factory = _knot_decorator(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
+            factory = KnotFactory.knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
             return factory(**kwargs)
 
         if isinstance(node_spec, AggregatorSpec):
@@ -380,7 +379,7 @@ class PipelineLoader:
                 f"reference {ref!r} not in known_callables and not registered as a Knot "
                 "in sweet_tea's Registry; if it belongs to a pirn domain, install & "
                 "import the owning package (e.g. pip install pirn-<x> then "
-                "import pirn_<x>, or call discover_installed_domains() from "
+                "import pirn_<x>, or call DomainDiscovery.discover_installed_domains() from "
                 "pirn.domain_discovery); otherwise set allow_callable_refs=True to enable "
                 "dotted-path imports, or call Registry.fill_registry() in your project so "
                 "your knots are auto-discovered"

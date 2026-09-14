@@ -12,7 +12,7 @@ except ImportError as _e:
 import polars as pl
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -20,7 +20,7 @@ from pirn_data.frames.polars.polars_aggregate import PolarsAggregate
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
@@ -83,7 +83,7 @@ class TestPolarsAggregate(unittest.IsolatedAsyncioTestCase):
         assert eu["n_customers"] == 2
 
     async def test_composite_group_by(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def two_dim() -> PolarsDataBatch:
             return PolarsDataBatch(
                 frame=pl.DataFrame(
@@ -110,7 +110,7 @@ class TestPolarsAggregate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> object:
             return ("region",)
 
@@ -130,7 +130,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PolarsAggregate:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PolarsDataBatch:
             return PolarsDataBatch(frame=pl.DataFrame())
 

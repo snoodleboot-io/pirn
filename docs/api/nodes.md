@@ -341,4 +341,4 @@ class Refiner(LoopSubTapestry[RefinementState]):
 
 Each iteration is a knot in one loop run; the knots are chained by real parent edges so lineage and the explorer reflect the true sequential (or parallel) execution history. Drill into any iteration knot to see its inner tapestry.
 
-**See also:** `examples/llm_agent/agent_loop.py` — dynamic DAG agent loop built on extensible tapestry and `get_current_store()`.
+**See also:** `examples/llm_agent/agent_loop.py` — dynamic DAG agent loop built on extensible tapestry and `Tapestry.current_store()`.

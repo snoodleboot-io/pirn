@@ -1,6 +1,6 @@
 # Triggers
 
-Triggers start a new pipeline run for each external event. Drive them with `run_forever(trigger, tapestry)`.
+Triggers start a new pipeline run for each external event. Drive them with `trigger.run_forever(tapestry)`.
 
 ---
 
@@ -14,9 +14,9 @@ Triggers start a new pipeline run for each external event. Drive them with `run_
 
 ---
 
-## `run_forever()`
+## `Trigger.run_forever()`
 
-::: pirn.triggers.trigger.run_forever
+::: pirn.triggers.trigger.Trigger.run_forever
     options:
       show_source: false
       heading_level: 3
@@ -24,14 +24,14 @@ Triggers start a new pipeline run for each external event. Drive them with `run_
 ### Example
 
 ```python
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 from pirn.triggers.cron_trigger import CronTrigger
 
 trigger = CronTrigger(every_seconds=300)
-await run_forever(trigger, tapestry, on_result=handle_result)
+await trigger.run_forever(tapestry, on_result=handle_result)
 ```
 
-`run_forever` calls `trigger.close()` on exit (normal, cancelled, or errored).
+`Trigger.run_forever` calls `trigger.close()` on exit (normal, cancelled, or errored).
 
 ---
 
@@ -48,12 +48,12 @@ Fires on a schedule.
 ### Example
 
 ```python
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 from pirn.triggers.cron_trigger import CronTrigger
 
 # Run every five minutes
 trigger = CronTrigger(every_seconds=300)
-await run_forever(trigger, tapestry)
+await trigger.run_forever(tapestry)
 ```
 
 ---
@@ -97,7 +97,7 @@ Fires on each Kafka message. Requires `pirn[kafka]`.
 ### Example
 
 ```python
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 from pirn.triggers.kafka_trigger import KafkaTrigger
 
 trigger = KafkaTrigger(
@@ -105,7 +105,7 @@ trigger = KafkaTrigger(
     bootstrap_servers="kafka:9092",
     group_id="pirn-worker",
 )
-await run_forever(trigger, tapestry)
+await trigger.run_forever(tapestry)
 ```
 
 ---

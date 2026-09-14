@@ -14,7 +14,7 @@ Core types: `Knot`, `Assembler`, `Disassembler`, `Parameter`, `KnotConfig`, `Err
 
 ---
 
-## `@knot` decorator
+## `@KnotFactory.knot` decorator
 
 ::: pirn.core.knot_factory.KnotFactory
     options:

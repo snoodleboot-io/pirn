@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -39,7 +39,7 @@ class TestSessionizationKnot(unittest.IsolatedAsyncioTestCase):
             {"uid": "u1", "ts": _ts(5)},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -65,7 +65,7 @@ class TestSessionizationKnot(unittest.IsolatedAsyncioTestCase):
             {"uid": "u1", "ts": _ts(60)},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -90,7 +90,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             {"uid": "u2", "ts": _ts(1)},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 

@@ -28,7 +28,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -37,7 +37,7 @@ from pirn_ml.lineage_store import LineageStore
 from pirn_ml.types.model_manifest import ModelManifest
 
 
-@knot
+@KnotFactory.knot
 async def _record_divergence_and_combine(
     champion_deployment_id: str,
     challenger_deployment_id: str,

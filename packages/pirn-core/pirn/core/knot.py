@@ -176,7 +176,7 @@ class Knot:
         super().__init_subclass__(**kwargs)
         if "process" in cls.__dict__:
             # follow_wrapped=False: inspect the actual method body, not the
-            # user's original function via __wrapped__.  @knot-generated methods
+            # user's original function via __wrapped__.  @KnotFactory.knot-generated methods
             # have **kwargs in their body; user class overrides must have **_.
             sig = inspect.signature(cls.__dict__["process"], follow_wrapped=False)
             has_var_pos = False
@@ -226,7 +226,7 @@ class Knot:
 
         # Validate the remaining kwargs against process()'s signature -- or,
         # for a schema-declared knot, against the declared schema.
-        # follow_wrapped=True: for @knot classes, inspect the user's original
+        # follow_wrapped=True: for @KnotFactory.knot classes, inspect the user's original
         # function so declared input names reflect its real parameter names.
         sig = self._process_signature()
         schema = type(self)._input_schema_override
@@ -881,7 +881,7 @@ class Knot:
         """Resolve ``process()``'s type hints, keeping ``Annotated`` extras.
 
         We introspect ``cls.process`` (the unbound method) so that
-        ``inspect.signature`` follows ``__wrapped__`` for ``@knot``-
+        ``inspect.signature`` follows ``__wrapped__`` for ``@KnotFactory.knot``-
         generated subclasses.  See Phase 1 commit history for the
         justification.
 

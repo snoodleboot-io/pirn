@@ -41,11 +41,11 @@ Create `knots.py` with the processing functions:
 ```python
 # knots.py
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.nodes.sink import Sink
 
 
-@knot
+@KnotFactory.knot
 async def score_text(text: str) -> float:
     """Return a toxicity score between 0.0 (clean) and 1.0 (toxic)."""
     # In a real pipeline this would call a model API.
@@ -60,13 +60,13 @@ def route_selector(score: float) -> str:
     return "toxic" if score > 0.3 else "clean"
 
 
-@knot
+@KnotFactory.knot
 async def handle_clean(text: str) -> dict:
     """Process clean content — approve and enrich."""
     return {"status": "approved", "text": text, "action": "publish"}
 
 
-@knot
+@KnotFactory.knot
 async def handle_toxic(text: str, score: float) -> dict:
     """Handle toxic content — quarantine and annotate."""
     return {"status": "quarantined", "text": text, "score": score}

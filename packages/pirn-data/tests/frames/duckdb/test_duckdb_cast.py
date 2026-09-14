@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import duckdb
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,7 +19,7 @@ from pirn_data.frames.duckdb.duckdb_cast import DuckdbCast
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_string_columns() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
     connection.execute(
@@ -79,7 +79,7 @@ class TestDuckdbCast(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_casts_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_casts() -> dict:
             return {"id": "INTEGER"}
 
@@ -99,7 +99,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self, **kwargs: object) -> DuckdbCast:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> DuckdbDataBatch:
             return _make_batch()
 

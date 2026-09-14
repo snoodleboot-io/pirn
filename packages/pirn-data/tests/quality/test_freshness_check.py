@@ -6,7 +6,7 @@ import unittest
 from datetime import UTC, datetime, timedelta
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -18,7 +18,7 @@ from pirn_data.quality_report import QualityReport
 def _batch_with_newest(age: timedelta):
     """Factory: a one-row batch whose ``updated_at`` is ``age`` ago."""
 
-    @knot
+    @KnotFactory.knot
     async def emit() -> DataBatch:
         when = datetime.now(UTC) - age
         return DataBatch(rows=({"id": 1, "updated_at": when},))
@@ -54,7 +54,7 @@ class TestFreshnessCheck(unittest.IsolatedAsyncioTestCase):
         assert report.passed is False
 
     async def test_empty_batch_fails(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DataBatch:
             return DataBatch()
 
@@ -72,7 +72,7 @@ class TestFreshnessCheck(unittest.IsolatedAsyncioTestCase):
         assert any(c.name == "freshness_no_timestamp" for c in report.failed_checks)
 
     async def test_naive_datetime_treated_as_utc(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def naive() -> DataBatch:
             now_naive = datetime.utcnow()
             return DataBatch(rows=({"updated_at": now_naive},))
@@ -90,7 +90,7 @@ class TestFreshnessCheck(unittest.IsolatedAsyncioTestCase):
         assert report.passed is True
 
     async def test_picks_newest_across_rows(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def mixed() -> DataBatch:
             now = datetime.now(UTC)
             rows = (
@@ -115,7 +115,7 @@ class TestFreshnessCheck(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_column_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_column() -> str:
             return "updated_at"
 
@@ -133,7 +133,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         assert report.passed is True
 
     async def test_max_age_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_max_age() -> timedelta:
             return timedelta(hours=1)
 
@@ -153,7 +153,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> FreshnessCheck:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DataBatch:
             return DataBatch()
 

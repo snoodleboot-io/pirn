@@ -10,7 +10,7 @@ import time
 
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.context.context_assembler import ContextAssembler
@@ -21,11 +21,11 @@ from tests.context._stubs import StubWordTokenEstimator
 
 
 def _assembler() -> ContextAssembler:
-    @knot
+    @KnotFactory.knot
     async def _items() -> tuple:
         return ()
 
-    @knot
+    @KnotFactory.knot
     async def _counter() -> TokenCounter:
         return TokenCounter(estimator=StubWordTokenEstimator(), per_message_overhead=0)
 

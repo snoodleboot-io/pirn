@@ -12,7 +12,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.control.reflection_check import ReflectionCheck
@@ -25,12 +25,12 @@ from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.conftest import StubLLMProvider
 
 
-@knot
+@KnotFactory.knot
 async def _stub_response() -> AgentResponse:
     return AgentResponse(content="x")
 
 
-@knot
+@KnotFactory.knot
 async def _stub_context() -> ConversationPayload:
     return ConversationPayload(messages=())
 

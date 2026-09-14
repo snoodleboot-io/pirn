@@ -32,7 +32,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -43,7 +43,7 @@ from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _combine_self_supervised_result(
     model: ModelManifest,
     eval_report: EvalReportPayload,

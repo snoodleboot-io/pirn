@@ -160,7 +160,7 @@ The `Map` marker expects the source knot to produce a `list` or `tuple` at run t
 - **`Gate` converts `Err` to `Skipped`, not the other way.** A closed gate produces `Skipped`, not `Err`. Downstream knots with `SKIP_IF_PARENT_FAILED` policy are skipped — not failed.
 - **`Branch` registers N companion `BranchOutput` knots automatically.** They get ids `{branch_id}:{name}`. These appear in `result.outputs` and lineage records.
 - **`Aggregator.combine` may be async.** Both sync and async callables are supported and detected automatically at construction.
-- **`WithContinuation` requires an extensible tapestry.** It calls `get_current_store()` to register successors mid-run. Use `tapestry.run(extensible=True)` — only the `InMemoryStore` backend supports this.
+- **`WithContinuation` requires an extensible tapestry.** It calls `Tapestry.current_store()` to register successors mid-run. Use `tapestry.run(extensible=True)` — only the `InMemoryStore` backend supports this.
 - **`WithContinuation.attach(knot, fn=..., pool=...)` is syntactic sugar.** It wraps `knot` in a `WithContinuation` and returns the wrapper. The original knot id is preserved as the wrapped parent.
 - **`Sink` has no enforcement on return type.** The `None` convention is by contract, not by runtime check. Downstream knots wired to a `Sink` will receive `None`.
 

@@ -15,7 +15,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -26,7 +26,7 @@ from tests.conftest import StubTool
 
 
 def _make_knot(tools: tuple) -> ToolExecutor:
-    @knot
+    @KnotFactory.knot
     async def _c() -> ToolCall:
         return ToolCall(tool_name="search", arguments={}, call_id="c1")
 
@@ -41,7 +41,7 @@ _CALL = ToolCall(tool_name="search", arguments={"q": "x"}, call_id="c1")
 async def _execute(tools: tuple) -> ToolResult:
     """Run a ToolExecutor over ``_CALL`` through the engine and return its output."""
 
-    @knot
+    @KnotFactory.knot
     async def _call_source() -> ToolCall:
         return _CALL
 
@@ -95,7 +95,7 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
     """PIR-733: the invocation is a node now, not an inline await."""
 
     async def test_the_invocation_gets_its_own_lineage_row(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def _call_source() -> ToolCall:
             return _CALL
 

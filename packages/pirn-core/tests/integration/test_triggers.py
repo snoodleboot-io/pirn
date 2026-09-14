@@ -10,13 +10,12 @@ from typing import Any
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pirn.triggers.cron_trigger import CronTrigger
 from pirn.triggers.kafka_trigger import KafkaTrigger
-from pirn.triggers.trigger import run_forever
 from pirn.triggers.valkey_trigger import ValKeyTrigger
 from pirn.triggers.webhook_trigger import WebhookTrigger
 
@@ -66,10 +65,10 @@ def test_cron_trigger_name():
     assert CronTrigger(every_seconds=10).name == "CronTrigger"
 
 
-# ============================================================ run_forever
+# ============================================================ Trigger.run_forever
 
 
-@knot
+@KnotFactory.knot
 async def _record(x: int) -> int:
     return x * 2
 
@@ -92,7 +91,7 @@ async def test_run_forever_drives_tapestry_per_request():
     async def on_result(req, res):
         captured.append((req, res))
 
-    await run_forever(trigger, t, on_result=on_result)
+    await trigger.run_forever(t, on_result=on_result)
 
     assert len(captured) == 3
     for _, res in captured:
@@ -103,7 +102,7 @@ async def test_run_forever_swallows_run_errors_via_on_error():
     """A failing run is reported via on_error rather than crashing the
     driver."""
 
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("boom")
 
@@ -131,7 +130,7 @@ async def test_run_forever_swallows_run_errors_via_on_error():
     async def on_result(req, res):
         successes.append(res)
 
-    await run_forever(trigger, t, on_result=on_result, on_error=on_error)
+    await trigger.run_forever(t, on_result=on_result, on_error=on_error)
     assert len(successes) == 2
     assert all(not r.succeeded for r in successes)
 

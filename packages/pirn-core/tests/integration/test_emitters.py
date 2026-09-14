@@ -8,7 +8,7 @@ import logging
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -46,7 +46,7 @@ def _lineage_record(**overrides) -> KnotLineage:
     return KnotLineage(**base)
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 
@@ -107,7 +107,7 @@ async def test_log_emitter_records_run_result_at_info_when_succeeded(caplog):
 
 
 async def test_log_emitter_records_failed_run_at_error(caplog):
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("nope")
 

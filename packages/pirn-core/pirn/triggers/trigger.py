@@ -27,8 +27,8 @@ class Trigger:
     connection they need (Kafka consumer, HTTP server, cron schedule),
     and yield a fresh ``RunRequest`` for each event.
 
-    The runtime drives the trigger by calling ``run_forever(trigger,
-    tapestry)``; that helper consumes requests and calls
+    The runtime drives the trigger by calling
+    ``trigger.run_forever(tapestry)``, which consumes requests and calls
     ``tapestry.run`` for each.
     """
 
@@ -54,46 +54,45 @@ class Trigger:
     async def close(self) -> None:
         """Release resources and stop the trigger.
 
-        Called by ``run_forever`` on exit (cancellation, error, or
+        Called by :meth:`run_forever` on exit (cancellation, error, or
         normal stream end).  Implementations must be idempotent.
         """
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
+    async def run_forever(
+        self,
+        tapestry: Tapestry,
+        *,
+        on_result: _OnResult | None = None,
+        on_error: _OnError | None = None,
+    ) -> None:
+        """Drive a trigger: pull requests, run them, optionally observe.
 
-async def run_forever(
-    trigger: Trigger,
-    tapestry: Tapestry,
-    *,
-    on_result: _OnResult | None = None,
-    on_error: _OnError | None = None,
-) -> None:
-    """Drive a trigger: pull requests, run them, optionally observe.
+        Calls :meth:`close` on exit (on cancellation, error, or
+        normal stream end).  ``on_result`` and ``on_error`` are optional
+        callbacks; they're awaited if present.
 
-    Calls ``trigger.close()`` on exit (on cancellation, error, or
-    normal stream end).  ``on_result`` and ``on_error`` are optional
-    callbacks; they're awaited if present.
+        Cancellation is the standard async pattern: the caller can wrap
+        this coroutine in a task and ``task.cancel()`` it.
 
-    Cancellation is the standard async pattern: the caller can wrap
-    this coroutine in a task and ``task.cancel()`` it.
+        ``on_error`` observes *run failures* only.  ``asyncio.CancelledError``,
+        ``KeyboardInterrupt`` and ``SystemExit`` are re-raised before it is
+        consulted: they end the process rather than describe a bad event, so a
+        log-and-continue observer — the obvious thing to write for a daemon —
+        must not be able to swallow them and leave the loop running after its
+        task was cancelled.
 
-    ``on_error`` observes *run failures* only.  ``asyncio.CancelledError``,
-    ``KeyboardInterrupt`` and ``SystemExit`` are re-raised before it is
-    consulted: they end the process rather than describe a bad event, so a
-    log-and-continue observer — the obvious thing to write for a daemon —
-    must not be able to swallow them and leave the loop running after its
-    task was cancelled.
-
-    Thin wrapper around ``_RunDriver.drive``, shared with
-    ``streaming.streaming_source.run_stream``: a trigger's events already
-    are ``RunRequest``s, so ``to_request`` is the identity function, and
-    "close" means ``trigger.close()``.
-    """
-    await _RunDriver.drive(
-        trigger.stream(),
-        tapestry=tapestry,
-        to_request=lambda request: request,
-        close=trigger.close,
-        close_error_context="trigger.close()",
-        on_result=on_result,
-        on_error=on_error,
-    )
+        Thin wrapper around ``_RunDriver.drive``, shared with
+        ``StreamingSource.run_stream``: a trigger's events already
+        are ``RunRequest``s, so ``to_request`` is the identity function, and
+        "close" means :meth:`close`.
+        """
+        await _RunDriver.drive(
+            self.stream(),
+            tapestry=tapestry,
+            to_request=lambda request: request,
+            close=self.close,
+            close_error_context="trigger.close()",
+            on_result=on_result,
+            on_error=on_error,
+        )

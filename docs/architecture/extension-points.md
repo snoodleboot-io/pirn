@@ -48,7 +48,7 @@ If `process()` raises, the outcome is converted from `Err` to `Skipped`, making 
 **Declaring inputs with a JSON schema instead of a signature.** A capability with no Python signature to introspect — an MCP-declared tool, an OpenAPI operation — declares its inputs with a JSON object schema, and the framework validates it with exactly the machinery a hinted knot gets:
 
 ```python
-from pirn.core.knot_factory import KnotFactory, knot
+from pirn.core.knot_factory import KnotFactory
 
 search = KnotFactory.from_schema(
     "search",
@@ -60,7 +60,7 @@ search = KnotFactory.from_schema(
 )
 node = search(query=upstream, limit=5, _config=KnotConfig(id="search"))
 
-@knot(input_schema={...})        # the decorator form
+@KnotFactory.knot(input_schema={...})        # the decorator form
 async def lookup(**arguments): ...
 ```
 
@@ -502,7 +502,7 @@ t.add_emitter(DatadogEmitter(statsd))
 Implement `pirn.triggers.trigger.Trigger`:
 
 ```python
-from pirn.triggers.trigger import Trigger, run_forever
+from pirn.triggers.trigger import Trigger
 from pirn.core.run_request import RunRequest
 from collections.abc import AsyncIterator
 import boto3
@@ -539,11 +539,11 @@ class SQSTrigger:
         self._running = False
 ```
 
-Drive with `run_forever`:
+Drive with `Trigger.run_forever`:
 
 ```python
 trigger = SQSTrigger(queue_url="https://sqs.us-east-1.amazonaws.com/...")
-await run_forever(trigger, tapestry, on_result=handle_result)
+await trigger.run_forever(tapestry, on_result=handle_result)
 ```
 
 ---
@@ -553,7 +553,7 @@ await run_forever(trigger, tapestry, on_result=handle_result)
 Implement `pirn.streaming.streaming_source.StreamingSource`:
 
 ```python
-from pirn.streaming.streaming_source import StreamingSource, run_stream
+from pirn.streaming.streaming_source import StreamingSource
 from collections.abc import AsyncIterator
 
 
@@ -585,11 +585,11 @@ class WebSocketSource:
             await self._ws.close()
 ```
 
-Drive with `run_stream`:
+Drive with `StreamingSource.run_stream`:
 
 ```python
 source = WebSocketSource("wss://events.example.com/stream")
-await run_stream(source, tapestry, on_result=handle)
+await source.run_stream(tapestry, on_result=handle)
 ```
 
 ---

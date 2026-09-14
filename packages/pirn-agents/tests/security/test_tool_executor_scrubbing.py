@@ -12,7 +12,7 @@ import unittest
 from typing import Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -32,7 +32,7 @@ class _RaisingTool(Tool):
 
 class TestToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
     async def test_dsn_credentials_scrubbed_from_error(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def call_source() -> ToolCall:
             return ToolCall(call_id="c1", tool_name="raise_tool", arguments={})
 
@@ -51,7 +51,7 @@ class TestToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
         assert "<redacted>" in tool_result.error
 
     async def test_unknown_tool_produces_safe_error(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def call_source() -> ToolCall:
             return ToolCall(call_id="c2", tool_name="nonexistent", arguments={})
 

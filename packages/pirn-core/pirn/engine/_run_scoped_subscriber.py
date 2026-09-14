@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pirn.tapestry import _current_dispatching_knot_id, current_run_id
+from pirn.tapestry import Tapestry, _current_dispatching_knot_id
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -57,7 +57,7 @@ class _RunScopedSubscriber:
         self._registrars = registrars
 
     def __call__(self, knot: Knot) -> None:
-        registering_run_id = current_run_id()
+        registering_run_id = Tapestry.current_run_id()
         if registering_run_id is None or registering_run_id == self._run_id:
             registrar = _current_dispatching_knot_id.get()
             if self._registrars is not None and registrar is not None:

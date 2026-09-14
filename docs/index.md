@@ -69,18 +69,18 @@ pip install pirn[all]       # everything
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:  # (1)
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -99,7 +99,7 @@ async def main():
 asyncio.run(main())
 ```
 
-1. `@knot` wraps any async (or sync) function into a reusable knot class.
+1. `@KnotFactory.knot` wraps any async (or sync) function into a reusable knot class.
 2. `with Tapestry() as t:` opens a registration context — knots built inside auto-register.
 3. `Parameter` is a special knot that binds an external value at run time.
 4. Passing `x` (a knot) as a kwarg makes `double` depend on `x`. The id is required — auto-generated ids make lineage records unreadable.

@@ -34,13 +34,13 @@ plain `import pirn_data` (or any `pirn_<x>`) triggers the package's
 pipelines in Python you import the knot classes directly, which has the same
 effect.
 
-The convenience helper `pirn.discover_installed_domains()` imports **every**
+The convenience helper `DomainDiscovery.discover_installed_domains()` imports **every**
 installed `pirn_*` domain package in one call (and returns the import names it
 loaded), so a YAML-only deployment can register all available domains up front
 without naming each one:
 
 ```python
-import pirn
+from pirn.domain_discovery import DomainDiscovery
 
-pirn.discover_installed_domains()   # imports every installed pirn_<x>
+DomainDiscovery.discover_installed_domains()   # imports every installed pirn_<x>
 ```

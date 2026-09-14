@@ -570,7 +570,7 @@ Every entry below was checked against the real `__init__` signature (grep it you
 | Retry on parse failure | `RetryOnParseFailure(prompt=..., llm=..., parser=..., max_retries=3, _config=...)` |
 | Multi-agent fan-out | `ParallelSpecialistFanOut(task=..., specialists={...}, _config=...)` |
 | Round-robin review | `RoundRobinReview(response=..., reviewers=[...], _config=...)` |
-| Decentralised swarm handoff | Implement `Knot.process` to call `get_current_store().register(next_agent)` |
+| Decentralised swarm handoff | Implement `Knot.process` to call `Tapestry.current_store().register(next_agent)` |
 | Chain-of-thought reasoning | `ChainOfThought(prompt=..., llm=..., _config=...)` |
 | Self-consistency ensemble | `SelfConsistencyEnsemble(prompt=..., llm=..., samples=5, _config=...)` |
 | Tree-of-thought search | `TreeOfThought(prompt=..., llm=..., k_candidates=3, beam_width=2, depth=3, _config=...)` |

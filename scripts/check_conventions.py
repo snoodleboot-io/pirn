@@ -12,16 +12,15 @@ Rules
 1. ``multi_class_file`` — a file defines more than one top-level class.
 2. ``module_level_function`` — a module-level ``def``, excluding
    ``__dunder__``-named functions (PEP 562 ``__getattr__`` shims and similar),
-   functions decorated with ``@knot`` (``pirn.core.knot_factory.knot``
+   functions decorated with ``@KnotFactory.knot`` (``pirn.core.knot_factory.KnotFactory.knot``
    turns a plain function into a Knot factory — it is not "a function", it is
    a Knot definition written in function syntax), and the documented public
    entry points enumerated in ``_MODULE_LEVEL_FUNCTION_ALLOWLIST`` below
    (PIR-869). The allowlist is keyed ``<package>:<dotted.module>:<function>``
    and every entry carries a one-line reason; a module-level function that is
    not on the list counts, whatever its name. Everything else is a
-   ``@staticmethod`` on a class — a public name that predates the rule may be
-   kept importable as a bare alias (``name = Class.method``), which is an
-   assignment, not a ``def``, and is not counted. An allowlist entry that the
+   ``@staticmethod`` on a class; a replaced public name is deleted outright,
+   never kept as a bare alias (``name = Class.method``). An allowlist entry that the
    scan did not encounter is printed as a "stale allowlist entry" note so the
    list cannot silently outlive the function it exempts.
 3. ``nested_def_missing_override`` — a ``def``/``class`` nested inside another
@@ -128,31 +127,9 @@ _KNOT_PURITY_ALLOWLIST: dict[str, tuple[str, ...]] = {
 # value is the one-line reason the function is a bare ``def`` rather than a
 # ``@staticmethod``. Add an entry only for a documented public entry point;
 # private helpers, CLI mains and thin wrappers over a class method are never
-# allowlisted — they become static methods (plus a bare alias when the public
-# name has to stay importable).
+# allowlisted — they become static methods, and a replaced public name is deleted
+# (no bare alias) with every caller moved to the class form.
 _MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
-    # ---- pirn-core -----------------------------------------------------------
-    "pirn-core:pirn.tapestry:get_current_store": (
-        "ambient accessor for the running extensible tapestry's store, called from process()"
-    ),
-    "pirn-core:pirn.tapestry:current_tapestry": (
-        "ambient accessor for the tapestry active in the current with-block"
-    ),
-    "pirn-core:pirn.tapestry:current_run_id": (
-        "ambient accessor for the executing run id; the supported cross-package name"
-    ),
-    "pirn-core:pirn.domain_discovery:discover_installed_domains": (
-        "entry-point discovery of installed pirn_<domain> distributions"
-    ),
-    "pirn-core:pirn.triggers.trigger:run_forever": (
-        "trigger driver: pulls requests and runs the tapestry per event"
-    ),
-    "pirn-core:pirn.streaming.streaming_source:run_stream": (
-        "streaming driver: one run per value the source yields"
-    ),
-    "pirn-core:pirn.core.knot_factory:knot": (
-        "the @knot decorator that turns a function into a Knot factory"
-    ),
     # ---- pirn-agents ---------------------------------------------------------
     # Pinned by tests/test_ws5_s1_import_surface.py (WS5/S1 import contract).
     "pirn-agents:pirn_agents._internal._require:_require": (

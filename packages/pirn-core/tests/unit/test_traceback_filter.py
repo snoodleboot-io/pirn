@@ -6,7 +6,7 @@ import logging
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.traceback_redactor import TracebackRedactor
@@ -105,7 +105,7 @@ class _EmitterPolicyTests(unittest.IsolatedAsyncioTestCase):
 
     @staticmethod
     def _single_source_tapestry() -> Tapestry:
-        @knot
+        @KnotFactory.knot
         def source_knot() -> int:
             return 1
 

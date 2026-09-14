@@ -8,7 +8,7 @@ pip install pirn-agents
 
 `pirn_agents` is a standalone distribution and carries **no optional extras** — it has no heavy dependencies of its own. LLM providers, vector stores, and tool implementations are user-supplied; pirn only defines the interfaces they must satisfy.
 
-**Registration (ADR-4):** `import pirn_agents` self-registers the agent-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+**Registration (ADR-4):** `import pirn_agents` self-registers the agent-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `DomainDiscovery.discover_installed_domains()` (`pirn.domain_discovery`).
 
 ---
 
@@ -121,7 +121,7 @@ class WebSearchTool(Tool):
 web_search = WebSearchTool.bind(client=my_client)   # a ToolFactory — pass it anywhere a tool is accepted
 ```
 
-For plain functions, use the `@tool` decorator instead of subclassing — it is `@knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
+For plain functions, use the `@tool` decorator instead of subclassing — it is `@KnotFactory.knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
 
 ```python
 from pirn_agents.tools.tool_decorator import tool

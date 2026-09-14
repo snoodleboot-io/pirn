@@ -43,9 +43,9 @@ def test_source_rejects_kwargs():
 
 
 async def test_source_feeds_downstream():
-    from pirn.core.knot_factory import knot
+    from pirn.core.knot_factory import KnotFactory
 
-    @knot
+    @KnotFactory.knot
     async def get_a(d: dict) -> int:
         return d["a"]
 

@@ -1,7 +1,7 @@
 """Tests for WithContinuation and WithContinuation.attach()."""
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.next import Next
@@ -9,17 +9,17 @@ from pirn.nodes.with_continuation import WithContinuation
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def fetch(query: str, **_) -> dict:
     return {"found": True, "content": f"results for {query}"}
 
 
-@knot
+@KnotFactory.knot
 async def summarise(text: str, **_) -> str:
     return f"summary: {text[:40]}"
 
 
-@knot
+@KnotFactory.knot
 async def flag_missing(**_) -> str:
     return "nothing found"
 

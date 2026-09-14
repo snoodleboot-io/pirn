@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -199,7 +199,7 @@ async def test_yaml_with_map():
         bind: idx
     """
 
-    @knot
+    @KnotFactory.knot
     async def make_user(idx: int) -> dict:
         return {"id": idx}
 

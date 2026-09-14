@@ -14,7 +14,7 @@ import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.ok import Ok
 from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 from pirn.engine.dispatchers.dask_dispatcher import DaskDispatcher
@@ -140,7 +140,7 @@ class _FakeCeleryApp:
 # ---------------------------------------------------- helpers
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 

@@ -11,14 +11,14 @@ pirn has two mechanisms for conditional execution: `Branch` (routes to one of N 
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.branch.branch import Branch
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def classify_message(text: str) -> dict:
     """Classify a message into a type."""
     if text.startswith("/"):
@@ -29,17 +29,17 @@ async def classify_message(text: str) -> dict:
         return {"type": "statement", "payload": text}
 
 
-@knot
+@KnotFactory.knot
 async def handle_command(msg: dict) -> str:
     return f"Executing command: {msg['payload']}"
 
 
-@knot
+@KnotFactory.knot
 async def handle_question(msg: dict) -> str:
     return f"Answering question: {msg['payload']}"
 
 
-@knot
+@KnotFactory.knot
 async def handle_statement(msg: dict) -> str:
     return f"Acknowledging: {msg['payload']}"
 
@@ -105,12 +105,12 @@ asyncio.run(main())
 from pirn.nodes.gate.gate import Gate
 
 
-@knot
+@KnotFactory.knot
 async def compute_score(text: str) -> float:
     return len(text) / 100.0
 
 
-@knot
+@KnotFactory.knot
 async def publish_high_score(score: float) -> dict:
     return {"published": True, "score": score}
 

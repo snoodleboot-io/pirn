@@ -11,7 +11,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -21,7 +21,7 @@ from pirn_data.quality.schema_validator import SchemaValidator
 from pirn_data.quality_report import QualityReport
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> DataBatch:
     schema = DataSchema(columns={"id": int, "name": str}, primary_keys=("id",))
     rows = (
@@ -31,28 +31,28 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, schema=schema, source_uri="memory://users")
 
 
-@knot
+@KnotFactory.knot
 async def emit_users_missing_column() -> DataBatch:
     rows = ({"id": 1},)
     schema = DataSchema(columns={"id": int, "name": str})
     return DataBatch(rows=rows, schema=schema)
 
 
-@knot
+@KnotFactory.knot
 async def emit_users_wrong_type() -> DataBatch:
     rows = ({"id": "not-an-int", "name": "alice"},)
     schema = DataSchema(columns={"id": int, "name": str})
     return DataBatch(rows=rows, schema=schema)
 
 
-@knot
+@KnotFactory.knot
 async def emit_users_with_null() -> DataBatch:
     rows = ({"id": 1, "name": None},)
     schema = DataSchema(columns={"id": int, "name": str})
     return DataBatch(rows=rows, schema=schema)
 
 
-@knot
+@KnotFactory.knot
 async def emit_users_with_nullable_null() -> DataBatch:
     rows = ({"id": 1, "name": None},)
     schema = DataSchema(columns={"id": int, "name": str}, nullable=("name",))
@@ -141,7 +141,7 @@ class TestSchemaValidatorFails(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_schema_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_schema() -> DataSchema:
             return DataSchema(columns={"id": int, "name": str}, primary_keys=("id",))
 
@@ -160,7 +160,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> SchemaValidator:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DataBatch:
             return DataBatch()
 

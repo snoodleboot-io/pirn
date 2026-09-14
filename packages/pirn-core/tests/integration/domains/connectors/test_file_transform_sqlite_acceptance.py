@@ -5,7 +5,7 @@ This is the gating test for Layer-2 connector integration. It proves that:
 
 1. ``LocalFilesystemStore`` (Layer 1) plugs into ``ObjectStoreReadSource``
    (Layer 2 :class:`Source`) as a real pirn knot with no parents.
-2. A pure-Python ``@knot`` transform converts the bytes payload into row
+2. A pure-Python ``@KnotFactory.knot`` transform converts the bytes payload into row
    tuples — demonstrating the data domain consumes connector output.
 3. ``DatabaseExecuteSink`` (Layer 2 :class:`Sink`) writes those rows into
    a ``SqlitePool`` (Layer 1) via the ``DatabaseConnectionPool`` interface.
@@ -35,12 +35,12 @@ from pirn.connectors.object_storage.local_filesystem_store import (
     LocalFilesystemStore,
 )
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def parse_user_records(payload: bytes) -> list[tuple[int, str, str]]:
     """Decode JSON-array payload into (id, name, region) tuples."""
     records = json.loads(payload.decode("utf-8"))

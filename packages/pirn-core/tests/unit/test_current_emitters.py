@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.emitters.emitter import Emitter
@@ -49,7 +49,7 @@ class CurrentEmittersTests(unittest.IsolatedAsyncioTestCase):
         seen: list[list[Emitter]] = []
         emitter = _CapturingEmitter()
 
-        @knot
+        @KnotFactory.knot
         async def _capture(x: int) -> int:
             seen.append(Tapestry.current_emitters())
             return x
@@ -67,7 +67,7 @@ class CurrentEmittersTests(unittest.IsolatedAsyncioTestCase):
         with Tapestry(emitters=[_CapturingEmitter()]) as t:
             p = Parameter("x", int)
 
-            @knot
+            @KnotFactory.knot
             async def _noop(x: int) -> int:
                 return x
 
@@ -98,7 +98,7 @@ class EmitStatusTests(unittest.IsolatedAsyncioTestCase):
         emitter = _CapturingEmitter()
         event = self._event()
 
-        @knot
+        @KnotFactory.knot
         async def _emit(x: int) -> int:
             await EmitterFanout.emit_status(event)
             return x

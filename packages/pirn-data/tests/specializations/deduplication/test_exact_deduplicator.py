@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -107,7 +107,7 @@ class TestExactDeduplicator(unittest.IsolatedAsyncioTestCase):
         assert result == []
 
     async def test_wired_tapestry_run(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list[dict[str, Any]]:
             return [{"id": 1, "score": 5}, {"id": 1, "score": 9}]
 
@@ -126,7 +126,7 @@ class TestExactDeduplicator(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_key_columns_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_keys() -> tuple[str, ...]:
             return ("id",)
 

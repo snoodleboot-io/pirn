@@ -6,7 +6,7 @@ import unittest
 
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -15,7 +15,7 @@ from pirn_data.transforms.aggregate import Aggregate
 from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> DataBatch:
     rows = (
         {"region": "EU", "amount": 10.0, "customer": "alice"},
@@ -115,7 +115,7 @@ class TestAggregate(unittest.IsolatedAsyncioTestCase):
         assert eu["last"] == 5.0
 
     async def test_composite_group_by(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def two_dim() -> DataBatch:
             rows = (
                 {"region": "EU", "tier": "A", "amount": 1},
@@ -166,7 +166,7 @@ class TestAggregateSpec(unittest.TestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> tuple:
             return ("region",)
 
@@ -186,7 +186,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self, **kwargs: object) -> Aggregate:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> DataBatch:
             return _make_batch()
 

@@ -10,7 +10,7 @@ pip install 'pirn-ml[ml]'
 
 Available extras: `ml`. `pirn_ml` depends on both `pirn-core` and `pirn-data` — it consumes `DataBatch` / `LakehouseTable` / `FileSource` / `SqlSource` from `pirn_data` (the one retained domain→domain edge, ADR-3), so installing `pirn-ml` pulls `pirn-data` automatically.
 
-**Registration (ADR-4):** `import pirn_ml` self-registers the ML-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+**Registration (ADR-4):** `import pirn_ml` self-registers the ML-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `DomainDiscovery.discover_installed_domains()` (`pirn.domain_discovery`).
 
 ---
 

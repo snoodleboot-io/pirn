@@ -30,7 +30,7 @@ A knot is constructed with **keyword arguments that are introspected against its
 - Framework metadata travels through one reserved kwarg: `_config=KnotConfig(id=...)`. The `id` is **required** — nothing is auto-generated.
 - `process()` **must** accept `**_: Any` (enforced by `Knot.__init_subclass__`) and **must not** declare `*args`. The engine calls `process()` with keyword arguments only.
 
-**A schema can stand in for the signature.** `KnotFactory.from_schema(name, input_schema, process)` / `@knot(input_schema=...)` declare the inputs of a knot that has no Python signature (an MCP-declared tool) with a JSON object schema; `Knot._input_schema_override` carries it and `JsonSchemaTypeBuilder` turns each property into the `TypeAdapter` `validate_io` applies. The inverse, `Knot.input_json_schema()`, renders any knot's hinted inputs as the same kind of schema — the source for model-facing declarations.
+**A schema can stand in for the signature.** `KnotFactory.from_schema(name, input_schema, process)` / `@KnotFactory.knot(input_schema=...)` declare the inputs of a knot that has no Python signature (an MCP-declared tool) with a JSON object schema; `Knot._input_schema_override` carries it and `JsonSchemaTypeBuilder` turns each property into the `TypeAdapter` `validate_io` applies. The inverse, `Knot.input_json_schema()`, renders any knot's hinted inputs as the same kind of schema — the source for model-facing declarations.
 
 **The `Knot | T` union is load-bearing.** When a `process()` parameter is hinted `Knot | T`, passing a scalar `T` causes the framework to auto-wrap it in a `Parameter(default=value)` **graph node** (`core/knot.py`, the `_coercible_params` path). This is what turns an externally-constructed resource into a first-class node with lineage — rather than invisible config. This is the entire basis of the **vending-knot idiom** (§4.1).
 
@@ -79,7 +79,7 @@ class LLMProvider(PirnOpaqueValue):
 | `Ok[T]` / `Err` / `Skipped` | value-object | — | the outcome algebra; `Result = Ok[T] \| Err \| Skipped` (`core/result.py`). **Everything that can succeed/fail/skip uses this — do not invent parallel status enums.** |
 | `PirnOpaqueValue` | mixin | — | `is_instance_schema` + `_pirn_audit_dict()`; the live-value contract |
 | `Parameter` | concrete Knot | `Knot` | wraps a scalar as a graph node (the `Knot \| T` coercion target) |
-| `KnotFactory` / `@knot` | factory | — | `core/knot_factory.py` — a function's signature becomes a Knot's input contract; `from_schema(name, input_schema, process)` / `@knot(input_schema=)` do the same from a JSON object schema |
+| `KnotFactory` / `@KnotFactory.knot` | factory | — | `core/knot_factory.py` — a function's signature becomes a Knot's input contract; `from_schema(name, input_schema, process)` / `@KnotFactory.knot(input_schema=)` do the same from a JSON object schema |
 | `JsonSchemaTypeBuilder` | helper | — | `core/json_schema_type_builder.py` — JSON-schema fragment → Python type for `TypeAdapter` (scalars, enum/const, nullable, anyOf/oneOf, arrays, objects as `TypedDict`, local `$ref`, bounds). **Do not write a second schema→validator or signature→schema compiler.** |
 | `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport`, `concurrency_group`, `timeout`, `retry` |
 | `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). **Do not write a retry loop inside a knot.** |
@@ -110,10 +110,10 @@ All subclass `Knot`. These are the graph-shape primitives.
 |---|---|---|
 | `Trigger` | interface-base | `name` (prop), `stream() -> AsyncIterator[RunRequest]`, `async close()` — all raise `NotImplementedError` |
 | `Cron` / `Http` / `Kafka` / `Valkey` triggers | concrete | async generators yielding one `RunRequest` per event |
-| `run_forever(trigger, tapestry, *, on_result, on_error)` | driver fn | pulls requests, calls `tapestry.run` per event, `close()`s on exit — an allowlisted module-level driver (`scripts/check_conventions.py`, PIR-869) |
+| `Trigger.run_forever(self, tapestry, *, on_result, on_error)` | driver method | pulls requests, calls `tapestry.run` per event, `close()`s on exit |
 | `StreamingSource` (`streaming/streaming_source.py`) | interface-base | streaming input adapters; `trigger_adapter.py` bridges a stream to the trigger loop |
 
-**Idiom (the trigger loop):** a `Trigger` is an async generator of `RunRequest`s; `run_forever` is the runtime that consumes them and runs the tapestry. Downstream event-driven agents should implement `Trigger`, not hand-roll a consume loop.
+**Idiom (the trigger loop):** a `Trigger` is an async generator of `RunRequest`s; `Trigger.run_forever` is the runtime that consumes them and runs the tapestry. Downstream event-driven agents should implement `Trigger`, not hand-roll a consume loop.
 
 ### 3.4 Transport + Serializers — `core/transport/`
 | Type | Kind | Contract |
@@ -218,10 +218,10 @@ Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Nev
 - **Is it an optional facet of a type?** → a capability base class (§4.2), not a `Protocol`.
 - **Is it an immutable data shape?** → frozen dataclass, `PirnOpaqueValue` if it carries non-pydantic fields, with `__post_init__` invariants.
 - **Does it move values between knots / persist them?** → implement `DataTransport` / `DataStore`, don't hand-roll IO in `process()`.
-- **Is it event-driven?** → implement `Trigger` and use `run_forever`, don't hand-roll a consume loop.
+- **Is it event-driven?** → implement `Trigger` and use `Trigger.run_forever`, don't hand-roll a consume loop.
 - **Is it parallel execution?** → compose a `Dispatcher`, don't re-implement concurrency.
 - **Does something succeed/fail/skip?** → `Ok \| Err \| Skipped`, not a new enum.
-- **Is it pure logic with no state?** → a plain class with methods; a module-level function only when it is a documented public entry point on the `scripts/check_conventions.py` allowlist (PIR-869) — a genuine decorator, an ambient accessor or a driver. Anything else is a `@staticmethod`, optionally re-exported under a bare alias for a name that predates the rule.
+- **Is it pure logic with no state?** → a plain class with methods; a module-level function only when it is a documented public entry point on the `scripts/check_conventions.py` allowlist (PIR-869) — a genuine decorator, an ambient accessor or a driver. Anything else is a `@staticmethod`; a replaced name is deleted, never kept as a bare alias (alpha policy, `docs/guides/versioning.md`).
 
 ---
 
@@ -628,26 +628,44 @@ vocabulary, every constructor sample verified against the real signature
 (rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal
 to `ExceptionRecord`.
 
-### House conventions — the three core-side decisions (PIR-869)
+### House conventions — core-side decisions (PIR-869, PIR-872)
 
-- **Module-level functions are an enumerated exemption.** The only bare
-  module-level `def`s in core are the documented public entry points listed in
-  `scripts/check_conventions.py` (`get_current_store`, `current_tapestry`,
-  `current_run_id`, `discover_installed_domains`, `run_forever`, `run_stream`,
-  `knot`); the conventions gate counts every other one, and the core baseline
-  is 0. Every former wrapper is now a static/class method with the old public
-  name kept as a bare alias: `content_hash = ContentHasher.hash`,
-  `detect_cycle = CycleDetector.detect`, `load_pipeline = PipelineLoader.load_yaml`,
-  `validate_tapestry = TapestryValidator.validate`,
-  `redact_common_secrets = TracebackRedactor.redact_common_secrets`,
-  `continues = WithContinuation.attach`, `connection_config =
-  ConnectionConfigDecorator.apply`, `is_async_callable = AsyncCallable.is_async_callable`,
-  `extract_knot_source = KnotSourceRecord.from_knot`,
-  `KnotDiff.replay_run`/`compare_runs = KnotDiff.replay_run`/`.compare_runs`,
-  `register_celery_worker_task = CeleryDispatcher.register_worker_task`, the
-  viz aliases (`mermaid_for_*`, `html_for_*`, `scan_folder`,
-  `ExplorerHtmlGenerator.generate`). The console scripts point at
-  `TapestryCheckCli.main` and `ExploreCli.main`.
+- **Core has no module-level functions (PIR-869, closed by PIR-872).** Every
+  former module-level function is a method on its owning class, and no bare
+  alias to the old name remains (alpha policy: delete, never deprecate). The
+  ambient accessors are `Tapestry.current()`, `Tapestry.current_store()` and
+  `Tapestry.current_run_id()` (with `Tapestry.current_emitters()` /
+  `Tapestry.current_emitter_error_policy()`); the drivers are the instance
+  methods `trigger.run_forever(tapestry, *, on_result, on_error)` and
+  `source.run_stream(tapestry, *, on_result, on_error, extra_parameters)`;
+  domain discovery is `DomainDiscovery.discover_installed_domains()`; the
+  decorator is `@KnotFactory.knot` (also `@KnotFactory.knot(input_schema=...)`).
+  The former wrappers are called in class form: `ContentHasher.hash`
+  (`core/content_hasher.py`), `CycleDetector.detect`,
+  `PipelineLoader.load_yaml`, `TapestryValidator.validate`
+  (`check/tapestry_validator.py`), `TracebackRedactor.redact_common_secrets`
+  (`managers/traceback_redactor.py`), `WithContinuation.attach`
+  (`nodes/with_continuation.py`), `@ConnectionConfigDecorator.apply`,
+  `AsyncCallable.is_async_callable`, `KnotSourceRecord.from_knot`,
+  `KnotDiff.replay_run` / `KnotDiff.compare_runs`,
+  `CeleryDispatcher.register_worker_task`, `MermaidRenderer.for_tapestry` /
+  `.for_run`, `TapestryHtmlRenderer.for_tapestry` / `.for_run`,
+  `TapestryGraphScanner.scan`, `ExplorerHtmlGenerator.generate`. The core
+  entries of `scripts/check_conventions.py`'s module-level-function allowlist
+  are gone, and the core conventions baseline is 0 in every category. The
+  console scripts point at `TapestryCheckCli.main` and `ExploreCli.main`.
+- **Names and constants (PIR-872).** `*Gate` is reserved for `Gate`
+  subclasses: the admission interface is `Admission`
+  (`engine/admission/admission.py`) with `LimitedAdmission` and
+  `UnboundedAdmission`, next to `ChainedAdmission`. Class-level configuration
+  is a lowercase `ClassVar`: `InMemoryDataStore.default_max_values`,
+  `InMemoryHistory.default_max_runs`, `InvocationIdentity.uncomparable_marker`.
+- **Deleted, not deprecated (PIR-872).** The `pirn/emitters/base.py`,
+  `pirn/triggers/base.py` and `pirn/streaming/base.py` module shims, the
+  `pirn.domains.*` import shim and its `pirn-migrate-imports` codemod
+  (`pirn/_migrate/`), and the `Knot._deprecated_since` /
+  `_deprecation_notice` construction-warning seam (with its last user,
+  `pirn_data`'s `ScdType1Overwrite` — use `MergeUpsert`).
 - **`_CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
   `GCSDataStore` and `AzureBlobDataStore` no longer open an SDK client per
   call: each lazily builds its connector `ObjectStore` (`S3Store`, `GCSStore`,
@@ -699,7 +717,7 @@ constructor is unchanged.
 
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
-- `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting`.
+- `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@KnotFactory.knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting`.
 - Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` are **not** a deprecation shim — PIR-865 gave them a live role rendering a gated/approval outcome back to the model (`ToolResult.from_result(call_id, result, lineage, gated=)`, `ToolStatus.SKIPPED`), so the codec still builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
 - **Deleted (PIR-864), one deprecation cycle closed:** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
 - Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`. A denied approval reports no `"tool"` event for the tool's own identity at all — `process()`, and the `Tool.__call__` recorder inside it, never run; a *container* (`ToolInvocation`) that reports its own view regardless of outcome still fires, unchanged, attributed to its own knot id.

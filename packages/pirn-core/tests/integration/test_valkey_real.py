@@ -15,7 +15,7 @@ import os
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
 pytestmark = pytest.mark.needs_valkey
@@ -59,7 +59,7 @@ async def valkey_client():
 # ------------------------------------------------------------- helpers
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 

@@ -28,7 +28,7 @@ result, and registers whatever it returns into the running extensible tapestry.
 ``WebSearchKnot`` itself has no knowledge of what comes after it.
 
 For agentic flows the agent knot handles continuation logic itself — it runs,
-inspects its output, and calls ``get_current_store().register(...)`` directly.
+inspects its output, and calls ``Tapestry.current_store().register(...)`` directly.
 ``WithContinuation.attach()`` is for adding deterministic or rule-based next-steps to
 individual knots without modifying them.
 
@@ -47,7 +47,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes._end_knot import _EndKnot
 from pirn.nodes.next import Next
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 
 # ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -138,7 +138,7 @@ class WithContinuation(Knot):
             "Next('end') to terminate explicitly."
         )
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is not None:
             for i, nxt in enumerate(nexts):
                 if nxt.action not in pool:

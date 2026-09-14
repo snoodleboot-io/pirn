@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import duckdb
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,7 +19,7 @@ from pirn_data.frames.duckdb.duckdb_aggregate import DuckdbAggregate
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
     connection.execute(
@@ -79,7 +79,7 @@ class TestDuckdbAggregate(unittest.IsolatedAsyncioTestCase):
         assert eu[2] == 2
 
     async def test_composite_group_by(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def two_dim() -> DuckdbDataBatch:
             connection = duckdb.connect(database=":memory:")
             connection.execute(
@@ -109,7 +109,7 @@ class TestDuckdbAggregate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> tuple:
             return ("region",)
 
@@ -130,7 +130,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self, **kwargs: object) -> DuckdbAggregate:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> DuckdbDataBatch:
             return _make_batch()
 

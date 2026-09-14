@@ -19,11 +19,11 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError
-from pirn.tapestry import Tapestry, current_run_id
+from pirn.tapestry import Tapestry
 
 # run_id -> the x value that knot actually computed with.
 _seen: dict[str | None, int] = {}
@@ -32,17 +32,17 @@ _seen: dict[str | None, int] = {}
 _bind_value_calls: list[Any] = []
 
 
-@knot
+@KnotFactory.knot
 async def _record(x: int) -> int:
     """Record which x this run's execution actually received."""
     # Yield control so concurrent runs genuinely interleave rather than
     # each running to completion before the next starts.
     await asyncio.sleep(0.01)
-    _seen[current_run_id()] = x
+    _seen[Tapestry.current_run_id()] = x
     return x
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     await asyncio.sleep(0.01)
     return x * 2

@@ -21,14 +21,14 @@ from typing import Any
 import pyarrow as pa
 from lance.dataset import LanceDataset as _LanceDataset
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_data.specialized.lance.arrow_to_lance_sink import ArrowToLanceSink
 
 
-@knot
+@KnotFactory.knot
 async def _emit_table() -> Any:
     """Typed Any so pirn IO validation does not try to pydantic-schema
     raw ``pyarrow.Table``."""
@@ -55,7 +55,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(tmp_dir.cleanup)
         expected_path = str(Path(tmp_dir.name) / "wired.lance")
 
-        @knot
+        @KnotFactory.knot
         async def emit_path() -> str:
             return expected_path
 

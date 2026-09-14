@@ -257,7 +257,7 @@ After import, your knots are resolvable by name from any YAML pipeline:
 tapestry = PipelineLoader.load_yaml(yaml_text)     # no known_callables needed
 ```
 
-For one-off registrations (e.g. registering an `@knot`-decorated factory), use `Registry.register` directly:
+For one-off registrations (e.g. registering an `@KnotFactory.knot`-decorated factory), use `Registry.register` directly:
 
 ```python
 from sweet_tea.registry import Registry

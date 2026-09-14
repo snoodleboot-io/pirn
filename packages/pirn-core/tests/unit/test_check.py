@@ -5,22 +5,22 @@ import unittest
 from pirn.check.tapestry_validator import TapestryValidator
 from pirn.check.validation_issue import ValidationIssue
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def step_a(x: int) -> int:
     return x + 1
 
 
-@knot
+@KnotFactory.knot
 async def step_b(a: int) -> int:
     return a * 2
 
 
-@knot
+@KnotFactory.knot
 async def step_c(b: int) -> int:
     return b - 1
 

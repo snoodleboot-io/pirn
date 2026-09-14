@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -15,7 +15,7 @@ from pirn_health.wearables.accelerometer_activity_classifier import (
 )
 
 
-@knot
+@KnotFactory.knot
 async def emit_accel_data() -> dict[str, Any]:
     return {
         "x": [0.1, 0.2, 0.3, 0.4, 0.5],

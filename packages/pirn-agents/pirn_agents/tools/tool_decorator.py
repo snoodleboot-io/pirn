@@ -1,4 +1,4 @@
-"""``@tool`` decorator — ``@knot`` plus a declaration.
+"""``@tool`` decorator — ``@KnotFactory.knot`` plus a declaration.
 
 Basic usage stays a one-liner::
 
@@ -14,7 +14,7 @@ Basic usage stays a one-liner::
     # hints -- and web_search(query="x", _config=KnotConfig(id="c1")) is one call.
 
 The decorated function becomes the ``process()`` of a generated
-:class:`~pirn_agents.tools.tool.Tool` subclass, exactly as ``@knot`` generates
+:class:`~pirn_agents.tools.tool.Tool` subclass, exactly as ``@KnotFactory.knot`` generates
 a ``Knot`` subclass (ADR agents-speaks-core, WS1): the signature is the input
 contract core validates with, a sync function runs via ``asyncio.to_thread``,
 and the declaration is ``Knot.input_json_schema()`` rendered from the same
@@ -338,7 +338,7 @@ def tool(
     cost_hint: float | None = None,
     state: Any | None = None,
 ) -> FunctionTool | Callable[[Callable[..., Any]], FunctionTool]:
-    """Decorate a function as a pirn tool capability (``@knot`` plus a declaration).
+    """Decorate a function as a pirn tool capability (``@KnotFactory.knot`` plus a declaration).
 
     Thin wrapper kept for the pinned public import path (see
     ``tests/test_ws5_s1_import_surface.py``) and the module docstring's

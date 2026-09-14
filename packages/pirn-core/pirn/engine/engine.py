@@ -467,7 +467,7 @@ class Engine:
             # so their cleanup has finished before the caller sees the error.
             #
             # Only the asyncio side can be interrupted.  A knot running on a
-            # worker thread (``ThreadDispatcher``, a sync ``@knot`` via
+            # worker thread (``ThreadDispatcher``, a sync ``@KnotFactory.knot`` via
             # ``asyncio.to_thread``) or on a remote worker keeps running until
             # it returns; its task completes as cancelled at once, so this wait
             # never blocks on it, but the thread itself is not stopped.
@@ -481,7 +481,7 @@ class Engine:
                 await asyncio.gather(*running, return_exceptions=True)
             finally:
                 # Known limitation: a knot on a worker thread (ThreadDispatcher,
-                # sync @knot) is still running when its cancelled task
+                # sync @KnotFactory.knot) is still running when its cancelled task
                 # completes, yet its slot is released here.  Harmless for a
                 # root run, since the run is over; a gate shared with an
                 # enclosing run that carries on may briefly admit one knot

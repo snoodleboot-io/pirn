@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.aggregator import Aggregator
@@ -23,15 +23,15 @@ async def test_realistic_data_pipeline():
     6. Branch: route by a flag.
     """
 
-    @knot
+    @KnotFactory.knot
     async def enrich(record: dict) -> dict:
         return {**record, "score": record["base"] * 10}
 
-    @knot
+    @KnotFactory.knot
     async def get_total(items: list[dict]) -> int:
         return sum(it["score"] for it in items)
 
-    @knot
+    @KnotFactory.knot
     async def get_count(items: list[dict]) -> int:
         return len(items)
 
@@ -70,12 +70,12 @@ async def test_realistic_data_pipeline():
             _config=KnotConfig(id="big_enough"),
         )
 
-        @knot
+        @KnotFactory.knot
         async def announce(s: dict) -> str:
             return f"Found {s['count']} records, total {s['total']}"
 
         # Wire announce after gate (will run only if gate opens) AND summary
-        @knot
+        @KnotFactory.knot
         async def gated_summary(g: int, s: dict) -> dict:
             return {**s, "gated_total": g}
 
@@ -98,7 +98,7 @@ async def test_realistic_data_pipeline():
 async def test_pipeline_with_gate_closed_skips_downstream():
     """Same pipeline but with all-zero records → gate closes."""
 
-    @knot
+    @KnotFactory.knot
     async def enrich(record: dict) -> dict:
         return {**record, "score": record["base"] * 10}
 
@@ -121,7 +121,7 @@ async def test_pipeline_with_gate_closed_skips_downstream():
             _config=KnotConfig(id="big"),
         )
 
-        @knot
+        @KnotFactory.knot
         async def consume(v: int) -> str:
             return f"got {v}"
 

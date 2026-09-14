@@ -13,7 +13,7 @@ import pytest
 
 from pirn.backends.in_memory.in_memory_store import InMemoryStore
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -74,12 +74,12 @@ def test_in_memory_store_subscriber_exception_does_not_break_register():
 # ---------------------------------------------------- mid-run extension
 
 
-@knot
+@KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def _add_ten(x: int) -> int:
     return x + 10
 
@@ -93,7 +93,7 @@ async def test_extensible_run_picks_up_knot_added_during_run():
 
     # Register a child mid-run by using a custom inner knot whose
     # process registers a downstream knot.
-    @knot
+    @KnotFactory.knot
     async def _registrar(x: int) -> int:
         # Register a new dependent knot mid-run.  The child consumes
         # this very knot's output.
@@ -114,7 +114,7 @@ async def test_extensible_run_picks_up_knot_added_during_run():
     with Tapestry() as t2:
         p2 = Parameter("x", int, _config=KnotConfig(id="px"))
 
-    @knot
+    @KnotFactory.knot
     async def _registrar2(x: int) -> int:
         Parameter(
             "downstream_input",
@@ -155,12 +155,12 @@ async def test_extensible_run_accepts_knot_whose_parent_finished():
     with Tapestry() as t:
         p = Parameter("x", int, _config=KnotConfig(id="px"))
 
-    @knot
+    @KnotFactory.knot
     async def _quick(x: int) -> int:
         parent_done.set()
         return x * 2
 
-    @knot
+    @KnotFactory.knot
     async def _slow_other(x: int) -> int:
         await can_finish_other.wait()
         return x
@@ -225,7 +225,7 @@ async def test_non_extensible_run_ignores_late_knots():
     with Tapestry() as t:
         p = Parameter("x", int, _config=KnotConfig(id="px"))
 
-    @knot
+    @KnotFactory.knot
     async def _registrar(x: int) -> int:
         Parameter("late", int, default=99, tapestry=t, _config=KnotConfig(id="late"))
         return x * 2
@@ -263,7 +263,7 @@ async def test_concurrent_extensible_runs_do_not_share_registered_knots():
     # landed, which is what makes the cross-run delivery observable.
     both_registered = asyncio.Barrier(4)
 
-    @knot
+    @KnotFactory.knot
     async def _hold(tag: str) -> str:
         await both_registered.wait()
         return tag
@@ -271,11 +271,11 @@ async def test_concurrent_extensible_runs_do_not_share_registered_knots():
     with t:
         held = _hold(tag=tag, _config=KnotConfig(id="held"))
 
-    @knot
+    @KnotFactory.knot
     async def _tail(x: str) -> str:
         return f"tail:{x}"
 
-    @knot
+    @KnotFactory.knot
     async def _register(tag: str) -> str:
         with t:
             _tail(x=held, _config=KnotConfig(id=f"late_{tag}"))
@@ -333,11 +333,11 @@ async def test_dynamically_registered_knots_are_permanent_tapestry_members():
     with Tapestry() as t:
         p = Parameter("x", int, _config=KnotConfig(id="px"))
 
-    @knot
+    @KnotFactory.knot
     async def _double(x: int) -> int:
         return x * 2
 
-    @knot
+    @KnotFactory.knot
     async def _registrar(x: int) -> int:
         with t:
             _double(x=p, _config=KnotConfig(id=f"late_{x}"))
@@ -380,11 +380,11 @@ async def test_reregistering_a_previous_runs_knot_id_fails_loudly():
     with Tapestry() as t:
         p = Parameter("x", int, _config=KnotConfig(id="px"))
 
-    @knot
+    @KnotFactory.knot
     async def _double(x: int) -> int:
         return x * 2
 
-    @knot
+    @KnotFactory.knot
     async def _registrar(x: int) -> int:
         with t:
             _double(x=p, _config=KnotConfig(id="late"))
