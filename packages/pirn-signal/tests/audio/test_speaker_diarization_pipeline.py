@@ -54,7 +54,7 @@ class TestSpeakerDiarizationPipeline(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, min_speakers=1, max_speakers=4, embedding_model="ecapa")
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("speaker_label",)
+        assert out.metadata.feature_names == ("speaker_label",)
         assert out.data.shape[0] == 1
 
     async def test_multichannel_computes_per_channel(self) -> None:
@@ -64,5 +64,5 @@ class TestSpeakerDiarizationPipeline(unittest.IsolatedAsyncioTestCase):
             multichannel, min_speakers=1, max_speakers=4, embedding_model="ecapa"
         )
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape[0] == 2

@@ -68,7 +68,7 @@ class TestLasObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
             result = await knot.process(
                 body=b"las-bytes", well_id="W-01", curves=("GR", "RHOB"), depth_unit="m"
             )
-        assert result.las.well_id == "W-01"
+        assert result.metadata.well_id == "W-01"
 
     async def test_metadata_curves_populated(self) -> None:
         knot = _make("W-01")
@@ -79,7 +79,7 @@ class TestLasObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
             result = await knot.process(
                 body=b"las-bytes", well_id="W-01", curves=("GR", "RHOB"), depth_unit="m"
             )
-        assert result.las.curves == ("GR", "RHOB")
+        assert result.metadata.curves == ("GR", "RHOB")
 
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()

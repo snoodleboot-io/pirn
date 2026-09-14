@@ -71,7 +71,7 @@ class WellTestAnalyzer(Knot):
         if method not in _valid_methods:
             raise ValueError(f"WellTestAnalyzer: method must be one of {sorted(_valid_methods)}")
 
-        p_ws = pressure_series.values.astype(np.float64)
+        p_ws = pressure_series.data.astype(np.float64)
         if len(p_ws) < 2:
             return {
                 "permeability_md": 50.0,
@@ -81,7 +81,7 @@ class WellTestAnalyzer(Knot):
 
         dt_hr = (
             np.arange(len(p_ws), dtype=np.float64)
-            * pressure_series.series.sample_interval_sec
+            * pressure_series.metadata.sample_interval_sec
             / 3600.0
         )
 

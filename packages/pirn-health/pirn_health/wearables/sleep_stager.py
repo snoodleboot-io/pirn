@@ -73,7 +73,7 @@ class SleepStager(Knot):
         if float(epoch_length_sec) <= 0:
             raise ValueError("SleepStager: epoch_length_sec must be positive")
         eeg = signal.data if signal.data.ndim == 1 else signal.data[0]
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         epoch_samples = max(1, int(epoch_length_sec * fs))
         return await asyncio.to_thread(self._stage_all_epochs, eeg, fs, epoch_samples)
 

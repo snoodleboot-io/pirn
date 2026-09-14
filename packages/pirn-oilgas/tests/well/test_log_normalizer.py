@@ -44,4 +44,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         out = await knot.process(payload=_LAS, target_depth_step=0.5, target_depth_unit="ft")
         assert isinstance(out, LASPayload)
-        assert out.las.depth_unit == "ft"
+        assert out.metadata.depth_unit == "ft"

@@ -42,12 +42,12 @@ class TestKalmanFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, process_noise=0.01, measurement_noise=0.1)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:kalman"
+        assert out.metadata.signal_id == "test:kalman"
 
     async def test_multichannel_computes_per_channel(self) -> None:
         knot = self._make()
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=32)
         out = await knot.process(multichannel, process_noise=0.01, measurement_noise=0.1)
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 32)

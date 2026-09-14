@@ -52,6 +52,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["cv"]
         assert isinstance(report, EvalReportPayload)
-        assert "f1" in report.metrics.scores
+        assert "f1" in report.data.scores
         # Image encoder was probed.
         assert encoder.calls

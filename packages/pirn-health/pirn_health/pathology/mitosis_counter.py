@@ -83,7 +83,7 @@ class MitosisCounter(Knot):
     def _count_mitoses(payloads: Sequence[WSITilePayload], confidence_threshold: float) -> int:
         total = 0
         for p in payloads:
-            normalized_var = float(np.var(p.pixels.astype(float))) / (255.0**2 + 1e-6)
+            normalized_var = float(np.var(p.data.astype(float))) / (255.0**2 + 1e-6)
             if normalized_var >= confidence_threshold:
                 total += 1
         return total

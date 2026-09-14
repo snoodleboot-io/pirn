@@ -60,7 +60,7 @@ async def _aggregate_tscv_reports(
     time_column: str,
 ) -> EvalReportPayload:
     per_split = [
-        {name: float(value) for name, value in report.metrics.scores.items()} for report in reports
+        {name: float(value) for name, value in report.data.scores.items()} for report in reports
     ]
     if not per_split:
         aggregated: dict[str, float] = {}

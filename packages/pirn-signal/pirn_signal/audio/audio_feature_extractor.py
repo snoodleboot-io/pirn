@@ -107,7 +107,7 @@ class AudioFeatureExtractor(Knot):
             raise ValueError("AudioFeatureExtractor: n_fft must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
             raise ValueError("AudioFeatureExtractor: hop_length must be a positive integer")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -119,7 +119,7 @@ class AudioFeatureExtractor(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:audio-features",
+                signal_id=f"{signal.metadata.signal_id}:audio-features",
                 channel_count=channels.shape[0],
                 feature_names=AudioFeatureExtractor._feature_names,
             ),

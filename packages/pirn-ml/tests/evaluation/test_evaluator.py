@@ -49,10 +49,10 @@ class TestEvaluatorHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         out: EvalReportPayload = result.outputs["eval"]
         assert isinstance(out, EvalReportPayload)
-        assert isinstance(out.report, EvalMetadata)
-        assert out.report.model_id == "m1"
-        assert set(out.metrics.scores.keys()) == {"accuracy", "f1"}
-        assert out.report.dataset_name == "d:test"
+        assert isinstance(out.metadata, EvalMetadata)
+        assert out.metadata.model_id == "m1"
+        assert set(out.data.scores.keys()) == {"accuracy", "f1"}
+        assert out.metadata.dataset_name == "d:test"
 
 
 class TestEvaluatorProcess(unittest.IsolatedAsyncioTestCase):

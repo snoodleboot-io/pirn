@@ -90,4 +90,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert len(reports) == 3
         for report in reports:
             assert isinstance(report, EvalReportPayload)
-            assert set(report.metrics.scores.keys()) == {"mape", "smape", "mase"}
+            assert set(report.data.scores.keys()) == {"mape", "smape", "mase"}

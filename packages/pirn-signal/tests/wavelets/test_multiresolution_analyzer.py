@@ -56,7 +56,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["w"]
         assert isinstance(out, WaveletPayload)
-        assert out.frame.wavelet_name == "sym4"
+        assert out.metadata.wavelet_name == "sym4"
         # pywt.wavedec with level=3 returns level+1=4 arrays: [cA3, cD3, cD2, cD1]
-        assert out.frame.scale_count == 4
+        assert out.metadata.scale_count == 4
         assert len(out.data) == 4

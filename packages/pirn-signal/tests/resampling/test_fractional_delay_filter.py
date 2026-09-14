@@ -47,4 +47,4 @@ class TestFractionalDelayFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, delay_samples=0.5, filter_order=4)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:frac_delayed"
+        assert out.metadata.signal_id == "test:frac_delayed"

@@ -46,4 +46,4 @@ class TestMedianFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, kernel_size=5)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:median"
+        assert out.metadata.signal_id == "test:median"

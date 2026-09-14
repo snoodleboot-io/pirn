@@ -6,7 +6,7 @@ and an object store sink connector that expects raw ``bytes``.
 Algorithm:
     1. Receive a :class:`WSITilePayload`.
     2. Validate the payload type.
-    3. On a thread, convert ``payload.pixels`` (a numpy RGB array) to PNG bytes via Pillow.
+    3. On a thread, convert ``payload.data`` (a numpy RGB array) to PNG bytes via Pillow.
     4. Return the resulting ``bytes``.
 
 References:
@@ -71,7 +71,7 @@ class WsiObjectStoreDisassembler(Disassembler):
                 "WsiObjectStoreDisassembler requires 'PIL' — "
                 "install with: pip install 'pirn-health[health]'"
             ) from exc
-        img = Image.fromarray(payload.pixels.astype(np.uint8), mode="RGB")
+        img = Image.fromarray(payload.data.astype(np.uint8), mode="RGB")
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return buf.getvalue()

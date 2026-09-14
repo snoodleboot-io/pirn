@@ -35,7 +35,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["p"]
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("freq_0", "freq_1", "freq_2")
+        assert out.metadata.feature_names == ("freq_0", "freq_1", "freq_2")
         assert out.data.shape == (1, 3)
 
     async def test_multichannel_computes_per_channel(self) -> None:
@@ -45,5 +45,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=64)
         out = await k.process(signal=multichannel, sinusoid_count=3)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 3)

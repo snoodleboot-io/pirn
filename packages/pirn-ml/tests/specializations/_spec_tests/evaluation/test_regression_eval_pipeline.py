@@ -69,4 +69,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["eval-pipeline"]
         assert isinstance(report, EvalReportPayload)
-        assert set(report.metrics.scores.keys()) == {"rmse", "mae", "r2", "mape"}
+        assert set(report.data.scores.keys()) == {"rmse", "mae", "r2", "mape"}

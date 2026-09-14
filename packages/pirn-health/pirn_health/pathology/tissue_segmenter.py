@@ -101,7 +101,7 @@ class TissueSegmenter(Knot):
     ) -> tuple[WSITilePayload, ...]:
         result: list[WSITilePayload] = []
         for p in payloads:
-            gray = np.mean(p.pixels.astype(float), axis=2)
+            gray = np.mean(p.data.astype(float), axis=2)
             tau = TissueSegmenter._otsu_threshold(gray)
             tissue_fraction = float(np.mean(gray < tau))
             if tissue_fraction >= threshold:

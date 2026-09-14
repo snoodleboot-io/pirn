@@ -43,4 +43,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_signal_payload(self) -> None:
         out = await _KNOT.process(epochs=[_EPOCH], condition="target")
         assert isinstance(out, HealthSignalPayload)
-        assert "target" in out.frame.signal_id
+        assert "target" in out.metadata.signal_id

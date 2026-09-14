@@ -64,4 +64,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["i"]
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "stft-out:istft"
+        assert out.metadata.signal_id == "stft-out:istft"

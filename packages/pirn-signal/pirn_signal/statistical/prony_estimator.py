@@ -95,7 +95,7 @@ class PronyEstimator(Knot):
             rows.append(list(zip(padded_poles, padded_residues, strict=True)))
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:prony",
+                signal_id=f"{signal.metadata.signal_id}:prony",
                 channel_count=channels.shape[0],
                 feature_names=("pole", "residue"),
             ),

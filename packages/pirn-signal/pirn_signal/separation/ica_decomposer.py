@@ -80,9 +80,9 @@ class ICADecomposer(Knot):
         sources = await asyncio.to_thread(ICADecomposer._run_ica, signal.data, source_count)
         return SourcePayload(
             metadata=SourceFrame(
-                signal_id=f"{signal.frame.signal_id}:ica",
+                signal_id=f"{signal.metadata.signal_id}:ica",
                 source_count=source_count,
-                mixing_matrix_shape=(signal.frame.channel_count, source_count),
+                mixing_matrix_shape=(signal.metadata.channel_count, source_count),
             ),
             data=sources,
         )

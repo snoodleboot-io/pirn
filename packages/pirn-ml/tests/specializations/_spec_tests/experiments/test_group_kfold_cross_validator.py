@@ -93,6 +93,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report = result.outputs["gcv"]
         assert isinstance(report, EvalReportPayload)
-        assert report.metrics.details["group_column"] == "patient_id"
-        assert report.metrics.details["k"] == 3
-        assert len(report.metrics.details["per_fold_metrics"]) == 3
+        assert report.data.details["group_column"] == "patient_id"
+        assert report.data.details["k"] == 3
+        assert len(report.data.details["per_fold_metrics"]) == 3

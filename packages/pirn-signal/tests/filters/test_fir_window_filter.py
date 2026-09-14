@@ -53,7 +53,7 @@ class TestFIRWindowFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, num_taps=31, cutoff_hz=100.0, window="hamming")
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:fir-window"
+        assert out.metadata.signal_id == "test:fir-window"
 
     async def test_accepts_bartlett_window(self) -> None:
         knot = self._make()

@@ -74,7 +74,7 @@ class SeizureDetector(Knot):
         if float(threshold) < 0:
             raise ValueError("SeizureDetector: threshold must be non-negative")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(self._detect_seizures, signal.data, fs, float(threshold))
 
     @staticmethod

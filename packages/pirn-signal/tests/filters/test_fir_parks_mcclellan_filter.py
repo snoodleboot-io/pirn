@@ -24,7 +24,7 @@ _SIGNAL = make_signal_payload()
 # (0.0, 0.3, 0.4, 1.0) asked for a 0-0.3 Hz passband on a 1 kHz signal. Older
 # scipy accepted that and produced a meaningless tap set; newer scipy rejects the
 # degenerate grid, which is how the unit mismatch finally surfaced.
-_BANDS_HZ = (0.0, 150.0, 200.0, _SIGNAL.frame.sample_rate_hz / 2)
+_BANDS_HZ = (0.0, 150.0, 200.0, _SIGNAL.metadata.sample_rate_hz / 2)
 
 
 def _up(name: str = "signal") -> Parameter:
@@ -60,4 +60,4 @@ class TestFIRParksMcClellanFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, num_taps=31, bands=_BANDS_HZ, desired=(1.0, 0.0))
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:fir-pm"
+        assert out.metadata.signal_id == "test:fir-pm"

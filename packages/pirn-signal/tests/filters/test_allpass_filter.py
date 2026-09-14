@@ -46,4 +46,4 @@ class TestAllpassFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, pole_radius=0.5)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:allpass"
+        assert out.metadata.signal_id == "test:allpass"

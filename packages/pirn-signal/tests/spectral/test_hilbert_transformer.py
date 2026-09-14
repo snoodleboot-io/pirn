@@ -46,8 +46,8 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         )
         result = await k.process(signal=signal)
         assert isinstance(result, SpectrumPayload)
-        assert result.frame.signal_id == "s:analytic"
-        assert result.frame.frequency_bins == 512
+        assert result.metadata.signal_id == "s:analytic"
+        assert result.metadata.frequency_bins == 512
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -58,5 +58,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["h"]
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.signal_id == "test:analytic"
-        assert out.frame.frequency_resolution_hz > 0
+        assert out.metadata.signal_id == "test:analytic"
+        assert out.metadata.frequency_resolution_hz > 0

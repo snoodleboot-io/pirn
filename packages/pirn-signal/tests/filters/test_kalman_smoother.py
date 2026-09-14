@@ -42,4 +42,4 @@ class TestKalmanSmoother(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, state_dim=2, observation_dim=1)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:kalman-smooth"
+        assert out.metadata.signal_id == "test:kalman-smooth"

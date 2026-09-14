@@ -76,13 +76,13 @@ class ChirpletDecomposer(Knot):
         stacked = await asyncio.to_thread(
             ChirpletDecomposer._compute_chirplets,
             signal.data,
-            signal.frame.sample_rate_hz,
+            signal.metadata.sample_rate_hz,
             chirplet_count,
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=chirplet_count,
                 frequency_resolution_hz=0.0,
             ),

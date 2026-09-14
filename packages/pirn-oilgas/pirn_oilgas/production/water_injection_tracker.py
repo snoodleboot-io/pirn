@@ -54,13 +54,13 @@ class WaterInjectionTracker(Knot):
         """
         if not isinstance(injection_rate, ScadaPayload):
             raise TypeError("WaterInjectionTracker: injection_rate must be a ScadaPayload")
-        cum = np.cumsum(injection_rate.values * injection_rate.series.sample_interval_sec / 86400)
-        sensor_id = f"cumulative_inj:{injection_rate.series.sensor_id}"
+        cum = np.cumsum(injection_rate.data * injection_rate.metadata.sample_interval_sec / 86400)
+        sensor_id = f"cumulative_inj:{injection_rate.metadata.sensor_id}"
         return ScadaPayload(
             metadata=ScadaTimeSeries(
                 sensor_id=sensor_id,
                 sample_count=len(cum),
-                sample_interval_sec=injection_rate.series.sample_interval_sec,
+                sample_interval_sec=injection_rate.metadata.sample_interval_sec,
             ),
             data=cum,
         )

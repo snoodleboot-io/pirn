@@ -118,7 +118,7 @@ class VMDDecomposer(Knot):
             VMDDecomposer._run_vmd, signal.data, float(bandwidth_constraint), mode_count, backend
         )
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name="vmd",
             scale_count=len(modes),
         )

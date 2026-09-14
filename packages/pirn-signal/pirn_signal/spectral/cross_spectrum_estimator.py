@@ -77,7 +77,7 @@ class CrossSpectrumEstimator(Knot):
         ss = ScipySignalBinding.load()
         if not isinstance(segment_length, int) or segment_length <= 0:
             raise ValueError("CrossSpectrumEstimator: segment_length must be a positive integer")
-        if signal_a.frame.sample_rate_hz != signal_b.frame.sample_rate_hz:
+        if signal_a.metadata.sample_rate_hz != signal_b.metadata.sample_rate_hz:
             raise ValueError(
                 "CrossSpectrumEstimator: signal_a and signal_b must share a sample rate"
             )
@@ -86,21 +86,21 @@ class CrossSpectrumEstimator(Knot):
             ss.csd,
             signal_a.data,
             signal_b.data,
-            fs=signal_a.frame.sample_rate_hz,
+            fs=signal_a.metadata.sample_rate_hz,
             nperseg=segment_length,
             axis=-1,
         )
 
         freq_bins = len(freqs)
         freq_res = (
-            signal_a.frame.sample_rate_hz / segment_length
-            if signal_a.frame.sample_rate_hz > 0
+            signal_a.metadata.sample_rate_hz / segment_length
+            if signal_a.metadata.sample_rate_hz > 0
             else 0.0
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=f"{signal_a.frame.signal_id}|{signal_b.frame.signal_id}",
+                signal_id=f"{signal_a.metadata.signal_id}|{signal_b.metadata.signal_id}",
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

@@ -102,7 +102,7 @@ class AudioAugmentationPipeline(Knot):
             raise ValueError(f"AudioAugmentationPipeline: unknown augmentations {sorted(invalid)}")
         if not isinstance(seed, int) or seed < 0:
             raise ValueError("AudioAugmentationPipeline: seed must be a non-negative integer")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(

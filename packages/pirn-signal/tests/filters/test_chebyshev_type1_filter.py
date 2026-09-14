@@ -53,4 +53,4 @@ class TestChebyshevType1Filter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, order=4, passband_ripple_db=1.0, cutoff_hz=100.0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:cheby1"
+        assert out.metadata.signal_id == "test:cheby1"

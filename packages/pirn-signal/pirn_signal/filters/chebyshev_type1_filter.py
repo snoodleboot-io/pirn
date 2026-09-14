@@ -84,7 +84,7 @@ class ChebyshevType1Filter(Knot):
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
             raise ValueError("ChebyshevType1Filter: cutoff_hz must be positive")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         sos = await asyncio.to_thread(
             ss.cheby1_sos, order, passband_ripple_db, cutoff_hz, "low", fs
         )

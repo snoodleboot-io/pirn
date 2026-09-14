@@ -110,6 +110,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out["challenger_wins"], bool)
         comparison = out["comparison"]
         assert isinstance(comparison, EvalReportPayload)
-        assert "champion_accuracy" in comparison.metrics.scores
-        assert "challenger_accuracy" in comparison.metrics.scores
-        assert "delta_accuracy" in comparison.metrics.scores
+        assert "champion_accuracy" in comparison.data.scores
+        assert "challenger_accuracy" in comparison.data.scores
+        assert "delta_accuracy" in comparison.data.scores

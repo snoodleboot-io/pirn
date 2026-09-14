@@ -103,7 +103,7 @@ class SpeakerDiarizationPipeline(Knot):
             raise ValueError(
                 "SpeakerDiarizationPipeline: embedding_model must be a non-empty string"
             )
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -113,7 +113,7 @@ class SpeakerDiarizationPipeline(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:diarization",
+                signal_id=f"{signal.metadata.signal_id}:diarization",
                 channel_count=channels.shape[0],
                 feature_names=("speaker_label",),
             ),

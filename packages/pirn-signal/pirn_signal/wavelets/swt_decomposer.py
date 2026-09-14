@@ -83,7 +83,7 @@ class SWTDecomposer(Knot):
             raise ValueError("SWTDecomposer: level must be a positive integer")
         coeffs = await asyncio.to_thread(SWTDecomposer._run_swt, signal.data, wavelet, level)
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name=wavelet,
             scale_count=len(coeffs),
         )

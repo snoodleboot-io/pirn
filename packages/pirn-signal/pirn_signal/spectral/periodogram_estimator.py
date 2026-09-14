@@ -73,7 +73,7 @@ class PeriodogramEstimator(Knot):
         freqs, pxx = await asyncio.to_thread(
             ss.periodogram,
             signal.data,
-            fs=signal.frame.sample_rate_hz,
+            fs=signal.metadata.sample_rate_hz,
             window=window,
             axis=-1,
         )
@@ -82,7 +82,7 @@ class PeriodogramEstimator(Knot):
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=float(freqs[1]) if freq_bins > 1 else 0.0,
             ),

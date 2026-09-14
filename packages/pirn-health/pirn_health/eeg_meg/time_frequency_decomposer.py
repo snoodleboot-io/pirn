@@ -83,7 +83,7 @@ class TimeFrequencyDecomposer(Knot):
                 "TimeFrequencyDecomposer: method must be one of morlet/multitaper/stockwell"
             )
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(self._compute_tf, signal.data, frequencies_hz, fs)
 
     @staticmethod

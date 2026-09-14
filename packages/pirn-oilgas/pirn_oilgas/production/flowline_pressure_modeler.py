@@ -112,16 +112,16 @@ class FlowlinePressureModeler(Knot):
                 raise ValueError(f"FlowlinePressureModeler: {label} must be positive")
         dP_psi = await asyncio.to_thread(
             FlowlinePressureModeler._darcy_weisbach,
-            rate_series.values,
+            rate_series.data,
             pipe_inner_diameter_in,
             pipe_length_ft,
         )
         sample_count = len(dP_psi)
         return ScadaPayload(
             metadata=ScadaTimeSeries(
-                sensor_id=f"dp:{rate_series.series.sensor_id}",
+                sensor_id=f"dp:{rate_series.metadata.sensor_id}",
                 sample_count=sample_count,
-                sample_interval_sec=rate_series.series.sample_interval_sec,
+                sample_interval_sec=rate_series.metadata.sample_interval_sec,
             ),
             data=dP_psi,
         )

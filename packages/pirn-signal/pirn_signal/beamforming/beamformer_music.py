@@ -101,7 +101,7 @@ class BeamformerMUSIC(Knot):
         import asyncio
 
         speed_of_sound = 343.0
-        center_freq = signal.frame.sample_rate_hz / 4.0
+        center_freq = signal.metadata.sample_rate_hz / 4.0
         data = signal.data.astype(complex)
         spectrum = await asyncio.to_thread(
             BeamformerMUSIC._music_spatial,

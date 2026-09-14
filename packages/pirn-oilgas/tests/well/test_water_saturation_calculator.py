@@ -81,4 +81,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             result = await t.run(RunRequest(parameters={"body": b"las-bytes"}))
         out = result.outputs["sw"]
         assert isinstance(out, LASPayload)
-        assert "SW_archie" in out.curve_data
+        assert "SW_archie" in out.data

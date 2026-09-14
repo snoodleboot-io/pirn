@@ -52,12 +52,12 @@ class TestAudioAugmentationPipeline(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, augmentations=("add_noise",), seed=0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:augmented"
+        assert out.metadata.signal_id == "test:augmented"
 
     async def test_multichannel_computes_per_channel(self) -> None:
         knot = self._make()
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=1024)
         out = await knot.process(multichannel, augmentations=("add_noise", "time_mask"), seed=0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 1024)

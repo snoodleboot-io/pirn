@@ -56,7 +56,7 @@ class SegyObjectStoreDisassembler(Disassembler):
     def _encode(payload: SegyPayload) -> bytes:
         segyio = OptionalDependency.require("segyio", extra="oilgas", package="pirn-oilgas")
 
-        traces: np.ndarray = payload.traces
+        traces: np.ndarray = payload.data
         if traces.ndim == 1:
             traces = traces.reshape(1, -1)
 
@@ -106,12 +106,12 @@ class SegyObjectStoreDisassembler(Disassembler):
 
         Raises:
             TypeError: If ``payload`` is not a :class:`SegyPayload`.
-            ValueError: If ``payload.traces`` is empty.
+            ValueError: If ``payload.data`` is empty.
         """
         if not isinstance(payload, SegyPayload):
             raise TypeError(
                 f"SegyObjectStoreDisassembler: payload must be SegyPayload, got {type(payload).__name__}"
             )
-        if payload.traces.size == 0:
-            raise ValueError("SegyObjectStoreDisassembler: payload.traces must be non-empty")
+        if payload.data.size == 0:
+            raise ValueError("SegyObjectStoreDisassembler: payload.data must be non-empty")
         return await asyncio.to_thread(SegyObjectStoreDisassembler._encode, payload)

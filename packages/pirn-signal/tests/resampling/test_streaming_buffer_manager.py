@@ -47,7 +47,7 @@ class TestStreamingBufferManager(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, frame_size=512, hop_size=256)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:framed"
+        assert out.metadata.signal_id == "test:framed"
 
     async def test_mono_signal_frames_are_shaped_channel_first(self) -> None:
         # A single channel still comes back with an explicit channel axis:
@@ -55,7 +55,7 @@ class TestStreamingBufferManager(unittest.IsolatedAsyncioTestCase):
         # this knot used to return.
         knot = self._make()
         out = await knot.process(_SIGNAL, frame_size=512, hop_size=256)
-        assert out.frame.channel_count == 1
+        assert out.metadata.channel_count == 1
         assert out.data.shape == (1, 3, 512)
 
     async def test_multichannel_frames_every_channel_independently(self) -> None:
@@ -69,7 +69,7 @@ class TestStreamingBufferManager(unittest.IsolatedAsyncioTestCase):
 
         # Assert: one framed sub-array per input channel.
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 3
+        assert out.metadata.channel_count == 3
         assert out.data.shape == (3, 3, 512)
 
     async def test_a_signal_shorter_than_one_frame_yields_zero_frames_per_channel(self) -> None:

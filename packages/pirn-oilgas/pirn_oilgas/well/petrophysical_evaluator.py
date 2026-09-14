@@ -102,15 +102,15 @@ class PetrophysicalEvaluator(Knot):
             LASPayload with ``VSH``, ``PHIE``, and ``SW`` curves appended.
         """
         vsh, phie, sw = await asyncio.to_thread(
-            PetrophysicalEvaluator._compute_curves, payload.curve_data
+            PetrophysicalEvaluator._compute_curves, payload.data
         )
 
-        new_curve_data = {**payload.curve_data, "VSH": vsh, "PHIE": phie, "SW": sw}
+        new_curve_data = {**payload.data, "VSH": vsh, "PHIE": phie, "SW": sw}
         return LASPayload(
             metadata=LASFile(
-                well_id=payload.las.well_id,
-                curves=(*payload.las.curves, "VSH", "PHIE", "SW"),
-                depth_unit=payload.las.depth_unit,
+                well_id=payload.metadata.well_id,
+                curves=(*payload.metadata.curves, "VSH", "PHIE", "SW"),
+                depth_unit=payload.metadata.depth_unit,
             ),
             data=new_curve_data,
         )

@@ -68,6 +68,6 @@ class EvalReportDatabaseDisassembler(Disassembler):
                 f"got {type(payload).__name__}"
             )
         return [
-            (payload.report.model_id, metric, float(score))
-            for metric, score in payload.metrics.scores.items()
+            (payload.metadata.model_id, metric, float(score))
+            for metric, score in payload.data.scores.items()
         ]

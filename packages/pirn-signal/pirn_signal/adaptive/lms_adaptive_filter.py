@@ -85,7 +85,7 @@ class LMSAdaptiveFilter(Knot):
             raise ValueError("LMSAdaptiveFilter: filter_length must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0:
             raise ValueError("LMSAdaptiveFilter: step_size must be positive")
-        if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
+        if signal.metadata.sample_rate_hz != reference.metadata.sample_rate_hz:
             raise ValueError("LMSAdaptiveFilter: signal and reference sample rates must match")
 
         sig_channels = np.atleast_2d(signal.data)

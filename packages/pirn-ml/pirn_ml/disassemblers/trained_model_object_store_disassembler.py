@@ -76,5 +76,5 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
     def _serialize(payload: TrainedModelPayload) -> bytes:
         joblib = OptionalDependency.require("joblib", extra="ml", package="pirn-ml")
         buf = io.BytesIO()
-        joblib.dump(payload.estimator.estimator, buf)
+        joblib.dump(payload.data.estimator, buf)
         return buf.getvalue()

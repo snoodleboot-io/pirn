@@ -83,7 +83,7 @@ class EMDDecomposer(Knot):
             raise ValueError("EMDDecomposer: max_imf_count must be a positive integer")
         imfs = await asyncio.to_thread(EMDDecomposer._run_emd, signal.data, max_imf_count)
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name="emd",
             scale_count=len(imfs),
         )

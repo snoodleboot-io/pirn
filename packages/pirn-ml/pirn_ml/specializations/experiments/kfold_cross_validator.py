@@ -51,7 +51,7 @@ async def _aggregate_kfold_reports(
     k: int,
 ) -> EvalReportPayload:
     per_fold = [
-        {name: float(value) for name, value in report.metrics.scores.items()} for report in reports
+        {name: float(value) for name, value in report.data.scores.items()} for report in reports
     ]
     if not per_fold:
         aggregated: dict[str, float] = {}

@@ -76,12 +76,12 @@ class LogNormalizer(Knot):
             raise ValueError("LogNormalizer: target_depth_step must be positive")
         if target_depth_unit not in ("m", "ft"):
             raise ValueError("LogNormalizer: target_depth_unit must be 'm' or 'ft'")
-        len(next(iter(payload.curve_data.values()))) if payload.curve_data else 100
-        new_curve_data = {k: np.array(v, dtype=np.float64) for k, v in payload.curve_data.items()}
+        len(next(iter(payload.data.values()))) if payload.data else 100
+        new_curve_data = {k: np.array(v, dtype=np.float64) for k, v in payload.data.items()}
         return LASPayload(
             metadata=LASFile(
-                well_id=payload.las.well_id,
-                curves=payload.las.curves,
+                well_id=payload.metadata.well_id,
+                curves=payload.metadata.curves,
                 depth_unit=target_depth_unit,
             ),
             data=new_curve_data,

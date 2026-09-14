@@ -87,7 +87,7 @@ class IDWTReconstructor(Knot):
         )
         samples = reconstructed.shape[-1]
         out_frame = SignalFrame(
-            signal_id=f"{wavelet_frame.frame.signal_id}:idwt",
+            signal_id=f"{wavelet_frame.metadata.signal_id}:idwt",
             channel_count=1,
             sample_rate_hz=0.0,
             samples_per_channel=samples,

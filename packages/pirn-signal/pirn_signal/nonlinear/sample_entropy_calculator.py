@@ -94,7 +94,7 @@ class SampleEntropyCalculator(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:sample-entropy",
+                signal_id=f"{signal.metadata.signal_id}:sample-entropy",
                 channel_count=channels.shape[0],
                 feature_names=("sample_entropy",),
             ),

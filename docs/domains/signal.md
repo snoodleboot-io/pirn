@@ -358,7 +358,7 @@ decomposed = DWTDecomposer(
 
 The `pirn_signal.types` package exposes shared typed containers used across sub-packages.
 Each `*Frame` is a small, immutable lineage/metadata record; each corresponding
-`*Payload` pairs that frame with the actual array data (`payload.frame` / `payload.data`).
+`*Payload` pairs that frame with the actual array data (`payload.metadata` / `payload.data`).
 
 | Frame | Frame fields | Payload `data` | Description |
 |---|---|---|---|

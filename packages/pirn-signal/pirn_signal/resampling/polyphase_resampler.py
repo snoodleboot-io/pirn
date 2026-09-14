@@ -93,7 +93,7 @@ class PolyphaseResampler(Knot):
         result = await asyncio.to_thread(
             PolyResampling.resample_poly, signal.data, upsample_factor, downsample_factor
         )
-        new_rate = (signal.frame.sample_rate_hz * upsample_factor) / downsample_factor
+        new_rate = (signal.metadata.sample_rate_hz * upsample_factor) / downsample_factor
 
         return signal.derive(
             "polyphase",

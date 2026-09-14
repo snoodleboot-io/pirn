@@ -59,4 +59,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["dr"]
         assert isinstance(report, EvalReportPayload)
-        assert "explained_variance" in report.metrics.scores
+        assert "explained_variance" in report.data.scores

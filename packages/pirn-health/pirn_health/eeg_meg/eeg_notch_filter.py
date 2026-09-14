@@ -73,15 +73,15 @@ class EegNotchFilter(Knot):
         if not isinstance(notch_hz, (int, float)) or float(notch_hz) <= 0:
             raise ValueError("EegNotchFilter: notch_hz must be a positive number")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(self._apply_notch, signal.data, float(notch_hz), fs)
 
         frame = HealthSignalFrame(
-            signal_id=signal.frame.signal_id + ":notch",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=signal.frame.samples_per_channel,
-            fetched_at=signal.frame.fetched_at,
+            signal_id=signal.metadata.signal_id + ":notch",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz,
+            samples_per_channel=signal.metadata.samples_per_channel,
+            fetched_at=signal.metadata.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=filtered)
 

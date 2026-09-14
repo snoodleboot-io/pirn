@@ -70,7 +70,7 @@ class CrossValidator(Knot):
             ValueError: If k < 2 or dataset.row_count < k.
         """
         if isinstance(dataset, DatasetPayload):
-            dataset = dataset.manifest
+            dataset = dataset.metadata
         if not isinstance(k, int):
             raise TypeError("CrossValidator: k must be an int")
         if k < 2:

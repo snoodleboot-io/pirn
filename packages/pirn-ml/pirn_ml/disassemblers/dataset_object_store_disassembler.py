@@ -76,7 +76,7 @@ class DatasetObjectStoreDisassembler(Disassembler):
     @staticmethod
     def _serialize(payload: DatasetPayload) -> bytes:
         buf = io.BytesIO()
-        features = payload.features
+        features = payload.data
         arrays: dict[str, Any] = {"feature_matrix": features.feature_matrix}
         if features.target_vector is not None:
             arrays["target_vector"] = features.target_vector

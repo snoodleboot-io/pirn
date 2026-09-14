@@ -97,7 +97,7 @@ class SSADecomposer(Knot):
         )
         return SourcePayload(
             metadata=SourceFrame(
-                signal_id=f"{signal.frame.signal_id}:ssa",
+                signal_id=f"{signal.metadata.signal_id}:ssa",
                 source_count=component_count,
                 mixing_matrix_shape=(embedding_dim, component_count),
             ),

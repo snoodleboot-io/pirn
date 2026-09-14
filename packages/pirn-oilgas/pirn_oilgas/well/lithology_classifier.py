@@ -70,7 +70,7 @@ class LithologyClassifier(Knot):
         if method not in _valid:
             raise ValueError(f"LithologyClassifier: method must be one of {sorted(_valid)}")
 
-        curve_data = payload.curve_data
+        curve_data = payload.data
         if "GR" not in curve_data:
             raise ValueError("LithologyClassifier: 'GR' curve required in curve_data")
 
@@ -81,9 +81,9 @@ class LithologyClassifier(Knot):
         new_curve_data = {**curve_data, "LITH": lith}
         return LASPayload(
             metadata=LASFile(
-                well_id=payload.las.well_id,
-                curves=(*payload.las.curves, "LITH"),
-                depth_unit=payload.las.depth_unit,
+                well_id=payload.metadata.well_id,
+                curves=(*payload.metadata.curves, "LITH"),
+                depth_unit=payload.metadata.depth_unit,
             ),
             data=new_curve_data,
         )

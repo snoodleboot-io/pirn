@@ -79,10 +79,10 @@ class Downsampler(Knot):
         )
 
         new_frame = SignalFrame(
-            signal_id=f"{signal.frame.signal_id}:downsample",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz / downsample_factor,
-            samples_per_channel=signal.frame.samples_per_channel // downsample_factor,
+            signal_id=f"{signal.metadata.signal_id}:downsample",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz / downsample_factor,
+            samples_per_channel=signal.metadata.samples_per_channel // downsample_factor,
         )
         return SignalPayload(metadata=new_frame, data=downsampled)
 

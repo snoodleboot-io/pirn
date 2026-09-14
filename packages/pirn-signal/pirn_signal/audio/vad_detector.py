@@ -91,7 +91,7 @@ class VADDetector(Knot):
         if not isinstance(aggressiveness, int) or aggressiveness < 0 or aggressiveness > 3:
             raise ValueError("VADDetector: aggressiveness must be an integer in [0, 3]")
         threshold_db = -40.0
-        sr = signal.frame.sample_rate_hz
+        sr = signal.metadata.sample_rate_hz
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -108,7 +108,7 @@ class VADDetector(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:vad",
+                signal_id=f"{signal.metadata.signal_id}:vad",
                 channel_count=channels.shape[0],
                 feature_names=("voiced",),
             ),

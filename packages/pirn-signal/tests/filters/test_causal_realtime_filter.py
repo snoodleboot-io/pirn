@@ -48,4 +48,4 @@ class TestCausalRealtimeFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, filter_type="lowpass", cutoff_hz=100.0, order=4)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:causal-lowpass"
+        assert out.metadata.signal_id == "test:causal-lowpass"

@@ -46,5 +46,5 @@ class TestInterpolator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, target_sample_rate_hz=2000.0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:interp"
-        assert out.frame.sample_rate_hz == 2000.0
+        assert out.metadata.signal_id == "test:interp"
+        assert out.metadata.sample_rate_hz == 2000.0

@@ -47,4 +47,4 @@ class TestBandpassFilterBank(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, bands=((100.0, 200.0), (200.0, 400.0)), order=4)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:bp-bank"
+        assert out.metadata.signal_id == "test:bp-bank"

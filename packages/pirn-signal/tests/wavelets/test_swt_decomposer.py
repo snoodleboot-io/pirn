@@ -49,7 +49,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["s"]
         assert isinstance(out, WaveletPayload)
-        assert out.frame.wavelet_name == "db4"
+        assert out.metadata.wavelet_name == "db4"
         # pywt.swt with level=5 returns 5 (cA, cD) pairs → flattened to 10 arrays
-        assert out.frame.scale_count == 10
-        assert out.frame.signal_id == "test"
+        assert out.metadata.scale_count == 10
+        assert out.metadata.signal_id == "test"

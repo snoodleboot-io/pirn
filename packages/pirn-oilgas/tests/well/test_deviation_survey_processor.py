@@ -47,5 +47,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         out = await knot.process(survey=_SURVEY, target_md_step=50.0)
         assert isinstance(out, DeviationSurveyPayload)
-        assert out.survey.well_id == "W"
-        assert out.stations.shape[1] == 3
+        assert out.metadata.well_id == "W"
+        assert out.data.shape[1] == 3

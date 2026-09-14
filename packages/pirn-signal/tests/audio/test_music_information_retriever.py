@@ -48,7 +48,7 @@ class TestMusicInformationRetriever(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, feature_set=("chroma", "tempo"))
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("chroma", "tempo")
+        assert out.metadata.feature_names == ("chroma", "tempo")
         assert out.data.shape == (1, 2)
         assert isinstance(out.data[0, 0], np.ndarray)
         assert isinstance(out.data[0, 1], float)
@@ -58,5 +58,5 @@ class TestMusicInformationRetriever(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
         out = await knot.process(multichannel, feature_set=("chroma", "tempo"))
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 2)

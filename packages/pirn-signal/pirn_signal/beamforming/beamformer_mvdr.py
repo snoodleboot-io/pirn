@@ -107,7 +107,7 @@ class BeamformerMVDR(Knot):
         if not isinstance(speed_of_sound, (int, float)) or speed_of_sound <= 0:
             raise ValueError("BeamformerMVDR: speed_of_sound must be a positive scalar")
 
-        sample_rate_hz = signal.frame.sample_rate_hz
+        sample_rate_hz = signal.metadata.sample_rate_hz
         f0 = sample_rate_hz / 4.0
         theta = radians(steering_angle_deg)
         steering_vec = BeamformerMVDR._steering_vector(

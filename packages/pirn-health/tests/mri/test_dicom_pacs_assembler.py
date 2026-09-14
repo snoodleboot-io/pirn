@@ -58,6 +58,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         body = _sample_dicom_bytes()
         payload = await knot.process(body=body, series_id="s1")
         assert isinstance(payload, DICOMPayload)
-        assert isinstance(payload.dataset, pydicom.Dataset)
-        assert payload.dataset.PatientID == "P123"
-        assert payload.series.series_uid == "s1"
+        assert isinstance(payload.data, pydicom.Dataset)
+        assert payload.data.PatientID == "P123"
+        assert payload.metadata.series_uid == "s1"

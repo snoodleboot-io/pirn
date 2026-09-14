@@ -86,10 +86,10 @@ class CWTDecomposer(Knot):
             signal.data,
             wavelet_name,
             scale_count,
-            signal.frame.sample_rate_hz,
+            signal.metadata.sample_rate_hz,
         )
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name=wavelet_name,
             scale_count=len(coeff_arrays),
         )

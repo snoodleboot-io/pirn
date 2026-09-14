@@ -87,7 +87,7 @@ class EchoCanceller(Knot):
             raise ValueError("EchoCanceller: filter_length must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0 or step_size > 1:
             raise ValueError("EchoCanceller: step_size must be in range (0, 1]")
-        if microphone.frame.sample_rate_hz != far_end.frame.sample_rate_hz:
+        if microphone.metadata.sample_rate_hz != far_end.metadata.sample_rate_hz:
             raise ValueError("EchoCanceller: microphone and far_end sample rates must match")
 
         mic_channels = np.atleast_2d(microphone.data)

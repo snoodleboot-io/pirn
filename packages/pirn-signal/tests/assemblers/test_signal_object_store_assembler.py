@@ -62,7 +62,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")
-        assert result.frame.signal_id == "clip-01"
+        assert result.metadata.signal_id == "clip-01"
 
     async def test_metadata_channel_count_populated(self) -> None:
         knot = _make("clip-01")
@@ -71,7 +71,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")
-        assert result.frame.channel_count == 2
+        assert result.metadata.channel_count == 2
 
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()

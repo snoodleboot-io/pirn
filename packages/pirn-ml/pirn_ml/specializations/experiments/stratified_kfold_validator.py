@@ -62,7 +62,7 @@ async def _aggregate_stratified_kfold_reports(
     stratify_column: str,
 ) -> EvalReportPayload:
     per_fold = [
-        {name: float(value) for name, value in report.metrics.scores.items()} for report in reports
+        {name: float(value) for name, value in report.data.scores.items()} for report in reports
     ]
     if not per_fold:
         aggregated: dict[str, float] = {}

@@ -76,7 +76,7 @@ class DataSplitObjectStoreDisassembler(Disassembler):
     @staticmethod
     def _serialize(payload: DataSplitPayload) -> bytes:
         buf = io.BytesIO()
-        arrays = payload.arrays
+        arrays = payload.data
         named: dict[str, Any] = {
             "X_train": arrays.X_train,
             "X_test": arrays.X_test,

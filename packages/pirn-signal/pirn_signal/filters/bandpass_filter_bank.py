@@ -97,7 +97,7 @@ class BandpassFilterBank(Knot):
         if not isinstance(order, int) or order <= 0:
             raise ValueError("BandpassFilterBank: order must be a positive integer")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         band_outputs = await asyncio.gather(
             *[
                 BandpassFilterBank._filter_band(signal.data, low, high, order, fs)

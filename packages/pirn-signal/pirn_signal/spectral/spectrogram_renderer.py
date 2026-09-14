@@ -86,7 +86,7 @@ class SpectrogramRenderer(Knot):
         freqs, _times, sxx = await asyncio.to_thread(
             ss.spectrogram,
             signal.data,
-            fs=signal.frame.sample_rate_hz,
+            fs=signal.metadata.sample_rate_hz,
             window="hann",
             nperseg=window_length,
             noverlap=overlap,
@@ -96,12 +96,14 @@ class SpectrogramRenderer(Knot):
 
         freq_bins = len(freqs)
         freq_res = (
-            signal.frame.sample_rate_hz / window_length if signal.frame.sample_rate_hz > 0 else 0.0
+            signal.metadata.sample_rate_hz / window_length
+            if signal.metadata.sample_rate_hz > 0
+            else 0.0
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

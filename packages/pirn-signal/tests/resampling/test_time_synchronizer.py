@@ -43,4 +43,4 @@ class TestTimeSynchronizer(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_REFERENCE, _TARGET, max_lag_samples=128)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "target:synced"
+        assert out.metadata.signal_id == "target:synced"

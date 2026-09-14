@@ -74,7 +74,7 @@ class ECGRPeakDetector(Knot):
                 "ECGRPeakDetector: method must be one of pan_tompkins/neurokit/elgendi"
             )
         ecg = signal.data if signal.data.ndim == 1 else signal.data[0]
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(self._pan_tompkins, ecg, fs)
 
     @staticmethod

@@ -138,16 +138,14 @@ class WellPathCalculator(Knot):
                 f"{sorted(WellPathCalculator.valid_methods)}"
             )
         if method == "minimum_curvature":
-            points = await asyncio.to_thread(WellPathCalculator._minimum_curvature, survey.stations)
+            points = await asyncio.to_thread(WellPathCalculator._minimum_curvature, survey.data)
         elif method == "tangential":
-            points = await asyncio.to_thread(WellPathCalculator._tangential, survey.stations)
+            points = await asyncio.to_thread(WellPathCalculator._tangential, survey.data)
         else:
-            points = await asyncio.to_thread(
-                WellPathCalculator._balanced_tangential, survey.stations
-            )
+            points = await asyncio.to_thread(WellPathCalculator._balanced_tangential, survey.data)
         return WellPath3DPayload(
             metadata=WellPath3D(
-                well_id=survey.survey.well_id,
+                well_id=survey.metadata.well_id,
                 point_count=len(points),
             ),
             data=points.astype(np.float64),

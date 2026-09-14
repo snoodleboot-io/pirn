@@ -91,7 +91,7 @@ class CoherenceAnalyzer(Knot):
         if float(band_low_hz) >= float(band_high_hz):
             raise ValueError("CoherenceAnalyzer: band_low_hz must be < band_high_hz")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(
             self._compute_coherence,
             signal.data,

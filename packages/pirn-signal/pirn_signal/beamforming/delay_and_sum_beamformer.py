@@ -95,7 +95,7 @@ class DelayAndSumBeamformer(Knot):
         import asyncio
 
         speed_of_sound = 343.0
-        sample_rate_hz = signal.frame.sample_rate_hz
+        sample_rate_hz = signal.metadata.sample_rate_hz
         data = signal.data
         delays_samples = np.array(
             [

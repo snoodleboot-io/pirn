@@ -48,7 +48,7 @@ class TestVADDetector(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, frame_duration_ms=20, aggressiveness=2)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("voiced",)
+        assert out.metadata.feature_names == ("voiced",)
         assert out.data.shape[0] == 1
         assert out.data.dtype == bool
 
@@ -57,5 +57,5 @@ class TestVADDetector(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
         out = await knot.process(multichannel, frame_duration_ms=20, aggressiveness=2)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape[0] == 2

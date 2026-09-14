@@ -47,4 +47,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             pipe_length_ft=1000.0,
         )
         assert isinstance(out, ScadaPayload)
-        assert "dp:" in out.series.sensor_id
+        assert "dp:" in out.metadata.sensor_id

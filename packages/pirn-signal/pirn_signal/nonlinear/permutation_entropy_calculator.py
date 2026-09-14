@@ -95,7 +95,7 @@ class PermutationEntropyCalculator(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:permutation-entropy",
+                signal_id=f"{signal.metadata.signal_id}:permutation-entropy",
                 channel_count=channels.shape[0],
                 feature_names=("permutation_entropy",),
             ),

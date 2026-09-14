@@ -47,4 +47,4 @@ class TestClockDriftCorrector(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, reference_rate_hz=1000.0, measured_rate_hz=999.5)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:drift_corrected"
+        assert out.metadata.signal_id == "test:drift_corrected"

@@ -76,16 +76,16 @@ class WaterCutTracker(Knot):
             raise TypeError("WaterCutTracker: oil_rate must be a ScadaPayload")
         if not isinstance(water_rate, ScadaPayload):
             raise TypeError("WaterCutTracker: water_rate must be a ScadaPayload")
-        aligned_count = min(len(oil_rate.values), len(water_rate.values))
+        aligned_count = min(len(oil_rate.data), len(water_rate.data))
         water_cut = await asyncio.to_thread(
-            WaterCutTracker._compute_water_cut, oil_rate.values, water_rate.values, aligned_count
+            WaterCutTracker._compute_water_cut, oil_rate.data, water_rate.data, aligned_count
         )
-        sensor_id = f"watercut:{oil_rate.series.sensor_id}:{water_rate.series.sensor_id}"
+        sensor_id = f"watercut:{oil_rate.metadata.sensor_id}:{water_rate.metadata.sensor_id}"
         return ScadaPayload(
             metadata=ScadaTimeSeries(
                 sensor_id=sensor_id,
                 sample_count=aligned_count,
-                sample_interval_sec=oil_rate.series.sample_interval_sec,
+                sample_interval_sec=oil_rate.metadata.sample_interval_sec,
             ),
             data=water_cut,
         )

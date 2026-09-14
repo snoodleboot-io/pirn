@@ -94,7 +94,7 @@ class PitchEstimator(Knot):
             raise ValueError(
                 "PitchEstimator: algorithm must be 'yin', 'pyin', or 'autocorrelation'"
             )
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         if algorithm == "yin":
             estimator = PitchEstimator._estimate_pitch_yin
         elif algorithm == "pyin":
@@ -107,7 +107,7 @@ class PitchEstimator(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:pitch-{algorithm}",
+                signal_id=f"{signal.metadata.signal_id}:pitch-{algorithm}",
                 channel_count=channels.shape[0],
                 feature_names=("f0_hz",),
             ),

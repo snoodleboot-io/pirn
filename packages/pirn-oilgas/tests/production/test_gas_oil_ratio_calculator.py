@@ -33,4 +33,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         out = await knot.process(oil_rate=_OIL, gas_rate=_GAS)
         assert isinstance(out, ScadaPayload)
-        assert out.series.sensor_id == "gor:oil:gas"
+        assert out.metadata.sensor_id == "gor:oil:gas"

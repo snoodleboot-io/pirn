@@ -46,4 +46,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["reg"]
         assert isinstance(report, EvalReportPayload)
-        assert {"rmse", "mae", "r2", "mape"}.issubset(report.metrics.scores.keys())
+        assert {"rmse", "mae", "r2", "mape"}.issubset(report.data.scores.keys())

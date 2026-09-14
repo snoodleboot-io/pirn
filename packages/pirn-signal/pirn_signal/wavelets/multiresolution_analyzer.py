@@ -87,7 +87,7 @@ class MultiresolutionAnalyzer(Knot):
             MultiresolutionAnalyzer._run_mra, signal.data, wavelet_name, level_count
         )
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name=wavelet_name,
             scale_count=len(coeffs),
         )

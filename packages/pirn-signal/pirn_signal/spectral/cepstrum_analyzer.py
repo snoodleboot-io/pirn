@@ -80,7 +80,7 @@ class CepstrumAnalyzer(Knot):
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=0.0,
             ),

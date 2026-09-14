@@ -9,10 +9,4 @@ from pirn_ml.types.split_manifest import SplitManifest
 
 
 class DataSplitPayload(Payload[SplitManifest, SplitArrays]):
-    @property
-    def manifest(self) -> SplitManifest:
-        return self._metadata
-
-    @property
-    def arrays(self) -> SplitArrays:
-        return self._data
+    """``metadata`` is the :class:`SplitManifest`; ``data`` is the ``SplitArrays``."""

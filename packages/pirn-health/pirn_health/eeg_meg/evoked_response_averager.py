@@ -81,10 +81,10 @@ class EvokedResponseAverager(Knot):
         first = epochs[0]
         frame = HealthSignalFrame(
             signal_id=f"evoked-{condition}",
-            channel_count=first.frame.channel_count,
-            sample_rate_hz=first.frame.sample_rate_hz,
+            channel_count=first.metadata.channel_count,
+            sample_rate_hz=first.metadata.sample_rate_hz,
             samples_per_channel=averaged.shape[-1],
-            fetched_at=first.frame.fetched_at,
+            fetched_at=first.metadata.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=averaged)
 

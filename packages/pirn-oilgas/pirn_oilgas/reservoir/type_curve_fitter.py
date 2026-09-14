@@ -68,7 +68,7 @@ class TypeCurveFitter(Knot):
         if not isinstance(rate_series, ScadaPayload):
             raise TypeError("TypeCurveFitter: rate_series must be a ScadaPayload")
 
-        rate_array = rate_series.values.astype(np.float64)
+        rate_array = rate_series.data.astype(np.float64)
         if len(rate_array) < 2:
             return {
                 "qi": float(rate_array[0]) if len(rate_array) == 1 else 0.0,
@@ -79,7 +79,7 @@ class TypeCurveFitter(Knot):
 
         time_days = (
             np.arange(len(rate_array), dtype=np.float64)
-            * rate_series.series.sample_interval_sec
+            * rate_series.metadata.sample_interval_sec
             / 86400.0
         )
 

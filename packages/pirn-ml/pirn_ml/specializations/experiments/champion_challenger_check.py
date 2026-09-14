@@ -62,8 +62,8 @@ async def _build_champion_challenger_result(
     primary_metric: str,
     min_imp: float,
 ) -> dict[str, Any]:
-    champion_score = float(champion_report.metrics.scores[primary_metric])
-    challenger_score = float(challenger_report.metrics.scores[primary_metric])
+    champion_score = float(champion_report.data.scores[primary_metric])
+    challenger_score = float(challenger_report.data.scores[primary_metric])
     delta = challenger_score - champion_score
     challenger_wins = delta >= min_imp
     comparison_metrics: dict[str, float] = {

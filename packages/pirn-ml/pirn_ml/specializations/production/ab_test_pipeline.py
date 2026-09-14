@@ -46,8 +46,8 @@ async def _build_ab_test_result(
     primary_metric: str,
     alpha: float,
 ) -> Mapping[str, Any]:
-    score_a = float(report_a.metrics.scores[primary_metric])
-    score_b = float(report_b.metrics.scores[primary_metric])
+    score_a = float(report_a.data.scores[primary_metric])
+    score_b = float(report_b.data.scores[primary_metric])
     effect_size = score_a - score_b
     sample_count = max(2, int(split.test.row_count))
     pooled_var = max(1e-9, (abs(score_a) + abs(score_b)) / float(sample_count))

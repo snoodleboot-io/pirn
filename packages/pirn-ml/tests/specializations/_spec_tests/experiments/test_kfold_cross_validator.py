@@ -73,10 +73,10 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report = result.outputs["cv"]
         assert isinstance(report, EvalReportPayload)
-        assert "accuracy_mean" in report.metrics.scores
-        assert "accuracy_std" in report.metrics.scores
-        assert report.metrics.details["k"] == 3
-        per_fold = report.metrics.details["per_fold_metrics"]
+        assert "accuracy_mean" in report.data.scores
+        assert "accuracy_std" in report.data.scores
+        assert report.data.details["k"] == 3
+        per_fold = report.data.details["per_fold_metrics"]
         assert isinstance(per_fold, list) and len(per_fold) == 3
 
     async def test_default_k_is_five(self) -> None:
@@ -91,5 +91,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["cv"]
-        assert report.metrics.details["k"] == 5
-        assert len(report.metrics.details["per_fold_metrics"]) == 5
+        assert report.data.details["k"] == 5
+        assert len(report.data.details["per_fold_metrics"]) == 5

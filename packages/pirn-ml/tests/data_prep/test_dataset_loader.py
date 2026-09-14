@@ -38,14 +38,14 @@ class TestDatasetLoaderHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         out: DatasetPayload = result.outputs["loader"]
         assert isinstance(out, DatasetPayload)
-        assert isinstance(out.manifest, DatasetManifest)
-        assert out.manifest.name == "customers"
-        assert out.manifest.feature_names == ("age", "income")
-        assert out.manifest.target_name == "churned"
-        assert out.manifest.row_count == 3
-        assert out.features.feature_matrix.shape == (3, 2)
-        assert out.features.target_vector is not None
-        assert out.features.target_vector.shape == (3,)
+        assert isinstance(out.metadata, DatasetManifest)
+        assert out.metadata.name == "customers"
+        assert out.metadata.feature_names == ("age", "income")
+        assert out.metadata.target_name == "churned"
+        assert out.metadata.row_count == 3
+        assert out.data.feature_matrix.shape == (3, 2)
+        assert out.data.target_vector is not None
+        assert out.data.target_vector.shape == (3,)
         assert pool.queries == [("SELECT id FROM customers", None)]
 
 

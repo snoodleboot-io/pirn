@@ -75,12 +75,14 @@ class BispectrumAnalyzer(Knot):
         )
         freq_bins = segment_length // 2 + 1
         freq_res = (
-            signal.frame.sample_rate_hz / segment_length if signal.frame.sample_rate_hz > 0 else 0.0
+            signal.metadata.sample_rate_hz / segment_length
+            if signal.metadata.sample_rate_hz > 0
+            else 0.0
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

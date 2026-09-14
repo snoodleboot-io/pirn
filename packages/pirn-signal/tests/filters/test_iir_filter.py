@@ -52,4 +52,4 @@ class TestIIRFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, numerator=(1.0, 0.5), denominator=(1.0, -0.5))
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:iir"
+        assert out.metadata.signal_id == "test:iir"

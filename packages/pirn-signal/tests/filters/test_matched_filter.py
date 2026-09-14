@@ -41,4 +41,4 @@ class TestMatchedFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, template=(1.0, 0.5, 0.0, -0.5, -1.0))
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:matched"
+        assert out.metadata.signal_id == "test:matched"

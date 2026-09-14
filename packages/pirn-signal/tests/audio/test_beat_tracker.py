@@ -52,7 +52,7 @@ class TestBeatTracker(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, hop_length=512)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names[0] == "tempo_bpm"
+        assert out.metadata.feature_names[0] == "tempo_bpm"
         assert out.data.shape[0] == 1
 
     async def test_multichannel_computes_per_channel(self) -> None:
@@ -60,5 +60,5 @@ class TestBeatTracker(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=4096)
         out = await knot.process(multichannel, hop_length=512)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape[0] == 2

@@ -82,7 +82,7 @@ class BartlettPSDEstimator(Knot):
         freqs, pxx = await asyncio.to_thread(
             ss.welch,
             signal.data,
-            fs=signal.frame.sample_rate_hz,
+            fs=signal.metadata.sample_rate_hz,
             window="boxcar",
             nperseg=segment_length,
             noverlap=0,
@@ -91,14 +91,14 @@ class BartlettPSDEstimator(Knot):
 
         freq_bins = len(freqs)
         freq_res = (
-            signal.frame.sample_rate_hz / segment_length
-            if segment_length > 0 and signal.frame.sample_rate_hz > 0
+            signal.metadata.sample_rate_hz / segment_length
+            if segment_length > 0 and signal.metadata.sample_rate_hz > 0
             else 0.0
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

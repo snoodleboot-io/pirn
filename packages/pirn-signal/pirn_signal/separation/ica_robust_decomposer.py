@@ -94,9 +94,9 @@ class ICARobustDecomposer(Knot):
         )
         return SourcePayload(
             metadata=SourceFrame(
-                signal_id=f"{signal.frame.signal_id}:ica_robust",
+                signal_id=f"{signal.metadata.signal_id}:ica_robust",
                 source_count=source_count,
-                mixing_matrix_shape=(signal.frame.channel_count, source_count),
+                mixing_matrix_shape=(signal.metadata.channel_count, source_count),
             ),
             data=sources,
         )

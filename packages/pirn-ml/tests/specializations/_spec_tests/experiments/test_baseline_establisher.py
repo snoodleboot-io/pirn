@@ -70,5 +70,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report = result.outputs["baseline"]
         assert isinstance(report, EvalReportPayload)
-        assert "accuracy" in report.metrics.scores
-        assert report.report.dataset_name == "d:test"
+        assert "accuracy" in report.data.scores
+        assert report.metadata.dataset_name == "d:test"

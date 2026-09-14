@@ -47,5 +47,5 @@ class TestRationalResamplerPipeline(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, upsample_factor=3, downsample_factor=2)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:rational"
-        assert out.frame.sample_rate_hz == 1500.0
+        assert out.metadata.signal_id == "test:rational"
+        assert out.metadata.sample_rate_hz == 1500.0

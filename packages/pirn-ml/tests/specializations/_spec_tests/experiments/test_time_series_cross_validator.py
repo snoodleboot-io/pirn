@@ -67,9 +67,9 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report = result.outputs["tscv"]
         assert isinstance(report, EvalReportPayload)
-        assert "rmse" in report.metrics.scores
-        assert report.metrics.details["n_splits"] == 3
-        per_fold = report.metrics.details["per_fold_metrics"]
+        assert "rmse" in report.data.scores
+        assert report.data.details["n_splits"] == 3
+        per_fold = report.data.details["per_fold_metrics"]
         assert isinstance(per_fold, list) and len(per_fold) == 3
 
     async def test_model_id_contains_algorithm(self) -> None:
@@ -85,4 +85,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["tscv"]
-        assert "xgb" in report.report.model_id
+        assert "xgb" in report.metadata.model_id

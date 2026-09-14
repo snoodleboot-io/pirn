@@ -74,4 +74,4 @@ class TestEllipticFilter(unittest.IsolatedAsyncioTestCase):
             _SIGNAL, order=4, passband_ripple_db=1.0, stopband_attenuation_db=40.0, cutoff_hz=100.0
         )
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:ellip"
+        assert out.metadata.signal_id == "test:ellip"

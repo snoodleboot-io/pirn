@@ -95,7 +95,7 @@ class MelSpectrogramExtractor(Knot):
             raise ValueError("MelSpectrogramExtractor: hop_length must be a positive integer")
         if hop_length > n_fft:
             raise ValueError("MelSpectrogramExtractor: hop_length must not exceed n_fft")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -112,7 +112,7 @@ class MelSpectrogramExtractor(Knot):
         )
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=f"{signal.frame.signal_id}:mel-spectrogram",
+                signal_id=f"{signal.metadata.signal_id}:mel-spectrogram",
                 frequency_bins=n_mels,
                 frequency_resolution_hz=0.0,
             ),

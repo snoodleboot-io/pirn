@@ -263,6 +263,20 @@ Every optional backend is imported through `pirn.core.optional_dependency.Option
 | `pirn.nodes.map_markers` (`Map`, `ZipMap`, `DictMap`, `MapTypeError`) | `pirn.core.map.Map`, `pirn.core.zip_map.ZipMap`, `pirn.core.dict_map.DictMap`, `pirn.core.map_type_error.MapTypeError` |
 | `pirn.check._loader._Loader` | `pirn.check.factory_spec_loader.FactorySpecLoader` |
 
+#### Domain payload field-name alias properties (PIR-872)
+
+Each domain `Payload` subclass exposed its `metadata` and `data` under a second, domain-specific property name. Those aliases are deleted; read `.metadata` / `.data`.
+
+| Removed property | Read instead |
+|---|---|
+| `SignalPayload.frame`, `SpectrumPayload.frame`, `WaveletPayload.frame`, `SourcePayload.frame`, `FeaturePayload.frame` (pirn-signal) | `.metadata` |
+| `HealthSignalPayload.frame`, `DICOMPayload.series`, `WSITilePayload.tile` (pirn-health) | `.metadata` |
+| `DICOMPayload.dataset`, `WSITilePayload.pixels` (pirn-health) | `.data` |
+| `DatasetPayload.manifest`, `DataSplitPayload.manifest`, `TrainedModelPayload.manifest`, `EvalReportPayload.report` (pirn-ml) | `.metadata` |
+| `DatasetPayload.features`, `DataSplitPayload.arrays`, `TrainedModelPayload.estimator`, `EvalReportPayload.metrics` (pirn-ml) | `.data` |
+| `LASPayload.las`, `SegyPayload.volume`, `ScadaPayload.series`, `DeviationSurveyPayload.survey`, `WellPath3DPayload.path` (pirn-oilgas) | `.metadata` |
+| `LASPayload.curve_data`, `SegyPayload.traces`, `ScadaPayload.values`, `DeviationSurveyPayload.stations`, `WellPath3DPayload.points` (pirn-oilgas) | `.data` |
+
 #### Type-checking and convention ratchets (PIR-872)
 
 - `scripts/check_pyright_strict_list.py` and each package's `[tool.pyright] strict = [...]` list: every package sets `typeCheckingMode = "strict"` and `reportUnnecessaryIsInstance = "none"` in config, and the per-file `# pyright: reportUnnecessaryIsInstance=false` headers are gone.

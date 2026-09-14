@@ -83,7 +83,7 @@ class AudioResampler(Knot):
                 "AudioResampler: quality must be 'kaiser_best', 'kaiser_fast', "
                 "'linear', or 'polyphase'"
             )
-        orig_sr = int(signal.frame.sample_rate_hz)
+        orig_sr = int(signal.metadata.sample_rate_hz)
         target_sr = int(target_sample_rate_hz)
         result = await asyncio.to_thread(
             AudioResampler._resample, signal.data, orig_sr, target_sr, quality

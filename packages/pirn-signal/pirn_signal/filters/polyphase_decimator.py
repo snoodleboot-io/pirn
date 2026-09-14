@@ -83,7 +83,7 @@ class PolyphaseDecimator(Knot):
         decimated = await asyncio.to_thread(
             ss.decimate, signal.data, decimation_factor, ftype="fir", zero_phase=True, axis=-1
         )
-        new_rate = signal.frame.sample_rate_hz / decimation_factor
+        new_rate = signal.metadata.sample_rate_hz / decimation_factor
         return signal.derive(
             "polyphase-dec",
             decimated,

@@ -90,6 +90,6 @@ class DeclineRateEstimator(Knot):
             raise ValueError("DeclineRateEstimator: window_days must be a positive integer")
         return await asyncio.to_thread(
             DeclineRateEstimator._fit_decline,
-            rate_series.values,
-            rate_series.series.sample_interval_sec,
+            rate_series.data,
+            rate_series.metadata.sample_interval_sec,
         )

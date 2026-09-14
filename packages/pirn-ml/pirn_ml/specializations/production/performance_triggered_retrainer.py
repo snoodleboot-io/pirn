@@ -43,7 +43,7 @@ async def _build_retrainer_result(
     metric: str,
     threshold: float,
 ) -> Mapping[str, Any]:
-    current_score = float(eval_report.metrics.scores[metric])
+    current_score = float(eval_report.data.scores[metric])
     triggered = current_score < threshold
     return {
         "triggered": triggered,

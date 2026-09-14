@@ -82,7 +82,7 @@ class BesselFilter(Knot):
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
             raise ValueError("BesselFilter: cutoff_hz must be positive")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         sos = await asyncio.to_thread(ss.bessel_sos, order, cutoff_hz, "low", fs)
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return signal.derive(

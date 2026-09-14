@@ -23,7 +23,7 @@ class TestEvalReport(unittest.TestCase):
             details={"notes": "ok"},
         )
         report = EvalReportPayload(metadata=metadata, data=metrics)
-        assert report.report.model_id == "rf:xyz"
-        assert report.report.dataset_name == "d:test"
-        assert report.metrics.scores == {"accuracy": 0.91, "f1": 0.87}
-        assert report.metrics.details == {"notes": "ok"}
+        assert report.metadata.model_id == "rf:xyz"
+        assert report.metadata.dataset_name == "d:test"
+        assert report.data.scores == {"accuracy": 0.91, "f1": 0.87}
+        assert report.data.details == {"notes": "ok"}

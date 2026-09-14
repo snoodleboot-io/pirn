@@ -95,7 +95,7 @@ class EEMDDecomposer(Knot):
             EEMDDecomposer._run_eemd, signal.data, ensemble_size, noise_amplitude, max_imf_count
         )
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name="eemd",
             scale_count=len(imfs),
         )

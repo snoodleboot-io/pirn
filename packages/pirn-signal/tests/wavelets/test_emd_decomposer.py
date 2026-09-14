@@ -62,5 +62,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["w"]
         assert isinstance(out, WaveletPayload)
-        assert out.frame.wavelet_name == "emd"
-        assert out.frame.scale_count >= 1
+        assert out.metadata.wavelet_name == "emd"
+        assert out.metadata.scale_count >= 1

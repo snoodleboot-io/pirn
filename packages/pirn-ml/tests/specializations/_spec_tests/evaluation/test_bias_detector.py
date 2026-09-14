@@ -78,5 +78,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report: EvalReportPayload = result.outputs["bias"]
-        assert "parity_gender" in report.metrics.scores
-        assert "parity_race" in report.metrics.scores
+        assert "parity_gender" in report.data.scores
+        assert "parity_race" in report.data.scores

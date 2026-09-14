@@ -96,7 +96,7 @@ class AffineProjectionFilter(Knot):
             raise ValueError("AffineProjectionFilter: projection_order must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0:
             raise ValueError("AffineProjectionFilter: step_size must be positive")
-        if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
+        if signal.metadata.sample_rate_hz != reference.metadata.sample_rate_hz:
             raise ValueError("AffineProjectionFilter: signal and reference sample rates must match")
 
         sig_channels = np.atleast_2d(signal.data)

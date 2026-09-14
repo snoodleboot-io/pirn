@@ -84,7 +84,7 @@ class SleepStageClassifier(Knot):
         if not isinstance(channels, tuple) or len(channels) == 0:
             raise ValueError("SleepStageClassifier: channels must be a non-empty tuple")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         stage_labels = await asyncio.to_thread(
             self._classify_signal, signal.data, fs, epoch_duration_sec
         )

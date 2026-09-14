@@ -96,9 +96,9 @@ class PCADecomposer(Knot):
         )
         return SourcePayload(
             metadata=SourceFrame(
-                signal_id=f"{signal.frame.signal_id}:pca",
+                signal_id=f"{signal.metadata.signal_id}:pca",
                 source_count=component_count,
-                mixing_matrix_shape=(signal.frame.channel_count, component_count),
+                mixing_matrix_shape=(signal.metadata.channel_count, component_count),
             ),
             data=components,
         )

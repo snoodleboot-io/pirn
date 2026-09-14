@@ -9,10 +9,4 @@ from pirn_ml.types.eval_metrics import EvalMetrics
 
 
 class EvalReportPayload(Payload[EvalMetadata, EvalMetrics]):
-    @property
-    def report(self) -> EvalMetadata:
-        return self._metadata
-
-    @property
-    def metrics(self) -> EvalMetrics:
-        return self._data
+    """``metadata`` is the :class:`EvalMetadata`; ``data`` is the ``EvalMetrics``."""

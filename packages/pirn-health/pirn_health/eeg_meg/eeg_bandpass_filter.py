@@ -83,17 +83,17 @@ class EegBandpassFilter(Knot):
         if float(low_hz) >= float(high_hz):
             raise ValueError("EegBandpassFilter: low_hz must be < high_hz")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(
             self._apply_bandpass, signal.data, float(low_hz), float(high_hz), fs
         )
 
         frame = HealthSignalFrame(
-            signal_id=signal.frame.signal_id + ":bandpass",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=signal.frame.samples_per_channel,
-            fetched_at=signal.frame.fetched_at,
+            signal_id=signal.metadata.signal_id + ":bandpass",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz,
+            samples_per_channel=signal.metadata.samples_per_channel,
+            fetched_at=signal.metadata.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=filtered)
 

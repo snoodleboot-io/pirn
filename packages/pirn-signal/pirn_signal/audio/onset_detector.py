@@ -85,7 +85,7 @@ class OnsetDetector(Knot):
             raise ValueError("OnsetDetector: hop_length must be a positive integer")
         if not isinstance(threshold, (int, float)) or threshold <= 0:
             raise ValueError("OnsetDetector: threshold must be positive")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         onset_lists = await asyncio.gather(
             *(
@@ -100,7 +100,7 @@ class OnsetDetector(Knot):
         ]
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:onsets",
+                signal_id=f"{signal.metadata.signal_id}:onsets",
                 channel_count=channels.shape[0],
                 feature_names=tuple(f"onset_{i}" for i in range(max_onsets)),
             ),

@@ -101,7 +101,7 @@ class ModelLineageTracker(Knot):
             {
                 "dataset_hash": dataset_hash,
                 "model_id": model.model_id,
-                "report_metrics": dict(report.metrics.scores),
+                "report_metrics": dict(report.data.scores),
                 "recorded_at": recorded_at,
             }
         )
@@ -139,8 +139,8 @@ class ModelLineageTracker(Knot):
             {
                 "lineage_id": lineage_id,
                 "model_id": model.model_id,
-                "metrics": {k: float(v) for k, v in report.metrics.scores.items()},
-                "dataset_name": report.report.dataset_name,
+                "metrics": {k: float(v) for k, v in report.data.scores.items()},
+                "dataset_name": report.metadata.dataset_name,
                 "recorded_at": recorded_at,
             },
         )

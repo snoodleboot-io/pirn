@@ -94,7 +94,7 @@ class BeatTracker(Knot):
             raise ValueError("BeatTracker: tempo_min_bpm must be positive")
         if not isinstance(tempo_max_bpm, (int, float)) or tempo_max_bpm <= tempo_min_bpm:
             raise ValueError("BeatTracker: tempo_max_bpm must exceed tempo_min_bpm")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -109,7 +109,7 @@ class BeatTracker(Knot):
         ]
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:beats",
+                signal_id=f"{signal.metadata.signal_id}:beats",
                 channel_count=channels.shape[0],
                 feature_names=("tempo_bpm", *(f"beat_frame_{i}" for i in range(max_beats))),
             ),

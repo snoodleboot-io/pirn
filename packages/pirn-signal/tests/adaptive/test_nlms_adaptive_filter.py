@@ -49,7 +49,7 @@ class TestNLMSAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, _REF, filter_length=8, step_size=0.01)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:nlms"
+        assert out.metadata.signal_id == "test:nlms"
 
     async def test_rejects_mismatched_channel_counts(self) -> None:
         knot = self._make()
@@ -63,5 +63,5 @@ class TestNLMSAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
         ref = make_signal_payload(signal_id="reference", channel_count=2, samples_per_channel=64)
         out = await knot.process(sig, ref, filter_length=8, step_size=0.01)
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 64)

@@ -83,9 +83,9 @@ class ISTFTReconstructor(Knot):
                 "ISTFTReconstructor: window must be one of 'hann', 'hamming', 'blackman'"
             )
 
-        n_fft = (spectrum.frame.frequency_bins - 1) * 2
+        n_fft = (spectrum.metadata.frequency_bins - 1) * 2
         overlap = n_fft - hop_length
-        freq_res = spectrum.frame.frequency_resolution_hz
+        freq_res = spectrum.metadata.frequency_resolution_hz
         sample_rate = freq_res * n_fft if freq_res > 0 else 1.0
 
         _times, samples = await asyncio.to_thread(
@@ -99,7 +99,7 @@ class ISTFTReconstructor(Knot):
             time_axis=-1,
         )
 
-        signal_id = f"{spectrum.frame.signal_id}:istft"
+        signal_id = f"{spectrum.metadata.signal_id}:istft"
 
         return SignalPayload(
             metadata=SignalFrame(

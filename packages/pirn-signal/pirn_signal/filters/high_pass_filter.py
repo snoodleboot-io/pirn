@@ -81,7 +81,7 @@ class HighPassFilter(Knot):
         if not isinstance(order, int) or order <= 0:
             raise ValueError("HighPassFilter: order must be a positive integer")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(
             ButterworthDesign.design_and_apply, signal.data, order, cutoff_hz, "highpass", fs
         )

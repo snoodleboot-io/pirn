@@ -92,7 +92,7 @@ class NLMSAdaptiveFilter(Knot):
             raise ValueError("NLMSAdaptiveFilter: step_size must be positive")
         if not isinstance(regularization, (int, float)) or regularization < 0:
             raise ValueError("NLMSAdaptiveFilter: regularization must be non-negative")
-        if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
+        if signal.metadata.sample_rate_hz != reference.metadata.sample_rate_hz:
             raise ValueError("NLMSAdaptiveFilter: signal and reference sample rates must match")
 
         sig_channels = np.atleast_2d(signal.data)

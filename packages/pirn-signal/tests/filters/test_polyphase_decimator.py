@@ -47,4 +47,4 @@ class TestPolyphaseDecimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, decimation_factor=4, filter_taps=64)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:polyphase-dec"
+        assert out.metadata.signal_id == "test:polyphase-dec"

@@ -111,7 +111,7 @@ class MusicInformationRetriever(Knot):
                     f"MusicInformationRetriever: unknown feature {feature!r}; "
                     f"allowed: {sorted(self._allowed_features)!r}"
                 )
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -127,7 +127,7 @@ class MusicInformationRetriever(Knot):
                 data[row, col] = feature_values[feature]
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:mir",
+                signal_id=f"{signal.metadata.signal_id}:mir",
                 channel_count=channels.shape[0],
                 feature_names=feature_set,
             ),

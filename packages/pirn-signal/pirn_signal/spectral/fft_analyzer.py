@@ -78,11 +78,13 @@ class FFTAnalyzer(Knot):
 
         spectrum = await asyncio.to_thread(np.fft.rfft, signal.data, n=n_fft, axis=-1)
         freq_bins = n_fft // 2 + 1
-        freq_res = signal.frame.sample_rate_hz / n_fft if signal.frame.sample_rate_hz > 0 else 0.0
+        freq_res = (
+            signal.metadata.sample_rate_hz / n_fft if signal.metadata.sample_rate_hz > 0 else 0.0
+        )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

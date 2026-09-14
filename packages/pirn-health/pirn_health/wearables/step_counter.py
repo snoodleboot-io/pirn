@@ -66,7 +66,7 @@ class StepCounter(Knot):
             raise TypeError("StepCounter: signal must be a HealthSignalPayload")
         if not isinstance(threshold, (int, float)) or float(threshold) < 0:
             raise ValueError("StepCounter: threshold must be a non-negative number")
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(self._count_steps, signal.data, fs)
 
     @staticmethod

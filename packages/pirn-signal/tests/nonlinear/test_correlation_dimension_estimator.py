@@ -52,7 +52,7 @@ class TestCorrelationDimensionEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, embedding_dim=3, radius_min=0.1, radius_max=1.0)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("correlation_dimension",)
+        assert out.metadata.feature_names == ("correlation_dimension",)
         assert out.data.shape == (1, 1)
 
     async def test_multichannel_computes_per_channel(self) -> None:
@@ -61,5 +61,5 @@ class TestCorrelationDimensionEstimator(unittest.IsolatedAsyncioTestCase):
             _MULTICHANNEL_SIGNAL, embedding_dim=3, radius_min=0.1, radius_max=1.0
         )
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 1)

@@ -54,4 +54,4 @@ class TestICADecomposer(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, source_count=3)
         assert isinstance(out, SourcePayload)
-        assert out.frame.source_count == 3
+        assert out.metadata.source_count == 3

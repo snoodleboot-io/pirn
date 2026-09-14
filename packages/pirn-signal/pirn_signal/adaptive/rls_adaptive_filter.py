@@ -85,7 +85,7 @@ class RLSAdaptiveFilter(Knot):
             raise ValueError("RLSAdaptiveFilter: filter_length must be a positive integer")
         if not isinstance(forgetting_factor, (int, float)) or not 0.0 < forgetting_factor <= 1.0:
             raise ValueError("RLSAdaptiveFilter: forgetting_factor must lie in (0, 1]")
-        if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
+        if signal.metadata.sample_rate_hz != reference.metadata.sample_rate_hz:
             raise ValueError("RLSAdaptiveFilter: signal and reference sample rates must match")
 
         sig_channels = np.atleast_2d(signal.data)

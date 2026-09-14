@@ -46,7 +46,7 @@ class TestWienerFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, window_size=5)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:wiener"
+        assert out.metadata.signal_id == "test:wiener"
 
     async def test_emits_signal_frame_with_noise_power(self) -> None:
         knot = self._make()

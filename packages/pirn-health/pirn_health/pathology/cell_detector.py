@@ -77,7 +77,7 @@ class CellDetector(Knot):
     def _count_cells(payloads: Sequence[WSITilePayload]) -> Mapping[tuple[int, int], int]:
         result: dict[tuple[int, int], int] = {}
         for p in payloads:
-            variance = float(np.var(p.pixels.astype(float)))
-            count = int(variance * p.tile.width * p.tile.height / (255.0**2 + 1e-6))
-            result[(p.tile.tile_x, p.tile.tile_y)] = count
+            variance = float(np.var(p.data.astype(float)))
+            count = int(variance * p.metadata.width * p.metadata.height / (255.0**2 + 1e-6))
+            result[(p.metadata.tile_x, p.metadata.tile_y)] = count
         return result

@@ -85,7 +85,7 @@ class ANCPipeline(Knot):
             raise ValueError("ANCPipeline: step_size must be in range (0, 1]")
         if not isinstance(filter_length, int) or filter_length <= 0:
             raise ValueError("ANCPipeline: filter_length must be a positive integer")
-        if reference.frame.sample_rate_hz != error.frame.sample_rate_hz:
+        if reference.metadata.sample_rate_hz != error.metadata.sample_rate_hz:
             raise ValueError("ANCPipeline: reference and error sample_rate_hz must match")
 
         ref_channels = np.atleast_2d(reference.data)

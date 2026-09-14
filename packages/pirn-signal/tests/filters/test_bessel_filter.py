@@ -47,4 +47,4 @@ class TestBesselFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, order=4, cutoff_hz=100.0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:bessel"
+        assert out.metadata.signal_id == "test:bessel"
