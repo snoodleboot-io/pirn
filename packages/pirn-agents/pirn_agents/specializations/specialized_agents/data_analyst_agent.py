@@ -34,7 +34,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.specialized_agents._analysis_step import (
+from pirn_agents.specializations.specialized_agents.analysis_step import (
     AnalysisStep,
 )
 from pirn_agents.specializations.specialized_agents.sql_agent import (

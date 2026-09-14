@@ -43,7 +43,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent._orchestrator_result_normalizer import (
+from pirn_agents.specializations.multi_agent.orchestrator_result_normalizer import (
     OrchestratorResultNormalizer,
 )
 from pirn_agents.specializations.multi_agent.orchestrator_router import (

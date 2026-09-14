@@ -43,17 +43,17 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_source_reader import (
-    DocumentSourceReader,
-)
-from pirn_agents.specializations.document_processing._qa_load_and_chunk import (
-    QALoadAndChunk,
-)
-from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
-    QARetrieveAndAnswer,
-)
 from pirn_agents.specializations.document_processing.chunking.chunking_config import (
     ChunkingConfig,
+)
+from pirn_agents.specializations.document_processing.document_source_reader import (
+    DocumentSourceReader,
+)
+from pirn_agents.specializations.document_processing.qa_load_and_chunk import (
+    QALoadAndChunk,
+)
+from pirn_agents.specializations.document_processing.qa_retrieve_and_answer import (
+    QARetrieveAndAnswer,
 )
 
 

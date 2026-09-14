@@ -41,15 +41,15 @@ from pirn.nodes.map_markers import ZipMap
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._chunk_positions import ChunkPositions
-from pirn_agents.specializations.document_processing._chunk_summariser import ChunkSummariser
-from pirn_agents.specializations.document_processing._document_source_reader import (
+from pirn_agents.specializations.document_processing.chunk_positions import ChunkPositions
+from pirn_agents.specializations.document_processing.chunk_summariser import ChunkSummariser
+from pirn_agents.specializations.document_processing.document_source_reader import (
     DocumentSourceReader,
 )
-from pirn_agents.specializations.document_processing._load_and_chunk import (
+from pirn_agents.specializations.document_processing.load_and_chunk import (
     LoadAndChunk,
 )
-from pirn_agents.specializations.document_processing._summary_reducer import SummaryReducer
+from pirn_agents.specializations.document_processing.summary_reducer import SummaryReducer
 
 
 class DocumentSummarizerPipeline(AgentPipeline):

@@ -43,23 +43,23 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._chunk_embedder_store import (
+from pirn_agents.specializations.document_processing.chunk_embedder_store import (
     ChunkEmbedderStore,
-)
-from pirn_agents.specializations.document_processing._document_assembler import (
-    DocumentAssembler,
-)
-from pirn_agents.specializations.document_processing._document_chunker import (
-    DocumentChunker,
-)
-from pirn_agents.specializations.document_processing._document_source import (
-    DocumentSource,
-)
-from pirn_agents.specializations.document_processing._document_source_reader import (
-    DocumentSourceReader,
 )
 from pirn_agents.specializations.document_processing.chunking.chunking_config import (
     ChunkingConfig,
+)
+from pirn_agents.specializations.document_processing.document_assembler import (
+    DocumentAssembler,
+)
+from pirn_agents.specializations.document_processing.document_chunker import (
+    DocumentChunker,
+)
+from pirn_agents.specializations.document_processing.document_source import (
+    DocumentSource,
+)
+from pirn_agents.specializations.document_processing.document_source_reader import (
+    DocumentSourceReader,
 )
 
 

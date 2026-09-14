@@ -17,7 +17,7 @@ success. See PIR-769.
 
 A handle is also how a specialist reaches a knot that invokes it
 (:class:`~pirn_agents.specializations.multi_agent.specialist_invocation.SpecialistInvocation`,
-:class:`~pirn_agents.specializations.multi_agent._reviewer_invocation.ReviewerInvocation`).
+:class:`~pirn_agents.specializations.multi_agent.reviewer_invocation.ReviewerInvocation`).
 A ``SubTapestry`` passed to a knot constructor directly would be partitioned
 into the knot's *parents* and resolved as an input — but the specialist is an
 opaque callee the knot runs with its own inputs, not an upstream value. The

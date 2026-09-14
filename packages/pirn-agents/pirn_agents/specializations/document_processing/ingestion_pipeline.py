@@ -31,13 +31,13 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._ingestion_runner import IngestionRunner
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
 )
 from pirn_agents.specializations.document_processing.incremental.incremental_upserter import (
     IncrementalUpserter,
 )
+from pirn_agents.specializations.document_processing.ingestion_runner import IngestionRunner
 from pirn_agents.specializations.document_processing.loaders.loader import Loader
 from pirn_agents.specializations.document_processing.sources.source_connector import (
     SourceConnector,

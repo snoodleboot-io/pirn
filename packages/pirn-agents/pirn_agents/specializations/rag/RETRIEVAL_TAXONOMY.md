@@ -116,7 +116,7 @@ then compress away irrelevant spans while preserving citations.
 ## Indexing structure (extends `document_processing/`)
 
 All four reuse the existing sliding-window chunker
-(`document_processing._document_chunker.DocumentChunker`) for the primary split
+(`document_processing.document_chunker.DocumentChunker`) for the primary split
 and add only indexing-specific structures under
 `specializations/rag/indexing/`. They do **not** introduce a general
 chunking-strategy library.

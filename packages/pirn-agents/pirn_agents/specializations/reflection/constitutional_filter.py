@@ -3,7 +3,7 @@
 """``ConstitutionalFilter`` — evaluate and revise a response against a set of principles.
 
 A :class:`SubTapestry` that drives the evaluate-and-revise loop with
-:class:`~pirn_agents.specializations.reflection._constitutional_filter_loop.ConstitutionalFilterLoop`
+:class:`~pirn_agents.specializations.reflection.constitutional_filter_loop.ConstitutionalFilterLoop`
 (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`): each revision
 attempt is a real, individually-traceable ``LLMChatCall`` knot instead of a
 step inside a hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b;
@@ -34,13 +34,13 @@ from pirn.core.parameter import Parameter
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.reflection._constitutional_filter_loop import (
+from pirn_agents.specializations.reflection.constitutional_filter_loop import (
     ConstitutionalFilterLoop,
 )
-from pirn_agents.specializations.reflection._constitutional_result_extractor import (
+from pirn_agents.specializations.reflection.constitutional_result_extractor import (
     ConstitutionalResultExtractor,
 )
-from pirn_agents.specializations.reflection._constitutional_state import ConstitutionalState
+from pirn_agents.specializations.reflection.constitutional_state import ConstitutionalState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 

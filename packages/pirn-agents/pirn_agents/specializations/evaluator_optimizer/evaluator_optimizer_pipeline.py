@@ -33,13 +33,13 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop import (
+from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_loop import (
     EvaluatorOptimizerLoop,
 )
-from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_result_builder import (
+from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_result_builder import (
     EvaluatorOptimizerResultBuilder,
 )
-from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
+from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_state import (
     EvaluatorOptimizerState,
 )
 

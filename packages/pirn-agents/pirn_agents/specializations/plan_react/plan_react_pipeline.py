@@ -30,7 +30,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
-from pirn_agents.specializations.plan_react._plan_react_result_extractor import (
+from pirn_agents.specializations.plan_react.plan_react_result_extractor import (
     PlanReActResultExtractor,
 )
 from pirn_agents.specializations.react.react_loop import ReActLoop

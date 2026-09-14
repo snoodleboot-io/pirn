@@ -142,15 +142,15 @@ class BuiltinNameCoverageTests(unittest.TestCase):
     """Every converted site declares a distinct, module-derived binding name."""
 
     def test_converted_binding_names_are_unique_and_module_derived(self) -> None:
-        from pirn_agents.specializations.chain_of_thought._expand_one_thought import (
+        from pirn_agents.specializations.chain_of_thought.expand_one_thought import (
             ExpandOneThought,
         )
-        from pirn_agents.specializations.chain_of_thought._score_candidate import ScoreCandidate
+        from pirn_agents.specializations.chain_of_thought.score_candidate import ScoreCandidate
         from pirn_agents.specializations.chain_of_thought.step_back_prompting import (
             StepBackPrompting,
         )
-        from pirn_agents.specializations.plan_and_execute._plan_step_call import PlanStepCall
         from pirn_agents.specializations.plan_and_execute.plan_revisor import PlanRevisor
+        from pirn_agents.specializations.plan_and_execute.plan_step_call import PlanStepCall
         from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
         from pirn_agents.specializations.reflection.constitutional_filter import (
             ConstitutionalFilter,

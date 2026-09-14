@@ -35,13 +35,13 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._chunk_translator import (
+from pirn_agents.specializations.document_processing.chunk_translator import (
     ChunkTranslator,
 )
-from pirn_agents.specializations.document_processing._document_source_reader import (
+from pirn_agents.specializations.document_processing.document_source_reader import (
     DocumentSourceReader,
 )
-from pirn_agents.specializations.document_processing._translation_load_and_chunk import (
+from pirn_agents.specializations.document_processing.translation_load_and_chunk import (
     TranslationLoadAndChunk,
 )
 

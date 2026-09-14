@@ -179,7 +179,7 @@ language, a tool name, a rendered evidence block. Bind the **whole** prompt as a
 ```python
 class CodeGenerator(Knot):
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.specialized_agents._code_generator.system_prompt",
+        name="specializations.specialized_agents.code_generator.system_prompt",
         default=(
             "You are a senior {{ language }} engineer. Reply with "
             "working {{ language }} code only — no prose, no "

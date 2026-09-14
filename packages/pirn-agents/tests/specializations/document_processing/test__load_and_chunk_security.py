@@ -21,11 +21,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.document_processing._load_and_chunk import LoadAndChunk
-from pirn_agents.specializations.document_processing._qa_load_and_chunk import (
+from pirn_agents.specializations.document_processing.load_and_chunk import LoadAndChunk
+from pirn_agents.specializations.document_processing.qa_load_and_chunk import (
     QALoadAndChunk,
 )
-from pirn_agents.specializations.document_processing._translation_load_and_chunk import (
+from pirn_agents.specializations.document_processing.translation_load_and_chunk import (
     TranslationLoadAndChunk,
 )
 

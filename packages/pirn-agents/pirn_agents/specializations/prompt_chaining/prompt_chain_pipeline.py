@@ -7,7 +7,7 @@ first link runs against the initial ``task``; each subsequent link runs against
 the previous link's output. This is the simplest agentic composition — a
 deterministic pipeline of prompts with no branching — and is bounded by the number
 of steps. Each link runs as a real, individually-traceable knot via
-:class:`~pirn_agents.specializations.prompt_chaining._prompt_chain_loop.PromptChainLoop`
+:class:`~pirn_agents.specializations.prompt_chaining.prompt_chain_loop.PromptChainLoop`
 (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`), instead of a
 hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b). Returns a typed
 :class:`PromptChainResult`.
@@ -27,11 +27,11 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.prompt_chaining._prompt_chain_loop import PromptChainLoop
-from pirn_agents.specializations.prompt_chaining._prompt_chain_result_extractor import (
+from pirn_agents.specializations.prompt_chaining.prompt_chain_loop import PromptChainLoop
+from pirn_agents.specializations.prompt_chaining.prompt_chain_result_extractor import (
     PromptChainResultExtractor,
 )
-from pirn_agents.specializations.prompt_chaining._prompt_chain_state import PromptChainState
+from pirn_agents.specializations.prompt_chaining.prompt_chain_state import PromptChainState
 
 
 class PromptChainPipeline(AgentPipeline):

@@ -38,11 +38,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent._round_robin_loop import RoundRobinLoop
-from pirn_agents.specializations.multi_agent._round_robin_response_extractor import (
+from pirn_agents.specializations.multi_agent.round_robin_loop import RoundRobinLoop
+from pirn_agents.specializations.multi_agent.round_robin_response_extractor import (
     RoundRobinResponseExtractor,
 )
-from pirn_agents.specializations.multi_agent._round_robin_state import RoundRobinState
+from pirn_agents.specializations.multi_agent.round_robin_state import RoundRobinState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 

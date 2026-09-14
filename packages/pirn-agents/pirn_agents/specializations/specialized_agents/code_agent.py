@@ -35,13 +35,13 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.specialized_agents._code_generator import (
+from pirn_agents.specializations.specialized_agents.code_generator import (
     CodeGenerator,
 )
-from pirn_agents.specializations.specialized_agents._code_linter import (
+from pirn_agents.specializations.specialized_agents.code_linter import (
     CodeLinter,
 )
-from pirn_agents.specializations.specialized_agents._code_response_formatter import (
+from pirn_agents.specializations.specialized_agents.code_response_formatter import (
     CodeResponseFormatter,
 )
 

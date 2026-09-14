@@ -15,7 +15,7 @@ the concurrency cap, exactly like the F1
 
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather``: each task becomes its own
-:class:`~pirn_agents.specializations.multi_agent._worker_invocation.WorkerInvocation`
+:class:`~pirn_agents.specializations.multi_agent.worker_invocation.WorkerInvocation`
 knot, and all of them are wired as parents of a single
 :class:`~pirn.nodes.aggregator.Aggregator` — the same shape
 :class:`~pirn_agents.specializations.multi_agent.parallel_specialist_fan_out.ParallelSpecialistFanOut`
@@ -64,13 +64,13 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent._assemble_orchestrator_workers_result import (
+from pirn_agents.specializations.multi_agent.assemble_orchestrator_workers_result import (
     AssembleOrchestratorWorkersResult,
 )
-from pirn_agents.specializations.multi_agent._worker_invocation import WorkerInvocation
 from pirn_agents.specializations.multi_agent.orchestrator_workers_result import (
     OrchestratorWorkersResult,
 )
+from pirn_agents.specializations.multi_agent.worker_invocation import WorkerInvocation
 from pirn_agents.tools.tool_factory import ToolFactory
 
 

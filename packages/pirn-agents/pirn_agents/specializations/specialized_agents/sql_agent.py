@@ -51,13 +51,13 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.specialized_agents._sql_executor import (
+from pirn_agents.specializations.specialized_agents.sql_executor import (
     SQLExecutor,
 )
-from pirn_agents.specializations.specialized_agents._sql_generator import (
+from pirn_agents.specializations.specialized_agents.sql_generator import (
     SQLGenerator,
 )
-from pirn_agents.specializations.specialized_agents._sql_response_formatter import (
+from pirn_agents.specializations.specialized_agents.sql_response_formatter import (
     SQLResponseFormatter,
 )
 

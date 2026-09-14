@@ -30,9 +30,9 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.chain_of_thought._majority_vote import MajorityVote
-from pirn_agents.specializations.chain_of_thought._sample_once import SampleOnce
-from pirn_agents.specializations.chain_of_thought._self_consistency_result import (
+from pirn_agents.specializations.chain_of_thought.majority_vote import MajorityVote
+from pirn_agents.specializations.chain_of_thought.sample_once import SampleOnce
+from pirn_agents.specializations.chain_of_thought.self_consistency_result import (
     SelfConsistencyResult,
 )
 

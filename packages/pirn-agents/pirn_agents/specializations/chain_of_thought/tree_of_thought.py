@@ -46,14 +46,14 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.chain_of_thought._combine_expansions import CombineExpansions
-from pirn_agents.specializations.chain_of_thought._expand_one_thought import ExpandOneThought
-from pirn_agents.specializations.chain_of_thought._repeat_beam_for_expansion import (
+from pirn_agents.specializations.chain_of_thought.combine_expansions import CombineExpansions
+from pirn_agents.specializations.chain_of_thought.expand_one_thought import ExpandOneThought
+from pirn_agents.specializations.chain_of_thought.repeat_beam_for_expansion import (
     RepeatBeamForExpansion,
 )
-from pirn_agents.specializations.chain_of_thought._score_candidate import ScoreCandidate
-from pirn_agents.specializations.chain_of_thought._top_beam import TopBeam
-from pirn_agents.specializations.chain_of_thought._tree_of_thought_result import (
+from pirn_agents.specializations.chain_of_thought.score_candidate import ScoreCandidate
+from pirn_agents.specializations.chain_of_thought.top_beam import TopBeam
+from pirn_agents.specializations.chain_of_thought.tree_of_thought_result import (
     TreeOfThoughtResult,
 )
 

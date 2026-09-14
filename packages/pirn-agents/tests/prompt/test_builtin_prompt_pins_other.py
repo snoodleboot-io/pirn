@@ -30,13 +30,13 @@ from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.retrieval.graph_rag.entity_relation_extractor import EntityRelationExtractor
 from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.security.llm_injection_classifier import LlmInjectionClassifier
-from pirn_agents.specializations.document_processing._chunk_summariser import ChunkSummariser
-from pirn_agents.specializations.document_processing._chunk_translator import ChunkTranslator
-from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
+from pirn_agents.specializations.document_processing.chunk_summariser import ChunkSummariser
+from pirn_agents.specializations.document_processing.chunk_translator import ChunkTranslator
+from pirn_agents.specializations.document_processing.metadata_extractor import MetadataExtractor
+from pirn_agents.specializations.document_processing.qa_retrieve_and_answer import (
     QARetrieveAndAnswer,
 )
-from pirn_agents.specializations.document_processing._summary_reducer import SummaryReducer
-from pirn_agents.specializations.document_processing.metadata_extractor import MetadataExtractor
+from pirn_agents.specializations.document_processing.summary_reducer import SummaryReducer
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import CandidateGenerator
 from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
 from pirn_agents.specializations.guardrails.citation_grounder import CitationGrounder
@@ -60,11 +60,11 @@ from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
 from pirn_agents.specializations.routing.capability_router import CapabilityRouter
 from pirn_agents.specializations.routing.intent_router import IntentRouter
 from pirn_agents.specializations.self_ask.self_ask_pipeline import SelfAskPipeline
-from pirn_agents.specializations.specialized_agents._analysis_step import AnalysisStep
-from pirn_agents.specializations.specialized_agents._code_generator import CodeGenerator
-from pirn_agents.specializations.specialized_agents._sql_generator import SQLGenerator
+from pirn_agents.specializations.specialized_agents.analysis_step import AnalysisStep
 from pirn_agents.specializations.specialized_agents.browser_agent import BrowserAgent
+from pirn_agents.specializations.specialized_agents.code_generator import CodeGenerator
 from pirn_agents.specializations.specialized_agents.research_agent import ResearchAgent
+from pirn_agents.specializations.specialized_agents.sql_generator import SQLGenerator
 from pirn_agents.specializations.structured_output._enum_classifier_attempt import (
     _EnumClassifierAttempt,
 )
