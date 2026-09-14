@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from contextlib import AsyncExitStack
+from types import ModuleType
 from typing import Any
 
 from pirn_agents._internal.optional_import import OptionalImport
@@ -60,7 +61,7 @@ class StdioTransport(McpTransport):
         if self.is_open:
             return
         mcp = OptionalImport.require("mcp", "mcp")
-        stdio = mcp.client.stdio  # type: ignore[attr-defined]
+        stdio = mcp.client.stdio
         params = stdio.StdioServerParameters(command=self._command, args=self._args, env=self._env)
         stack = AsyncExitStack()
         read, write = await stack.enter_async_context(stdio.stdio_client(params))
@@ -72,9 +73,9 @@ class StdioTransport(McpTransport):
         """Serialise ``message`` to an SDK JSON-RPC object and write it."""
         if self._write is None:
             raise RuntimeError("StdioTransport.send: transport is not open")
-        mcp = OptionalImport.require("mcp", "mcp")
-        rpc = mcp.types.JSONRPCMessage.model_validate(dict(message))  # type: ignore[attr-defined]
-        await self._write.send(StdioTransport._wrap_session_message(mcp, rpc))
+        mcp_types = OptionalImport.require("mcp", "mcp").types
+        rpc = mcp_types.JSONRPCMessage.model_validate(dict(message))
+        await self._write.send(StdioTransport._wrap_session_message(mcp_types, rpc))
 
     async def receive(self) -> Mapping[str, Any]:
         """Read the next SDK frame and normalise it to a plain mapping."""
@@ -93,9 +94,9 @@ class StdioTransport(McpTransport):
             await stack.aclose()
 
     @staticmethod
-    def _wrap_session_message(mcp: Any, rpc: Any) -> Any:
+    def _wrap_session_message(mcp_types: ModuleType, rpc: Any) -> Any:
         """Wrap a ``JSONRPCMessage`` in a ``SessionMessage`` when the SDK expects one."""
-        session_message = getattr(mcp.types, "SessionMessage", None)
+        session_message = getattr(mcp_types, "SessionMessage", None)
         if session_message is not None:
             return session_message(message=rpc)
         return rpc

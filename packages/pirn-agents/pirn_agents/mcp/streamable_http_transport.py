@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from contextlib import AsyncExitStack
+from types import ModuleType
 from typing import Any
 
 from pirn_agents._internal.optional_import import OptionalImport
@@ -57,7 +58,7 @@ class StreamableHttpTransport(McpTransport):
         if self.is_open:
             return
         mcp = OptionalImport.require("mcp", "mcp")
-        http = mcp.client.streamable_http  # type: ignore[attr-defined]
+        http = mcp.client.streamable_http
         stack = AsyncExitStack()
         streams = await stack.enter_async_context(
             http.streamablehttp_client(self._url, headers=self._headers)
@@ -73,9 +74,9 @@ class StreamableHttpTransport(McpTransport):
         """Serialise ``message`` to an SDK JSON-RPC object and write it."""
         if self._write is None:
             raise RuntimeError("StreamableHttpTransport.send: transport is not open")
-        mcp = OptionalImport.require("mcp", "mcp")
-        rpc = mcp.types.JSONRPCMessage.model_validate(dict(message))  # type: ignore[attr-defined]
-        await self._write.send(StreamableHttpTransport._wrap_session_message(mcp, rpc))
+        mcp_types = OptionalImport.require("mcp", "mcp").types
+        rpc = mcp_types.JSONRPCMessage.model_validate(dict(message))
+        await self._write.send(StreamableHttpTransport._wrap_session_message(mcp_types, rpc))
 
     async def receive(self) -> Mapping[str, Any]:
         """Read the next SDK frame and normalise it to a plain mapping."""
@@ -94,9 +95,9 @@ class StreamableHttpTransport(McpTransport):
             await stack.aclose()
 
     @staticmethod
-    def _wrap_session_message(mcp: Any, rpc: Any) -> Any:
+    def _wrap_session_message(mcp_types: ModuleType, rpc: Any) -> Any:
         """Wrap a ``JSONRPCMessage`` in a ``SessionMessage`` when the SDK expects one."""
-        session_message = getattr(mcp.types, "SessionMessage", None)
+        session_message = getattr(mcp_types, "SessionMessage", None)
         if session_message is not None:
             return session_message(message=rpc)
         return rpc

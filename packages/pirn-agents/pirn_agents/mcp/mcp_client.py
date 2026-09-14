@@ -34,6 +34,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_transport import McpTransport
 
@@ -115,9 +116,9 @@ class McpClient(PirnOpaqueValue):
             },
         )
         capabilities = result.get("capabilities")
-        self._server_capabilities = capabilities if isinstance(capabilities, Mapping) else {}
+        self._server_capabilities = capabilities if JsonShape.is_mapping(capabilities) else {}
         info = result.get("serverInfo")
-        self._server_info = info if isinstance(info, Mapping) else {}
+        self._server_info = info if JsonShape.is_mapping(info) else {}
         self._initialized = True
         await self._notify("notifications/initialized", {})
 
@@ -160,7 +161,7 @@ class McpClient(PirnOpaqueValue):
         """
         if not isinstance(name, str) or not name:
             raise TypeError(f"McpClient.call_tool: name must be a non-empty string, got {name!r}")
-        if not isinstance(arguments, Mapping):
+        if not JsonShape.is_mapping(arguments):
             raise TypeError(
                 f"McpClient.call_tool: arguments must be a Mapping, got {type(arguments).__name__}"
             )
@@ -190,7 +191,7 @@ class McpClient(PirnOpaqueValue):
             raise TypeError(f"McpClient.get_prompt: name must be a non-empty string, got {name!r}")
         params: dict[str, Any] = {"name": name}
         if arguments is not None:
-            if not isinstance(arguments, Mapping):
+            if not JsonShape.is_mapping(arguments):
                 raise TypeError(
                     "McpClient.get_prompt: arguments must be a Mapping or None, "
                     f"got {type(arguments).__name__}"
@@ -222,10 +223,10 @@ class McpClient(PirnOpaqueValue):
                     continue
                 error = message.get("error")
                 if error is not None:
-                    code = error.get("code") if isinstance(error, Mapping) else None
-                    data = error.get("data") if isinstance(error, Mapping) else None
+                    code = error.get("code") if JsonShape.is_mapping(error) else None
+                    data = error.get("data") if JsonShape.is_mapping(error) else None
                     message_text = (
-                        error.get("message") if isinstance(error, Mapping) else str(error)
+                        error.get("message") if JsonShape.is_mapping(error) else str(error)
                     )
                     raise McpError(
                         f"MCP {method!r} failed: {message_text}",
@@ -233,7 +234,7 @@ class McpClient(PirnOpaqueValue):
                         data=data,
                     )
                 result = message.get("result")
-                return result if isinstance(result, Mapping) else {}
+                return result if JsonShape.is_mapping(result) else {}
 
     async def _notify(self, method: str, params: Mapping[str, Any]) -> None:
         """Send a fire-and-forget JSON-RPC notification (no ``id``, no reply)."""
@@ -242,6 +243,6 @@ class McpClient(PirnOpaqueValue):
     @staticmethod
     def _as_dict_list(value: Any) -> list[dict[str, Any]]:
         """Coerce a JSON-RPC list field into a list of plain dicts, dropping non-mappings."""
-        if not isinstance(value, list):
+        if not JsonShape.is_list(value):
             return []
-        return [dict(item) for item in value if isinstance(item, Mapping)]
+        return [dict(item) for item in value if JsonShape.is_mapping(item)]

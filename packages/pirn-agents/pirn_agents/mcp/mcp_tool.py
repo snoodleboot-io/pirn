@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -56,7 +57,7 @@ class McpTool(ToolFactory):
             raise TypeError(f"McpTool: name must be a non-empty string, got {name!r}")
         schema: Mapping[str, Any] = (
             dict(parameters_schema)
-            if isinstance(parameters_schema, Mapping)
+            if JsonShape.is_mapping(parameters_schema)
             else {"type": "object", "properties": {}}
         )
         self._client: McpClient | None = client
@@ -81,7 +82,7 @@ class McpTool(ToolFactory):
         Raises:
             TypeError: If ``descriptor`` is not a Mapping or lacks a valid name.
         """
-        if not isinstance(descriptor, Mapping):
+        if not JsonShape.is_mapping(descriptor):
             raise TypeError(
                 f"McpTool.from_descriptor: descriptor must be a Mapping, "
                 f"got {type(descriptor).__name__}"
@@ -122,16 +123,16 @@ class McpTool(ToolFactory):
         non-text blocks kept as their raw dicts so nothing is silently lost.
         """
         structured = raw.get("structuredContent")
-        if isinstance(structured, Mapping):
+        if JsonShape.is_mapping(structured):
             return dict(structured)
         content = raw.get("content")
-        if not isinstance(content, list):
+        if not JsonShape.is_list(content):
             return None
         mapped: list[Any] = []
         for block in content:
-            if isinstance(block, Mapping) and block.get("type") == "text":
+            if JsonShape.is_mapping(block) and block.get("type") == "text":
                 mapped.append(block.get("text", ""))
-            elif isinstance(block, Mapping):
+            elif JsonShape.is_mapping(block):
                 mapped.append(dict(block))
         if len(mapped) == 1:
             return mapped[0]
@@ -141,11 +142,11 @@ class McpTool(ToolFactory):
     def _result_text(raw: Mapping[str, Any]) -> str:
         """Join an MCP result's text blocks for a readable error message."""
         content = raw.get("content")
-        if not isinstance(content, list):
+        if not JsonShape.is_list(content):
             return ""
         parts = [
             str(block.get("text", ""))
             for block in content
-            if isinstance(block, Mapping) and block.get("type") == "text"
+            if JsonShape.is_mapping(block) and block.get("type") == "text"
         ]
         return " ".join(parts)

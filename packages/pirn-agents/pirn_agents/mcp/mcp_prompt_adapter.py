@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_prompt_template import McpPromptTemplate
@@ -75,23 +76,23 @@ class McpPromptAdapter:
 
     def _required_arguments(self, arguments: Any) -> frozenset[str]:
         """Collect the names of arguments the prompt descriptor marks required."""
-        if not isinstance(arguments, list):
+        if not JsonShape.is_list(arguments):
             return frozenset()
         names = {
             argument["name"]
             for argument in arguments
-            if isinstance(argument, Mapping) and argument.get("required") and argument.get("name")
+            if JsonShape.is_mapping(argument) and argument.get("required") and argument.get("name")
         }
         return frozenset(names)
 
     def _message_templates(self, raw: Mapping[str, Any]) -> list[tuple[str, str]]:
         """Extract ordered ``(role, body)`` pairs from a ``prompts/get`` payload."""
         messages = raw.get("messages")
-        if not isinstance(messages, list):
+        if not JsonShape.is_list(messages):
             return []
         templates: list[tuple[str, str]] = []
         for message in messages:
-            if not isinstance(message, Mapping):
+            if not JsonShape.is_mapping(message):
                 continue
             role = message.get("role", "user")
             templates.append((role, self._content_text(message.get("content"))))
@@ -101,13 +102,13 @@ class McpPromptAdapter:
         """Return the text of an MCP message content block (dict, string, or list)."""
         if isinstance(content, str):
             return content
-        if isinstance(content, Mapping):
+        if JsonShape.is_mapping(content):
             text = content.get("text")
             return text if isinstance(text, str) else ""
-        if isinstance(content, list):
+        if JsonShape.is_list(content):
             return "".join(
                 block.get("text", "")
                 for block in content
-                if isinstance(block, Mapping) and isinstance(block.get("text"), str)
+                if JsonShape.is_mapping(block) and isinstance(block.get("text"), str)
             )
         return ""

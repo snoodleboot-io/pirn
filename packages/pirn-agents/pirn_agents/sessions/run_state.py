@@ -18,12 +18,13 @@ from.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.sessions.execution_cursor import ExecutionCursor
 from pirn_agents.sessions.session_message import SessionMessage
 from pirn_agents.sessions.session_tool_result import SessionToolResult
@@ -193,7 +194,7 @@ class RunState(PirnOpaqueValue):
         Raises:
             TypeError: If ``payload`` is not a Mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"RunState.from_payload: payload must be a Mapping, got {type(payload).__name__}"
             )
