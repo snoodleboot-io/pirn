@@ -400,6 +400,45 @@ so the previously-synchronous `invalidate`/`purge_expired`/`__len__` are now
 `ainvalidate`/`apurge_expired`/`asize`; the old names remain for one
 deprecation cycle as wrappers that bridge to the event loop (raising if
 called from inside one already running) and emit `DeprecationWarning`.
+**Resolved (PIR-866):** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
+`ConcurrencyConfig` no longer hold an `asyncio.Semaphore` of their own.
+`BackpressureSemaphore`/`Bulkhead` are now `AdmissionGate` subclasses,
+delegating every admission decision to a real `LimitedAdmissionGate` through
+the shared `pirn_agents.performance._backpressure_gate._BackpressureGate` —
+the one place `max_queue_depth`/`acquire_timeout` (backpressure knobs core's
+`AdmissionGate` has no equivalent for outside a running `Tapestry`) are still
+implemented directly, documented there as the seam. `ConcurrencyConfig`/
+`BulkheadConfig` gained `to_concurrency_limits()` (the exact `ConcurrencyLimits`
+a real run would declare) but stay plain frozen dataclasses rather than
+`ConcurrencyLimits` subclasses: `agent/parallel_tool_executor.py` and three
+`specializations/` pipelines read `ConcurrencyConfig.max_concurrency` as a
+**class-level** literal default (`max_concurrency: Knot | int =
+ConcurrencyConfig.max_concurrency`), which a pydantic `BaseModel` subclass
+cannot support (no class-level field-default access; a `@property` returns
+the descriptor on class access, not its value) — `tests/performance/test_concurrency_config.py::TestClassLevelDefaultAccess`
+pins it. `agent/parallel_tool_executor.py`
+already used `KnotConfig(concurrency_group="tools")` + `ConcurrencyLimits`
+directly (WS1) and needed no change; `agent/agent_invoker.py`,
+`specializations/lats/lats_search.py`, and
+`specializations/routing/model_cascade_router.py` call no concurrency
+primitive at all. **Still open:** `evaluation/run_eval.py` still constructs
+`BackpressureSemaphore` directly rather than routing its per-item concurrency
+through a knot-scoped group (it runs no `Tapestry` at all — a bare
+`asyncio.gather` loop — so adopting the pattern means wiring it onto the
+engine first, a larger change than this migration's scope); the three
+`specializations/` pipelines this note used to name —
+`document_processing/ingestion_pipeline.py`, `multi_agent/orchestrator_workers.py`,
+`rewoo/rewoo_pipeline.py` — reference `ConcurrencyConfig.max_concurrency` only
+as a literal default value (never instantiate it), but
+`document_processing/_ingestion_runner.py` and
+`multi_agent/orchestrator_workers.py` each still build their own bare
+`asyncio.Semaphore(max_concurrency)` independently of `Bulkhead`/
+`BackpressureSemaphore` entirely — out of this migration's blast radius
+(`specializations/` ownership), flagged for the lane that owns them.
+`caching/prompt_cache.py::PromptCache` also stays outside this migration: its
+`get`/`set`/`__len__` are deliberately synchronous, and `DataStore` is
+async-only, so routing values through it would force a breaking signature
+change this ADR did not authorize unilaterally.
 
 ### Control-flow vocabulary (WS5a, WS5b)
 

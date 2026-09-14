@@ -9,17 +9,38 @@ Verifies the semaphore bound is respected under load, that the default
 from __future__ import annotations
 
 import asyncio
+import warnings
+from typing import Any
 
 import pytest
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.engine.admission.admission_gate import AdmissionGate
 
 from pirn_agents.performance.backpressure_semaphore import BackpressureSemaphore
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
+
+
+class _BackpressureProbe(Knot):
+    """A knot built only for ``try_admit``'s identity; never dispatched."""
+
+    async def process(self, **_: Any) -> None:
+        return None
 
 
 class TestConstruction:
     def test_rejects_non_config(self) -> None:
         with pytest.raises(TypeError, match="ConcurrencyConfig"):
             BackpressureSemaphore(object())  # type: ignore[arg-type]
+
+    def test_warns_deprecated(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            BackpressureSemaphore(ConcurrencyConfig())
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    def test_is_an_admission_gate(self) -> None:
+        assert isinstance(BackpressureSemaphore(ConcurrencyConfig()), AdmissionGate)
 
 
 class TestBoundEnforcement:
@@ -81,3 +102,23 @@ class TestAcquireTimeout:
             await sem.acquire()
         assert sem.waiting == 0  # waiter cleaned up after timeout
         sem.release()
+
+
+class TestAdmissionGateSurface:
+    """``BackpressureSemaphore`` is a real ``AdmissionGate`` -- not only a facade."""
+
+    def test_try_admit_and_release_by_ticket(self) -> None:
+        sem = BackpressureSemaphore(ConcurrencyConfig(max_concurrency=1))
+        probe = _BackpressureProbe(_config=KnotConfig(id="probe"))
+
+        ticket = sem.try_admit(probe)
+        assert ticket is not None
+        assert sem.try_admit(probe) is None  # capacity exhausted
+        sem.release(ticket)
+        assert sem.has_capacity()
+
+    def test_set_limit_and_current_limit(self) -> None:
+        sem = BackpressureSemaphore(ConcurrencyConfig(max_concurrency=2))
+        assert sem.current_limit(None) == 2
+        sem.set_limit(None, 5)
+        assert sem.current_limit(None) == 5

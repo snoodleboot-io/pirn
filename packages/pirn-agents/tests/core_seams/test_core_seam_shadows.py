@@ -55,14 +55,21 @@ INPUT_SCHEMA = frozenset(
     }
 )
 
+# PIR-866 removed BackpressureSemaphore/Bulkhead: each now subclasses this
+# seam's AdmissionGate base directly, delegating every admission decision to
+# a real LimitedAdmissionGate (pirn_agents.performance._backpressure_admission).
+# ConcurrencyConfig/BulkheadConfig stay: they gained a to_concurrency_limits()
+# bridge but deliberately did NOT become ConcurrencyLimits subclasses --
+# several callers (agent/parallel_tool_executor.py and three specializations/
+# pipelines) read ConcurrencyConfig.max_concurrency as a class-level literal
+# default, which a pydantic BaseModel subclass cannot support (see
+# pirn_agents/performance/concurrency_config.py's module docstring).
 ADMISSION_FEEDBACK = frozenset(
     {
         "agent/_fanout_runner.py::_FanoutRunner",
         "agent/async_fanout_engine.py::AsyncFanoutEngine",
         "batch/batch_scheduler.py::BatchScheduler",
-        "performance/backpressure_semaphore.py::BackpressureSemaphore",
         "performance/concurrency_config.py::ConcurrencyConfig",
-        "resilience/bulkhead.py::Bulkhead",
         "resilience/bulkhead_config.py::BulkheadConfig",
     }
 )
@@ -96,7 +103,9 @@ class TestCoreSeamShadowsAreFrozen(unittest.TestCase):
     def test_the_walk_is_not_vacuous(self) -> None:
         """A guard that finds nothing passes for the wrong reason."""
         total = sum(len(labels) for labels in self.found.values())
-        assert total >= 15, self.found
+        # PIR-866 removed 2 admission_feedback shadows (BackpressureSemaphore,
+        # Bulkhead -> AdmissionGate subclasses; 18 -> 16).
+        assert total >= 16, self.found
 
     def test_retry_and_timeout_shadows_are_frozen(self) -> None:
         self._assert_frozen("retry_timeout", RETRY_TIMEOUT)

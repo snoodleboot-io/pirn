@@ -8,12 +8,25 @@ that the default pool covers un-named backends.
 from __future__ import annotations
 
 import asyncio
+import warnings
+from typing import Any
 
 import pytest
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission_limit_error import AdmissionLimitError
 
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.resilience.bulkhead import Bulkhead
 from pirn_agents.resilience.bulkhead_config import BulkheadConfig
+
+
+class _BulkheadProbe(Knot):
+    """A knot built only for ``try_admit``'s identity; never dispatched."""
+
+    async def process(self, **_: Any) -> None:
+        return None
 
 
 class TestConstruction:
@@ -24,6 +37,54 @@ class TestConstruction:
     def test_default_config_when_none(self) -> None:
         bulkhead = Bulkhead()
         assert bulkhead.backends() == ()
+
+    def test_warns_deprecated(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            Bulkhead()
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    def test_is_an_admission_gate(self) -> None:
+        assert isinstance(Bulkhead(), AdmissionGate)
+
+
+class TestAdmissionGateSurface:
+    """``Bulkhead`` is a real ``AdmissionGate``, keyed by backend as the group."""
+
+    def test_try_admit_reads_concurrency_group_as_backend(self) -> None:
+        bulkhead = Bulkhead(
+            BulkheadConfig(overrides={"slow": ConcurrencyConfig(max_concurrency=1)})
+        )
+        probe = _BulkheadProbe(_config=KnotConfig(id="probe", concurrency_group="slow"))
+
+        ticket = bulkhead.try_admit(probe)
+        assert ticket is not None
+        assert ticket.group == "slow"
+        assert bulkhead.in_flight("slow") == 1
+        bulkhead.release(ticket)
+        assert bulkhead.in_flight("slow") == 0
+
+    def test_try_admit_requires_a_concurrency_group(self) -> None:
+        bulkhead = Bulkhead()
+        probe = _BulkheadProbe(_config=KnotConfig(id="probe"))
+        with pytest.raises(ValueError, match="concurrency_group"):
+            bulkhead.try_admit(probe)
+
+    def test_current_limit_before_and_after_a_pool_exists(self) -> None:
+        bulkhead = Bulkhead(
+            BulkheadConfig(overrides={"slow": ConcurrencyConfig(max_concurrency=2)})
+        )
+        assert bulkhead.current_limit("slow") == 2  # no pool yet -- read off config
+        probe = _BulkheadProbe(_config=KnotConfig(id="probe", concurrency_group="slow"))
+        ticket = bulkhead.try_admit(probe)
+        assert ticket is not None
+        bulkhead.set_limit("slow", 5)
+        assert bulkhead.current_limit("slow") == 5
+        bulkhead.release(ticket)
+
+    def test_set_limit_requires_a_backend(self) -> None:
+        with pytest.raises(AdmissionLimitError, match="run-wide"):
+            Bulkhead().set_limit(None, 1)
 
 
 class TestPoolSizing:
