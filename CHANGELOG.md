@@ -157,6 +157,49 @@ on a core concurrency seam, warning `DeprecationWarning` on construction:
   `packages/pirn-core/docs/FRAMEWORK_REFERENCE.md` §6 "Scheduling and
   concurrency" for the full detail.
 
+#### Denied tool-call approval is `Skipped`, not `Err` (PIR-865)
+
+A tool call whose `ToolPermissions.approval_required` is set and whose
+`ApprovalHook` denies it now surfaces as a core `Skipped` all the way out —
+the model is told the call was **skipped**, not that it failed.
+`pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`)
+evaluates the same policy `ApprovalHook.authorize` always has, and
+`ToolFactory.for_call` wires it behind a core `Gate` in front of the call
+whenever the capability requires approval — the tool's own `process()` is
+never invoked when the gate closes (behaviour-preserving for every
+capability that does not require approval: nothing is wired for those at
+all). Every execution site that builds a tool knot — `ToolFactory.for_call`
+/ `run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`,
+`ToolChain`, `ReActStepExecutor` — gained an `approval_hook` input threaded
+through to `for_call`.
+
+- **Breaking, by design:** a caller reading `ToolResult.status` for a denied
+  call now sees the new `ToolStatus.SKIPPED` member instead of `ERROR`; the
+  rendered message text also changed from `"skipped: <reason>"` to `"call
+  skipped: <reason>"` (`"call skipped: approval denied"` specifically for a
+  gated call, regardless of the engine's own generic propagation reason —
+  see `ToolResult.from_result(..., gated=True)`). `ToolResult.to_result()`
+  now round-trips a `SKIPPED` status back to a core `Skipped` instead of
+  fabricating an `Err`.
+- `ToolCallRejection` is unchanged and keeps its existing, narrower job: a
+  call naming an unregistered tool, or whose arguments the declaration
+  refuses, is still recorded as its own `Err` — that is a rejection, not an
+  approval decision.
+- Named `ToolApprovalCheck` rather than `ApprovalCheck`:
+  `pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
+  already holds that name for an unrelated seam (pausing a whole
+  `AgentResponse` for human review).
+- **Known limitation, deferred:** core's `Gate` always records
+  `"gate_closed"` in its own lineage row, and the engine's parent-skip
+  propagation always records `"parent_failed_or_skipped"` on the downstream
+  tool knot's own row — neither is the literal string `"approval_denied"`
+  in lineage. Rendering the accurate "approval denied" message to callers
+  and the model does not depend on that (every call site can only reach a
+  `Skipped` outcome via its own approval gate, so the label is always
+  correct), but a reader of raw lineage rows still sees the engine's generic
+  reason there. Giving `Gate`/`Check` a custom propagated skip reason is a
+  core change, out of this ticket's scope.
+
 #### `pirn-agents` hashing seams moved onto `pirn.core.hashing.content_hash` (ADR agents-speaks-core WS2 part 2)
 
 `pirn_agents.builder.agent_knot_id_factory.AgentKnotIdFactory.derive` and
