@@ -65,12 +65,17 @@ response = run.outputs[agent.knot_id]  # knot_id is stable & derived, not random
 `Agent.patterns()` returns every registered pattern name — 66 canonical names
 plus the `rag` alias for `naive_rag` (67 total, `AgentPatternRegistry.pattern_names()`) —
 the RAG patterns, the guardrail checks,
-the multi-agent orchestrations, the specialized agents, the structured-output
-extractors, the ingestors, and the reasoning loops. None of them is
+the multi-agent orchestrations (e.g. `.pattern("consensus")` →
+`ConsensusPipeline`), the specialized agents, the structured-output
+extractors, the ingestors, and the reasoning loops (e.g.
+`.pattern("constitutional_filter")` → `ConstitutionalFilter`). None of them is
 builder-invisible, and every one of them is also reachable through core's own
 registry: `AbstractInverterFactory[Knot].create("react")` returns the exact
 same class `.pattern("react")` does (`AgentPatternRegistry.pattern_names()`
-confirms every name against that registry, not just its own table).
+confirms every name against that registry, not just its own table). See
+[`PATTERNS.md`'s Full Pattern Reference](../PATTERNS.md#full-pattern-reference)
+for the complete name-to-class table, kept in sync with the registry by
+`tests/builder/test_pattern_registry_coverage.py`.
 
 Patterns need different parts, so beyond `.llm()`, `.memory()` and `.tools()`
 there is a general `.component(name, value)` slot keyed by the pattern's own

@@ -13,10 +13,13 @@ class AdmissionTicket:
     when the gate lets a knot start and returned to the same gate when the knot
     stops holding capacity, whether it ran, was skipped, or failed.  A knot's
     ``KnotConfig.timeout`` and ``retry`` run inside that boundary
-    (``GovernedDispatch``): the slot is held for every attempt and across the
-    backoff between them, so the timeout measures run time and never queue
-    time.  Giving the slot back during backoff and re-admitting is a possible
-    later refinement.
+    (``GovernedDispatch``): the slot is held for each attempt, so the timeout
+    measures run time and never queue time, but it is released for the
+    backoff sleep *between* attempts and re-admitted before the next one
+    (PIR-870) -- a sleeping retry does not hold capacity another ready knot
+    could use.  The ticket a knot's task ends with may therefore differ, by
+    identity, from the one it was admitted with; ``AdmissionTicketHolder`` is
+    what the engine reads back to find out which one is current.
 
     A ticket records the slots its admission took, so that releasing it frees
     exactly what admitting it claimed (PIR-841).
