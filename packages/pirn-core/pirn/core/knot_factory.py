@@ -120,7 +120,7 @@ class KnotFactory:
                 framework-reserved property, or requires an undeclared one.
         """
         schema = JsonSchemaTypeBuilder.validate_input_schema(
-            input_schema, reserved=Knot._reserved_kwargs
+            input_schema, reserved=Knot.reserved_kwargs()
         )
         make_process = (
             cls.__make_async_process if iscoroutinefunction(process) else cls.__make_sync_process

@@ -166,29 +166,6 @@ class Tool(Knot):
             call_id=self.knot_id,
         )
 
-    # ------------------------------------------------------------ knot introspection
-    #
-    # A capability wraps *any* knot class (``ToolFactory``, ``AgentTool``), and
-    # reading its input contract means reading the knot machinery core keeps
-    # for ``Knot`` subclasses. ``Tool`` is the agents layer's ``Knot`` subclass,
-    # so the wrappers ask it rather than reaching into ``Knot`` themselves.
-
-    @staticmethod
-    def framework_kwarg_names() -> frozenset[str]:
-        """The construction kwargs core reserves for the framework (``_config``, ``tapestry``)."""
-        return Knot._reserved_kwargs
-
-    @staticmethod
-    def declared_input_schema(knot_class: type[Knot]) -> Mapping[str, Any] | None:
-        """The JSON schema declaring ``knot_class``'s inputs, or ``None`` when its signature does."""
-        return knot_class._input_schema_override
-
-    @staticmethod
-    def input_annotations(knot_class: type[Knot]) -> dict[str, Any]:
-        """Name -> the annotation core validates each signature-declared ``process()`` input with."""
-        signature = inspect.signature(knot_class.process)
-        return knot_class._input_annotations(signature, knot_class._process_hints(signature))
-
     # ------------------------------------------------------------ envelope
 
     @classmethod

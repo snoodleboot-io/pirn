@@ -248,6 +248,10 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ### Removed
 
+#### `Tool`'s knot-introspection wrappers (PIR-872)
+
+- `Tool.framework_kwarg_names()`, `Tool.declared_input_schema(cls)`, `Tool.input_annotations(cls)` — `Knot` (pirn-core) answers "what does this knot class accept" itself: `knot_class.reserved_kwargs()`, `knot_class.declared_input_schema()`, `knot_class.input_annotations()` (all classmethods, next to `input_json_schema()`). `ToolFactory` and `AgentTool` read those.
+
 #### Agents payload field-name alias properties (PIR-872)
 
 Deleted outright; every caller, test and doc reads the canonical `Payload` access. Constructors keep their field names.
@@ -392,8 +396,8 @@ strict. `ToolCallCodec.encode_results` and `ToolCallCodec.views` take only
 `{call_id: Ok | Err | Skipped}`; the sequence-of-`ToolResult` input is deleted.
 `SqliteConnector._clear_credentials` (never called) is deleted. `ToolFactory`
 gained `with_parameters(parameters)` (a copy declaring a different `parameters`
-schema) and reads a knot class's input contract through `Tool.framework_kwarg_names()`,
-`Tool.declared_input_schema(cls)` and `Tool.input_annotations(cls)`.
+schema) and reads a knot class's input contract through core's public
+`Knot.reserved_kwargs()`, `Knot.declared_input_schema()` and `Knot.input_annotations()`.
 `ToolDecorator.decorate` is overloaded (bare form returns a `FunctionTool`, the
 parametrised form a decorator) and takes the function positionally only.
 `RunTrace`/`TraceEvent`/`TraceDiff`/`ToolDeclaration.from_payload` are typed

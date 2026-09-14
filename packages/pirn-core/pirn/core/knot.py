@@ -74,6 +74,15 @@ class Knot:
 
     _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
 
+    @classmethod
+    def reserved_kwargs(cls) -> frozenset[str]:
+        """The constructor kwargs the framework owns (``_config``, ``tapestry``).
+
+        A declared input may not use one of these names; wrappers that forward
+        constructor kwargs split these off before forwarding the rest.
+        """
+        return cls._reserved_kwargs
+
     # Opt-in, per-class: declare ``process`` in the gradual parameter form
     # ``(*args: Any, **_: Any)`` so a type checker skips the parameter half
     # of its override check for every subclass, while still checking the return
@@ -597,6 +606,37 @@ class Knot:
         return copy.copy(self)
 
     # ------------------------------------------------------------ schema
+    #
+    # "What does this knot class accept": ``reserved_kwargs()`` (the
+    # framework's constructor kwargs), ``declared_input_schema()`` (a
+    # schema-declared class's input contract), ``input_annotations()`` (the
+    # annotation each signature-declared input is validated with) and
+    # ``input_json_schema()`` (either one, rendered for a model). A wrapper
+    # that constructs a knot class it did not write -- a tool capability, an
+    # agent-as-tool -- reads these instead of the protected machinery.
+
+    @classmethod
+    def declared_input_schema(cls) -> Mapping[str, Any] | None:
+        """The JSON schema declaring this class's inputs, or ``None`` when ``process()`` does.
+
+        Set for a class generated from a schema (``KnotFactory.from_schema``, an
+        MCP-declared tool); its ``properties`` are then the declared inputs and
+        ``process`` receives them by keyword.
+        """
+        return cls._input_schema_override
+
+    @classmethod
+    def input_annotations(cls) -> dict[str, Any]:
+        """Name -> the annotation each signature-declared ``process()`` input is validated with.
+
+        The same mapping ``validate_io`` builds its adapters from: ``T`` for a
+        ``Knot | T`` input, ``Any`` for an unannotated one; ``self``, ``*args``
+        and ``**kwargs`` are excluded. A schema-declared class
+        (:meth:`declared_input_schema` is not ``None``) declares its inputs in
+        the schema instead.
+        """
+        sig = cls._process_signature()
+        return cls._input_annotations(sig, cls._process_hints(sig))
 
     @classmethod
     def input_json_schema(cls) -> dict[str, Any]:
