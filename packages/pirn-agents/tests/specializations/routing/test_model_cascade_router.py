@@ -16,6 +16,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
@@ -31,7 +32,7 @@ async def _run(tapestry: Tapestry, knot_id: str = "cascade"):
     return result.outputs[knot_id]
 
 
-class _DownProvider(StubLLMProvider):
+class _DownProvider(LLMProvider):
     """A provider whose every call fails."""
 
     async def chat(
@@ -61,7 +62,7 @@ def _prompts_sent(tier: CascadeTier) -> list[str]:
 
 
 def _failing_tier(name: str, *, cost: float = 0.0) -> CascadeTier:
-    return CascadeTier(name=name, llm=_DownProvider([]), estimated_cost=cost)
+    return CascadeTier(name=name, llm=_DownProvider(), estimated_cost=cost)
 
 
 def _confidence_from(table: dict[str, float]) -> Callable[[object], Awaitable[float]]:
