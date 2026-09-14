@@ -133,11 +133,9 @@ LOOP_AWAITS_LLM_OR_TOOL_CALL: frozenset[str] = frozenset()
 #: A literal `while True:` retry loop instead of composing core's `KnotRetryPolicy.run()`
 #: (PIR-856 retrofitted the four `pirn_agents`-owned instances that existed
 #: before this ticket; this is what remains).
-HAND_ROLLED_WHILE_TRUE_RETRY = frozenset(
-    {
-        "specializations/conversation/conversation_memory_pruner.py::ConversationMemoryPruner",
-    }
-)
+#: PIR-872: the last member, `ConversationMemoryPruner`, was never a retry — its
+#: `while True` was a pruning loop, now written with its real condition.
+HAND_ROLLED_WHILE_TRUE_RETRY: frozenset[str] = frozenset()
 
 
 class TestNoNewEngineBypass(unittest.TestCase):

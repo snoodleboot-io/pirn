@@ -58,6 +58,23 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert len(result) == 1
         assert result[0].role == "system"
 
+    async def test_drops_exactly_the_oldest_turns_needed_and_keeps_order(self) -> None:
+        k = _make_knot()
+        messages = [
+            _make_message("user", "a" * 50),
+            _make_message("system", "s" * 10),
+            _make_message("assistant", "b" * 50),
+            _make_message("user", "c" * 50),
+        ]
+        result = await k.process(messages=messages, token_budget=110)
+        assert [m.content[0] for m in result] == ["s", "b", "c"]
+
+    async def test_an_all_system_history_over_budget_is_returned_unpruned(self) -> None:
+        k = _make_knot()
+        messages = [_make_message("system", "s" * 40), _make_message("system", "t" * 40)]
+        result = await k.process(messages=messages, token_budget=10)
+        assert result == messages
+
     async def test_rejects_zero_token_budget(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(ValueError, "token_budget must be a positive int"):
