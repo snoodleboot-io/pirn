@@ -235,6 +235,8 @@ Runs one per-item agent over a dataset through the core engine's own scheduler
 
 `MapAgent.run()`'s streaming contract (`async for result in map_agent.run(inputs)`) yields each `BatchItemResult` the instant its item settles, before the `Aggregator` join completes: a `_BatchItemStreamer` emitter turns core's `Emitter.on_knot_result` (ADR WS0b) into the stream, so a failed item's full `ExceptionRecord`, its attempt count and its latency ride along from the lineage row. Closing the stream early or cancelling its consumer cancels the run and its in-flight items. Disclosed trade-off that remains: the input iterable is materialised up front (the resume lookup and the item graph need every key before the run starts), so the pre-migration lazy pull does not apply. The batch's dispatcher, group cap and admission observers reach the inner run through core's per-container overrides (`SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers`), and an unset dispatcher inherits the enclosing run's execution plane — nothing assigns an inner tapestry's private fields (ratcheted in `tests/core_seams/test_execution_plane_reach_through.py`).
 
+`MapAgent`'s `concurrency_group`/`ConcurrencyLimits` pairing is the same pattern that replaces per-backend `Bulkhead` pools outside batch code too — see [Concurrency isolation (resilience)](#concurrency-isolation-resilience) below.
+
 ### `specializations/`
 
 Pre-built `SubTapestry` pipelines for common agent patterns.
@@ -373,6 +375,48 @@ rag = NaiveRAGPipeline(
 ```
 
 ---
+
+## Concurrency isolation (resilience)
+
+Before ADR "agents speaks core" WS4b/PIR-866, per-backend concurrency
+isolation was three private classes holding their own `asyncio.Semaphore`:
+`pirn_agents.performance.concurrency_config.ConcurrencyConfig` (sizing),
+`pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore` (one
+bounded pool), and `pirn_agents.resilience.bulkhead.Bulkhead` (one pool per
+backend, keyed lazily) — none of it visible to the core engine's own
+`AdmissionGate`.
+
+**A pipeline wired through the engine should not reach for these classes at
+all.** Declare `KnotConfig(concurrency_group=<backend>)` on the knots that
+call a backend and `ConcurrencyLimits(groups={<backend>: n, ...})` on the
+run: every knot in that group is metered together by one shared
+`AdmissionGate`, whether they come from one pipeline or several (see
+`tests/performance/test_shared_concurrency_group.py` for a worked example of
+two independently-built pipelines bounded by one shared group). This is
+exactly the isolation `Bulkhead` used to promise, produced by the engine
+that already schedules everything else.
+
+All three classes are kept for one deprecation cycle as thin, engine-backed
+shims — each construction warns `DeprecationWarning` — and none holds an
+`asyncio.Semaphore` of its own any more:
+
+- `ConcurrencyConfig.to_concurrency_limits(group=...)` and
+  `BulkheadConfig.to_concurrency_limits()` return the exact
+  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` a real run
+  would declare for the same posture. Both stay plain frozen dataclasses
+  rather than `ConcurrencyLimits` subclasses: `agent/parallel_tool_executor.py`
+  and three `specializations/` pipelines read `ConcurrencyConfig.max_concurrency`
+  as a **class-level** literal default, which a pydantic `BaseModel`
+  subclass cannot support.
+- `BackpressureSemaphore` and `Bulkhead` are now subclasses of core's
+  `pirn.engine.admission.admission_gate.AdmissionGate`, delegating every
+  admission decision to a real
+  `pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate`
+  through the shared, private
+  `pirn_agents.performance._backpressure_gate._BackpressureGate` — the one
+  place `max_queue_depth`/`acquire_timeout` (backpressure knobs core's
+  `AdmissionGate` has no equivalent for outside a running `Tapestry`) are
+  still implemented directly.
 
 ## Idempotency keys (resilience)
 
