@@ -12,15 +12,16 @@ record/replay machinery instead of a bespoke cassette format.
   ``RunHistory.query_lineage_by_knot_id(key)`` — a real replay, verified
   against the recording, not a raw ``data_store.get``. Constructing with
   ``cassette=`` (a previously-exported, portable :class:`Cassette` — the
-  cross-process case ``CassetteStore`` exists for) seeds a fresh
-  ``RunHistory``/``DataStore`` with one synthetic recorded run per entry
-  before the first call, so the exact same replay path serves it.
+  cross-process case the one-cycle ``CassetteStore`` shim, deleted PIR-864,
+  existed for) seeds a fresh ``RunHistory``/``DataStore`` with one synthetic
+  recorded run per entry before the first call, so the exact same replay
+  path serves it.
 * **PASSTHROUGH** = ``await thunk()`` directly, no history/data_store
   interaction at all.
 
 :attr:`cassette` still materialises a :class:`Cassette` snapshot of
 everything this recorder instance has recorded, for a caller that wants to
-persist it to a :class:`CassetteStore` for portability or diffing.
+export it for portability or diffing.
 """
 
 from __future__ import annotations

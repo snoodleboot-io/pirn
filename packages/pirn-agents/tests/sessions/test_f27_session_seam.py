@@ -1,9 +1,10 @@
 """F14 → F27 seam closure: a durable-session identity drives F27 profile keying.
 
 F27's ``ProfileKey`` documents ``session_id`` as the *F14 plug point*. This test
-closes that seam end-to-end: an F14 durable-session identity (the ``session_id``
-that keys a persisted checkpoint) is fed, unchanged, into an F27
-:class:`ProfileKey` and driven through the F27
+closes that seam end-to-end: an F14 durable-session identity (now a chain of
+engine runs linked by ``_parent_run_id`` -- see
+``pirn_agents.sessions.session_chain`` -- rather than a persisted checkpoint)
+is fed, unchanged, into an F27 :class:`ProfileKey` and driven through the F27
 :class:`CrossSessionProfileUpdater`. The session lifecycle thus keys the profile
 update — without F14 importing F27 machinery or F27 inventing session machinery.
 No F27 source is modified.
@@ -23,31 +24,15 @@ from pirn_agents.memory.management.cross_session_profile_updater import (
 )
 from pirn_agents.memory.management.profile_key import ProfileKey
 from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
-from pirn_agents.sessions.in_memory_session_store import InMemorySessionStore
-from pirn_agents.sessions.run_checkpointer import RunCheckpointer
 from pirn_agents.sessions.session_identity import SessionIdentity
-from tests.sessions.conftest import make_run_state
 
 
 class TestF27SessionSeam:
     async def test_session_identity_drives_profile_keying(self) -> None:
-        # Arrange — an F14 durable session: identity + a persisted checkpoint.
+        # Arrange — an F14 durable session identity.
         identity = SessionIdentity(
             session_id="sess-42", created_at=datetime(2026, 7, 12, tzinfo=UTC)
         )
-        session_store = InMemorySessionStore()
-        with Tapestry():
-            checkpointer = RunCheckpointer(
-                store=session_store,
-                state=make_run_state(session_id=identity.session_id, plan=("greet",)),
-                _config=KnotConfig(id="cp"),
-            )
-        checkpoint = await checkpointer.process(
-            store=session_store,
-            state=make_run_state(session_id=identity.session_id, plan=("greet",)),
-        )
-        # The durable session really exists under this identity.
-        assert checkpoint.state.session_id == identity.session_id
 
         # Act — feed that F14 session id into the F27 profile seam, unchanged.
         profile_store = KeyedLineageStore(history=InMemoryHistory(), data_store=InMemoryDataStore())

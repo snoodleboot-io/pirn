@@ -1,13 +1,14 @@
-"""``BatchProgress`` — the resumable, checkpointable state of a batch run.
+"""``BatchProgress`` — the per-fire summary of a batch run's completed items.
 
-Records which item keys a batch has already completed so a killed run can resume
-without re-doing finished work. It bridges to F14's durable-session machinery by
-round-tripping through a :class:`~pirn_agents.sessions.run_state.RunState`: the
-completed item keys are carried as the run's
-:class:`~pirn_agents.sessions.execution_cursor.ExecutionCursor` completed steps,
-so the exact same :class:`~pirn_agents.sessions.session_store.SessionStore` +
-:class:`~pirn_agents.sessions.run_checkpoint.RunCheckpoint` content-addressing
-that persists an agent run also persists a batch — no parallel store is invented.
+Records which item keys a batch has already completed. ``TriggeredBatch``
+returns one as its per-fire summary; resume-after-crash itself is a
+``RunHistory`` lineage query on the item's knot id (see
+``pirn_agents.batch.map_agent.MapAgent``), not a checkpoint this value is
+read back from. :meth:`to_run_state`/:meth:`from_run_state` round-trip through
+a :class:`~pirn_agents.sessions.run_state.RunState` for the pre-migration
+``BatchCheckpointer`` shape; that shim is deleted (PIR-864), so today these
+two methods have no production caller left — kept as a still-correct,
+tested projection in case a future durable-checkpoint caller needs it again.
 """
 
 from __future__ import annotations

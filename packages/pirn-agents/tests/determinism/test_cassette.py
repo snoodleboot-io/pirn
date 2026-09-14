@@ -1,4 +1,4 @@
-"""Mirrored tests for the cassette data model and stores (F29-S1)."""
+"""Mirrored tests for the cassette data model (F29-S1)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import unittest
 
 from pirn_agents.determinism.cassette import Cassette
 from pirn_agents.determinism.cassette_entry import CassetteEntry
-from pirn_agents.determinism.in_memory_cassette_store import InMemoryCassetteStore
 from pirn_agents.determinism.interaction_kind import InteractionKind
 
 
@@ -65,24 +64,6 @@ class CassetteTests(unittest.TestCase):
     def test_rejects_non_entry_member(self) -> None:
         with self.assertRaises(TypeError):
             Cassette(entries=("bad",))  # type: ignore[arg-type]
-
-
-class InMemoryCassetteStoreTests(unittest.IsolatedAsyncioTestCase):
-    async def test_save_load_list_delete(self) -> None:
-        store = InMemoryCassetteStore()
-        tape = Cassette().with_entry(_entry())
-        await store.save("suite", tape)
-        assert await store.load("suite") == tape
-        assert list(await store.list_cassettes()) == ["suite"]
-        await store.delete("suite")
-        assert await store.load("suite") is None
-
-    async def test_load_missing_returns_none(self) -> None:
-        assert await InMemoryCassetteStore().load("nope") is None
-
-    async def test_save_rejects_non_cassette(self) -> None:
-        with self.assertRaises(TypeError):
-            await InMemoryCassetteStore().save("x", object())  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":

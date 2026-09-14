@@ -10,13 +10,13 @@ Two distinct things are recorded:
 
 * **The intended canonical form** — ``sort_keys=True,
   separators=(",", ":")``, ``ensure_ascii`` at its default, UTF-8, bare 64-hex
-  output. This is what
-  :meth:`~pirn_agents.sessions.run_checkpoint.RunCheckpoint.content_hash` and
-  :meth:`~pirn_agents.determinism.content_digest.ContentDigest.digest` already
-  produce, and it is the form the WS8 seam adopts. Its pins are *durable*:
-  cassette keys and checkpoint ids are derived from it, so moving one of these
-  values is a storage-format break needing a migration. See
-  ``tests/sessions/test_checkpoint_hash_invariant.py``.
+  output. This is what ``RunCheckpoint.content_hash`` (a one-cycle shim,
+  deleted PIR-864) used to produce, and what
+  :meth:`~pirn_agents.determinism.content_digest.ContentDigest.digest` still
+  produces — it is the form the WS8 seam adopts. Its pins are *durable*:
+  cassette keys are derived from it, so moving this value is a
+  storage-format break needing a migration. See
+  ``tests/serialization/test_canonical_json.py::TestCanonicalJsonReproducesDurableDigests``.
 
 * **The convergence, then divergence** — :func:`~pirn_agents.caching.content_address.content_address`
   used to diverge on two axes, default separators (``", "`` / ``": "``) *and*

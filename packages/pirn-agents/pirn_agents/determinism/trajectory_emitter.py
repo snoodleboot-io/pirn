@@ -1,8 +1,8 @@
 """``TrajectoryEmitter`` — capture a run's trajectory from the engine itself.
 
-ADR "agents speaks core" WS3 part 3. Where
-:class:`~pirn_agents.determinism.trajectory_recorder.TrajectoryRecorder`
-required every call site to remember to call ``.record(...)``, an ``Emitter``
+ADR "agents speaks core" WS3 part 3. Where ``TrajectoryRecorder`` (a one-cycle
+shim, deleted PIR-864) required every call site to remember to call
+``.record(...)``, an ``Emitter``
 attached to a ``Tapestry`` sees every knot's lineage automatically —
 ``on_lineage`` fires once per knot per run, whether or not the pipeline
 author thought to instrument that particular step. No manual instrumentation,

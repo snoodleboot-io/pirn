@@ -3,8 +3,8 @@
 The seam exists so the package has exactly one answer to "what bytes do we
 hash?". Its acceptance criterion is negative: adopting it must move *nothing*
 that is already persisted. The decisive test here is therefore
-:meth:`TestCanonicalJsonReproducesDurableDigests.test_reproduces_the_pinned_checkpoint_digest`
-— the seam must reproduce the golden checkpoint digest byte for byte.
+:meth:`TestCanonicalJsonReproducesDurableDigests.test_reproduces_the_pinned_digest`
+— the seam's own digest algorithm must never silently drift.
 """
 
 from __future__ import annotations
@@ -24,7 +24,6 @@ from pirn_agents.determinism.content_digest import ContentDigest
 from pirn_agents.serialization.canonical_json import CanonicalJson
 from pirn_agents.serialization.opaque_policy import OpaquePolicy
 from pirn_agents.sessions.execution_cursor import ExecutionCursor
-from pirn_agents.sessions.run_checkpoint import RunCheckpoint
 from pirn_agents.sessions.run_state import RunState
 from pirn_agents.sessions.session_message import SessionMessage
 from pirn_agents.sessions.session_tool_result import SessionToolResult
@@ -95,7 +94,7 @@ def _stable_leaf_names() -> list[str]:
 
 
 def _golden_state() -> RunState:
-    """Return the same fixed state pinned by ``test_checkpoint_hash_invariant``."""
+    """Return a fixed state exercising every ``RunState.to_payload()`` branch."""
     return RunState(
         session_id="sess-fixed",
         messages=(
@@ -112,29 +111,21 @@ def _golden_state() -> RunState:
 
 
 class TestCanonicalJsonReproducesDurableDigests:
-    """The seam must not move anything already written to storage."""
+    """The digest algorithm itself must not silently drift.
 
-    # Restated from tests/sessions/test_checkpoint_hash_invariant.py on purpose:
-    # if the seam and the checkpoint hasher ever disagree, one of these two
-    # files fails, and the disagreement cannot pass CI unnoticed.
-    _golden_checkpoint_digest = "9e638e5c7315150eb97518e4441423cf3e1aafbf24b06db203198b27c8d39f94"
+    ``RunCheckpoint`` (the original reason this golden value existed) was a
+    one-cycle shim, now deleted (PIR-864); this pin now guards
+    ``CanonicalJson.digest``'s own algorithm stability directly, since the
+    deferred durable-key callers still listed in
+    ``tests/test_core_vocabulary_ratchet.py`` (``content_digest.py``,
+    ``idempotency_key_assigner.py``) depend on it never moving.
+    """
 
-    def test_reproduces_the_pinned_checkpoint_digest(self) -> None:
-        assert CanonicalJson.digest(_golden_state().to_payload()) == (
-            self._golden_checkpoint_digest
-        ), (
-            "The seam does not agree with the persisted checkpoint format. "
-            "Adopting it would orphan every stored checkpoint_id."
-        )
+    _golden_digest = "9e638e5c7315150eb97518e4441423cf3e1aafbf24b06db203198b27c8d39f94"
 
-    def test_agrees_with_the_legacy_v1_checkpoint_hasher(self) -> None:
-        # ADR "agents speaks core" WS3 part 2: RunCheckpoint.content_hash's
-        # default (format_version=2) moved onto core's content_hash, so this
-        # now compares against the explicit legacy path rather than the
-        # default — CanonicalJson is still the v1 format byte for byte.
-        state = _golden_state()
-        assert CanonicalJson.digest(state.to_payload()) == RunCheckpoint.content_hash(
-            state, format_version=1
+    def test_reproduces_the_pinned_digest(self) -> None:
+        assert CanonicalJson.digest(_golden_state().to_payload()) == (self._golden_digest), (
+            "CanonicalJson.digest's canonicalisation moved -- this orphans every durable caller."
         )
 
     @pytest.mark.parametrize("name", _payload_names())

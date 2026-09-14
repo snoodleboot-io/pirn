@@ -16,8 +16,10 @@ layers five capabilities, each provider-neutral and backend-free at import time:
   so time and randomness are reproducible; nothing calls the wall clock or the
   global RNG directly.
 * **Trajectory capture** (S3) — a versioned, append-only structured trace of a
-  run (:class:`~pirn_agents.determinism.run_trace.RunTrace`) built cheaply by a
-  :class:`~pirn_agents.determinism.trajectory_recorder.TrajectoryRecorder`.
+  run (:class:`~pirn_agents.determinism.run_trace.RunTrace`) built by a
+  :class:`~pirn_agents.determinism.trajectory_emitter.TrajectoryEmitter`
+  attached to a ``Tapestry``, which sees every knot's lineage automatically
+  through ``on_lineage`` — no manual ``.record(...)`` call site to miss.
 * **Time-travel** (S4) — step through a recorded trace
   (:class:`~pirn_agents.determinism.trace_inspector.TraceInspector`) and diff two
   runs (:class:`~pirn_agents.determinism.trace_differ.TraceDiffer`).
@@ -26,12 +28,10 @@ layers five capabilities, each provider-neutral and backend-free at import time:
 
 The concrete cassette recorder also backs F12's ``RunRecorder`` seam via
 :class:`~pirn_agents.evaluation.cassette_run_recorder.CassetteRunRecorder`, so
-``run_eval`` can replay a whole suite deterministically. Cassette persistence
-defaults to the in-process
-:class:`~pirn_agents.determinism.in_memory_cassette_store.InMemoryCassetteStore`
-or the stdlib-JSON
-:class:`~pirn_agents.determinism.file_cassette_store.FileCassetteStore`; no heavy
-backend is required.
+``run_eval`` can replay a whole suite deterministically. Cassette recording and
+replay go directly through ``RunHistory``/``DataStore`` (see
+:class:`~pirn_agents.determinism.cassette_recorder.CassetteRecorder`'s module
+docstring); no separate cassette-store backend is required.
 """
 
 from __future__ import annotations

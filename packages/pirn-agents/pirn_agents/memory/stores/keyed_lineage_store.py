@@ -2,8 +2,7 @@
 
 ADR "agents speaks core" WS3 part 4. Retires the reason
 :class:`~pirn_agents.memory.stores.data_store_memory_store.DataStoreMemoryStore`
-hashed a caller's logical key into a content hash and
-:class:`~pirn_agents.memory.stores.memory_store_key_index.MemoryStoreKeyIndex`
+hashed a caller's logical key into a content hash and ``MemoryStoreKeyIndex``
 existed at all: a keyed identity does not need a hashed slot in a key-value
 table when the engine already gives every knot a stable, queryable identity.
 
@@ -30,9 +29,9 @@ What this does **not** give you, and why:
 * **Enumeration** ("every key ever written under a namespace") has no
   ``RunHistory`` query either — lineage is looked up by an exact knot id, not
   listed by prefix. A caller that needs to enumerate keys still needs an
-  explicit index (this is the gap
-  :class:`~pirn_agents.memory.stores.memory_store_key_index.MemoryStoreKeyIndex`
-  fills, unchanged, for the shims still built on it).
+  explicit index (this was the gap ``MemoryStoreKeyIndex`` filled for its one
+  consumer, ``PersistedSessionStore``, itself a deprecated shim deleted with
+  it in PIR-864).
 """
 
 from __future__ import annotations
