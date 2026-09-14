@@ -11,7 +11,7 @@ skipped cleanly by returning ``None`` (no error).
 
 Constraint *generation* is pure and backend-free. Optionally *compiling* the
 grammar against a real engine is delegated to the lazily-imported
-:mod:`pirn_agents.specializations.structured_output._grammar_backend`, keeping
+:mod:`pirn_agents.specializations.structured_output.grammar_backend`, keeping
 the core import backend-free.
 """
 
@@ -22,7 +22,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from pirn_agents.specializations.structured_output import _grammar_backend
+from pirn_agents.specializations.structured_output.grammar_backend import GrammarBackend
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,
 )
@@ -91,7 +91,7 @@ class ConstrainedDecodingMapper:
             return None
         constraint = self.constraint()
         if self._validate_grammar:
-            _grammar_backend.GrammarBackend.compile(constraint)
+            GrammarBackend.compile(constraint)
         return provider.constrained_decoding_option(constraint)
 
     def json_schema(self) -> Mapping[str, Any]:

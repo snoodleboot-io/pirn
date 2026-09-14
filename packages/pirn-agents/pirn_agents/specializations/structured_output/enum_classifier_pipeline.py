@@ -19,7 +19,7 @@ Algorithm:
 
 References:
     - :class:`pirn_agents.llm.llm_provider.LLMProvider`
-    - :class:`pirn_agents.specializations.structured_output._enum_classifier_attempt.EnumClassifierAttempt`
+    - :class:`pirn_agents.specializations.structured_output.enum_classifier_attempt.EnumClassifierAttempt`
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._enum_classifier_attempt import (
+from pirn_agents.specializations.structured_output.enum_classifier_attempt import (
     EnumClassifierAttempt,
 )
 

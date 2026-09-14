@@ -9,7 +9,7 @@ called exactly like any other tool in the loop.
 
 The loop is expressed as an
 :class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
-(see :class:`~pirn_agents.specializations.rag._agentic_rag_loop.AgenticRagLoop`)
+(see :class:`~pirn_agents.specializations.rag.agentic_rag_loop.AgenticRagLoop`)
 rather than a hand-rolled ``for iteration in range(max_iterations)`` that
 awaited ``rag_tool.invoke`` and ``llm.chat`` directly: each round is a real
 :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` knot, so the call
@@ -46,9 +46,9 @@ from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._agentic_rag_loop import AgenticRagLoop
-from pirn_agents.specializations.rag._agentic_rag_result import AgenticRagResult
-from pirn_agents.specializations.rag._agentic_rag_state import AgenticRagState
+from pirn_agents.specializations.rag.agentic_rag_loop import AgenticRagLoop
+from pirn_agents.specializations.rag.agentic_rag_result import AgenticRagResult
+from pirn_agents.specializations.rag.agentic_rag_state import AgenticRagState
 from pirn_agents.tools.tool_factory import ToolFactory
 
 

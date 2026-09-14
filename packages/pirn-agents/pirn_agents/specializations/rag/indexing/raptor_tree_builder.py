@@ -1,9 +1,9 @@
 """``RaptorTreeBuilder`` — chunk a document and build its RAPTOR tree.
 
 A :class:`SubTapestry` that reuses the existing sliding-window
-:class:`~pirn_agents.specializations.document_processing._document_chunker.DocumentChunker`
+:class:`~pirn_agents.specializations.document_processing.document_chunker.DocumentChunker`
 to produce leaf chunks, then wires
-:class:`~pirn_agents.specializations.rag.indexing._raptor_assembler.RaptorAssembler`
+:class:`~pirn_agents.specializations.rag.indexing.raptor_assembler.RaptorAssembler`
 to cluster + summarize them into a content-addressed RAPTOR tree stored in the
 vector store. The tree is built once at ingest and reused across queries.
 
@@ -22,8 +22,8 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_chunker import DocumentChunker
-from pirn_agents.specializations.rag.indexing._raptor_assembler import RaptorAssembler
+from pirn_agents.specializations.document_processing.document_chunker import DocumentChunker
+from pirn_agents.specializations.rag.indexing.raptor_assembler import RaptorAssembler
 
 
 class RaptorTreeBuilder(AgentPipeline):

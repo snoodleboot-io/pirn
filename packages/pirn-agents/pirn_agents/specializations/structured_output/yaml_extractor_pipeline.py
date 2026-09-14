@@ -21,7 +21,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn_agents.specializations.structured_output._yaml_extractor_attempt.YamlExtractorAttempt`
+    - :class:`pirn_agents.specializations.structured_output.yaml_extractor_attempt.YamlExtractorAttempt`
     - PyYAML: https://pyyaml.org/wiki/PyYAMLDocumentation
 """
 
@@ -36,13 +36,13 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._yaml_extractor_loop import (
+from pirn_agents.specializations.structured_output.yaml_extractor_loop import (
     YamlExtractorLoop,
 )
-from pirn_agents.specializations.structured_output._yaml_extractor_result_extractor import (
+from pirn_agents.specializations.structured_output.yaml_extractor_result_extractor import (
     YamlExtractorResultExtractor,
 )
-from pirn_agents.specializations.structured_output._yaml_extractor_state import (
+from pirn_agents.specializations.structured_output.yaml_extractor_state import (
     YamlExtractorState,
 )
 

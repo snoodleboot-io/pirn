@@ -26,7 +26,7 @@ Algorithm:
        ``branch["moderate"]``) retrieves ``top_k`` hits for the original
        query; build prompt; call LLM; wrap via :class:`RAGResponseBuilder`.
     5. **COMPLEX arm** — wrapped as its own
-       :class:`~pirn_agents.specializations.rag._complex_rag_arm.ComplexRagArm`
+       :class:`~pirn_agents.specializations.rag.complex_rag_arm.ComplexRagArm`
        (gated on ``branch["complex"]``) because its decompose-then-fan-out
        shape needs a dynamic sub-question count resolved in Python before the
        retrieval knots can be built — see that class's docstring for why
@@ -58,7 +58,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._complex_rag_arm import ComplexRagArm
+from pirn_agents.specializations.rag.complex_rag_arm import ComplexRagArm
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,

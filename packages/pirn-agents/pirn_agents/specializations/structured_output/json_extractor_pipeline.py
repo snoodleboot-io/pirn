@@ -27,7 +27,7 @@ Algorithm:
 
 References:
     - :class:`pirn_agents.llm.llm_provider.LLMProvider`
-    - :class:`pirn_agents.specializations.structured_output._json_extractor_attempt.JsonExtractorAttempt`
+    - :class:`pirn_agents.specializations.structured_output.json_extractor_attempt.JsonExtractorAttempt`
 """
 
 from __future__ import annotations
@@ -41,13 +41,13 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._json_extractor_loop import (
+from pirn_agents.specializations.structured_output.json_extractor_loop import (
     JsonExtractorLoop,
 )
-from pirn_agents.specializations.structured_output._json_extractor_result_extractor import (
+from pirn_agents.specializations.structured_output.json_extractor_result_extractor import (
     JsonExtractorResultExtractor,
 )
-from pirn_agents.specializations.structured_output._json_extractor_state import (
+from pirn_agents.specializations.structured_output.json_extractor_state import (
     JsonExtractorState,
 )
 

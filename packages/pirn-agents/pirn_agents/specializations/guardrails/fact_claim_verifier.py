@@ -2,7 +2,7 @@
 
 Inner stage knot used by :class:`FactCheck`. Each claim's search is
 independent of every other claim's, so this is a fan-out — one
-:class:`~pirn_agents.specializations.guardrails._claim_verification.ClaimVerification`
+:class:`~pirn_agents.specializations.guardrails.claim_verification.ClaimVerification`
 knot per claim wired into an :class:`~pirn.nodes.aggregator.Aggregator` — rather
 than a hand-rolled ``for`` loop awaiting ``store.search`` directly (PIR-867;
 before this, no claim's search had its own lineage row). Claims that return
@@ -41,7 +41,7 @@ from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.guardrails._claim_verification import ClaimVerification
+from pirn_agents.specializations.guardrails.claim_verification import ClaimVerification
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 

@@ -5,7 +5,7 @@
 Takes a list of retrieved documents and a query, scores the relevance of each
 document, and returns the top-K reranked documents. Two interchangeable
 scoring backings are supported: the default LLM path (one
-:class:`~pirn_agents.specializations.rag._document_relevance_scorer.DocumentRelevanceScorer`
+:class:`~pirn_agents.specializations.rag.document_relevance_scorer.DocumentRelevanceScorer`
 invocation per document) and a provider-neutral
 :class:`~pirn_agents.retrieval.rerank.reranker_backend.RerankerBackend` (e.g.
 the cross-encoder adapter) injected via ``reranker``.
@@ -62,9 +62,9 @@ from pirn.nodes.reduce_ import Reduce
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._backend_rerank import BackendRerank
-from pirn_agents.specializations.rag._document_relevance_scorer import DocumentRelevanceScorer
-from pirn_agents.specializations.rag._top_k_by_score import TopKByScore
+from pirn_agents.specializations.rag.backend_rerank import BackendRerank
+from pirn_agents.specializations.rag.document_relevance_scorer import DocumentRelevanceScorer
+from pirn_agents.specializations.rag.top_k_by_score import TopKByScore
 
 
 class Reranker(AgentPipeline):

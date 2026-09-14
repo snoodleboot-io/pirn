@@ -3,9 +3,9 @@
 Parent-doc (a.k.a. small-to-big) retrieval indexes *small* child chunks for
 precise matching but returns the *larger* parent for context. This ingestor
 reuses the existing sliding-window
-:class:`~pirn_agents.specializations.document_processing._document_chunker.DocumentChunker`
+:class:`~pirn_agents.specializations.document_processing.document_chunker.DocumentChunker`
 to split the document into children, then wires
-:class:`~pirn_agents.specializations.rag.indexing._parent_child_indexer.ParentChildIndexer`
+:class:`~pirn_agents.specializations.rag.indexing.parent_child_indexer.ParentChildIndexer`
 to group children under parents and upsert the child records.
 
 References:
@@ -22,8 +22,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_chunker import DocumentChunker
-from pirn_agents.specializations.rag.indexing._parent_child_indexer import ParentChildIndexer
+from pirn_agents.specializations.document_processing.document_chunker import DocumentChunker
+from pirn_agents.specializations.rag.indexing.parent_child_indexer import ParentChildIndexer
 
 
 class ParentDocumentIngestor(AgentPipeline):

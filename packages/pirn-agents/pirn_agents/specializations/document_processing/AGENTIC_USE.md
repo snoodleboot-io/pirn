@@ -30,7 +30,7 @@ pirn_agents/specializations/document_processing/
 │  ── Internal helpers ──
 ├── _document_source.py                 (Source: read path/URL bytes, SSRF/path guards)
 ├── _document_assembler.py              (Assembler: decode bytes to text, no I/O)
-├── _document_chunker.py               (split document into chunks)
+├── document_chunker.py                (split document into chunks)
 ├── _chunk_embedder_store.py           (embed + persist chunks)
 ├── _chunk_translator.py               (translate a single chunk)
 ├── _load_and_chunk.py                 (loader + chunker combined)

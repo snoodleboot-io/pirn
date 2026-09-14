@@ -25,7 +25,7 @@ Algorithm:
 References:
     - pydantic :class:`BaseModel`:
       https://docs.pydantic.dev/latest/api/base_model/
-    - :class:`pirn_agents.specializations.structured_output._json_extractor_attempt.JsonExtractorAttempt`
+    - :class:`pirn_agents.specializations.structured_output.json_extractor_attempt.JsonExtractorAttempt`
 """
 
 from __future__ import annotations
@@ -40,13 +40,13 @@ from pydantic import BaseModel
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._pydantic_validator_loop import (
+from pirn_agents.specializations.structured_output.pydantic_validator_loop import (
     PydanticValidatorLoop,
 )
-from pirn_agents.specializations.structured_output._pydantic_validator_result_extractor import (
+from pirn_agents.specializations.structured_output.pydantic_validator_result_extractor import (
     PydanticValidatorResultExtractor,
 )
-from pirn_agents.specializations.structured_output._pydantic_validator_state import (
+from pirn_agents.specializations.structured_output.pydantic_validator_state import (
     PydanticValidatorState,
 )
 

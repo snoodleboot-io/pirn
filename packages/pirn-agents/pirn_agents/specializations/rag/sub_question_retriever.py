@@ -10,7 +10,7 @@ retrieved it.
 
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather`` over a semaphore: each sub-question becomes its own
-:class:`~pirn_agents.specializations.rag._sub_question_search.SubQuestionSearch`
+:class:`~pirn_agents.specializations.rag.sub_question_search.SubQuestionSearch`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded into the deduplicated union with a :class:`~pirn.nodes.reduce_.Reduce`.
 The engine schedules the per-sub-question searches concurrently — every ready
@@ -50,8 +50,8 @@ from pirn.nodes.reduce_ import Reduce
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._sub_question_search import SubQuestionSearch
-from pirn_agents.specializations.rag._union_sub_question_hits import UnionSubQuestionHits
+from pirn_agents.specializations.rag.sub_question_search import SubQuestionSearch
+from pirn_agents.specializations.rag.union_sub_question_hits import UnionSubQuestionHits
 
 
 class SubQuestionRetriever(AgentPipeline, Retriever):

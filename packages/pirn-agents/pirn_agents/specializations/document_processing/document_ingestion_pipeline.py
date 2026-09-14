@@ -47,9 +47,6 @@ from pirn_agents.specializations.document_processing._chunk_embedder_store impor
 from pirn_agents.specializations.document_processing._document_assembler import (
     _DocumentAssembler,
 )
-from pirn_agents.specializations.document_processing._document_chunker import (
-    DocumentChunker,
-)
 from pirn_agents.specializations.document_processing._document_source import (
     _DocumentSource,
 )
@@ -58,6 +55,9 @@ from pirn_agents.specializations.document_processing._document_source_reader imp
 )
 from pirn_agents.specializations.document_processing.chunking.chunking_config import (
     ChunkingConfig,
+)
+from pirn_agents.specializations.document_processing.document_chunker import (
+    DocumentChunker,
 )
 
 

@@ -25,7 +25,7 @@ Algorithm:
        :class:`~pirn.core.parameter.Parameter`
        surfacing a shallow copy of the list unchanged.
     3. Otherwise the sink is a
-       :class:`~pirn_agents.specializations.rag._fallback_document.FallbackDocument`,
+       :class:`~pirn_agents.specializations.rag.fallback_document.FallbackDocument`,
        downstream of a :class:`~pirn_agents.tools.tool_invocation.ToolInvocation`
        that calls ``fallback_tool.invoke({"input": query})``; its output is
        ``[{"source": "fallback", "content": str(result)}]``.
@@ -45,7 +45,7 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.interfaces.router import Router
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._fallback_document import FallbackDocument
+from pirn_agents.specializations.rag.fallback_document import FallbackDocument
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_invocation import ToolInvocation

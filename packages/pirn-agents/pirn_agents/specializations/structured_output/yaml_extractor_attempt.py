@@ -1,0 +1,147 @@
+"""``YamlExtractorAttempt`` — internal helper Knot for :class:`YamlExtractorPipeline`.
+
+Single LLM attempt: builds the YAML prompt, calls the LLM, parses the
+YAML response, and returns either the parsed mapping or an error string
+for downstream retry. Internal API.
+
+Algorithm:
+    1. Receive ``prompt`` (string), ``llm``, optional ``schema`` mapping, and ``prior_error``.
+    2. Build a system message instructing the LLM to reply with a valid YAML document.
+    3. If ``schema`` is provided, append the schema constraint to the system message.
+    4. If ``prior_error`` is non-empty, append corrective feedback.
+    5. Call the LLM provider with the constructed chat messages.
+    6. Parse the response text as YAML using :func:`yaml.safe_load`.
+    7. Validate that the root is a mapping and all schema keys are present (if schema given).
+    8. Return the parsed mapping on success, or an error string on failure.
+
+
+References:
+    - PyYAML :func:`yaml.safe_load`:
+      https://pyyaml.org/wiki/PyYAMLDocumentation
+    - :class:`pirn_agents.llm.llm_provider.LLMProvider`
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Mapping
+from typing import Any, ClassVar
+
+import yaml
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
+
+
+class YamlExtractorAttempt(Knot):
+    """Single LLM attempt: build the YAML prompt, call the LLM, parse YAML."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.structured_output.yaml_extractor_attempt.system_prompt",
+        default=(
+            "You are a structured-output assistant.\n"
+            "Reply with a single valid YAML document only — no prose, no fences."
+        ),
+    )
+
+    _schema_instruction: ClassVar[PromptBinding] = PromptBinding(
+        name=("specializations.structured_output.yaml_extractor_attempt.schema_instruction"),
+        default="The YAML mapping must conform to this schema: {{ schema }}",
+    )
+
+    _retry_instruction: ClassVar[PromptBinding] = PromptBinding(
+        name=("specializations.structured_output.yaml_extractor_attempt.retry_instruction"),
+        default=(
+            "The previous attempt failed: {{ prior_error }}. Correct the error and respond again."
+        ),
+    )
+
+    def __init__(
+        self,
+        *,
+        prompt: Knot | str,
+        llm: Knot | LLMProvider,
+        schema: Knot | Mapping[str, Any] | None,
+        prior_error: Knot | str,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            prompt=prompt,
+            llm=llm,
+            schema=schema,
+            prior_error=prior_error,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        prompt: str,
+        llm: LLMProvider,
+        schema: Mapping[str, Any] | None,
+        prior_error: str,
+        **_: Any,
+    ) -> Mapping[str, Any] | str:
+        """Call the LLM, parse the YAML reply, and return the mapping or an error string.
+
+        Args:
+            prompt: The extraction prompt string sent to the LLM as a user message.
+            llm: The LLM provider to call.
+            schema: Optional mapping of expected top-level field names, or None.
+            prior_error: Error string from a previous failed attempt, or empty string.
+
+        Returns:
+            The parsed YAML mapping on success, or an error description string on failure.
+        """
+        schema_dict: dict[str, Any] | None = dict(schema) if schema is not None else None
+        system_lines = [type(self)._system_prompt.resolve()]
+        if schema_dict is not None:
+            system_lines.append(
+                type(self)._schema_instruction.render(
+                    {"schema": json.dumps(schema_dict, sort_keys=True)},
+                )
+            )
+        if prior_error:
+            system_lines.append(
+                type(self)._retry_instruction.render(
+                    {"prior_error": prior_error},
+                )
+            )
+        chat_messages = [
+            {"role": "system", "content": "\n".join(system_lines)},
+            {"role": "user", "content": prompt},
+        ]
+        raw = await llm.chat(chat_messages)
+        text = self._extract_text(raw)
+        try:
+            parsed = yaml.safe_load(text)
+        except yaml.YAMLError as exc:
+            return f"invalid YAML: {exc}"
+        match parsed:
+            case {**fields}:
+                if schema_dict is not None:
+                    missing = [key for key in schema_dict if key not in fields]
+                    if missing:
+                        return f"missing required keys: {sorted(missing)}"
+                return fields
+            case _:
+                return f"expected YAML mapping at the root, got {type(parsed).__name__}"
+
+    @staticmethod
+    def _extract_text(raw: Mapping[str, Any] | str) -> str:
+        match raw:
+            case str():
+                return raw
+            case {"content": str() as content}:
+                return content
+            case {"content": [{"text": str() as text}, *_]}:
+                return text
+            case {"content": [str() as first, *_]}:
+                return first
+            case {"text": str() as text}:
+                return text
+            case _:
+                return str(raw)

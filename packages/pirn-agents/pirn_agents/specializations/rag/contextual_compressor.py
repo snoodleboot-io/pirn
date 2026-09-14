@@ -10,7 +10,7 @@ cuts token cost. Each surviving document keeps its identity keys (``id``,
 
 The per-document extraction is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each document becomes its
-own :class:`~pirn_agents.specializations.rag._document_compressor.DocumentCompressor`
+own :class:`~pirn_agents.specializations.rag.document_compressor.DocumentCompressor`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded back into the surviving list with a :class:`~pirn.nodes.reduce_.Reduce`.
 The engine schedules the per-document extractions concurrently — every ready
@@ -45,8 +45,8 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._document_compressor import DocumentCompressor
-from pirn_agents.specializations.rag._drop_empty_compressions import DropEmptyCompressions
+from pirn_agents.specializations.rag.document_compressor import DocumentCompressor
+from pirn_agents.specializations.rag.drop_empty_compressions import DropEmptyCompressions
 
 
 class ContextualCompressor(AgentPipeline):

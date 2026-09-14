@@ -27,7 +27,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn_agents.specializations.structured_output._llm_call_knot.LLMCallKnot`
+    - :class:`pirn_agents.specializations.structured_output.llm_call_knot.LLMCallKnot`
     - :class:`pirn.nodes.loop_sub_tapestry.LoopSubTapestry`
 """
 
@@ -42,13 +42,13 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._retry_on_parse_failure_loop import (
+from pirn_agents.specializations.structured_output.retry_on_parse_failure_loop import (
     RetryOnParseFailureLoop,
 )
-from pirn_agents.specializations.structured_output._retry_result_extractor import (
+from pirn_agents.specializations.structured_output.retry_result_extractor import (
     RetryResultExtractor,
 )
-from pirn_agents.specializations.structured_output._retry_state import RetryState
+from pirn_agents.specializations.structured_output.retry_state import RetryState
 
 
 class RetryOnParseFailure(AgentPipeline):

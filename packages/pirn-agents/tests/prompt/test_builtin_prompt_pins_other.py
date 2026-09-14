@@ -65,16 +65,16 @@ from pirn_agents.specializations.specialized_agents._code_generator import _Code
 from pirn_agents.specializations.specialized_agents._sql_generator import _SQLGenerator
 from pirn_agents.specializations.specialized_agents.browser_agent import BrowserAgent
 from pirn_agents.specializations.specialized_agents.research_agent import ResearchAgent
-from pirn_agents.specializations.structured_output._enum_classifier_attempt import (
+from pirn_agents.specializations.structured_output.enum_classifier_attempt import (
     EnumClassifierAttempt,
 )
-from pirn_agents.specializations.structured_output._json_extractor_attempt import (
+from pirn_agents.specializations.structured_output.format_coercer import FormatCoercer
+from pirn_agents.specializations.structured_output.json_extractor_attempt import (
     JsonExtractorAttempt,
 )
-from pirn_agents.specializations.structured_output._yaml_extractor_attempt import (
+from pirn_agents.specializations.structured_output.yaml_extractor_attempt import (
     YamlExtractorAttempt,
 )
-from pirn_agents.specializations.structured_output.format_coercer import FormatCoercer
 from pirn_agents.specializations.tool_use.tool_selector import ToolSelector
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.tool_call import ToolCall

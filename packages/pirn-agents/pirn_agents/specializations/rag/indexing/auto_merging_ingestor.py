@@ -4,9 +4,9 @@ Auto-merging retrieval indexes fine-grained leaf chunks but merges them back up
 to their parent at query time when enough leaves of one parent are retrieved
 together. Ingest is structurally identical to parent-doc — this ingestor reuses
 the existing sliding-window
-:class:`~pirn_agents.specializations.document_processing._document_chunker.DocumentChunker`
+:class:`~pirn_agents.specializations.document_processing.document_chunker.DocumentChunker`
 and the shared
-:class:`~pirn_agents.specializations.rag.indexing._parent_child_indexer.ParentChildIndexer`;
+:class:`~pirn_agents.specializations.rag.indexing.parent_child_indexer.ParentChildIndexer`;
 the merge behaviour lives in :class:`AutoMergingRetriever`.
 
 References:
@@ -23,8 +23,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_chunker import DocumentChunker
-from pirn_agents.specializations.rag.indexing._parent_child_indexer import ParentChildIndexer
+from pirn_agents.specializations.document_processing.document_chunker import DocumentChunker
+from pirn_agents.specializations.rag.indexing.parent_child_indexer import ParentChildIndexer
 
 
 class AutoMergingIngestor(AgentPipeline):

@@ -17,19 +17,19 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.rag._decide_follow_up import DecideFollowUp
-from pirn_agents.specializations.rag._flare_loop import FlareLoop
-from pirn_agents.specializations.rag._flare_regenerate_prompt_builder import (
-    FlareRegeneratePromptBuilder,
-)
-from pirn_agents.specializations.rag._follow_up_decision import FollowUpDecision
 from pirn_agents.specializations.rag.adaptive_rag_pipeline import AdaptiveRAGPipeline
 from pirn_agents.specializations.rag.contextual_chunk_enricher import ContextualChunkEnricher
 from pirn_agents.specializations.rag.contextual_compressor import ContextualCompressor
+from pirn_agents.specializations.rag.decide_follow_up import DecideFollowUp
 from pirn_agents.specializations.rag.draft_verifier import DraftVerifier
+from pirn_agents.specializations.rag.flare_loop import FlareLoop
+from pirn_agents.specializations.rag.flare_regenerate_prompt_builder import (
+    FlareRegeneratePromptBuilder,
+)
+from pirn_agents.specializations.rag.follow_up_decision import FollowUpDecision
 from pirn_agents.specializations.rag.graph_rag_pipeline import GraphRAGPipeline
 from pirn_agents.specializations.rag.hyde_rag_pipeline import HyDERAGPipeline
-from pirn_agents.specializations.rag.indexing._raptor_summary import RaptorSummary
+from pirn_agents.specializations.rag.indexing.raptor_summary import RaptorSummary
 from pirn_agents.specializations.rag.multi_hop_rag_pipeline import MultiHopRAGPipeline
 from pirn_agents.specializations.rag.multi_query_expander import MultiQueryExpander
 from pirn_agents.specializations.rag.query_route_classifier import QueryRouteClassifier

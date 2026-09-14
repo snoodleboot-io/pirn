@@ -10,7 +10,7 @@ context disambiguates pronouns, dates, and entities. This is an ingest-time knot
 
 The per-chunk enrichment is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each chunk becomes its own
-:class:`~pirn_agents.specializations.rag._chunk_enricher.ChunkEnricher`
+:class:`~pirn_agents.specializations.rag.chunk_enricher.ChunkEnricher`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded back into the enriched list (preserving input order) with a
 :class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the per-chunk
@@ -46,8 +46,8 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._chunk_enricher import ChunkEnricher
-from pirn_agents.specializations.rag._pass_through_enriched import PassThroughEnriched
+from pirn_agents.specializations.rag.chunk_enricher import ChunkEnricher
+from pirn_agents.specializations.rag.pass_through_enriched import PassThroughEnriched
 
 
 class ContextualChunkEnricher(AgentPipeline):

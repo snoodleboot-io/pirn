@@ -10,7 +10,7 @@ de-duplicated by identity and returned in fused-score order, each carrying its
 
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather`` over a semaphore: each query variant becomes its own
-:class:`~pirn_agents.specializations.rag._variant_search.VariantSearch`
+:class:`~pirn_agents.specializations.rag.variant_search.VariantSearch`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded into the fused ranking with a :class:`~pirn.nodes.reduce_.Reduce`. The
 engine schedules the per-variant searches concurrently — every ready sibling
@@ -61,8 +61,8 @@ from pirn.nodes.reduce_ import Reduce
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._fuse_variant_hits import FuseVariantHits
-from pirn_agents.specializations.rag._variant_search import VariantSearch
+from pirn_agents.specializations.rag.fuse_variant_hits import FuseVariantHits
+from pirn_agents.specializations.rag.variant_search import VariantSearch
 
 
 class FusionRetriever(AgentPipeline, Retriever):

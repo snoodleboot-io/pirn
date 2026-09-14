@@ -7,10 +7,10 @@ Algorithm:
        ``arguments``, and the ``confidences`` mapping.
     2. Validate types at process time.
     3. Drive the candidates with a
-       :class:`~pirn_agents.specializations.routing._fallback_loop.FallbackLoop`
+       :class:`~pirn_agents.specializations.routing.fallback_loop.FallbackLoop`
        (``LoopSubTapestry``, ADR agents-speaks-core WS5b): each candidate is
        one real, individually-traceable
-       :class:`~pirn_agents.specializations.routing._candidate_attempt.CandidateAttempt`
+       :class:`~pirn_agents.specializations.routing.candidate_attempt.CandidateAttempt`
        invocation, skipping the call (no ``ToolInvocation``) when its
        confidence is below its ``min_confidence`` floor, or invoking the
        candidate's tool and folding the outcome in; once a candidate
@@ -40,9 +40,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.routing._fallback_chain_result import FallbackChainResult
-from pirn_agents.specializations.routing._fallback_chain_state import FallbackChainState
-from pirn_agents.specializations.routing._fallback_loop import FallbackLoop
+from pirn_agents.specializations.routing.fallback_chain_result import FallbackChainResult
+from pirn_agents.specializations.routing.fallback_chain_state import FallbackChainState
+from pirn_agents.specializations.routing.fallback_loop import FallbackLoop
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 

@@ -20,7 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from pirn_agents.specializations.structured_output._extraction_tool import ExtractionTool
+from pirn_agents.specializations.structured_output.extraction_tool import ExtractionTool
 from pirn_agents.specializations.structured_output.structured_decode_error import (
     StructuredDecodeError,
 )

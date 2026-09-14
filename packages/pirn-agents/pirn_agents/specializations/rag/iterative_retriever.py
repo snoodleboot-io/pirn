@@ -8,7 +8,7 @@ and retrieves again. The loop is hard-bounded by ``max_iterations`` so it always
 terminates, and accumulated hits are deduplicated across rounds.
 
 The loop is expressed as an :class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
-(see :class:`~pirn_agents.specializations.rag._iterative_retrieval_loop.IterativeRetrievalLoop`)
+(see :class:`~pirn_agents.specializations.rag.iterative_retrieval_loop.IterativeRetrievalLoop`)
 rather than a hand-rolled ``for iteration in range(max_iterations)`` that
 awaited ``memory.search`` and ``llm.chat`` directly: each round becomes its own
 iteration tapestry with a ``RetrievalRound`` knot, a ``MergeHits``
@@ -46,9 +46,9 @@ from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._iterative_retrieval_loop import IterativeRetrievalLoop
-from pirn_agents.specializations.rag._iterative_retrieval_result import IterativeRetrievalResult
-from pirn_agents.specializations.rag._iterative_retrieval_state import IterativeRetrievalState
+from pirn_agents.specializations.rag.iterative_retrieval_loop import IterativeRetrievalLoop
+from pirn_agents.specializations.rag.iterative_retrieval_result import IterativeRetrievalResult
+from pirn_agents.specializations.rag.iterative_retrieval_state import IterativeRetrievalState
 
 
 class IterativeRetriever(AgentPipeline, Retriever):

@@ -24,7 +24,7 @@ the spend cap.
 ``tiers`` is a resolved value known in full by the time ``process()`` runs, so
 its length is not data-dependent (unlike an agentic loop), but the chain is
 still driven by a
-:class:`~pirn_agents.specializations.routing._cascade_loop.CascadeLoop`
+:class:`~pirn_agents.specializations.routing.cascade_loop.CascadeLoop`
 (``LoopSubTapestry``) rather than a static unroll (ADR agents-speaks-core
 WS5b): once a tier is accepted, or the spend cap forces a downshift, the
 state is ``locked`` and the loop stops, so a tier past that point is never
@@ -46,9 +46,9 @@ from pirn.core.parameter import Parameter
 from pirn_agents.interfaces.router import Router
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.routing._cascade_chain_state import CascadeChainState
-from pirn_agents.specializations.routing._cascade_loop import CascadeLoop
-from pirn_agents.specializations.routing._cascade_result import CascadeResult
+from pirn_agents.specializations.routing.cascade_chain_state import CascadeChainState
+from pirn_agents.specializations.routing.cascade_loop import CascadeLoop
+from pirn_agents.specializations.routing.cascade_result import CascadeResult
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 

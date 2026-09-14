@@ -7,7 +7,7 @@ import types
 import unittest
 from unittest import mock
 
-from pirn_agents.specializations.structured_output import _grammar_backend
+from pirn_agents.specializations.structured_output.grammar_backend import GrammarBackend
 
 
 class TestGrammarBackend(unittest.TestCase):
@@ -15,7 +15,7 @@ class TestGrammarBackend(unittest.TestCase):
         # CI installs the ``grammar`` extra, so absence must be simulated.
         with mock.patch.dict(sys.modules, {"outlines": None}):
             with self.assertRaises(ImportError) as ctx:
-                _grammar_backend.GrammarBackend.compile({"json_schema": {"type": "object"}})
+                GrammarBackend.compile({"json_schema": {"type": "object"}})
 
         assert 'pip install "pirn-agents[grammar]"' in str(ctx.exception)
 
@@ -24,7 +24,7 @@ class TestGrammarBackend(unittest.TestCase):
         constraint = {"json_schema": {"type": "object"}, "regex": "^a$"}
 
         with mock.patch.dict(sys.modules, {"outlines": fake_outlines}):
-            record = _grammar_backend.GrammarBackend.compile(constraint)
+            record = GrammarBackend.compile(constraint)
 
         assert record["backend"] == "outlines"
         assert record["constraint"] == constraint
