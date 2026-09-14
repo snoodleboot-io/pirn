@@ -20,7 +20,9 @@ class SplitManifest(PirnOpaqueValue):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "train": self.train._pirn_audit_dict(),
-            "validation": (None if self.validation is None else self.validation._pirn_audit_dict()),
-            "test": self.test._pirn_audit_dict(),
+            "train": self.train._pirn_audit_dict(),  # pyright: ignore[reportPrivateUsage]  # composes the nested value's own audit form
+            "validation": (
+                None if self.validation is None else self.validation._pirn_audit_dict()  # pyright: ignore[reportPrivateUsage]  # composes the nested value's own audit form
+            ),
+            "test": self.test._pirn_audit_dict(),  # pyright: ignore[reportPrivateUsage]  # composes the nested value's own audit form
         }

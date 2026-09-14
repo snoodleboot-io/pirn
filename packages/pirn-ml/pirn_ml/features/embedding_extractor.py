@@ -73,9 +73,9 @@ class EmbeddingExtractor(Knot):
             ValueError: If text_column is empty.
             TypeError: If embedding_provider is not an MLEmbeddingProvider.
         """
-        if not isinstance(text_column, str) or not text_column:
+        if not isinstance(text_column, str) or not text_column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("EmbeddingExtractor: text_column must be a non-empty string")
-        if not isinstance(embedding_provider, MLEmbeddingProvider):
+        if not isinstance(embedding_provider, MLEmbeddingProvider):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("EmbeddingExtractor: embedding_provider must be an MLEmbeddingProvider")
         # Touch the provider so misconfigured providers fail loudly at
         # planning time. We embed the column name as a single probe text

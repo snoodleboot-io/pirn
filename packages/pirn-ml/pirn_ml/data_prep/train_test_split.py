@@ -1,3 +1,5 @@
+# Runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md).
+# pyright: reportUnnecessaryIsInstance=false
 """``TrainTestSplit`` — partition an :class:`DatasetManifest` into train / val / test
 references.
 

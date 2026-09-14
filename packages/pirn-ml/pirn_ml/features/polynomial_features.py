@@ -68,9 +68,9 @@ class PolynomialFeatures(Knot):
         if not column_tuple:
             raise ValueError("PolynomialFeatures: columns must be non-empty")
         for column in column_tuple:
-            if not isinstance(column, str) or not column:
+            if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
                 raise ValueError("PolynomialFeatures: every column name must be a non-empty string")
-        if not isinstance(degree, int):
+        if not isinstance(degree, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("PolynomialFeatures: degree must be an int")
         if degree < 2:
             raise ValueError("PolynomialFeatures: degree must be >= 2")

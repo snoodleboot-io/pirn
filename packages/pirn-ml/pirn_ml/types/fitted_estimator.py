@@ -15,5 +15,5 @@ class FittedEstimator(PirnOpaqueValue):
     estimator: Any
     algorithm: str = ""
 
-    def _pirn_audit_dict(self) -> dict:
+    def _pirn_audit_dict(self) -> dict[str, Any]:
         return {"algorithm": self.algorithm}

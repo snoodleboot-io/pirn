@@ -71,11 +71,11 @@ class CrossValidator(Knot):
         """
         if isinstance(dataset, DatasetPayload):
             dataset = dataset.manifest
-        if not isinstance(k, int):
+        if not isinstance(k, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("CrossValidator: k must be an int")
         if k < 2:
             raise ValueError("CrossValidator: k must be >= 2")
-        if not isinstance(random_seed, int):
+        if not isinstance(random_seed, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("CrossValidator: random_seed must be an int")
         total = int(dataset.row_count)
         if total < k:

@@ -74,9 +74,9 @@ class ImageEmbeddingExtractor(Knot):
             ValueError: If image_column is empty.
             TypeError: If image_encoder is not an ImageEncoderProvider.
         """
-        if not isinstance(image_column, str) or not image_column:
+        if not isinstance(image_column, str) or not image_column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("ImageEmbeddingExtractor: image_column must be a non-empty string")
-        if not isinstance(image_encoder, ImageEncoderProvider):
+        if not isinstance(image_encoder, ImageEncoderProvider):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 "ImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )

@@ -82,7 +82,7 @@ class Imputer(Knot):
         if not column_tuple:
             raise ValueError("Imputer: columns must be non-empty")
         for column in column_tuple:
-            if not isinstance(column, str) or not column:
+            if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
                 raise ValueError("Imputer: every column name must be a non-empty string")
         if method not in self.valid_methods:
             raise ValueError(f"Imputer: method must be one of {sorted(self.valid_methods)}")

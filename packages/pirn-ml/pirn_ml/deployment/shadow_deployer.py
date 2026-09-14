@@ -60,7 +60,7 @@ class ShadowDeployer(Knot):
         Raises:
             TypeError: If model does not resolve to a ModelManifest.
         """
-        if not isinstance(model, ModelManifest):
+        if not isinstance(model, ModelManifest):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("ShadowDeployer: model must resolve to a ModelManifest")
         deployed_at = datetime.now(UTC)
         deployment_id = self._derive_deployment_id(model, deployed_at)

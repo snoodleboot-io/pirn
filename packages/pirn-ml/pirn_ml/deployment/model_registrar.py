@@ -71,9 +71,9 @@ class ModelRegistrar(Knot):
         Raises:
             TypeError: If serialized is not bytes or model is not a ModelManifest.
         """
-        if not isinstance(serialized, (bytes, bytearray)):
+        if not isinstance(serialized, (bytes, bytearray)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("ModelRegistrar: serialized must resolve to bytes")
-        if not isinstance(model, ModelManifest):
+        if not isinstance(model, ModelManifest):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("ModelRegistrar: model must resolve to a ModelManifest")
         if store is None:
             raise TypeError("ModelRegistrar: store must be an ObjectStore")

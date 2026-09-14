@@ -66,7 +66,7 @@ class DataSplitObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`DataSplitPayload`.
         """
-        if not isinstance(payload, DataSplitPayload):
+        if not isinstance(payload, DataSplitPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"DataSplitObjectStoreDisassembler: payload must be DataSplitPayload, "
                 f"got {type(payload).__name__}"

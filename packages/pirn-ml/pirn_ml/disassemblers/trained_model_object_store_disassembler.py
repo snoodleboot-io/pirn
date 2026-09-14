@@ -64,7 +64,7 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`TrainedModelPayload`.
         """
-        if not isinstance(payload, TrainedModelPayload):
+        if not isinstance(payload, TrainedModelPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"TrainedModelObjectStoreDisassembler: payload must be TrainedModelPayload, "
                 f"got {type(payload).__name__}"
@@ -74,7 +74,7 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
     @staticmethod
     def _load_joblib() -> Any:
         try:
-            import joblib
+            import joblib  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
                 "TrainedModelObjectStoreDisassembler requires joblib. "
