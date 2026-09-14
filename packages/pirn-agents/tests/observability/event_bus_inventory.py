@@ -1,22 +1,17 @@
 """``EventBusInventory`` — find every module in ``pirn_agents`` that imports a
-name from the deprecated Tracer/Span observability plane.
+name from the deleted Tracer/Span observability plane.
 
-Shared by ``test_event_bus_ratchet.py`` (the frozen allowlist, asserted by
-exact equality) the same way ``bypass_inventory.py`` is shared by
-``test_no_engine_bypass.py``: one walk, one answer, so the ratchet only has to
-compare that answer against what it froze.
+Shared by ``test_event_bus_ratchet.py`` the same way ``bypass_inventory.py`` is
+shared by ``test_no_engine_bypass.py``: one walk, one answer, which the guard
+asserts is empty.
 
-ADR "agents speaks core" (PIR-856, WS4a) replaces this plane —
-:class:`~pirn_agents.observability.tracer.Tracer` opening
-:class:`~pirn_agents.observability.span.Span`\\ s against a pluggable
-:class:`~pirn_agents.observability.observability_sink.ObservabilitySink`, none
+ADR "agents speaks core" (PIR-856, WS4a) replaced this plane —
+``Tracer`` opening ``Span``\\ s against a pluggable ``ObservabilitySink``, none
 of which carried a ``run_id``/``knot_id`` core could correlate against its own
 lineage — with :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`,
-which emits a core ``StatusEvent`` through the run's own emitters. The old
-names stay importable for one deprecation cycle (thin, warning shims); this
-ratchet is what proves nothing *new* starts depending on them while that
-cycle runs, and tracks the existing (self-referential, inside
-``observability/`` itself) usage shrinking to nothing before they are deleted.
+which emits a core ``StatusEvent`` through the run's own emitters. PIR-864
+deleted every name of the old plane; this inventory is what proves none of
+them comes back.
 
 The scan is a pure AST import-statement walk, not a runtime import — unlike
 ``BypassInventory`` (which needs ``issubclass`` to find every ``Knot``), the
@@ -35,9 +30,9 @@ from pathlib import Path
 
 import pirn_agents
 
-#: Names that identify the deprecated "second event bus". Importing any of
-#: these from ``pirn_agents.observability.*`` is what this ratchet freezes.
-DEPRECATED_NAMES = frozenset(
+#: The names of the deleted "second event bus". Importing any of these from
+#: ``pirn_agents.observability.*`` is what the guard refuses.
+DELETED_NAMES = frozenset(
     {
         "Tracer",
         "Span",
@@ -53,33 +48,30 @@ DEPRECATED_NAMES = frozenset(
 
 
 class EventBusInventory:
-    """Discovers every module importing a deprecated observability name."""
+    """Discovers every module importing a deleted observability name."""
 
     @staticmethod
     def discover_modules() -> dict[str, frozenset[str]]:
         """Return ``{"relative/path.py": frozenset(names imported)}``.
 
-        Walks every ``.py`` file under ``pirn_agents`` (source, not tests —
-        the deprecation cycle explicitly keeps the old names usable, and
-        the package's own tests for them are expected to still import them
-        until they are deleted) and records which deprecated names, if any,
-        each module imports from ``pirn_agents.observability.*``. A plain
-        AST walk over every file, not a runtime import — the question this
-        answers ("does this module import name X from ``pirn_agents.
-        observability.*``?") is fully answered by the import statement
-        itself.
+        Walks every ``.py`` file under ``pirn_agents`` (source, not tests) and
+        records which deleted names, if any, each module imports from
+        ``pirn_agents.observability.*``. A plain AST walk over every file, not
+        a runtime import — the question this answers ("does this module import
+        name X from ``pirn_agents.observability.*``?") is fully answered by the
+        import statement itself.
         """
         root = Path(pirn_agents.__path__[0])
         found: dict[str, frozenset[str]] = {}
         for path in sorted(root.rglob("*.py")):
-            hit = EventBusInventory._imported_deprecated_names(path)
+            hit = EventBusInventory._imported_deleted_names(path)
             if hit:
                 found[str(path.relative_to(root))] = hit
         return found
 
     @staticmethod
-    def _imported_deprecated_names(path: Path) -> frozenset[str]:
-        """Return the deprecated names ``path`` imports from ``observability.*``."""
+    def _imported_deleted_names(path: Path) -> frozenset[str]:
+        """Return the deleted names ``path`` imports from ``observability.*``."""
         tree = ast.parse(path.read_text())
         hit: set[str] = set()
         for node in ast.walk(tree):
@@ -91,6 +83,6 @@ class EventBusInventory:
             ):
                 continue
             for alias in node.names:
-                if alias.name in DEPRECATED_NAMES:
+                if alias.name in DELETED_NAMES:
                     hit.add(alias.name)
         return frozenset(hit)
