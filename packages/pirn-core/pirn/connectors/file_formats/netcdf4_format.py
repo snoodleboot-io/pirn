@@ -24,14 +24,15 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class Netcdf4Format(BatchFileFormat):
@@ -88,6 +89,8 @@ class Netcdf4Format(BatchFileFormat):
         group_path: str,
         records: list[Mapping[str, Any]],
     ) -> None:
+        import numpy as np
+
         for var_name, var in group.variables.items():
             data_array = var[:]
             if hasattr(data_array, "filled"):
@@ -124,6 +127,8 @@ class Netcdf4Format(BatchFileFormat):
 
     @classmethod
     def _write_record(cls, ds: Any, record: Mapping[str, Any]) -> None:
+        import numpy as np
+
         group_path = record.get("group_path", "/")
         var_name = record["variable_name"]
         dimensions: list[str] = list(record.get("dimensions") or [])

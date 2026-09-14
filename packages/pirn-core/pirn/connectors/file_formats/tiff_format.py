@@ -32,15 +32,15 @@ from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
-from typing import Any
-
-import numpy as np
-from numpy.typing import NDArray
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 class TiffFormat(BatchFileFormat):
@@ -121,6 +121,8 @@ class TiffFormat(BatchFileFormat):
 
     @staticmethod
     def _record_to_array(record: Mapping[str, Any]) -> NDArray[Any]:
+        import numpy as np
+
         for field in ("width", "height", "mode", "data", "dtype"):
             if field not in record:
                 raise ValueError(

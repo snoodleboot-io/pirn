@@ -20,16 +20,17 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
-
-import numpy as np
-from numpy.typing import NDArray
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
 
 
 class ZarrFormat(BatchFileFormat):
@@ -170,6 +171,8 @@ class ZarrFormat(BatchFileFormat):
                 os.remove(tmp_path)
 
     def _records_to_structured_array(self, records: list[dict[str, Any]]) -> NDArray[Any]:
+        import numpy as np
+
         field_order = self._derive_field_order(records)
         dtype_fields: list[tuple[str, Any]] = []
         for field in field_order:
@@ -202,6 +205,8 @@ class ZarrFormat(BatchFileFormat):
         records: list[dict[str, Any]],
         field: str,
     ) -> type[np.generic] | str:
+        import numpy as np
+
         if isinstance(sample_value, bool):
             return np.bool_
         if isinstance(sample_value, int):

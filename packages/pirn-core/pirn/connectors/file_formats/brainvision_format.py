@@ -39,15 +39,16 @@ import zipfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from types import ModuleType
-from typing import Any, ClassVar
-
-import numpy as np
-from numpy.typing import NDArray
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
 
 
 class BrainVisionFormat(BatchFileFormat):
@@ -84,6 +85,8 @@ class BrainVisionFormat(BatchFileFormat):
 
     @classmethod
     def _decode_with_mne(cls, mne: ModuleType, bundle: dict[str, bytes]) -> list[Mapping[str, Any]]:
+        import numpy as np
+
         with tempfile.TemporaryDirectory() as tmpdir:
             base = Path(tmpdir) / "recording"
             vhdr_path = base.with_suffix(".vhdr")
@@ -124,6 +127,8 @@ class BrainVisionFormat(BatchFileFormat):
     @classmethod
     def _decode_fallback(cls, bundle: dict[str, bytes]) -> list[Mapping[str, Any]]:
         """Pure-Python BrainVision decoder (no mne required)."""
+        import numpy as np
+
         vhdr_text = bundle.get("recording.vhdr", b"").decode("utf-8", errors="replace")
         eeg_bytes = bundle.get("recording.eeg", b"")
 
@@ -189,6 +194,8 @@ class BrainVisionFormat(BatchFileFormat):
     # ------------------------------------------------------------------
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError(

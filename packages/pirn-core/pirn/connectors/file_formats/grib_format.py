@@ -27,14 +27,15 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class GribFormat(BatchFileFormat):
@@ -88,6 +89,8 @@ class GribFormat(BatchFileFormat):
 
     @staticmethod
     def _extract_message(msg: Any, eccodes: Any) -> dict[str, Any]:
+        import numpy as np
+
         short_name = str(GribFormat._get_grib_key(msg, eccodes, "shortName", ""))
         name = str(GribFormat._get_grib_key(msg, eccodes, "name", ""))
         type_of_level = str(GribFormat._get_grib_key(msg, eccodes, "typeOfLevel", ""))

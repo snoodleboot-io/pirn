@@ -27,15 +27,16 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping
-from typing import Any, SupportsFloat, SupportsIndex
-
-import numpy as np
+from typing import TYPE_CHECKING, Any, SupportsFloat, SupportsIndex
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class GeotiffFormat(BatchFileFormat):
@@ -76,6 +77,8 @@ class GeotiffFormat(BatchFileFormat):
                 pass
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         rasterio = OptionalDependency.require("rasterio", extra="geotiff")
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:

@@ -19,14 +19,15 @@ from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class LasFormat(BatchFileFormat):
@@ -67,6 +68,8 @@ class LasFormat(BatchFileFormat):
         return [record]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         lasio = OptionalDependency.require("lasio", extra="oilgas", package="pirn-oilgas")
         materialised = [dict(r) for r in records]
         if not materialised:

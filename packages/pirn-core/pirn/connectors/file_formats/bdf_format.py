@@ -32,14 +32,15 @@ import tempfile
 import warnings
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import Any, ClassVar
-
-import numpy as np
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class BdfFormat(BatchFileFormat):
@@ -76,6 +77,8 @@ class BdfFormat(BatchFileFormat):
         return "bdf"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
+        import numpy as np
+
         pyedflib = OptionalDependency.require("pyedflib", extra="health", package="pirn-health")
         with tempfile.NamedTemporaryFile(suffix=".bdf", delete=False) as tmp:
             tmp_path = tmp.name
@@ -101,6 +104,8 @@ class BdfFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         pyedflib = OptionalDependency.require("pyedflib", extra="health", package="pirn-health")
         materialised = [dict(r) for r in records]
         if not materialised:

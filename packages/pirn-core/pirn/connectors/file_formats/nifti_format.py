@@ -23,14 +23,15 @@ from __future__ import annotations
 import tempfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class NiftiFormat(BatchFileFormat):
@@ -57,6 +58,8 @@ class NiftiFormat(BatchFileFormat):
         return [record]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         nib = OptionalDependency.require("nibabel", extra="health", package="pirn-health")
         materialised = list(records)
         if not materialised:

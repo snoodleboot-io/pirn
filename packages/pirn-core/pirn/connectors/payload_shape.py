@@ -11,11 +11,12 @@ extractors used by the SaaS and BI / catalog clients.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterable, Mapping
-from typing import Any, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeGuard
 
-import numpy as np
-import numpy.typing as npt
+if TYPE_CHECKING:
+    import numpy.typing as npt
 
 
 class PayloadShape:
@@ -71,7 +72,13 @@ class PayloadShape:
     @staticmethod
     def is_ndarray(value: object) -> TypeGuard[npt.NDArray[Any]]:
         """Return whether ``value`` is a numpy ``ndarray``."""
-        return isinstance(value, np.ndarray)
+        # numpy stays a lazy dependency (install-isolation gate): a value cannot be
+        # an ndarray unless numpy has already been imported by whoever built it.
+        numpy_module = sys.modules.get("numpy")
+        if numpy_module is None:
+            return False
+        ndarray_type: type[object] = numpy_module.ndarray
+        return isinstance(value, ndarray_type)
 
     @classmethod
     def rows(cls, value: object, *, source: str) -> list[Mapping[str, Any]]:

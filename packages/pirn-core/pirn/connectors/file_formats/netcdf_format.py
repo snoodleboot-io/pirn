@@ -22,16 +22,17 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
-
-import numpy as np
-import numpy.typing as npt
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
+    import numpy.typing as npt
 
 
 class NetcdfFormat(BatchFileFormat):
@@ -168,6 +169,8 @@ class NetcdfFormat(BatchFileFormat):
                 os.remove(tmp_path)
 
     def _records_to_structured_array(self, records: list[dict[str, Any]]) -> npt.NDArray[np.void]:
+        import numpy as np
+
         field_order = self._derive_field_order(records)
         dtype_fields: list[tuple[str, type[np.generic] | str]] = []
         for field in field_order:
@@ -206,6 +209,8 @@ class NetcdfFormat(BatchFileFormat):
         records: list[dict[str, Any]],
         field: str,
     ) -> type[np.generic] | str:
+        import numpy as np
+
         if isinstance(sample_value, bool):
             # NetCDF compound types do not support bool natively;
             # store as int8 (1/0). Round-trip will return ``int``.

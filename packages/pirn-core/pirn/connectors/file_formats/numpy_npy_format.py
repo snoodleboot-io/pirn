@@ -18,15 +18,16 @@ from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
-
-import numpy as np
-import numpy.typing as npt
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.payload_shape import PayloadShape
+
+if TYPE_CHECKING:
+    import numpy as np
+    import numpy.typing as npt
 
 
 class NumpyNpyFormat(BatchFileFormat):
@@ -68,6 +69,8 @@ class NumpyNpyFormat(BatchFileFormat):
         return self._field_names
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
+        import numpy as np
+
         array = np.load(io.BytesIO(payload), allow_pickle=False)
         if array.dtype.names is not None:
             return self._iter_structured(array)
@@ -98,6 +101,8 @@ class NumpyNpyFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         materialised = [dict(record) for record in records]
         if not materialised:
             raise ValueError(
@@ -112,6 +117,8 @@ class NumpyNpyFormat(BatchFileFormat):
 
     @classmethod
     def _records_to_structured_array(cls, records: list[dict[str, Any]]) -> npt.NDArray[np.void]:
+        import numpy as np
+
         field_order = cls._derive_field_order(records)
         dtype_fields: list[tuple[str, type[np.generic] | str]] = []
         for field in field_order:
@@ -155,6 +162,8 @@ class NumpyNpyFormat(BatchFileFormat):
         records: list[dict[str, Any]],
         field: str,
     ) -> type[np.generic] | str:
+        import numpy as np
+
         if isinstance(sample_value, bool):
             return np.bool_
         if isinstance(sample_value, int):

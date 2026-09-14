@@ -20,14 +20,15 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterable, Mapping
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class OggFormat(BatchFileFormat):
@@ -67,6 +68,8 @@ class OggFormat(BatchFileFormat):
         return [record]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("OggFormat: cannot encode an empty record stream")

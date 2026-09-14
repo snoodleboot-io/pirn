@@ -23,15 +23,16 @@ from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class FitsFormat(BatchFileFormat):
@@ -72,6 +73,8 @@ class FitsFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        import numpy as np
+
         fits = OptionalDependency.require("astropy.io.fits", extra="fits")
         materialised = [dict(record) for record in records]
         hdul = fits.HDUList()

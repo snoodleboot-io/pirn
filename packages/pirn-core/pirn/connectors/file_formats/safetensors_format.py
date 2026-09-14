@@ -25,16 +25,16 @@ from __future__ import annotations
 import json
 import struct
 from collections.abc import Iterable, Mapping
-from typing import Any, SupportsIndex
-
-import numpy as np
-from numpy.typing import DTypeLike, NDArray
+from typing import TYPE_CHECKING, Any, SupportsIndex
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike, NDArray
 
 
 class SafetensorsFormat(BatchFileFormat):
@@ -56,6 +56,8 @@ class SafetensorsFormat(BatchFileFormat):
         return self._include_data
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
+        import numpy as np
+
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(
                 f"SafetensorsFormat: payload must be bytes, got {type(payload).__name__}"
@@ -129,6 +131,8 @@ class SafetensorsFormat(BatchFileFormat):
 
     @staticmethod
     def _coerce_to_array(spec: Any) -> NDArray[Any]:
+        import numpy as np
+
         if hasattr(spec, "shape") and hasattr(spec, "dtype"):
             return np.ascontiguousarray(spec)
         if PayloadShape.is_mapping(spec):

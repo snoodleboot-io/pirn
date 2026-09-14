@@ -20,16 +20,17 @@ from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
-from typing import Any, ClassVar
-
-import numpy as np
-import numpy.typing as npt
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
+    import numpy.typing as npt
 
 
 class Hdf5Format(BatchFileFormat):
@@ -124,6 +125,8 @@ class Hdf5Format(BatchFileFormat):
 
     @classmethod
     def _records_to_structured_array(cls, records: list[dict[str, Any]]) -> npt.NDArray[np.void]:
+        import numpy as np
+
         field_order: list[str] = []
         seen: set[str] = set()
         for record in records:
@@ -162,6 +165,8 @@ class Hdf5Format(BatchFileFormat):
         records: list[dict[str, Any]],
         field: str,
     ) -> type[np.generic] | str:
+        import numpy as np
+
         if isinstance(sample_value, bool):
             return np.bool_
         if isinstance(sample_value, int):

@@ -23,14 +23,15 @@ import base64
 import io
 from collections.abc import Iterable, Mapping
 from types import ModuleType
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class MzmlFormat(BatchFileFormat):
@@ -69,6 +70,8 @@ class MzmlFormat(BatchFileFormat):
 
     @staticmethod
     def _spectrum_to_record(spectrum: Any) -> dict[str, Any]:
+        import numpy as np
+
         scan_number = 0
         scan_info = spectrum.get("scanList", {}).get("scan", [{}])
         if scan_info:
@@ -109,6 +112,8 @@ class MzmlFormat(BatchFileFormat):
         index: int,
         etree: ModuleType,
     ) -> None:
+        import numpy as np
+
         scan_number = record.get("scan_number", index + 1)
         ms_level = record.get("ms_level", 1)
         retention_time = record.get("retention_time", 0.0)
