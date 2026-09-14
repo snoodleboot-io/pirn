@@ -108,14 +108,19 @@ async def _observation_assembler(
     call_id: str,
     action_name: str,
     outcome: Any,
+    gated: bool = False,
 ) -> tuple[AgentMessage, ...]:
     """Terminal: turn the tool knot's ``Result`` into the step's messages.
 
     Wired with ``RECEIVE_ERRORS`` so ``outcome`` is the call's raw
     ``Ok | Err | Skipped``; the :class:`ToolResult` view renders it.
+    ``gated`` (PIR-865) is whether the tool required approval: such a call's
+    own knot has no possible parent besides its own arguments and the
+    approval gate ``ToolFactory.for_call`` wires in, so its only possible
+    ``Skipped`` cause is that gate closing.
     """
     view = (
-        ToolResult.from_result(call_id, outcome)
+        ToolResult.from_result(call_id, outcome, gated=gated)
         if isinstance(outcome, (Ok, Err, Skipped))
         else ToolResult(call_id=call_id, result=outcome)
     )
@@ -158,6 +163,7 @@ class ReActStepExecutor(AgentPipeline):
         llm: Knot | LLMProvider,
         tools: Knot | Sequence[Any],
         already_terminated: Knot | bool,
+        approval_hook: Any = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -166,6 +172,7 @@ class ReActStepExecutor(AgentPipeline):
             llm=llm,
             tools=tools,
             already_terminated=already_terminated,
+            approval_hook=approval_hook,
             _config=_config,
             **kwargs,
         )
@@ -180,6 +187,7 @@ class ReActStepExecutor(AgentPipeline):
         llm: LLMProvider,
         tools: Sequence[ToolFactory],
         already_terminated: bool,
+        approval_hook: Any = None,
         **_: Any,
     ) -> Knot:
         """Emit a thought, optionally wire a tool call, and return the step's sink knot.
@@ -190,6 +198,9 @@ class ReActStepExecutor(AgentPipeline):
             tools: The capabilities available for this step.
             already_terminated: Whether an earlier step has already signalled termination.
                 When true this step is a no-op and no LLM call is made.
+            approval_hook: The approval hook to consult when the selected tool
+                requires approval (PIR-865); see
+                :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`.
 
         Returns:
             The sink of the inner pipeline. Its output — a tuple of new
@@ -244,7 +255,7 @@ class ReActStepExecutor(AgentPipeline):
             )
         call = ToolCall(tool_name=action_name, arguments={"input": action_input}, call_id=call_id)
         try:
-            call_knot: Knot = factory.for_call(call)
+            call_knot: Knot = factory.for_call(call, approval_hook=approval_hook)
         except ToolArgumentValidationError as exc:
             call_knot = ToolCallRejection(
                 call=call, error=exc, _config=KnotConfig(id=ToolFactory.knot_id_for(call_id))
@@ -255,6 +266,7 @@ class ReActStepExecutor(AgentPipeline):
             call_id=call_id,
             action_name=action_name,
             outcome=call_knot,
+            gated=factory.requires_approval(),
             _config=KnotConfig(id="assemble", error_policy=ErrorPolicy.RECEIVE_ERRORS),
         )
 

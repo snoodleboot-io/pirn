@@ -134,6 +134,36 @@ for one cycle as a deprecated *view* of a call's `Result`
 
 ## Security notes
 
+### Human approval (`ToolPermissions.approval_required`)
+
+A capability whose `permissions = ToolPermissions(approval_required=True)`
+needs a human (or a policy engine) to approve each call before it runs:
+
+```python
+from pirn_agents.agent.approval_hook import ApprovalHook
+
+class SlackPrompt(ApprovalHook):
+    async def request_approval(self, *, tool_name: str, arguments: Mapping[str, Any]) -> bool:
+        return await ask_a_human(tool_name, arguments)   # your policy/UI here
+
+# any of the six call sites accepts approval_hook=...
+factory.for_call(call, approval_hook=SlackPrompt())
+```
+
+`ToolFactory.for_call` (and therefore `ToolInvocation`, `ParallelToolExecutor`,
+`ParallelToolCaller`, `ToolChain`, `ReActStepExecutor` — every place a tool
+knot is constructed for a call) wires a
+`pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`)
+behind a core `Gate` in front of the call whenever the capability requires
+approval; an unrestricted capability is never gated at all, so this costs
+nothing when unused. **A denial is a core `Skipped`, not an error:** the
+tool's own `process()` is never invoked, and the `ToolResult` view a caller
+or the model reads back has `status = ToolStatus.SKIPPED` and
+`error = "call skipped: approval denied"` — the model is told the call was
+skipped, not that it failed. Passing no `approval_hook` uses the base
+`ApprovalHook`, which auto-approves — the zero-cost default until a human-
+in-the-loop surface is wired in.
+
 ### Filesystem
 All paths resolve against the bound `root`; absolute paths, `..` traversal, and
 symlink components are rejected, and reads/listings/globs are capped. Symlinks that

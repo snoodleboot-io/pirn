@@ -175,6 +175,24 @@ class ToResultTests(unittest.TestCase):
         assert isinstance(wrapped, Err)
         assert "timeout" in wrapped.record.message
 
+    def test_skipped_status_round_trips_to_a_core_skipped(self) -> None:
+        """PIR-865: a skipped call is a core ``Skipped``, not a fabricated ``Err``."""
+        result = ToolResult(
+            call_id="c1",
+            result=None,
+            status=ToolStatus.SKIPPED,
+            error="call skipped: approval denied",
+        )
+        wrapped = result.to_result()
+        assert isinstance(wrapped, Skipped)
+        assert wrapped.reason == "call skipped: approval denied"
+
+    def test_skipped_status_with_no_error_falls_back_to_a_generic_reason(self) -> None:
+        result = ToolResult(call_id="c1", result=None, status=ToolStatus.SKIPPED)
+        wrapped = result.to_result()
+        assert isinstance(wrapped, Skipped)
+        assert wrapped.reason == "skipped"
+
 
 class FromResultTests(unittest.TestCase):
     def test_ok_of_a_tool_result_round_trips_unchanged(self) -> None:
@@ -198,12 +216,27 @@ class FromResultTests(unittest.TestCase):
         assert rebuilt.exception is record
         assert rebuilt.error == "RuntimeError: boom"
 
-    def test_skipped_becomes_an_error_result_naming_the_reason(self) -> None:
-        """ToolStatus has no "not run" member; a skip is reported as its own error."""
+    def test_skipped_becomes_a_skipped_result_naming_the_reason(self) -> None:
+        """PIR-865: a skip is reported as SKIPPED, not fabricated into an ERROR."""
         rebuilt = ToolResult.from_result("c1", Skipped(reason="upstream not selected"))
-        assert rebuilt.status is ToolStatus.ERROR
+        assert rebuilt.status is ToolStatus.SKIPPED
         assert rebuilt.error is not None
         assert "upstream not selected" in rebuilt.error
+        assert rebuilt.error.startswith("call skipped:")
+
+    def test_gated_skipped_names_approval_denied_over_the_raw_reason(self) -> None:
+        """A gated call's Skipped can only be its approval gate closing (PIR-865)."""
+        rebuilt = ToolResult.from_result(
+            "c1", Skipped(reason="parent_failed_or_skipped"), gated=True
+        )
+        assert rebuilt.status is ToolStatus.SKIPPED
+        assert rebuilt.error == "call skipped: approval denied"
+
+    def test_ungated_skipped_keeps_the_engines_own_reason(self) -> None:
+        rebuilt = ToolResult.from_result(
+            "c1", Skipped(reason="parent_failed_or_skipped"), gated=False
+        )
+        assert rebuilt.error == "call skipped: parent_failed_or_skipped"
 
     def test_rejects_a_non_result(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be Ok, Err, or Skipped"):

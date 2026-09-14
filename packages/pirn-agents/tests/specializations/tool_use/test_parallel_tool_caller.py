@@ -15,17 +15,28 @@ pattern PIR-733 established for the single-call case).
 from __future__ import annotations
 
 import unittest
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.specializations.tool_use.parallel_tool_caller import (
     ParallelToolCaller,
 )
+from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 from tests.specializations.conftest import StubTool
+
+
+class _DenyHook(ApprovalHook):
+    async def request_approval(self, *, tool_name: str, arguments: Mapping[str, Any]) -> bool:
+        return False
 
 
 class TestParallelToolCallerProcess(unittest.IsolatedAsyncioTestCase):
@@ -154,3 +165,42 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
         children = await t.history.children_of(result.run_id)
         inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
         assert "c1" in inner_knot_ids, inner_knot_ids
+
+
+class TestParallelToolCallerApproval(unittest.IsolatedAsyncioTestCase):
+    """PIR-865: a gated call denies as ``Skipped``, not an ``Err``."""
+
+    async def test_approved_gated_call_runs_normally(self) -> None:
+        danger = KitStubTool(
+            name="danger", permissions=ToolPermissions(approval_required=True), result="ran"
+        )
+        calls = [ToolCall(tool_name="danger", arguments={"input": "x"}, call_id="c1")]
+        with Tapestry() as t:
+            ParallelToolCaller(
+                tool_calls=calls,
+                tools=[danger],
+                approval_hook=None,
+                _config=KnotConfig(id="par"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        view = result.outputs["par"][0]
+        assert view.status is ToolStatus.OK
+        assert view.result == "ran"
+
+    async def test_denied_gated_call_is_skipped_not_an_error(self) -> None:
+        danger = KitStubTool(name="danger", permissions=ToolPermissions(approval_required=True))
+        calls = [ToolCall(tool_name="danger", arguments={"input": "x"}, call_id="c1")]
+        with Tapestry() as t:
+            ParallelToolCaller(
+                tool_calls=calls,
+                tools=[danger],
+                approval_hook=_DenyHook(),
+                _config=KnotConfig(id="par"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        view = result.outputs["par"][0]
+        assert view.status is ToolStatus.SKIPPED
+        assert view.error == "call skipped: approval denied"
+        assert danger.invocations == []

@@ -64,6 +64,7 @@ from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.result import Result
+from pirn.nodes.gate.gate import Gate
 from pydantic import (
     GetCoreSchemaHandler,
     PydanticSchemaGenerationError,
@@ -613,6 +614,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         timeout: float | None = None,
         retry: KnotRetryPolicy | None = None,
         concurrency_group: str | None = None,
+        approval_hook: Any = None,
         tapestry: Any = None,
     ) -> Knot:
         """Construct the knot that executes *call*.
@@ -625,10 +627,24 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
             timeout: ``KnotConfig.timeout`` for the call.
             retry: ``KnotConfig.retry`` for the call.
             concurrency_group: ``KnotConfig.concurrency_group`` for the call.
+            approval_hook: The
+                :class:`~pirn_agents.agent.approval_hook.ApprovalHook` to
+                consult when this capability's permissions require approval
+                (PIR-865); ``None`` uses the auto-approving default. Ignored
+                for a capability that does not require approval. Typed
+                ``Any`` for the same reason ``ParallelToolExecutor(hook=...)``
+                is: a bare, non-pydantic class core's eager per-input
+                ``TypeAdapter`` build cannot schema.
             tapestry: Explicit tapestry to register with, as for any knot.
 
         Returns:
-            One call, registered in the active (or given) tapestry.
+            One call, registered in the active (or given) tapestry. When the
+            capability requires approval, a
+            :class:`~pirn_agents.agent.tool_approval_check.ToolApprovalCheck`
+            behind a core ``Gate`` is wired in front of it (see
+            :meth:`_approval_gate`), so a denied call's own outcome is a core
+            ``Skipped`` — the tool's ``process()`` is never called — instead
+            of the call raising.
 
         Raises:
             ToolArgumentValidationError: If the arguments do not satisfy the
@@ -638,34 +654,124 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         detail = self.validate_arguments(arguments)
         if detail:
             raise ToolArgumentValidationError(self.name, detail, call.call_id)
+        resolved_id = knot_id if knot_id is not None else self.knot_id_for(call.call_id)
         config = KnotConfig(
-            id=knot_id if knot_id is not None else self.knot_id_for(call.call_id),
-            timeout=timeout,
-            retry=retry,
-            concurrency_group=concurrency_group,
+            id=resolved_id, timeout=timeout, retry=retry, concurrency_group=concurrency_group
         )
+        gate = (
+            self._approval_gate(resolved_id, arguments, approval_hook, tapestry)
+            if self.requires_approval()
+            else None
+        )
+        # An extra Knot-valued kwarg no declared input names is accepted as
+        # an *implicit* parent (Knot._validate_kwargs_against_signature) for
+        # either call shape below: a legacy packed-arguments knot's sole
+        # declared input is the schema's "arguments" object, and an ordinary
+        # tool's is whatever its own process() names, but both process()
+        # signatures end with "**_: Any" (a framework requirement for every
+        # knot), which is exactly what absorbs an implicit parent's resolved
+        # value. Passed as its own keyword rather than folded into the
+        # packed-arguments dict, so the value a capability's own process()
+        # actually reads is never touched by this wiring.
+        call_kwargs: dict[str, Any] = dict(arguments)
+        if gate is not None:
+            call_kwargs["_approval_gate"] = gate
         try:
+            if self._packs_arguments:
+                framework: dict[str, Any] = {"_config": config}
+                if tapestry is not None:
+                    framework["tapestry"] = tapestry
+                if gate is not None:
+                    framework["_approval_gate"] = gate
+                merged = {**self._defaults, **self._bound, **arguments}
+                return self.knot_class(arguments=merged, **framework)
             if tapestry is not None:
-                return self(**arguments, _config=config, tapestry=tapestry)
-            return self(**arguments, _config=config)
+                return self(**call_kwargs, _config=config, tapestry=tapestry)
+            return self(**call_kwargs, _config=config)
         except TypeError as exc:
             raise ToolArgumentValidationError(
                 self.name, {"arguments": str(exc)}, call.call_id
             ) from exc
 
-    async def run_call(self, call: ToolCall) -> Result[Any]:
-        """Construct *call* and await it directly, outside any engine.
+    def _approval_gate(
+        self,
+        knot_id: str,
+        arguments: Mapping[str, Any],
+        approval_hook: Any,
+        tapestry: Any,
+    ) -> Knot:
+        """Build the ``Gate``/``ToolApprovalCheck`` pair guarding an approval-required call.
+
+        The gate's ``input`` is a :class:`~pirn.core.parameter.Parameter`
+        carrying *arguments* — "the call's arguments knot" from the ADR — so
+        it is also what :class:`~pirn_agents.agent.tool_approval_check.ToolApprovalCheck`
+        reads. The returned gate is wired by :meth:`for_call` as an
+        *implicit* parent of the constructed call — an extra ``Knot`` kwarg
+        the call does not declare by name but that core still requires to
+        resolve, and skip-propagate from, before ``process()`` runs (an
+        extra ``Knot``-valued kwarg is accepted this way whenever
+        ``process()`` ends with ``**_: Any``, which every tool's does) — so a
+        denial reaches the call without changing any capability's own
+        declared inputs or the value its ``process()`` actually receives.
+
+        Local import: :mod:`pirn_agents.agent.tool_approval_check` imports
+        this module (:class:`ToolFactory`) already, so a module-level import
+        here would cycle.
+        """
+        from pirn_agents.agent.tool_approval_check import ToolApprovalCheck
+
+        tapestry_kwargs: dict[str, Any] = {} if tapestry is None else {"tapestry": tapestry}
+        call_arguments = Parameter(
+            f"{knot_id}:approval-args",
+            dict,
+            default=dict(arguments),
+            _config=KnotConfig(id=f"{knot_id}:approval-args"),
+            **tapestry_kwargs,
+        )
+        check = ToolApprovalCheck(
+            tool=self,
+            arguments=call_arguments,
+            hook=approval_hook,
+            _config=KnotConfig(id=f"{knot_id}:approval-check"),
+            **tapestry_kwargs,
+        )
+        return Gate(
+            input=call_arguments,
+            check=check,
+            _config=KnotConfig(id=f"{knot_id}:approval-gate"),
+            **tapestry_kwargs,
+        )
+
+    async def run_call(self, call: ToolCall, *, approval_hook: Any = None) -> Result[Any]:
+        """Construct *call* and run it, outside any enclosing engine run.
 
         For callers with no tapestry to run in — the deprecated ``invoke``
-        shim, a test.  The outcome is the knot's own ``Ok | Err | Skipped``;
-        nothing is recorded.  The knot is registered with a throwaway
-        tapestry, never the ambient one, so a caller inside another knot's
-        ``process()`` does not also wire it into that knot's inner graph.
+        shim, a test.  The knot is registered with a throwaway tapestry,
+        never the ambient one, so a caller inside another knot's ``process()``
+        does not also wire it into that knot's inner graph.
+
+        A capability that does not require approval is awaited directly —
+        ``knot({})`` — exactly as before; it has no real parent to resolve
+        (its arguments are plain config values), so nothing here changes for
+        the overwhelmingly common case. One that *does* require approval
+        (PIR-865) has a genuine parent — the
+        :meth:`_approval_gate`-built ``Gate`` — that a bare ``knot({})`` call
+        would silently never resolve (it only fills in parents a caller
+        supplies in ``parent_results``, and does not walk the graph itself);
+        such a call is run through the throwaway tapestry's own engine
+        (``Tapestry.run``) instead, so the gate is actually evaluated and a
+        denial really does skip the call rather than running it anyway.
         """
         from pirn.tapestry import Tapestry  # local: avoids an import cycle
 
-        knot = self.for_call(call, tapestry=Tapestry())
-        return await knot({})
+        tapestry = Tapestry()
+        knot = self.for_call(call, approval_hook=approval_hook, tapestry=tapestry)
+        if not self.requires_approval():
+            return await knot({})
+        from pirn_agents.tools.tool_call_codec import ToolCallCodec  # local: avoids an import cycle
+
+        run_result = await tapestry.run(terminals=knot)
+        return ToolCallCodec.outcomes_of(run_result, [call])[call.call_id]
 
     async def invoke(self, arguments: Mapping[str, Any]) -> Any:
         """Deprecated: run one call outside the engine and return its value.

@@ -20,8 +20,15 @@ class ToolStatus(str, Enum):  # noqa: UP042 - str-mixin form is required for sta
         The tool raised or otherwise failed; ``error`` carries the detail.
     TIMEOUT:
         The invocation exceeded its allotted time budget.
+    SKIPPED:
+        The call deliberately did not run — a denied approval, or an
+        upstream failure/skip the engine propagated (PIR-865). Distinct
+        from ``ERROR``: the tool was never at fault, and a caller should
+        tell it apart from a failure the same way core's ``Skipped`` is
+        distinct from ``Err``.
     """
 
     OK = "ok"
     ERROR = "error"
     TIMEOUT = "timeout"
+    SKIPPED = "skipped"

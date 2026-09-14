@@ -90,6 +90,7 @@ class ToolInvocation(SubTapestry):
         call: Knot | ToolCall,
         timeout: Knot | float | None = None,
         retry: Knot | KnotRetryPolicy | None = None,
+        approval_hook: Any = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -103,10 +104,22 @@ class ToolInvocation(SubTapestry):
                 an upstream knot the engine resolves first.
             timeout: ``KnotConfig.timeout`` applied to the tool knot.
             retry: ``KnotConfig.retry`` applied to the tool knot.
+            approval_hook: The
+                :class:`~pirn_agents.agent.approval_hook.ApprovalHook` to
+                consult when ``tool`` requires approval (PIR-865); ``None``
+                uses the auto-approving default. Typed ``Any``: a bare,
+                non-pydantic class core's eager per-input ``TypeAdapter``
+                build cannot schema.
             _config: Framework metadata; ``id`` is required as for any knot.
         """
         super().__init__(
-            tool=tool, call=call, timeout=timeout, retry=retry, _config=_config, **kwargs
+            tool=tool,
+            call=call,
+            timeout=timeout,
+            retry=retry,
+            approval_hook=approval_hook,
+            _config=_config,
+            **kwargs,
         )
 
     def _make_inner_tapestry(self) -> Tapestry:
@@ -124,6 +137,7 @@ class ToolInvocation(SubTapestry):
         call: ToolCall,
         timeout: float | None = None,
         retry: KnotRetryPolicy | None = None,
+        approval_hook: Any = None,
         **_: Any,
     ) -> Knot:
         """Construct the tool knot for ``call`` and return the view-building sink.
@@ -142,6 +156,8 @@ class ToolInvocation(SubTapestry):
             call: The resolved :class:`ToolCall`.
             timeout: Seconds one attempt of the call may take, or ``None``.
             retry: Retry policy for the call, or ``None`` for one attempt.
+            approval_hook: The approval hook to consult when ``tool`` requires
+                approval (PIR-865); see :meth:`ToolFactory.for_call`.
 
         Returns:
             The sink of the inner pipeline: an ``Aggregator`` over the call
@@ -150,21 +166,29 @@ class ToolInvocation(SubTapestry):
         """
         factory = ToolFactory.of(tool)
         try:
-            call_knot = factory.for_call(call, timeout=timeout, retry=retry)
+            call_knot = factory.for_call(
+                call, timeout=timeout, retry=retry, approval_hook=approval_hook
+            )
         except ToolArgumentValidationError as exc:
             call_knot = ToolCallRejection(
                 call=call, error=exc, _config=KnotConfig(id=ToolFactory.knot_id_for(call.call_id))
             )
         return Aggregator(
-            combine=functools.partial(self._view, call.call_id),
+            combine=functools.partial(self._view, call.call_id, factory.requires_approval()),
             outcome=call_knot,
             _config=KnotConfig(id="outcome", error_policy=ErrorPolicy.RECEIVE_ERRORS),
         )
 
     @staticmethod
-    def _view(call_id: str, *, outcome: Result[Any]) -> ToolResult:
-        """Build the deprecated view from the call knot's ``Result``."""
-        return ToolResult.from_result(call_id, outcome)
+    def _view(call_id: str, gated: bool, *, outcome: Result[Any]) -> ToolResult:
+        """Build the deprecated view from the call knot's ``Result``.
+
+        ``gated`` is whether ``tool`` required approval for this call
+        (PIR-865): the call knot's only possible parent besides its own
+        arguments is the approval gate :meth:`ToolFactory.for_call` wires in
+        that case, so a ``Skipped`` outcome can only be that gate closing.
+        """
+        return ToolResult.from_result(call_id, outcome, gated=gated)
 
     def _record_inner_run_meta(self, run_result: RunResult) -> None:
         """Publish the inner run's identifiers and keep its lineage for ``__call__``."""

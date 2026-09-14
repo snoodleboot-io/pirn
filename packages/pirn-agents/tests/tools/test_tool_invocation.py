@@ -26,9 +26,11 @@ from pirn.nodes.check import Check
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
 
+from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation import ToolInvocation
+from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 
@@ -55,6 +57,27 @@ class Echo(Tool):
     async def process(self, a: int, **_: Any) -> dict[str, Any]:
         Echo.calls.append({"a": a})
         return {"a": a}
+
+
+class Gated(Echo):
+    """``Echo``, but requiring approval (PIR-865)."""
+
+    calls: ClassVar[list[dict[str, Any]]] = []
+    permissions: ClassVar[ToolPermissions] = ToolPermissions(approval_required=True)
+
+    async def process(self, a: int, **_: Any) -> dict[str, Any]:
+        Gated.calls.append({"a": a})
+        return {"a": a}
+
+
+class _DenyHook(ApprovalHook):
+    async def request_approval(self, *, tool_name: str, arguments: Any) -> bool:
+        return False
+
+
+class _AllowHook(ApprovalHook):
+    async def request_approval(self, *, tool_name: str, arguments: Any) -> bool:
+        return True
 
 
 class Slow(Echo):
@@ -350,3 +373,60 @@ class TestOutcomes(unittest.IsolatedAsyncioTestCase):
         result = await inv({"tool": "not a tool", "call": _call()})
         assert isinstance(result, Err)
         assert result.record.exc_type == "ValidationError"
+
+
+class TestApprovalGating(unittest.IsolatedAsyncioTestCase):
+    """PIR-865: ``ToolFactory.for_call`` wires the approval Gate; a denial is Skipped."""
+
+    def setUp(self) -> None:
+        Gated.calls.clear()
+
+    async def test_approved_call_runs_normally(self) -> None:
+        with Tapestry() as t:
+            ToolInvocation(
+                tool=Gated,
+                call=_call(a=1),
+                approval_hook=_AllowHook(),
+                _config=KnotConfig(id="inv"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        view = result.outputs["inv"]
+        assert view.status is ToolStatus.OK
+        assert view.result == {"a": 1}
+        assert Gated.calls == [{"a": 1}]
+
+    async def test_denied_call_is_skipped_not_an_error(self) -> None:
+        with Tapestry() as t:
+            ToolInvocation(
+                tool=Gated,
+                call=_call(a=1),
+                approval_hook=_DenyHook(),
+                _config=KnotConfig(id="inv"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        view = result.outputs["inv"]
+        assert view.status is ToolStatus.SKIPPED
+        assert view.error == "call skipped: approval denied"
+        assert Gated.calls == []
+
+    async def test_denied_call_reports_no_tool_event_for_the_tools_own_identity(self) -> None:
+        emitter = _CapturingEmitter()
+        with Tapestry(emitters=[emitter]) as t:
+            ToolInvocation(
+                tool=Gated,
+                call=_call(a=1),
+                approval_hook=_DenyHook(),
+                _config=KnotConfig(id="inv"),
+            )
+        await t.run(RunRequest())
+        # ToolInvocation's own container-level event still fires (unchanged,
+        # pre-existing behaviour: it reports the rendered view regardless of
+        # outcome) -- exactly one event, attributed to "inv", not to Gated's
+        # own knot id (which never ran process() at all).
+        events = emitter.tool_events()
+        assert len(events) == 1
+        assert events[0].knot_id == "inv"
+        assert events[0].state is KnotState.FAILED
+        assert events[0].detail == "call skipped: approval denied"
