@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``TreeOfThought`` — beam-search-style reasoning with LLM-scored candidates.
 
 Algorithm:
@@ -170,11 +172,7 @@ class TreeOfThought(AgentPipeline):
             _config=KnotConfig(id=f"repeat_{round_index}"),
         )
         expanded = ExpandOneThought(
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | str`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            parent_path=Map(repeated),  # pyright: ignore[reportArgumentType]
+            parent_path=Map(repeated),
             llm=llm,
             _config=KnotConfig(id=f"expand_{round_index}"),
         )
@@ -184,7 +182,7 @@ class TreeOfThought(AgentPipeline):
             _config=KnotConfig(id=f"candidates_{round_index}"),
         )
         scored = ScoreCandidate(
-            candidate=Map(candidates),  # pyright: ignore[reportArgumentType]
+            candidate=Map(candidates),
             llm=llm,
             _config=KnotConfig(id=f"score_{round_index}"),
         )

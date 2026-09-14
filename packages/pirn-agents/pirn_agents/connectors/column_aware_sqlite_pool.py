@@ -1,7 +1,7 @@
 """``ColumnAwareSqlitePool`` — core :class:`SqlitePool` with column-aware reads.
 
 Reuses core's SQLite pooling lifecycle (lazy connect, single-connection reuse,
-``close``, credential scrub, and the ``_reject_inline_interpolation`` guard) and
+``close``, credential scrub, and the ``reject_inline_interpolation`` guard) and
 adds only the one thing core lacks for the agents ``sql_query`` tool: reads that
 return column names alongside rows. Core's ``SqlitePool.fetch_all`` returns bare
 tuples, so the column names come from the cursor description here.
@@ -40,7 +40,7 @@ class ColumnAwareSqlitePool(SqlitePool, ColumnAwarePool):
     ) -> tuple[list[str], list[list[Any]]]:
         """Run a read and return ``(column names, rows)``.
 
-        Core's ``_reject_inline_interpolation`` guard is deliberately not applied:
+        Core's ``reject_inline_interpolation`` guard is deliberately not applied:
         its ``%[sd]`` / ``{...}`` pattern false-positives on legitimate literals a
         read query commonly contains (``LIKE '%term%'``, JSON ``{...}``), and this
         connector's defences are read-only mode plus bound parameters — SQLite uses

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentSummarizerPipeline`` — map-reduce document summarisation.
 
 A :class:`SubTapestry` that loads a document, splits it into chunks, asks
@@ -135,12 +137,8 @@ class DocumentSummarizerPipeline(AgentPipeline):
         )
         positions = ChunkPositions(chunks=chunks, _config=KnotConfig(id="positions"))
         summaries = ChunkSummariser(
-            # Core's ZipMap marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | str`. Inline suppression is the house
-            # idiom for this; see PIR-715/PIR-716.
-            chunk=ZipMap(chunks),  # pyright: ignore[reportArgumentType]
-            position=ZipMap(positions),  # pyright: ignore[reportArgumentType]
+            chunk=ZipMap(chunks),
+            position=ZipMap(positions),
             llm=llm,
             _config=KnotConfig(id="chunk_summaries"),
         )

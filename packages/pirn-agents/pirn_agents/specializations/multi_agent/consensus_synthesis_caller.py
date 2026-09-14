@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ConsensusSynthesisCaller`` — LLM-mediated consensus over responses.
 
 Inner stage knot used by :class:`ConsensusPipeline` when the

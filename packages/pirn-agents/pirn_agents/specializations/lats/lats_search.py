@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``LatsSearch`` — budgeted best-first tree search over action trajectories.
 
 A :class:`SubTapestry` that performs an MCTS-style (best-first) search: it keeps a

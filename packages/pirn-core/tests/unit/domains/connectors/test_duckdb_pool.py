@@ -51,12 +51,12 @@ class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = DuckdbPool(DuckdbConfig(database=":memory:"))
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = DuckdbPool(DuckdbConfig(database=":memory:"))
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
 
 class TestInjectionResistance(unittest.IsolatedAsyncioTestCase):

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``LoadAndChunk`` — internal helper Knot for :class:`DocumentSummarizerPipeline`.
 
 Algorithm:

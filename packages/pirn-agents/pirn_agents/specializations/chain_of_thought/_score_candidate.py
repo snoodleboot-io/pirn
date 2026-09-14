@@ -6,6 +6,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
@@ -26,7 +27,7 @@ class ScoreCandidate(Knot):
     def __init__(
         self,
         *,
-        candidate: Knot | tuple[str, float],
+        candidate: Knot | Map | tuple[str, float],
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,

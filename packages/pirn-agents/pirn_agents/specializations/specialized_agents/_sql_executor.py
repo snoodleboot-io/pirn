@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SQLExecutor`` — internal helper Knot for :class:`SQLAgent`.
 
 Validates an LLM-written SQL statement through two independent guards and
@@ -10,7 +12,7 @@ The two guards defend different threats and are both needed:
   ``SELECT``/``WITH``. This is the guard the path was missing (PIR-817): the
   statement here is written by a model, so ``DROP TABLE``, ``UPDATE`` and DDL
   reached the database with nothing standing in the way.
-* The pool's ``_reject_inline_interpolation`` limits how the statement's values
+* The pool's ``reject_inline_interpolation`` limits how the statement's values
   got there — it rejects ``str.format``-style ``{...}`` and printf-style
   ``%s``/``%d`` markers, defending against prompt-injected dynamic SQL and
   accidental bad templating. It is an *injection* guard and says nothing about
@@ -19,7 +21,7 @@ The two guards defend different threats and are both needed:
 Algorithm:
     1. Receive the ``sql`` query string and ``pool`` connection pool.
     2. Raise :class:`ValueError` if ``sql`` is empty.
-    3. Run ``pool._reject_inline_interpolation(sql)`` — always, in both modes.
+    3. Run ``pool.reject_inline_interpolation(sql)`` — always, in both modes.
     4. On this read-only executor, run
        :meth:`ReadOnlySqlGuard.assert_read_only`, then read via ``fetch_all``.
     5. On :class:`ReadWriteSQLExecutor` (writes opted in by class choice),
@@ -91,7 +93,7 @@ class SQLExecutor(Knot):
         # Defends against prompt-injected dynamic SQL and accidental
         # ``str.format`` interpolation in the generated query. Runs in both
         # modes: opting in to writes opts out of the read-only guard only.
-        pool._reject_inline_interpolation(sql)
+        pool.reject_inline_interpolation(sql)
         if self._read_only:
             self._guard.assert_read_only(sql)
             return await self._read(sql, pool)

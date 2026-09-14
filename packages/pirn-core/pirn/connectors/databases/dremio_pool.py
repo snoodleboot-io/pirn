@@ -53,19 +53,19 @@ class DremioPool(DatabaseConnectionPool):
         self._logger.debug("dremio.close")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self._ensure_connection()
         self._logger.debug("dremio.execute")
         return await asyncio.to_thread(self._run_action, connection, query)
 
     async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self._ensure_connection()
         self._logger.debug("dremio.fetch_all")
         return await asyncio.to_thread(self._run_query, connection, query)
 
     async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         for _ in parameter_seq:
             await self.execute(query)
 

@@ -108,18 +108,14 @@ async def _observation_assembler(
     tool_call_message: AgentMessage,
     call_id: str,
     action_name: str,
-    outcome: Any,
+    outcome: Ok[Any] | Err | Skipped,
 ) -> tuple[AgentMessage, ...]:
     """Terminal: turn the tool knot's ``Result`` into the step's messages.
 
     Wired with ``RECEIVE_ERRORS`` so ``outcome`` is the call's raw
     ``Ok | Err | Skipped``; the :class:`ToolResult` view renders it.
     """
-    view = (
-        ToolResult.from_result(call_id, outcome)
-        if isinstance(outcome, (Ok, Err, Skipped))
-        else ToolResult(call_id=call_id, outcome=Ok(value=outcome))
-    )
+    view = ToolResult.from_result(call_id, outcome)
     content = (
         str(view.result)
         if view.error is None

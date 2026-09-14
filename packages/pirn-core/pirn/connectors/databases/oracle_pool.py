@@ -138,7 +138,7 @@ class OraclePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_execute, client, query, params)
@@ -171,7 +171,7 @@ class OraclePool(DatabaseConnectionPool):
         reaching here is rolled back rather than left stranded on the shared
         connection — see the class docstring.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
@@ -203,7 +203,7 @@ class OraclePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
         return await asyncio.to_thread(self._sync_execute_many, client, query, rows)

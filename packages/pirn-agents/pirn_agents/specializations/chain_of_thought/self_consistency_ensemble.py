@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SelfConsistencyEnsemble`` — majority-vote aggregation over N parallel LLM samples.
 
 Algorithm:
@@ -89,11 +91,7 @@ class SelfConsistencyEnsemble(AgentPipeline):
         sampled = SampleOnce(
             prompt=prompt,
             llm=llm,
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | int`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            sample_index=Map(indices),  # pyright: ignore[reportArgumentType]
+            sample_index=Map(indices),
             _config=KnotConfig(id="sample_each"),
         )
         winner = Reduce(

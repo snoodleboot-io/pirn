@@ -28,7 +28,7 @@ class DatabaseQuerySource(Source):
     """Source that runs ``query`` (with optional ``parameters``) and returns
     the result rows as a list of tuples.
 
-    The pool's safety check (``_reject_inline_interpolation``) still applies
+    The pool's safety check (``reject_inline_interpolation``) still applies
     — passing a query with ``{...}`` or ``%s`` markers raises before any
     SQL hits the database.
     """

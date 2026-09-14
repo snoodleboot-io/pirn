@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``LoadedDocument`` — the normalized document every loader emits (F25-S1).
 
 A provider-neutral, frozen carrier for the text (and, for structured formats,
@@ -52,7 +54,7 @@ class LoadedDocument(PirnOpaqueValue):
     """
 
     text: str
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
     source_id: str | None = None
     records: tuple[Mapping[str, Any], ...] | None = None
     blocks: tuple[ContentBlock, ...] | None = None

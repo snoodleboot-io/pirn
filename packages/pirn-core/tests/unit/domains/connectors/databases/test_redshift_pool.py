@@ -107,16 +107,16 @@ class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {v}")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = {v}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
     def test_accepts_dollar_placeholder(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
-        pool._reject_inline_interpolation("SELECT * FROM t WHERE x = $1")
+        pool.reject_inline_interpolation("SELECT * FROM t WHERE x = $1")
 
 
 class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):

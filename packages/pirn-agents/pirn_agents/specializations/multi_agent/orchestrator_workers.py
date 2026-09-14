@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``OrchestratorWorkers`` — dynamic worker fan-out over a task list via F7.
 
 A :class:`SubTapestry` that spawns **one worker invocation per task-list item**,

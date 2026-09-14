@@ -25,6 +25,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.zip_map import ZipMap
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
@@ -45,8 +46,8 @@ class ChunkSummariser(Knot):
     def __init__(
         self,
         *,
-        chunk: Knot | str,
-        position: Knot | str,
+        chunk: Knot | ZipMap | str,
+        position: Knot | ZipMap | str,
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,

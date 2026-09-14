@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentAssembler`` — bytes-in, no-I/O half of the document loader split.
 
 Pairs with :class:`DocumentSource` (PIR-868): the source performs the guarded

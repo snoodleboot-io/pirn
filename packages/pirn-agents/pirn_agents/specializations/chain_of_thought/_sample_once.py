@@ -6,6 +6,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.llm_response_text import LlmResponseText
@@ -21,7 +22,7 @@ class SampleOnce(Knot):
         llm: Knot | LLMProvider,
         # `sample_index` distinguishes the otherwise-identical fanned-out
         # invocations in lineage; the prompt sent to the LLM does not use it.
-        sample_index: Knot | int,
+        sample_index: Knot | Map | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

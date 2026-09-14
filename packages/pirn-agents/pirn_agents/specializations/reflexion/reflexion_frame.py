@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.nested_audit_value import NestedAuditValue
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
 
 
 @dataclass(frozen=True)
-class ReflexionFrame(PirnOpaqueValue):
+class ReflexionFrame(NestedAuditValue):
     """Run-level facts for a bounded Reflexion loop.
 
     The frame half of the ``Payload[ReflexionFrame, str]`` split (PIR-868).
@@ -31,9 +30,8 @@ class ReflexionFrame(PirnOpaqueValue):
     attempts: tuple[ReflexionAttempt, ...]
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        attempts: tuple[PirnOpaqueValue, ...] = self.attempts
         return {
             "succeeded": self.succeeded,
             "iterations": self.iterations,
-            "attempts": [attempt._pirn_audit_dict() for attempt in attempts],
+            "attempts": self._audit_forms(self.attempts),
         }

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``Loader`` — the provider-neutral document-loader interface (F25-S1 / PIR-571).
 
 Every concrete loader (PDF, HTML, Markdown, docx, code, CSV, JSON) implements

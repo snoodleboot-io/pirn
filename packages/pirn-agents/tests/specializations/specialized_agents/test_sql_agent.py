@@ -77,7 +77,7 @@ class TestSQLAgentHappyPath(unittest.IsolatedAsyncioTestCase):
 class TestSQLAgentSafety(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_inline_brace_interpolation(self) -> None:
         # The LLM emits SQL with a Python-format placeholder; the pool's
-        # ``_reject_inline_interpolation`` guard must trip and the run must
+        # ``reject_inline_interpolation`` guard must trip and the run must
         # fail rather than send the unsafe query downstream.
         llm = StubLLMProvider(["SELECT * FROM users WHERE id = {user_id}"])
         pool = StubDatabaseConnectionPool(rows=[])

@@ -123,14 +123,19 @@ class DatabaseConnectionPool(PirnOpaqueValue):
         """
         return ConnectorConfigError(f"{class_name}: missing config and no injected {resource}")
 
-    def _reject_inline_interpolation(self, query: str) -> None:
+    def reject_inline_interpolation(self, query: str) -> None:
         """Reject Python-string interpolation markers in raw SQL.
 
         Defends against accidental use of ``str.format`` (``{...}``) or
         printf-style (``%s``/``%d``) substitution in places where the
         caller should be using the driver's bind syntax. Every concrete
         pool calls this from its query-executing methods *before*
-        forwarding to the underlying driver.
+        forwarding to the underlying driver, and a caller that runs a
+        statement on an acquired connection itself calls it first.
+
+        Raises:
+            ValueError: If ``query`` carries an interpolation marker this
+                engine's bind grammar does not use.
         """
         if re.search(self._inline_interpolation_pattern, query):
             hint = (

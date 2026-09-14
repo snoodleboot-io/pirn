@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
 from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.specializations.multi_agent.orchestrator_workers_frame import (
     OrchestratorWorkersFrame,
@@ -46,6 +44,5 @@ class OrchestratorWorkersResult(
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        results: tuple[PirnOpaqueValue, ...] = self.results
-        audit["results"] = [item._pirn_audit_dict() for item in results]
+        audit["results"] = self._audit_forms(self.results)
         return audit

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentQAPipeline`` — Q&A over a single document.
 
 A :class:`SubTapestry` that loads a document, splits it into chunks,

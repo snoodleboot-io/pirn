@@ -88,7 +88,7 @@ class SqlitePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:
@@ -111,7 +111,7 @@ class SqlitePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:
@@ -135,7 +135,7 @@ class SqlitePool(DatabaseConnectionPool):
         reaching here is committed rather than left stranded on the shared
         connection — see the class docstring.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:

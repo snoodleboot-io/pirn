@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``OrchestratorAgent`` — top-level coordinator with specialist routing.
 
 A :class:`SubTapestry` that:
@@ -58,7 +60,7 @@ class OrchestratorAgent(AgentPipeline):
         *,
         task: Knot | str,
         llm: Knot | LLMProvider,
-        specialists: Knot | Any,
+        specialists: Knot | Mapping[str, SubTapestry],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -79,9 +81,7 @@ class OrchestratorAgent(AgentPipeline):
         Returns:
             The AgentResponse produced by the selected specialist.
         """
-        if not isinstance(specialists, Mapping) or not specialists:
-            raise ValueError("OrchestratorAgent: specialists must be a non-empty mapping")
-        specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
+        specialists_dict = SpecialistHandle.by_name(specialists, owner="OrchestratorAgent")
         with Tapestry() as route_inner:
             OrchestratorRouter(
                 task=task,

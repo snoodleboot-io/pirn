@@ -43,11 +43,13 @@ from typing import TypeVar
 from pirn.core.payload import Payload
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.specializations.base.nested_audit_value import NestedAuditValue
+
 M = TypeVar("M", bound=PirnOpaqueValue)
 D = TypeVar("D")
 
 
-class AgentResult(Payload[M, D]):
+class AgentResult(Payload[M, D], NestedAuditValue):
     """Thin generic ``Payload`` base for the specialization result family.
 
     Declares no fields and no behaviour beyond structural equality; each

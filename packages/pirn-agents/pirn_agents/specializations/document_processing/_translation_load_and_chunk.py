@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``TranslationLoadAndChunk`` — internal helper Knot for :class:`DocumentTranslationPipeline`.
 
 Reads source text and splits it into fixed-size chunks. Internal API.

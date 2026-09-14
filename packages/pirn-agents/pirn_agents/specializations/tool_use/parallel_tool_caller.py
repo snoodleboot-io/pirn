@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ParallelToolCaller`` — invoke multiple tools concurrently, through the engine.
 
 Takes a list of :class:`ToolCall` instances and a sequence of tool

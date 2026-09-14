@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ConsensusMajorityVotePicker`` — pick the most common response by content.
 
 No longer built by :class:`~pirn_agents.specializations.multi_agent.majority_vote_strategy.MajorityVoteStrategy`

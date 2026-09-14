@@ -89,7 +89,7 @@ class TestSQLExecutorIsReadOnlyByDefault:
     """Regression (PIR-817): model-generated SQL ran with no read-only guard.
 
     ``SQLExecutor`` is the only consumer of :class:`SQLAgent`'s LLM-written
-    statement, and its sole check was ``_reject_inline_interpolation`` — an
+    statement, and its sole check was ``reject_inline_interpolation`` — an
     *injection* guard, which stops the model splicing values into statement
     text and says nothing about the model emitting ``DROP TABLE``. Every other
     SQL path in the package gained :class:`ReadOnlySqlGuard` (PIR-801,
@@ -152,7 +152,7 @@ class TestSQLExecutorIsReadOnlyByDefault:
         """``ReadWriteSQLExecutor`` opts out of the read guard only — not the other one.
 
         The two guards defend different threats: ``ReadOnlySqlGuard`` limits
-        what the statement may *do*, ``_reject_inline_interpolation`` limits
+        what the statement may *do*, ``reject_inline_interpolation`` limits
         how its values got there. Opting in to writes must not disarm the
         injection guard.
         """

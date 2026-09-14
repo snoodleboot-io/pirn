@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentIngestionPipeline`` — load, chunk, embed, store a document.
 
 A :class:`SubTapestry` that takes a document source (file path or
