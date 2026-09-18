@@ -1,135 +1,69 @@
-"""``ToolKnotInventory`` — find what the "a tool is a Knot" collapse burns down.
+"""``ToolKnotInventory`` — every knot in ``pirn_agents`` carrying a second execution verb.
 
-ADR "agents speaks core" WS1 turns ``Tool`` into a ``Knot`` class: the
-capability is the class, one call is an instance, the outcome is the engine's
-``Result``.  Three things in ``pirn_agents`` stand in the way and are what this
-inventory counts:
+ADR "agents speaks core" WS1 makes ``Tool`` a ``Knot`` class: the capability is
+the class, one call is an instance with ``KnotConfig(id=call_id)``, the outcome
+is the engine's ``Result`` plus its lineage row. A knot has exactly one
+execution verb — ``process()`` — because that is the one the engine runs and
+records. A second public coroutine that does real work is a way to call the
+capability the engine never sees: no ``Ok | Err | Skipped``, no lineage, no
+retry, timeout, admission or replay.
 
-* classes that carry their own execution verb — a method named ``invoke`` —
-  beside ``Knot.process()``;
-* modules that import the parallel outcome/schema vocabulary
-  (``ToolStatus``, ``ToolSchemaCompiler``, ``ArgumentValidator`` — every one
-  deleted; the names stay listed so a reintroduction is caught);
-* call sites that await ``<x>.invoke(...)`` instead of wiring a knot.
+Detection is the *shape*, not a name. The version this replaced looked for a
+method literally named ``invoke``, for imports of three deleted vocabulary names
+(``ToolStatus``, ``ToolSchemaCompiler``, ``ArgumentValidator``), and for
+``await <x>.invoke(...)`` call sites — so renaming ``invoke`` to anything else
+emptied all three inventories at once while the second verb lived on. What is
+actually wrong is *having a second verb*, whatever it is called: a public
+``async def`` other than ``process()`` that awaits a collaborator, and that no
+base class already declares (an override of a core seam such as
+``LoopSubTapestry.astep`` is implementing core's vocabulary, not adding a
+second one).
 
-Shared by ``test_tool_is_a_knot_ratchet.py`` (the frozen ratchet asserted by
-exact equality) so the ratchet only compares "what the tree looks like now"
-against what it froze.  Source-only AST pass over ``pirn_agents``; ``tests``
-are never scanned.
+Call sites that await such a verb are the same shape as any other collaborator
+await from inside a knot and are found by
+``tests/specializations/base/test_no_engine_bypass.py``; there is no separate
+call-site inventory here.
 """
 
 from __future__ import annotations
 
 import ast
-from pathlib import Path
-from typing import ClassVar
 
-import pirn_agents
+from tests.agents_source_index import AgentsSourceIndex
+from tests.source_shapes import SourceShapes
 
 
 class ToolKnotInventory:
-    """Discovers the ``invoke``/``ToolResult`` inventory across ``pirn_agents``."""
-
-    #: Names whose import marks a module as speaking the parallel tool vocabulary.
-    #:
-    #: ``ToolResult`` and ``AgentTool`` were on this list while they were
-    #: parallel to core and are not any more (PIR-872): ``ToolResult.outcome``
-    #: *is* the call's core ``Result`` (its model-facing ``status`` is a string
-    #: derived from it, and the ``ToolStatus`` enum is deleted), and ``AgentTool``
-    #: is a ``ToolFactory`` composing an ``AgentToolCall(SubTapestry)`` whose
-    #: nesting guard is core's ``RunNesting`` (FRAMEWORK_REFERENCE §7). Importing
-    #: either is importing the composed shape, not a parallel one.
-    PARALLEL_NAMES: ClassVar[frozenset[str]] = frozenset(
-        {"ToolStatus", "ToolSchemaCompiler", "ArgumentValidator"}
-    )
+    """Discovers the public coroutines a knot adds beside ``process()``."""
 
     @staticmethod
-    def modules() -> list[tuple[str, ast.Module]]:
-        root = Path(pirn_agents.__path__[0])
-        found: list[tuple[str, ast.Module]] = []
-        for path in sorted(root.rglob("*.py")):
-            if any(part in {"tests", "__pycache__"} for part in path.parts):
-                continue
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            found.append((path.relative_to(root).as_posix(), tree))
-        return found
+    def second_execution_verbs(node: ast.ClassDef, overrides: frozenset[str]) -> frozenset[str]:
+        """Return the public coroutines in ``node`` that do work beside ``process()``.
 
-    @staticmethod
-    def defines_invoke(node: ast.ClassDef) -> bool:
-        """Whether *node* defines a method named ``invoke`` in its own body."""
-        return any(
-            isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef) and child.name == "invoke"
-            for child in node.body
+        ``overrides`` names the methods a base class already declares; those
+        implement an inherited seam rather than adding a verb. "Does work" is
+        :meth:`~tests.source_shapes.SourceShapes.effectful_methods`: the method
+        awaits a collaborator, directly or through a private helper of its own.
+        """
+        methods = SourceShapes.methods_of(node)
+        effectful = SourceShapes.effectful_methods(methods)
+        return frozenset(
+            name
+            for name, method in methods.items()
+            if isinstance(method, ast.AsyncFunctionDef)
+            and not name.startswith("_")
+            and name != "process"
+            and name in effectful
+            and name not in overrides
         )
 
-    @classmethod
-    def imports_parallel_name(cls, tree: ast.Module) -> frozenset[str]:
-        """The parallel-vocabulary names *tree* imports (``from x import Name``)."""
-        names: set[str] = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom):
-                names.update(alias.name for alias in node.names if alias.name in cls.PARALLEL_NAMES)
-        return frozenset(names)
-
-    @classmethod
-    def awaited_invoke_sites(cls, tree: ast.Module) -> set[str]:
-        """Qualnames of every function/method body containing ``await <x>.invoke(...)``."""
-        sites: set[str] = set()
-        cls._collect_invoke_sites(tree, "", sites)
-        return sites
-
-    @classmethod
-    def _collect_invoke_sites(cls, node: ast.AST, scope: str, sites: set[str]) -> None:
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-                cls._collect_invoke_sites(child, f"{scope}{child.name}.", sites)
-                continue
-            if (
-                isinstance(child, ast.Await)
-                and isinstance(child.value, ast.Call)
-                and isinstance(child.value.func, ast.Attribute)
-                and child.value.func.attr == "invoke"
-            ):
-                sites.add(scope.rstrip("."))
-            cls._collect_invoke_sites(child, scope, sites)
-
-    @classmethod
-    def discover(cls) -> dict[str, frozenset[str]]:
-        """Return the inventories keyed ``invoke_classes`` / ``importers`` / ``call_sites``."""
-        invoke_classes: set[str] = set()
-        importers: set[str] = set()
-        call_sites: set[str] = set()
-        for relative, tree in cls.modules():
-            for node in tree.body:
-                if isinstance(node, ast.ClassDef) and cls.defines_invoke(node):
-                    invoke_classes.add(f"{relative}::{node.name}")
-            if cls.imports_parallel_name(tree):
-                importers.add(relative)
-            call_sites.update(f"{relative}::{site}" for site in cls.awaited_invoke_sites(tree))
-        return {
-            "invoke_classes": frozenset(invoke_classes),
-            "importers": frozenset(importers),
-            "call_sites": frozenset(call_sites),
-        }
-
-    @classmethod
-    def render(cls) -> str:
-        """Return the three allowlists as pasteable Python source."""
-        found = cls.discover()
-        blocks: list[str] = []
-        for key, constant in (
-            ("invoke_classes", "INVOKE_CLASSES"),
-            ("importers", "PARALLEL_VOCABULARY_IMPORTERS"),
-            ("call_sites", "AWAITED_INVOKE_CALL_SITES"),
-        ):
-            lines = [f"{constant} = frozenset("]
-            hits = sorted(found[key])
-            if hits:
-                lines.append("    {")
-                lines.extend(f"        {hit!r}," for hit in hits)
-                lines.append("    }")
-            else:
-                lines.append("    set()")
-            lines.append(")")
-            blocks.append("\n".join(lines))
-        return "\n\n".join(blocks)
+    @staticmethod
+    def discover() -> dict[str, frozenset[str]]:
+        """Return ``{"relative/path.py::ClassName": {verb, ...}}`` over every knot."""
+        found: dict[str, frozenset[str]] = {}
+        for label, (knot, node) in AgentsSourceIndex.knots().items():
+            overrides = AgentsSourceIndex.inherited_method_names(knot, node)
+            verbs = ToolKnotInventory.second_execution_verbs(node, overrides)
+            if verbs:
+                found[label] = verbs
+        return found

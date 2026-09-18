@@ -124,19 +124,6 @@ class VocabularyInventory:
         return "PirnError" in VocabularyInventory.all_reachable_bases(name, classes_by_name)
 
     @staticmethod
-    def imports_canonical_json(path: Path) -> bool:
-        """Return whether the module at ``path`` imports ``CanonicalJson``."""
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module is not None:
-                if any(alias.name == "CanonicalJson" for alias in node.names):
-                    return True
-            if isinstance(node, ast.Import):
-                if any(alias.name.endswith("canonical_json") for alias in node.names):
-                    return True
-        return False
-
-    @staticmethod
     def is_enum_class(name: str, classes_by_name: dict[str, tuple[str, list[str]]]) -> bool:
         """Return whether ``name`` derives from :class:`enum.Enum` (any mixin form)."""
         entry = classes_by_name.get(name)
