@@ -61,12 +61,10 @@ class BandlimitedInterpolation:
         step = float(source_rate_hz) / float(target_rate_hz)
         output_length = math.ceil(input_length / step)
         cutoff = min(1.0, 1.0 / step)
-        reach = int(math.ceil(BandlimitedInterpolation._half_width / cutoff))
+        reach = math.ceil(BandlimitedInterpolation._half_width / cutoff)
         offsets = np.arange(-reach + 1, reach + 1)
         output = np.empty((*samples.shape[:-1], output_length), dtype=float)
-        padded = np.concatenate(
-            [samples, np.zeros((*samples.shape[:-1], 1), dtype=float)], axis=-1
-        )
+        padded = np.concatenate([samples, np.zeros((*samples.shape[:-1], 1), dtype=float)], axis=-1)
         for start in range(0, output_length, BandlimitedInterpolation._block_size):
             stop = min(output_length, start + BandlimitedInterpolation._block_size)
             positions = np.arange(start, stop, dtype=float) * step

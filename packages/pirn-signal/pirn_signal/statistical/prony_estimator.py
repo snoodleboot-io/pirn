@@ -135,7 +135,11 @@ class PronyEstimator(Knot):
         # z^p + c_{p-1} z^{p-1} + ... + c_1 z + c_0: highest power first for np.roots,
         # so the solved coefficients go in reverse order.
         poly = np.concatenate([[1.0], pred_coeffs[::-1]])
-        poles = np.roots(poly)
+        # np.roots is typed as real-or-complex; a real-rooted polynomial still has
+        # complex poles as far as the residue fit is concerned, so hold one dtype.
+        poles: NDArray[np.complexfloating[Any, Any]] = np.asarray(
+            np.roots(poly), dtype=np.complex128
+        )
         # Residues: least squares on the Vandermonde system over every sample whose
         # power z^n stays finite (a pole outside the unit circle grows geometrically).
         fit_length = PronyEstimator._finite_power_length(poles, signal_length)

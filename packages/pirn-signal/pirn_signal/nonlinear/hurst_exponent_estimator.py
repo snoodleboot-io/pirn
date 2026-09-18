@@ -206,7 +206,7 @@ class HurstExponentEstimator(Knot):
     @staticmethod
     def _hurst_wavelet(signal_array: NDArray[np.float64]) -> float:
         """Hurst exponent via the Abry-Veitch log-scale diagram on orthonormal Haar details."""
-        approximation = signal_array.astype(float)
+        approximation: NDArray[np.float64] = signal_array.astype(np.float64)
         octaves: list[float] = []
         log_energies: list[float] = []
         counts: list[float] = []
@@ -214,9 +214,10 @@ class HurstExponentEstimator(Knot):
         while approximation.size // 2 >= HurstExponentEstimator._min_octave_coefficients:
             octave += 1
             half = approximation.size // 2
-            even = approximation[: 2 * half : 2]
-            odd = approximation[1 : 2 * half : 2]
-            detail = (even - odd) / np.sqrt(2.0)
+            # ndarray.__getitem__ with a slice is typed Any, so declare the halves.
+            even: NDArray[np.float64] = approximation[: 2 * half : 2]
+            odd: NDArray[np.float64] = approximation[1 : 2 * half : 2]
+            detail: NDArray[np.float64] = (even - odd) / np.sqrt(2.0)
             approximation = (even + odd) / np.sqrt(2.0)
             energy = float(np.mean(detail**2))
             if energy > 0:
