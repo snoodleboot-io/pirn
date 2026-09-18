@@ -10,6 +10,13 @@ name: Workspace (independent packages)  # SCD-24..27, standalone
 #     a package runs when its own files change, an upstream pirn dep changes
 #     (core → all; data → ml), or shared CI tooling (.github/ or scripts/) changes.
 #   * lint/type/test fan out over ONLY the affected packages.
+#   * the WORKSPACE-WIDE gates (build-wheelhouse, import-graph, import-forwarding,
+#     version-lockstep, workspace-gates) are NOT gated on change detection — they run
+#     on every pull request. PIR-873: a PR touching only examples/, docs/, Dockerfile.ci
+#     or .pre-commit-config.yaml produced `affected: []` -> `any=false`, every job
+#     skipped, and `ci-status` went green because a skipped job is not a failure — so a
+#     PR could land with zero checks having run. `ci-status` now FAILS on a skipped
+#     always-run gate; only the per-package matrices may legitimately be skipped.
 #   * one unified cross-domain suite proves registry parity with all packages
 #     installed.
 #
@@ -56,6 +63,13 @@ jobs:
   # once the list outgrows the pipe buffer, the pipeline reports failure, and
   # the match reads as "not changed" — PR #368 (83 KB of paths touching all seven
   # packages, .github/ and scripts/) came out as ["pirn-signal","pirn-oilgas"].
+  #
+  # The outputs gate ONLY the per-package matrices (PIR-873). `packages`/`any` describe
+  # the affected package set; `scope` is one of all-packages / affected-packages /
+  # workspace-only and `workspace_only` is true for a diff that touches no package tree
+  # (docs/, examples/, Dockerfile*, .pre-commit-config.yaml, other root files). The
+  # script fails if an empty package set is ever produced outside that scope, so `any`
+  # can never silently mean "run nothing".
   # ===========================================================================
   changes:
     name: Detect affected packages
@@ -63,6 +77,8 @@ jobs:
     outputs:
       packages: ${{ steps.compute.outputs.packages }}
       any: ${{ steps.compute.outputs.any }}
+      workspace_only: ${{ steps.compute.outputs.workspace_only }}
+      scope: ${{ steps.compute.outputs.scope }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -91,11 +107,13 @@ jobs:
   # (`scripts/workspace_packages.py closure-wheels`): a pirn-* requirement given by
   # name resolves against the public index too, where a published release with a
   # higher version wins over this build.
+  #
+  # ALWAYS-RUN (PIR-873): no `needs: changes` and no `if:`. The wheelhouse is what the
+  # always-run `import-graph` gate installs from, so it must be built for every pull
+  # request — including a docs/examples-only one, where no package is "affected".
   # ===========================================================================
   build-wheelhouse:
     name: Build wheelhouse (all packages)
-    needs: changes
-    if: needs.changes.outputs.any == 'true'
     runs-on: ubuntu-latest
     container:
       # Mutable tag by design — build-ci-image.yml's header explains why the
@@ -451,11 +469,14 @@ jobs:
 
   # ===========================================================================
   # Import-graph gate (C1 acyclic · C2 sink · C3 sole edge · no-backend). Static.
+  #
+  # ALWAYS-RUN (PIR-873): it still `needs: build-wheelhouse` (it installs pirn-core from
+  # it), but it is no longer gated on change detection — the graph it checks is a
+  # property of the whole workspace, not of the affected packages.
   # ===========================================================================
   import-graph:
     name: Import-graph gate
-    needs: [changes, build-wheelhouse]
-    if: needs.changes.outputs.any == 'true'
+    needs: build-wheelhouse
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
@@ -482,11 +503,13 @@ jobs:
   # nothing and cost 7 container starts. It was pre-commit-only until now, which
   # is how PIR-737's cleanup was silently regressed twice in one day by anyone
   # committing with --no-verify or without hooks installed.
+  #
+  # ALWAYS-RUN (PIR-873): no `needs: changes`, no `if:`. Every check here is a
+  # millisecond stdlib scan of the whole repository, so there is nothing to save by
+  # gating it — and gating it is exactly how a docs-only PR ran no gate at all.
   # ===========================================================================
   import-forwarding:
     name: No-import-forwarding gate
-    needs: changes
-    if: needs.changes.outputs.any == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
@@ -524,11 +547,12 @@ jobs:
 
   # ===========================================================================
   # Lockstep / C4 version gate (SCD-27). Pure stdlib over the package pyprojects.
+  #
+  # ALWAYS-RUN (PIR-873): same reasoning as import-forwarding — the lockstep invariant
+  # spans all seven pyprojects, so "no package affected" is not a reason to skip it.
   # ===========================================================================
   version-lockstep:
     name: Lockstep + C4 version gate
-    needs: changes
-    if: needs.changes.outputs.any == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
@@ -538,13 +562,75 @@ jobs:
         run: python scripts/stamp_workspace_version.py --check
 
   # ===========================================================================
+  # Docs / examples / shared-tooling gates (PIR-873). ALWAYS-RUN: these are exactly
+  # the trees whose changes affect NO package, which is how a PR that edits only
+  # examples/ or docs/ used to run nothing at all. Stdlib + ruff; no wheelhouse.
+  # ===========================================================================
+  workspace-gates:
+    name: Docs, examples & shared-tooling gates
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Documentation imports and code blocks resolve
+        # Stdlib-only, nothing is imported: every fenced python block must parse and
+        # every pirn import / dotted path in the docs must name real source. Exits 2 on
+        # an unusable invocation (missing path, zero markdown matched) so a miswiring
+        # fails loudly instead of passing vacuously, 1 on findings, 0 when clean — do
+        # not wrap this in anything that swallows the exit code, and never add
+        # continue-on-error: a doc gate that cannot fail is not a gate.
+        run: >
+          python scripts/check_doc_imports.py
+          AGENTIC_USE.md AGENTIC_USE_SPEC.md README.md docs examples/README.md packages
+      - name: Install ruff (pinned, same version as the lint job)
+        # Same pin and same reason as the `lint` job (PIR-750): an unpinned install
+        # silently rolled ruff to 0.16.0, whose new markdown code-block formatting
+        # reddened `format --check` with no source change. Keep aligned with the lint
+        # job and .pre-commit-config.yaml.
+        run: uv pip install --system 'ruff==0.15.22'
+      - name: Ruff lint + format (scripts/)
+        # Run from INSIDE the tree, like the per-package lint job (PIR-760): ruff infers
+        # first-party packages from the working directory and this repo has no root
+        # config, so invoking it from the repo root misclassifies imports and re-sorts
+        # files. scripts/ruff.toml and examples/ruff.toml (line-length 100, E/F/I/B/UP/RUF)
+        # are what these two trees are checked against; until PIR-873 neither had any
+        # ruff config and no CI job ran ruff over them at all.
+        run: |
+          cd scripts
+          ruff check .
+          ruff format --check .
+      - name: Ruff lint + format (examples/)
+        run: |
+          cd examples
+          ruff check .
+          ruff format --check .
+
+  # ===========================================================================
   # Single aggregator gate — the one stable, required status check for branch
-  # protection (matrix job names are dynamic). Green only if every needed job
-  # succeeded or was legitimately skipped (change-detection found nothing).
+  # protection (matrix job names are dynamic).
+  #
+  # There are TWO classes of needed job and they are NOT interchangeable (PIR-873):
+  #
+  #   1. ALWAYS-RUN gates — build-wheelhouse, import-graph, import-forwarding,
+  #      version-lockstep, workspace-gates (and `changes` itself). None of them carries
+  #      an `if:`; they scan the whole repository on every pull request. A `skipped`
+  #      result here can only mean the workflow was miswired (an `if:` re-added, or an
+  #      upstream `needs:` job skipped), so it FAILS this aggregator. Before this, a
+  #      skipped job counted as "not a failure" and a PR touching only examples/ or
+  #      docs/ went green with zero checks having run.
+  #   2. PER-PACKAGE matrices — lint, test, slow-tests, install-isolation,
+  #      agents-extras-install, unified. These are gated on
+  #      needs.changes.outputs.any and are LEGITIMATELY skipped when the diff affects
+  #      no package (the `workspace-only` scope), so a skip there passes. Their
+  #      failure/cancellation is still caught by the first step.
+  #
+  # Moving a job between those two lists is the whole safety property of this gate —
+  # scripts/tests/test_workspace_packages.py::TestWorkflowWiring asserts both lists.
   # ===========================================================================
   ci-status:
     name: CI status (all green)
-    needs: [changes, build-wheelhouse, lint, test, slow-tests, install-isolation, agents-extras-install, unified, import-graph, import-forwarding, version-lockstep]
+    needs: [changes, build-wheelhouse, lint, test, slow-tests, install-isolation, agents-extras-install, unified, import-graph, import-forwarding, version-lockstep, workspace-gates]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -553,5 +639,45 @@ jobs:
         run: |
           echo "::error::one or more CI jobs failed"
           exit 1
+      - name: Fail if an always-run gate did not actually run
+        # Class 1 above: `skipped` (or any non-success) here is a miswiring, not a
+        # pass. Do not add a job to this list that is gated on change detection, and
+        # do not remove one to make a red run green.
+        env:
+          changes: ${{ needs.changes.result }}
+          build_wheelhouse: ${{ needs.build-wheelhouse.result }}
+          import_graph: ${{ needs.import-graph.result }}
+          import_forwarding: ${{ needs.import-forwarding.result }}
+          version_lockstep: ${{ needs.version-lockstep.result }}
+          workspace_gates: ${{ needs.workspace-gates.result }}
+        run: |
+          set -euo pipefail
+          rc=0
+          for gate in changes build_wheelhouse import_graph import_forwarding version_lockstep workspace_gates; do
+            result="${!gate}"
+            echo "always-run gate ${gate}: ${result}"
+            if [ "$result" != "success" ]; then
+              echo "::error::always-run gate '${gate}' did not run (result=${result}); a skipped required gate is a failure, not a pass"
+              rc=1
+            fi
+          done
+          exit "$rc"
+      - name: Report the per-package matrices (a skip here is legitimate)
+        # Class 2 above: skipped == change detection found no affected package.
+        env:
+          scope: ${{ needs.changes.outputs.scope }}
+          packages: ${{ needs.changes.outputs.packages }}
+          lint: ${{ needs.lint.result }}
+          test: ${{ needs.test.result }}
+          slow_tests: ${{ needs.slow-tests.result }}
+          install_isolation: ${{ needs.install-isolation.result }}
+          agents_extras_install: ${{ needs.agents-extras-install.result }}
+          unified: ${{ needs.unified.result }}
+        run: |
+          set -euo pipefail
+          echo "change scope: ${scope} -> ${packages}"
+          for job in lint test slow_tests install_isolation agents_extras_install unified; do
+            echo "per-package job ${job}: ${!job}"
+          done
       - name: All green
-        run: echo "all required jobs succeeded (or were skipped by change-detection)"
+        run: echo "every always-run gate succeeded; per-package matrices succeeded or had no affected package"

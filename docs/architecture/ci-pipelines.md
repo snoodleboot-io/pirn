@@ -36,13 +36,32 @@ flowchart TD
 
 ### Dependency-aware change detection
 
-A package runs if its own files, an **upstream `pirn` dependency**, or shared CI
-tooling (`.github/`, `scripts/`) changed. `scripts/workspace_packages.py affected`
-computes the set from the full diff against the PR's merge base, reads the edges from
-the pyprojects, and fails if a package the diff touches is missing from the result.
-Every job then installs this build's pirn wheels by path
-(`workspace_packages.py closure-wheels`), never by name, and install isolation asserts
-the installed versions equal the build under test before it walks the package.
+Change detection selects which **per-package** jobs fan out — `lint`, `test`,
+`slow-tests`, `install-isolation`, `agents-extras-install`, `unified`. A package runs if
+its own files, an **upstream `pirn` dependency**, or shared CI tooling (`.github/`,
+`scripts/`) changed. `scripts/workspace_packages.py affected` computes the set from the
+full diff against the PR's merge base, reads the edges from the pyprojects, and fails if
+a package the diff touches is missing from the result. Every job then installs this
+build's pirn wheels by path (`workspace_packages.py closure-wheels`), never by name, and
+install isolation asserts the installed versions equal the build under test before it
+walks the package.
+
+The **workspace-wide gates never depend on change detection** (PIR-873):
+`workspace-gates`, `import-forwarding`, `version-lockstep`, `import-graph` and the
+`build-wheelhouse` they need run on every pull request. Until PIR-873 they were gated on
+`needs.changes.outputs.any == 'true'`, so a pull request that touched only `examples/`,
+`docs/`, `Dockerfile.ci` or `.pre-commit-config.yaml` produced `affected: []`, skipped
+**every** job, and went green through `ci-status` — a skipped job is not a failure. Two
+changes close that: `affected` now reports a third scope, `workspace-only`, instead of an
+empty list that reads as "nothing to do"; and `ci-status` fails when an always-run gate's
+result is anything but `success`, `skipped` included, while still allowing a legitimately
+empty per-package matrix. `workspace_packages.py affected` also exits non-zero if an
+empty package set ever appears outside the `workspace-only` scope.
+
+`workspace-gates` is where the shared trees are checked: the documentation
+import/code-block gate (`scripts/check_doc_imports.py`) and `ruff check` +
+`ruff format --check` over `scripts/` and `examples/`, each run from inside its own
+directory against its own `ruff.toml`. Neither had ever run in CI.
 
 ```mermaid
 flowchart LR
@@ -64,7 +83,9 @@ flowchart LR
 ```
 
 Worked examples: `signal/**` → `[signal]` · `data/**` → `[data, ml]` ·
-`core/**` or any shared root → `[all 7]`.
+`core/**`, `.github/` or `scripts/` → `[all 7]` · `docs/**`, `examples/**`,
+`Dockerfile*`, `.pre-commit-config.yaml` or any other root file → `workspace-only`
+(no package matrix, every workspace gate still runs).
 
 ## `publish.yml` — N-wheel build + publish (frozen, human-gated)
 
