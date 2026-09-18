@@ -85,10 +85,9 @@ class RoundRobinReview(AgentPipeline):
         initial = Parameter(
             "rrr_state",
             RoundRobinState,
-            default=RoundRobinState(response=response, index=0),
+            default=RoundRobinState(reviewers=tuple(reviewer_list), response=response, index=0),
         )
         loop = RoundRobinLoop(
-            reviewers=reviewer_list,
             state=initial,
             _config=KnotConfig(id="rrr_loop"),
         )

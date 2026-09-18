@@ -6,7 +6,7 @@ Internal knot for
 :class:`~pirn_agents.specializations.rag.llm_chat_call.LLMChatCall` knot
 (PIR-872), so ``outcome`` here is the call's raw ``Ok``/``Err`` — never
 short-circuited to a knot-level failure — exactly like
-:class:`~pirn_agents.specializations.react.react_step_executor._observation_assembler`
+:class:`~pirn_agents.specializations.react.react_observation_assembler.ReActObservationAssembler`
 does for a tool call. A failed invocation folds into an "escalate" decision
 the same way ``AttemptTier.process()`` used to fold a caught exception,
 without the exception ever leaving the engine's own outcome handling.
@@ -17,6 +17,7 @@ Internal API.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from typing import Any
 
 from pirn.core.err import Err
@@ -90,12 +91,10 @@ class TierAttemptFold(Knot):
         if not isinstance(outcome, Ok):
             message = outcome.record.message if isinstance(outcome, Err) else "skipped"
             decisions.append(f"{tier.name}: failed ({message}) -> escalate")
-            return CascadeChainState(
+            return replace(
+                prior,
                 attempted=tuple(attempted),
                 decisions=tuple(decisions),
-                best_value=prior.best_value,
-                best_tier=prior.best_tier,
-                best_confidence=prior.best_confidence,
             )
 
         value = outcome.value
@@ -114,14 +113,19 @@ class TierAttemptFold(Knot):
                 decisions=tuple(decisions),
                 confidence=score,
             )
-            return CascadeChainState(
+            return replace(
+                prior,
                 attempted=tuple(attempted),
                 decisions=tuple(decisions),
+                best_value=None,
+                best_tier=None,
+                best_confidence=None,
                 accepted_outcome=cascade_outcome,
                 locked=True,
             )
         decisions.append(f"{tier.name}: low confidence={score} -> escalate")
-        return CascadeChainState(
+        return replace(
+            prior,
             attempted=tuple(attempted),
             decisions=tuple(decisions),
             best_value=value,

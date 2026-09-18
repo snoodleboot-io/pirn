@@ -16,6 +16,7 @@ all.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from pirn.core.error_policy import ErrorPolicy
@@ -117,12 +118,9 @@ class AttemptTier(AgentPipeline):
                 return Parameter(
                     "downshift",
                     CascadeChainState,
-                    default=CascadeChainState(
-                        attempted=prior.attempted,
+                    default=replace(
+                        prior,
                         decisions=tuple(decisions),
-                        best_value=prior.best_value,
-                        best_tier=prior.best_tier,
-                        best_confidence=prior.best_confidence,
                         locked=True,
                     ),
                     _config=KnotConfig(id="downshift"),

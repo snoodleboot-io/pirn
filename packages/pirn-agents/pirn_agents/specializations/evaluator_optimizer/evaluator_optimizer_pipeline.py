@@ -106,13 +106,18 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
             )
 
         # A plain Parameter seeds the loop; no bespoke Source needed.
-        initial = Parameter("eo_state", EvaluatorOptimizerState, default=EvaluatorOptimizerState())
+        initial = Parameter(
+            "eo_state",
+            EvaluatorOptimizerState,
+            default=EvaluatorOptimizerState(
+                task=task,
+                llm=llm,
+                threshold=float(threshold),
+                max_iterations=max_iterations,
+                reflection_gate=reflection_gate,
+            ),
+        )
         loop = EvaluatorOptimizerLoop(
-            task=task,
-            llm=llm,
-            threshold=float(threshold),
-            max_iterations=max_iterations,
-            reflection_gate=reflection_gate,
             state=initial,
             _config=KnotConfig(id="eo_loop"),
         )

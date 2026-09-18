@@ -119,11 +119,14 @@ class IterativeRetriever(AgentPipeline, Retriever):
             raise ValueError(f"IterativeRetriever: top_k must be a positive int, got {top_k!r}")
 
         loop = IterativeRetrievalLoop(
-            memory=memory,
-            llm=llm,
-            max_iterations=max_iterations,
-            top_k=top_k,
-            state=IterativeRetrievalState(original_query=query, current_query=query),
+            state=IterativeRetrievalState(
+                original_query=query,
+                memory=memory,
+                llm=llm,
+                max_iterations=max_iterations,
+                top_k=top_k,
+                current_query=query,
+            ),
             _config=KnotConfig(id="loop"),
         )
         return IterativeRetrievalResult(state=loop, _config=KnotConfig(id="result"))

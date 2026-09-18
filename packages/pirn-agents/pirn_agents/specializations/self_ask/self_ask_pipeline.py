@@ -121,11 +121,15 @@ class SelfAskPipeline(AgentPipeline):
         initial = Parameter(
             "self_ask_state",
             SelfAskState,
-            default=SelfAskState(subquestions=tuple(subquestions), index=0, subanswers=()),
+            default=SelfAskState(
+                subquestions=tuple(subquestions),
+                llm=llm,
+                subanswer_system=type(self)._subanswer_system.resolve(),
+                index=0,
+                subanswers=(),
+            ),
         )
         loop = SelfAskLoop(
-            llm=llm,
-            subanswer_system=type(self)._subanswer_system.resolve(),
             state=initial,
             _config=KnotConfig(id="self_ask_loop"),
         )

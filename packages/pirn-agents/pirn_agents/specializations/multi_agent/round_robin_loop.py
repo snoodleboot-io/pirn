@@ -23,11 +23,10 @@ Internal API.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import replace
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
@@ -47,15 +46,6 @@ class RoundRobinLoop(AgentLoopPipeline[RoundRobinState]):
     #: Per-iteration knot id (Rule: no module-level constants).
     _invoke_id: ClassVar[str] = "invoke"
 
-    def __init__(
-        self,
-        *,
-        reviewers: Sequence[SubTapestry],
-        **kwargs: Any,
-    ) -> None:
-        self._reviewers = tuple(reviewers)
-        super().__init__(**kwargs)
-
     def step(self, state: RoundRobinState) -> tuple[Tapestry, RoundRobinState] | None:
         """Build the next reviewer's round, or return None once all have run.
 
@@ -66,13 +56,14 @@ class RoundRobinLoop(AgentLoopPipeline[RoundRobinState]):
             The iteration's tapestry paired with ``state``, or ``None`` once
             ``state.index`` has walked past the last reviewer.
         """
-        if state.index >= len(self._reviewers):
+        reviewer = state.next_reviewer()
+        if reviewer is None:
             return None
 
         iteration = Tapestry()
         with iteration:
             ReviewerInvocation(
-                reviewer=SpecialistHandle(self._reviewers[state.index]),
+                reviewer=SpecialistHandle(reviewer),
                 response=state.response,
                 _config=KnotConfig(id=self._invoke_id),
             )
@@ -88,7 +79,8 @@ class RoundRobinLoop(AgentLoopPipeline[RoundRobinState]):
         Returns:
             A new state with the revised response and an advanced index.
         """
-        return RoundRobinState(
+        return replace(
+            state,
             response=result.outputs[self._invoke_id],
             index=state.index + 1,
         )

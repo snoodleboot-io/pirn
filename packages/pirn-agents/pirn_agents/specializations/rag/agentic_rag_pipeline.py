@@ -94,11 +94,13 @@ class AgenticRagPipeline(AgentPipeline):
             The sink knot whose output is the final :class:`AgentResponse`.
         """
         loop = AgenticRagLoop(
-            query=query,
-            rag_tool=rag_tool,
-            llm=llm,
-            max_iterations=max_iterations,
-            state=AgenticRagState(current_question=query),
+            state=AgenticRagState(
+                query=query,
+                rag_tool=rag_tool,
+                llm=llm,
+                max_iterations=max_iterations,
+                current_question=query,
+            ),
             _config=KnotConfig(id="loop"),
         )
         return AgenticRagResult(state=loop, _config=KnotConfig(id="result"))

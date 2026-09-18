@@ -16,13 +16,12 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import replace
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.structured_output.llm_call_knot import LLMCallKnot
 from pirn_agents.specializations.structured_output.retry_state import RetryState
@@ -37,21 +36,6 @@ class RetryOnParseFailureLoop(AgentLoopPipeline[RetryState]):
     #: Per-iteration knot id (Rule: no module-level constants).
     _call_id: ClassVar[str] = "call"
 
-    def __init__(
-        self,
-        *,
-        original_prompt: str,
-        llm: LLMProvider,
-        parser: Callable[[str], Any],
-        max_retries: int,
-        **kwargs: Any,
-    ) -> None:
-        self._original_prompt = original_prompt
-        self._llm = llm
-        self._parser = parser
-        self._max_retries = max_retries
-        super().__init__(**kwargs)
-
     def step(self, state: RetryState) -> tuple[Tapestry, RetryState] | None:
         """Build the next attempt, or return None once parsed or exhausted.
 
@@ -62,14 +46,14 @@ class RetryOnParseFailureLoop(AgentLoopPipeline[RetryState]):
             The attempt's tapestry paired with ``state``, or ``None`` once
             ``state.succeeded`` or ``state.attempts`` has reached the cap.
         """
-        if state.succeeded or state.attempts >= self._max_retries:
+        if state.succeeded or state.attempts >= state.max_retries:
             return None
 
         attempt = Tapestry()
         with attempt:
             LLMCallKnot(
                 prompt=state.prompt,
-                llm=self._llm,
+                llm=state.llm,
                 _config=KnotConfig(id=self._call_id),
             )
         return attempt, state
@@ -89,27 +73,22 @@ class RetryOnParseFailureLoop(AgentLoopPipeline[RetryState]):
         if not isinstance(text, str):
             text = str(text) if text is not None else ""
         try:
-            parsed = self._parser(text)
+            parsed = state.parser(text)
         except Exception as exc:
             last_error = str(exc)
             retry_prompt = (
-                f"{self._original_prompt}\n\nPrevious attempt failed with: {last_error}\n"
+                f"{state.original_prompt}\n\nPrevious attempt failed with: {last_error}\n"
                 "Please fix the issue and try again."
             )
-            return RetryState(
+            return replace(
+                state,
                 prompt=retry_prompt,
                 parsed_value=None,
                 succeeded=False,
                 last_error=last_error,
                 attempts=state.attempts + 1,
             )
-        return RetryState(
-            prompt=state.prompt,
-            parsed_value=parsed,
-            succeeded=True,
-            last_error=state.last_error,
-            attempts=state.attempts + 1,
-        )
+        return replace(state, parsed_value=parsed, succeeded=True, attempts=state.attempts + 1)
 
     def step_id(self, state: RetryState, idx: int) -> str:
         """Name each attempt for run history."""

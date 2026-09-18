@@ -68,8 +68,7 @@ class PlanExecutor(AgentPipeline):
             becomes this knot's output.
         """
         loop = PlanStepLoop(
-            llm=llm,
-            state=PlanStepState(steps=tuple(plan.steps)),
+            state=PlanStepState(steps=tuple(plan.steps), llm=llm),
             _config=KnotConfig(id="loop"),
         )
         return PlanExecutionResult(state=loop, _config=KnotConfig(id="result"))

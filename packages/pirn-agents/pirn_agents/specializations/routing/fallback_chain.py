@@ -104,12 +104,13 @@ class FallbackChain(AgentPipeline):
         initial = Parameter(
             "initial",
             FallbackChainState,
-            default=FallbackChainState(),
+            default=FallbackChainState(
+                ordered=candidate_tuple,
+                arguments=arguments,
+                confidences=confidences,
+            ),
         )
         loop = FallbackLoop(
-            ordered=candidate_tuple,
-            arguments=arguments,
-            confidences=confidences,
             state=initial,
             _config=KnotConfig(id="fallback_loop"),
         )

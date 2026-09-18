@@ -16,12 +16,12 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import replace
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.prompt_chaining.prompt_chain_state import PromptChainState
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
@@ -35,15 +35,6 @@ class PromptChainLoop(AgentLoopPipeline[PromptChainState]):
 
     #: Per-iteration knot id (Rule: no module-level constants).
     _call_id: ClassVar[str] = "call"
-
-    def __init__(
-        self,
-        *,
-        llm: LLMProvider,
-        **kwargs: Any,
-    ) -> None:
-        self._llm = llm
-        super().__init__(**kwargs)
 
     def step(self, state: PromptChainState) -> tuple[Tapestry, PromptChainState] | None:
         """Build the next link's round, or None once every step has run.
@@ -62,7 +53,7 @@ class PromptChainLoop(AgentLoopPipeline[PromptChainState]):
         with round_tapestry:
             LLMChatCall(
                 prompt=state.current,
-                llm=self._llm,
+                llm=state.llm,
                 system=state.steps[state.index],
                 _config=KnotConfig(id=self._call_id),
             )
@@ -79,8 +70,8 @@ class PromptChainLoop(AgentLoopPipeline[PromptChainState]):
             A new state with the output appended and an advanced index.
         """
         output = result.outputs[self._call_id]
-        return PromptChainState(
-            steps=state.steps,
+        return replace(
+            state,
             index=state.index + 1,
             current=output,
             outputs=(*state.outputs, output),

@@ -15,8 +15,7 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
@@ -24,7 +23,6 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.routing.candidate_attempt import CandidateAttempt
 from pirn_agents.specializations.routing.fallback_chain_state import FallbackChainState
-from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
@@ -36,19 +34,6 @@ class FallbackLoop(AgentLoopPipeline[FallbackChainState]):
     #: Per-iteration knot id (Rule: no module-level constants).
     _attempt_id: ClassVar[str] = "attempt"
 
-    def __init__(
-        self,
-        *,
-        ordered: tuple[RouteCandidate, ...],
-        arguments: Mapping[str, Any],
-        confidences: Mapping[str, float],
-        **kwargs: Any,
-    ) -> None:
-        self._ordered = ordered
-        self._arguments = arguments
-        self._confidences = confidences
-        super().__init__(**kwargs)
-
     def step(self, state: FallbackChainState) -> tuple[Tapestry, FallbackChainState] | None:
         """Build the next candidate's attempt, or None once locked or exhausted.
 
@@ -59,17 +44,17 @@ class FallbackLoop(AgentLoopPipeline[FallbackChainState]):
             The attempt's tapestry paired with ``state``, or ``None`` once
             ``state.locked`` or every candidate has been processed.
         """
-        index = len(state.attempted) + len(state.skipped)
-        if state.locked or index >= len(self._ordered):
+        candidate = state.next_candidate()
+        if candidate is None:
             return None
 
         attempt = Tapestry()
         with attempt:
             CandidateAttempt(
                 prior=state,
-                candidate=self._ordered[index],
-                arguments=self._arguments,
-                confidences=self._confidences,
+                candidate=candidate,
+                arguments=state.arguments,
+                confidences=state.confidences,
                 _config=KnotConfig(id=self._attempt_id),
             )
         return attempt, state

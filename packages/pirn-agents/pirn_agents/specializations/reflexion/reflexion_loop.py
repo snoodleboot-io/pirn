@@ -24,13 +24,13 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import replace
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.reflexion.evaluation_feedback import EvaluationFeedback
@@ -53,23 +53,6 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
     _evaluator_id: ClassVar[str] = "evaluator"
     _reflect_id: ClassVar[str] = "reflect"
 
-    def __init__(
-        self,
-        *,
-        task: str,
-        llm: LLMProvider,
-        memory: MemoryStore,
-        max_iterations: int,
-        memory_namespace: str,
-        **kwargs: Any,
-    ) -> None:
-        self._task = task
-        self._llm = llm
-        self._memory = memory
-        self._max_iterations = max_iterations
-        self._memory_namespace = memory_namespace
-        super().__init__(**kwargs)
-
     async def astep(self, state: ReflexionState) -> tuple[Tapestry, ReflexionState] | None:
         """Build the next iteration, or return None once accepted or exhausted.
 
@@ -84,22 +67,22 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
             The iteration's tapestry paired with ``state``, or ``None`` once
             ``state.succeeded`` or ``state.index`` has reached the cap.
         """
-        if state.succeeded or state.index >= self._max_iterations:
+        if state.succeeded or state.index >= state.max_iterations:
             return None
 
-        reflections = await self._read_reflections(state.reflection_keys)
+        reflections = await self._read_reflections(state.memory, state.reflection_keys)
         iteration = Tapestry()
         with iteration:
             actor = ReflexionActor(
-                task=self._task,
-                llm=self._llm,
+                task=state.task,
+                llm=state.llm,
                 reflections=reflections,
                 _config=KnotConfig(id=self._actor_id),
             )
             evaluator = ReflexionEvaluator(
-                task=self._task,
+                task=state.task,
                 answer=actor,
-                llm=self._llm,
+                llm=state.llm,
                 _config=KnotConfig(id=self._evaluator_id),
             )
             should_reflect = ShouldReflectCheck(
@@ -110,10 +93,10 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
             )
             feedback = EvaluationFeedback(evaluation=evaluator, _config=KnotConfig(id="feedback"))
             ReflexionReflector(
-                task=self._task,
+                task=state.task,
                 answer=gated_answer,
                 feedback=feedback,
-                llm=self._llm,
+                llm=state.llm,
                 _config=KnotConfig(id=self._reflect_id),
             )
         return iteration, state
@@ -137,8 +120,8 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
                 *state.attempts,
                 ReflexionAttempt(answer=answer, success=True, feedback="", reflection=""),
             )
-            return ReflexionState(
-                reflection_keys=state.reflection_keys,
+            return replace(
+                state,
                 attempts=attempts,
                 final_answer=answer,
                 succeeded=True,
@@ -146,15 +129,16 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
             )
 
         reflection = result.outputs[self._reflect_id]
-        key = f"{self._memory_namespace}:{state.index}"
-        await self._memory.store(key, {"text": reflection})
+        key = f"{state.memory_namespace}:{state.index}"
+        await state.memory.store(key, {"text": reflection})
         attempts = (
             *state.attempts,
             ReflexionAttempt(
                 answer=answer, success=False, feedback=evaluation.feedback, reflection=reflection
             ),
         )
-        return ReflexionState(
+        return replace(
+            state,
             reflection_keys=(*state.reflection_keys, key),
             attempts=attempts,
             final_answer=answer,
@@ -166,11 +150,20 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
         """Name each iteration for run history."""
         return f"iteration_{idx}"
 
-    async def _read_reflections(self, keys: tuple[str, ...]) -> tuple[str, ...]:
-        """Read back every previously written reflection from the memory store."""
+    @staticmethod
+    async def _read_reflections(memory: MemoryStore, keys: tuple[str, ...]) -> tuple[str, ...]:
+        """Read back every previously written reflection from the memory store.
+
+        Args:
+            memory: The store this run's reflections were written to.
+            keys: The keys earlier iterations wrote, in order.
+
+        Returns:
+            Each stored reflection's text, in key order.
+        """
         texts: list[str] = []
         for key in keys:
-            entry = await self._memory.retrieve(key)
+            entry = await memory.retrieve(key)
             if entry is not None:
                 text = entry.get("text")
                 if isinstance(text, str):

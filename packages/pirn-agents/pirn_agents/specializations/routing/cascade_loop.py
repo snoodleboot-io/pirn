@@ -15,17 +15,14 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.routing.attempt_tier import AttemptTier
 from pirn_agents.specializations.routing.cascade_chain_state import CascadeChainState
-from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
@@ -37,23 +34,6 @@ class CascadeLoop(AgentLoopPipeline[CascadeChainState]):
     #: Per-iteration knot id (Rule: no module-level constants).
     _attempt_id: ClassVar[str] = "attempt"
 
-    def __init__(
-        self,
-        *,
-        request: str,
-        tiers: tuple[CascadeTier, ...],
-        confidence: Callable[[Any], Awaitable[float]],
-        meter: Any,
-        spend_cap_policy: SpendCapPolicy,
-        **kwargs: Any,
-    ) -> None:
-        self._request = request
-        self._tiers = tiers
-        self._confidence = confidence
-        self._meter = meter
-        self._spend_cap_policy = spend_cap_policy
-        super().__init__(**kwargs)
-
     def step(self, state: CascadeChainState) -> tuple[Tapestry, CascadeChainState] | None:
         """Build the next tier's attempt, or None once locked or exhausted.
 
@@ -64,20 +44,20 @@ class CascadeLoop(AgentLoopPipeline[CascadeChainState]):
             The attempt's tapestry paired with ``state``, or ``None`` once
             ``state.locked`` or every tier has been processed.
         """
-        index = len(state.decisions)
-        if state.locked or index >= len(self._tiers):
+        tier = state.next_tier()
+        if tier is None:
             return None
 
         attempt = Tapestry()
         with attempt:
             AttemptTier(
                 prior=state,
-                tier=self._tiers[index],
-                index=index,
-                request=self._request,
-                confidence=self._confidence,
-                meter=self._meter,
-                spend_cap_policy=self._spend_cap_policy,
+                tier=tier,
+                index=len(state.decisions),
+                request=state.request,
+                confidence=state.confidence,
+                meter=state.meter,
+                spend_cap_policy=state.spend_cap_policy,
                 _config=KnotConfig(id=self._attempt_id),
             )
         return attempt, state

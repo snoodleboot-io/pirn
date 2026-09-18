@@ -98,16 +98,21 @@ class FlareActiveRagPipeline(AgentPipeline):
         initial = Parameter(
             "flare_state",
             FlareState,
-            default=FlareState(parts=(), retrieval_calls=0, done=False, index=0),
+            default=FlareState(
+                query=query,
+                memory=memory,
+                llm=llm,
+                confidence_threshold=float(confidence_threshold),
+                max_sentences=int(max_sentences),
+                max_retrieval_calls=int(max_retrieval_calls),
+                top_k=int(top_k),
+                parts=(),
+                retrieval_calls=0,
+                done=False,
+                index=0,
+            ),
         )
         loop = FlareLoop(
-            query=query,
-            memory=memory,
-            llm=llm,
-            confidence_threshold=float(confidence_threshold),
-            max_sentences=int(max_sentences),
-            max_retrieval_calls=int(max_retrieval_calls),
-            top_k=int(top_k),
             state=initial,
             _config=KnotConfig(id="flare_loop"),
         )

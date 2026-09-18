@@ -80,10 +80,9 @@ class PromptChainPipeline(AgentPipeline):
         initial = Parameter(
             "prompt_chain_state",
             PromptChainState,
-            default=PromptChainState(steps=step_tuple, index=0, current=task, outputs=()),
+            default=PromptChainState(steps=step_tuple, llm=llm, index=0, current=task, outputs=()),
         )
         loop = PromptChainLoop(
-            llm=llm,
             state=initial,
             _config=KnotConfig(id="prompt_chain_loop"),
         )

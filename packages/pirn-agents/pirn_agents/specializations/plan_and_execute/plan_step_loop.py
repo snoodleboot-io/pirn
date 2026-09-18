@@ -9,13 +9,12 @@ exists for (PIR-867; see the module docstring on
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import replace
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_result import RunResult
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.plan_and_execute.plan_step_call import PlanStepCall
 from pirn_agents.specializations.plan_and_execute.plan_step_state import PlanStepState
@@ -23,10 +22,6 @@ from pirn_agents.specializations.plan_and_execute.plan_step_state import PlanSte
 
 class PlanStepLoop(AgentLoopPipeline[PlanStepState]):
     """Execute a plan's steps in order, threading each step's result forward."""
-
-    def __init__(self, *, llm: LLMProvider, **kwargs: Any) -> None:
-        self._llm = llm
-        super().__init__(**kwargs)
 
     def step(self, state: PlanStepState) -> tuple[Tapestry, PlanStepState] | None:
         """Build the next step's call, or return ``None`` once every step has run.
@@ -45,7 +40,7 @@ class PlanStepLoop(AgentLoopPipeline[PlanStepState]):
                 step_index=state.index,
                 step_text=state.steps[state.index],
                 prior_results=state.step_results,
-                llm=self._llm,
+                llm=state.llm,
                 _config=KnotConfig(id="call"),
             )
         return t, state
@@ -60,8 +55,8 @@ class PlanStepLoop(AgentLoopPipeline[PlanStepState]):
         Returns:
             A new state carrying the step's result and the next index.
         """
-        return PlanStepState(
-            steps=state.steps,
+        return replace(
+            state,
             step_results=(*state.step_results, result.outputs["call"]),
             index=state.index + 1,
         )

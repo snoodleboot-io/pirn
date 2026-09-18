@@ -26,14 +26,13 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import replace
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.rag.flare_regenerate_prompt_builder import (
@@ -66,27 +65,6 @@ class FlareLoop(AgentLoopPipeline[FlareState]):
         ),
     )
 
-    def __init__(
-        self,
-        *,
-        query: str,
-        memory: MemoryStore,
-        llm: LLMProvider,
-        confidence_threshold: float,
-        max_sentences: int,
-        max_retrieval_calls: int,
-        top_k: int,
-        **kwargs: Any,
-    ) -> None:
-        self._query = query
-        self._memory = memory
-        self._llm = llm
-        self._confidence_threshold = confidence_threshold
-        self._max_sentences = max_sentences
-        self._max_retrieval_calls = max_retrieval_calls
-        self._top_k = top_k
-        super().__init__(**kwargs)
-
     def step(self, state: FlareState) -> tuple[Tapestry, FlareState] | None:
         """Build the next round, or None once done or the sentence cap is reached.
 
@@ -97,21 +75,21 @@ class FlareLoop(AgentLoopPipeline[FlareState]):
             The round's tapestry paired with ``state``, or ``None`` once
             ``state.done`` or ``state.index`` has reached the cap.
         """
-        if state.done or state.index >= self._max_sentences:
+        if state.done or state.index >= state.max_sentences:
             return None
 
-        prompt = self._generate_prompt(self._query, state.parts)
+        prompt = self._generate_prompt(state.query, state.parts)
 
         round_tapestry = Tapestry()
         with round_tapestry:
             generate = LLMChatCall(
-                prompt=prompt, llm=self._llm, _config=KnotConfig(id=self._generate_id)
+                prompt=prompt, llm=state.llm, _config=KnotConfig(id=self._generate_id)
             )
             needs_retrieval = NeedsRetrievalCheck(
                 reply=generate,
-                confidence_threshold=self._confidence_threshold,
+                confidence_threshold=state.confidence_threshold,
                 retrieval_calls_so_far=state.retrieval_calls,
-                max_retrieval_calls=self._max_retrieval_calls,
+                max_retrieval_calls=state.max_retrieval_calls,
                 _config=KnotConfig(id="needs_retrieval"),
             )
             gated_reply = Gate(
@@ -119,19 +97,19 @@ class FlareLoop(AgentLoopPipeline[FlareState]):
             )
             sentence = FlareSentenceExtractor(reply=gated_reply, _config=KnotConfig(id="sentence"))
             retrieved = MemorySearchRetriever(
-                store=self._memory,
+                store=state.memory,
                 query=sentence,
-                top_k=self._top_k,
+                top_k=state.top_k,
                 _config=KnotConfig(id="retrieve"),
             )
             prompt_builder = FlareRegeneratePromptBuilder(
-                query=self._query,
+                query=state.query,
                 sentence=sentence,
                 docs=retrieved,
                 _config=KnotConfig(id="regenerate_prompt"),
             )
             LLMChatCall(
-                prompt=prompt_builder, llm=self._llm, _config=KnotConfig(id=self._regenerate_id)
+                prompt=prompt_builder, llm=state.llm, _config=KnotConfig(id=self._regenerate_id)
             )
         return round_tapestry, state
 
@@ -150,9 +128,7 @@ class FlareLoop(AgentLoopPipeline[FlareState]):
         reply = result.outputs[self._generate_id]
         index = state.index + 1
         if FlareReplyParser.is_done(reply):
-            return FlareState(
-                parts=state.parts, retrieval_calls=state.retrieval_calls, done=True, index=index
-            )
+            return replace(state, done=True, index=index)
 
         _confidence, sentence = FlareReplyParser.parse(reply)
         regenerated = result.outputs.get(self._regenerate_id)
@@ -162,7 +138,7 @@ class FlareLoop(AgentLoopPipeline[FlareState]):
             retrieval_calls += 1
 
         parts = (*state.parts, sentence) if sentence else state.parts
-        return FlareState(parts=parts, retrieval_calls=retrieval_calls, done=False, index=index)
+        return replace(state, parts=parts, retrieval_calls=retrieval_calls, done=False, index=index)
 
     def step_id(self, state: FlareState, idx: int) -> str:
         """Name each round for run history."""

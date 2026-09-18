@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -38,11 +39,11 @@ class FoldCandidateResult(Knot):
         """Record ``candidate`` as attempted, locking the chain on success."""
         attempted = (*prior.attempted, candidate.name)
         if tool_result.succeeded:
-            return FallbackChainState(
+            return replace(
+                prior,
                 attempted=attempted,
-                skipped=prior.skipped,
                 succeeded_result=tool_result,
                 chosen=candidate.name,
                 locked=True,
             )
-        return FallbackChainState(attempted=attempted, skipped=prior.skipped)
+        return replace(prior, attempted=attempted)

@@ -66,13 +66,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import KnotFactory
-from pirn.core.ok import Ok
-from pirn.core.skipped import Skipped
+from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
@@ -84,46 +81,14 @@ from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.security.secret_redactor import SecretRedactor
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.llm_response_text import LlmResponseText
+from pirn_agents.specializations.react.react_observation_assembler import (
+    ReActObservationAssembler,
+)
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_rejection import ToolCallRejection
 from pirn_agents.tools.tool_factory import ToolFactory
-from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
-
-
-@KnotFactory.knot
-async def _constant_messages(value: tuple[AgentMessage, ...]) -> tuple[AgentMessage, ...]:
-    """Terminal for a branch that needs no tool call: the value is already final.
-
-    A knot rather than a plain early return: ``process()`` must return the
-    sink of an inner pipeline now, so every branch — including the ones with
-    nothing left to compute — needs a graph node to return.
-    """
-    return value
-
-
-@KnotFactory.knot
-async def _observation_assembler(
-    thought: AgentMessage,
-    tool_call_message: AgentMessage,
-    call_id: str,
-    action_name: str,
-    outcome: Ok[Any] | Err | Skipped,
-) -> tuple[AgentMessage, ...]:
-    """Terminal: turn the tool knot's ``Result`` into the step's messages.
-
-    Wired with ``RECEIVE_ERRORS`` so ``outcome`` is the call's raw
-    ``Ok | Err | Skipped``; the :class:`ToolResult` view renders it.
-    """
-    view = ToolResult.from_result(call_id, outcome)
-    content = (
-        str(view.result)
-        if view.error is None
-        else (view.error or f"Tool {action_name!r} failed with no message.")
-    )
-    observation = AgentMessage(role="tool", content=content, tool_call_id=call_id, name=action_name)
-    return (thought, tool_call_message, observation)
 
 
 class ReActStepExecutor(AgentPipeline):
@@ -215,7 +180,7 @@ class ReActStepExecutor(AgentPipeline):
                     f"got {type(candidate).__name__}"
                 ) from exc
         if already_terminated:
-            return _constant_messages(value=(), _config=KnotConfig(id="noop"))
+            return self._messages_terminal((), "noop")
         tools_by_name = {factory.name: factory for factory in factories}
         prompt = self._render_prompt(context, factories)
         chat_messages = [{"role": "user", "content": prompt}]
@@ -223,10 +188,10 @@ class ReActStepExecutor(AgentPipeline):
         thought_text = LlmResponseText().extract(raw)
         thought = AgentMessage(role="assistant", content=thought_text)
         if self._final_answer_marker in thought_text:
-            return _constant_messages(value=(thought,), _config=KnotConfig(id="final-answer"))
+            return self._messages_terminal((thought,), "final-answer")
         action_name, action_input = self._parse_action(thought_text)
         if action_name is None:
-            return _constant_messages(value=(thought,), _config=KnotConfig(id="no-action"))
+            return self._messages_terminal((thought,), "no-action")
         call_id = f"{self.knot_id}-call"
         tool_call_message = AgentMessage(
             role="assistant",
@@ -242,9 +207,8 @@ class ReActStepExecutor(AgentPipeline):
                 tool_call_id=call_id,
                 name=action_name,
             )
-            return _constant_messages(
-                value=(thought, tool_call_message, observation),
-                _config=KnotConfig(id="tool-not-registered"),
+            return self._messages_terminal(
+                (thought, tool_call_message, observation), "tool-not-registered"
             )
         call = ToolCall(tool_name=action_name, arguments={"input": action_input}, call_id=call_id)
         try:
@@ -253,13 +217,37 @@ class ReActStepExecutor(AgentPipeline):
             call_knot = ToolCallRejection(
                 call=call, error=exc, _config=KnotConfig(id=ToolFactory.knot_id_for(call_id))
             )
-        return _observation_assembler(
+        return ReActObservationAssembler(
             thought=thought,
             tool_call_message=tool_call_message,
             call_id=call_id,
             action_name=action_name,
             outcome=call_knot,
             _config=KnotConfig(id="assemble", error_policy=ErrorPolicy.RECEIVE_ERRORS),
+        )
+
+    @staticmethod
+    def _messages_terminal(messages: tuple[AgentMessage, ...], knot_id: str) -> Knot:
+        """A source knot producing ``messages``, for a branch with nothing left to run.
+
+        ``process()`` must return the sink of an inner pipeline, so a branch that
+        has already decided its answer still needs a graph node to return. A core
+        :class:`~pirn.core.parameter.Parameter` with a default is that node — the
+        idiom every other specialization uses — rather than a bespoke knot of
+        this module's own.
+
+        Args:
+            messages: The message tail this branch produced.
+            knot_id: The inner knot id naming the branch in lineage.
+
+        Returns:
+            The ``Parameter`` sink.
+        """
+        return Parameter(
+            knot_id.replace("-", "_"),
+            tuple[AgentMessage, ...],
+            default=messages,
+            _config=KnotConfig(id=knot_id),
         )
 
     def _render_prompt(self, context: Any, tools: Sequence[ToolFactory]) -> str:

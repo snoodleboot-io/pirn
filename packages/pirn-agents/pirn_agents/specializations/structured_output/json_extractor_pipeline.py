@@ -110,14 +110,17 @@ class JsonExtractorPipeline(AgentPipeline):
             "json_extractor_state",
             JsonExtractorState,
             default=JsonExtractorState(
-                prior_error="", result=None, last_error="no attempts were made", attempts=0
+                prompt=prompt,
+                llm=llm,
+                schema=schema_dict,
+                max_retries=max_retries,
+                prior_error="",
+                result=None,
+                last_error="no attempts were made",
+                attempts=0,
             ),
         )
         loop = JsonExtractorLoop(
-            prompt=prompt,
-            llm=llm,
-            schema=schema_dict,
-            max_retries=max_retries,
             state=initial,
             _config=KnotConfig(id="json_extractor_loop"),
         )

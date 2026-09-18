@@ -11,13 +11,12 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import replace
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.structured_output.yaml_extractor_attempt import (
     YamlExtractorAttempt,
@@ -36,21 +35,6 @@ class YamlExtractorLoop(AgentLoopPipeline[YamlExtractorState]):
     #: Per-iteration knot id (Rule: no module-level constants).
     _attempt_id: ClassVar[str] = "attempt"
 
-    def __init__(
-        self,
-        *,
-        prompt: str,
-        llm: LLMProvider,
-        schema: Mapping[str, Any] | None,
-        max_retries: int,
-        **kwargs: Any,
-    ) -> None:
-        self._prompt = prompt
-        self._llm = llm
-        self._schema = schema
-        self._max_retries = max_retries
-        super().__init__(**kwargs)
-
     def step(self, state: YamlExtractorState) -> tuple[Tapestry, YamlExtractorState] | None:
         """Build the next attempt, or return None once parsed or exhausted.
 
@@ -61,15 +45,15 @@ class YamlExtractorLoop(AgentLoopPipeline[YamlExtractorState]):
             The attempt's tapestry paired with ``state``, or ``None`` once
             ``state.result`` is set or ``state.attempts`` has reached the cap.
         """
-        if state.result is not None or state.attempts >= self._max_retries:
+        if state.result is not None or state.attempts >= state.max_retries:
             return None
 
         attempt = Tapestry()
         with attempt:
             YamlExtractorAttempt(
-                prompt=self._prompt,
-                llm=self._llm,
-                schema=self._schema,
+                prompt=state.prompt,
+                llm=state.llm,
+                schema=state.schema,
                 prior_error=state.prior_error,
                 _config=KnotConfig(id=self._attempt_id),
             )
@@ -89,16 +73,12 @@ class YamlExtractorLoop(AgentLoopPipeline[YamlExtractorState]):
         outcome = result.outputs[self._attempt_id]
         match outcome:
             case {**parsed}:
-                return YamlExtractorState(
-                    prior_error=state.prior_error,
-                    result=parsed,
-                    last_error=state.last_error,
-                    attempts=state.attempts + 1,
-                )
+                return replace(state, result=parsed, attempts=state.attempts + 1)
             case _:
                 pass
         error = str(outcome) if outcome is not None else "no output"
-        return YamlExtractorState(
+        return replace(
+            state,
             prior_error=error,
             result=None,
             last_error=error,

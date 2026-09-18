@@ -115,15 +115,18 @@ class PydanticValidatorPipeline(AgentPipeline):
             "pydantic_validator_state",
             PydanticValidatorState,
             default=PydanticValidatorState(
-                prior_error="", validated=None, last_error="no attempts were made", attempts=0
+                prompt=prompt,
+                llm=llm,
+                schema=schema,
+                model_class=model_class,
+                max_retries=max_retries,
+                prior_error="",
+                validated=None,
+                last_error="no attempts were made",
+                attempts=0,
             ),
         )
         loop = PydanticValidatorLoop(
-            prompt=prompt,
-            llm=llm,
-            schema=schema,
-            model_class=model_class,
-            max_retries=max_retries,
             state=initial,
             _config=KnotConfig(id="pydantic_validator_loop"),
         )

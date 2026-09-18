@@ -16,14 +16,14 @@ Internal API. See PIR-713.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import replace
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
 
 from pirn_agents.control.reflection_check import ReflectionCheck
-from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.evaluator_optimizer.accept_check import AcceptCheck
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import (
@@ -54,23 +54,6 @@ class EvaluatorOptimizerLoop(AgentLoopPipeline[EvaluatorOptimizerState]):
     _continue_id: ClassVar[str] = "eo_continue"
     _reflect_id: ClassVar[str] = "eo_reflect"
 
-    def __init__(
-        self,
-        *,
-        task: str,
-        llm: LLMProvider,
-        threshold: float,
-        max_iterations: int,
-        reflection_gate: bool,
-        **kwargs: Any,
-    ) -> None:
-        self._task = task
-        self._llm = llm
-        self._threshold = threshold
-        self._max_iterations = max_iterations
-        self._reflection_gate = reflection_gate
-        super().__init__(**kwargs)
-
     def step(
         self, state: EvaluatorOptimizerState
     ) -> tuple[Tapestry, EvaluatorOptimizerState] | None:
@@ -83,29 +66,29 @@ class EvaluatorOptimizerLoop(AgentLoopPipeline[EvaluatorOptimizerState]):
             The iteration's tapestry paired with the state ``fold`` will
             receive, or ``None`` once accepted, stopped, or capped.
         """
-        if state.accepted or state.stop or state.iterations >= self._max_iterations:
+        if state.accepted or state.stop or state.iterations >= state.max_iterations:
             return None
 
         iteration = Tapestry()
         with iteration:
             candidate = CandidateGenerator(
-                task=self._task,
-                llm=self._llm,
+                task=state.task,
+                llm=state.llm,
                 feedback=state.feedback,
                 _config=KnotConfig(id=self._gen_id),
             )
             verdict = LlmJudge(
-                task=self._task,
+                task=state.task,
                 candidate=candidate,
-                llm=self._llm,
+                llm=state.llm,
                 _config=KnotConfig(id=self._judge_id),
             )
             accepted = AcceptCheck(
                 verdict=verdict,
-                threshold=self._threshold,
+                threshold=state.threshold,
                 _config=KnotConfig(id=self._gate_id),
             )
-            if self._reflection_gate:
+            if state.reflection_gate:
                 rejected = CandidateRejectedCheck(
                     accepted=accepted, _config=KnotConfig(id=self._rejected_id)
                 )
@@ -120,7 +103,7 @@ class EvaluatorOptimizerLoop(AgentLoopPipeline[EvaluatorOptimizerState]):
                 )
                 ReflectionCheck(
                     response=response,
-                    llm=self._llm,
+                    llm=state.llm,
                     _config=KnotConfig(id=self._reflect_id),
                 )
         return iteration, state
@@ -152,7 +135,8 @@ class EvaluatorOptimizerLoop(AgentLoopPipeline[EvaluatorOptimizerState]):
         keep_going = result.outputs.get(self._reflect_id)
         stop = keep_going is False
 
-        return EvaluatorOptimizerState(
+        return replace(
+            state,
             feedback=verdict.feedback if isinstance(verdict, JudgeVerdict) else "",
             best_answer=best_answer,
             best_score=best_score,

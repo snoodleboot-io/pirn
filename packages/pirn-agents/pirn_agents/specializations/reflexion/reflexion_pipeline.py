@@ -96,15 +96,19 @@ class ReflexionPipeline(AgentPipeline):
             "reflexion_state",
             ReflexionState,
             default=ReflexionState(
-                reflection_keys=(), attempts=(), final_answer="", succeeded=False, index=0
+                task=task,
+                llm=llm,
+                memory=memory,
+                max_iterations=max_iterations,
+                memory_namespace=memory_namespace,
+                reflection_keys=(),
+                attempts=(),
+                final_answer="",
+                succeeded=False,
+                index=0,
             ),
         )
         loop = ReflexionLoop(
-            task=task,
-            llm=llm,
-            memory=memory,
-            max_iterations=max_iterations,
-            memory_namespace=memory_namespace,
             state=initial,
             _config=KnotConfig(id="reflexion_loop"),
         )

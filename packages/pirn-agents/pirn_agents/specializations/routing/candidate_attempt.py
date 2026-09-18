@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -73,9 +74,7 @@ class CandidateAttempt(AgentPipeline):
             return Parameter(
                 "skip",
                 FallbackChainState,
-                default=FallbackChainState(
-                    attempted=prior.attempted, skipped=(*prior.skipped, candidate.name)
-                ),
+                default=replace(prior, skipped=(*prior.skipped, candidate.name)),
                 _config=KnotConfig(id="skip"),
             )
         call = ToolCall(tool_name=candidate.tool.name, arguments=arguments, call_id=candidate.name)
