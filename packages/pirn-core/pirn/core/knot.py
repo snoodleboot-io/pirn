@@ -57,6 +57,7 @@ from pirn.core.run_context_vars import RunContextVars
 from pirn.core.shape_guard import ShapeGuard
 from pirn.core.skipped import Skipped
 from pirn.core.zip_map import ZipMap
+from pirn.exceptions.knot_timeout_error import KnotTimeoutError
 from pirn.exceptions.unresolved_annotation_error import UnresolvedAnnotationError
 from pirn.managers.exception_record import ExceptionRecord
 
@@ -799,6 +800,17 @@ class Knot:
         """Names declared on process(), in declaration order."""
         return tuple(self._mutable_input_adapters.keys())
 
+    def fans_out(self) -> bool:
+        """Whether this knot runs ``process()`` once per element of a mapped input.
+
+        ``True`` when a ``Map``/``ZipMap``/``DictMap`` marker was wired on one
+        of its inputs.  Such a knot applies ``KnotConfig.timeout`` and
+        ``retry`` per element itself (``_fan_out``), so ``GovernedDispatch``
+        applies neither around the batch -- one slow element must not fail its
+        siblings, and a retry must re-run only what failed.
+        """
+        return bool(self._mutable_mapped_inputs)
+
     # ------------------------------------------------------------- user-impl
 
     async def process(self, *args: Any, **_: Any) -> Any:
@@ -1134,10 +1146,48 @@ class Knot:
         return out
 
     async def _fan_out(self, kwargs: dict[str, Any]) -> list[Any]:
-        """Execute process() once per element, returning list[output].
+        """Execute ``process()`` once per element, returning ``list[output]``.
 
-        Raises MapTypeError if a collection has the wrong type.
-        Propagates the first process() exception (cancels remaining tasks).
+        Each element is one unit of work, so each is metered, timed and
+        retried as one.  The fan-out used to be a bare
+        ``asyncio.gather(*coros)`` inside the single admission slot the knot
+        itself was admitted with, which meant a ``Map`` over a thousand
+        elements started a thousand concurrent ``process()`` calls whatever
+        ``max_in_flight`` or the knot's ``concurrency_group`` said, and
+        ``KnotConfig.timeout``/``retry`` applied to the whole batch: one slow
+        element failed every sibling, and a retry re-ran all of them
+        (PIR-873).  Now:
+
+        * **Bounded by the same budget.**  Element concurrency is capped at
+          the run gate's live cap for this knot's ``concurrency_group``, or
+          the run-wide cap when the knot names no group.  The knot already
+          holds a slot for itself, so its elements are bounded *inside* that
+          slot rather than taking slots of their own -- which would deadlock
+          under ``max_in_flight=1`` for exactly the reason a container holds
+          no slot at all.  An unbounded gate, or no run at all, leaves the
+          fan-out unbounded as before.
+        * **Timeout per element.**  ``KnotConfig.timeout`` bounds each
+          element's ``process()`` call and a expiry is that element's
+          ``KnotTimeoutError``.
+        * **Retry per element.**  ``KnotConfig.retry`` is applied to the
+          element that failed, not to the batch.
+        * **First failure cancels the rest**, which is what this docstring
+          always claimed and ``asyncio.gather`` never did -- it propagates
+          the first exception and leaves its siblings running.
+
+        ``GovernedDispatch`` therefore applies neither timeout nor retry to a
+        fan-out knot: both belong to the element.
+
+        Args:
+            kwargs: The knot's resolved inputs, with the mapped ones still
+                holding their whole collection.
+
+        Returns:
+            One output per element, in element order.
+
+        Raises:
+            MapTypeError: If a mapped input is not the collection kind its
+                marker requires.
         """
         mapped = self._mutable_mapped_inputs
         sole_type = next(iter(mapped.values()))
@@ -1153,7 +1203,7 @@ class Knot:
                     f"or tuple, got {type(collection).__name__!r}. "
                     "To use a set, sort it into a list upstream."
                 )
-            coros = [self.process(**{**kwargs, input_name: element}) for element in collection]
+            calls = [{**kwargs, input_name: element} for element in collection]
             map_type = "map"
             element_count = len(collection)
 
@@ -1166,12 +1216,12 @@ class Knot:
                         f"{type(self).__name__}({self.knot_id!r}): ZipMap input "
                         f"{n!r} requires a list or tuple, got {type(coll).__name__!r}"
                     )
-            coros = [
-                self.process(**{**kwargs, **dict(zip(names, elements, strict=False))})
+            calls = [
+                {**kwargs, **dict(zip(names, elements, strict=False))}
                 for elements in zip(*collections, strict=False)
             ]
             map_type = "zip_map"
-            element_count = len(coros)
+            element_count = len(calls)
 
         else:  # DictMap
             (key_name, val_name) = mapped.keys()
@@ -1182,18 +1232,111 @@ class Knot:
                     f"dict, got {type(the_dict).__name__!r}"
                 )
             dict_keys = list(the_dict.keys())
-            coros = [
-                self.process(**{**kwargs, key_name: k, val_name: v}) for k, v in the_dict.items()
-            ]
+            calls = [{**kwargs, key_name: k, val_name: v} for k, v in the_dict.items()]
             map_type = "dict_map"
             element_count = len(the_dict)
 
-        results = await asyncio.gather(*coros)
+        results = await self._run_fan_out_elements(calls)
         fan_out_extra: dict[str, Any] = {"map_type": map_type, "element_count": element_count}
         if dict_keys is not None:
             fan_out_extra["dict_keys"] = dict_keys
         self._mutable_fan_out_extra = fan_out_extra
         return list(results)
+
+    async def _run_fan_out_elements(self, calls: Sequence[Mapping[str, Any]]) -> list[Any]:
+        """Run one ``process()`` per entry of *calls*, bounded, timed and retried.
+
+        Args:
+            calls: The ``process()`` kwargs for each element, in element order.
+
+        Returns:
+            Each element's output, in the same order.
+
+        Raises:
+            BaseException: The first element failure, after cancelling the
+                elements still running -- the semantics the fan-out has always
+                documented.
+        """
+        if not calls:
+            return []
+        limit = self._fan_out_limit()
+        semaphore = asyncio.Semaphore(limit) if limit is not None else None
+        tasks = [asyncio.ensure_future(self._fan_out_element(call, semaphore)) for call in calls]
+        _done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+        failure = next(
+            (task.exception() for task in tasks if task.done() and task.exception() is not None),
+            None,
+        )
+        if failure is None:
+            return [task.result() for task in tasks]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.wait(pending)
+        raise failure
+
+    def _fan_out_limit(self) -> int | None:
+        """The most elements of this knot that may run at once, or ``None`` for no cap.
+
+        The run gate's live cap for this knot's ``concurrency_group``, falling
+        back to the run-wide cap.  ``None`` outside a run, or when the budget
+        that applies is unbounded.
+        """
+        from pirn.core.execution_plane import ExecutionPlane  # local: avoids a cycle
+
+        plane = ExecutionPlane.current()
+        if plane is None:
+            return None
+        group = self._mutable_config.concurrency_group
+        limit = plane.gate.current_limit(group) if group is not None else None
+        return limit if limit is not None else plane.gate.current_limit(None)
+
+    async def _fan_out_element(
+        self, call: Mapping[str, Any], semaphore: asyncio.Semaphore | None
+    ) -> Any:
+        """Run one element under this knot's retry policy.
+
+        The slot is reacquired per attempt, so an element sleeping between
+        attempts does not hold capacity a sibling could use -- the same
+        property ``GovernedDispatch`` gives a knot-level retry.
+        """
+        config = self._mutable_config
+        policy = config.retry
+        attempts = 0
+        while True:
+            attempts += 1
+            try:
+                return await self._fan_out_attempt(call, config.timeout, semaphore)
+            except BaseException as exc:
+                if self._is_task_cancellation(exc):
+                    raise
+                if policy is None:
+                    raise
+                record = ExceptionRecord.for_knot(config.id, exc)
+                if not policy.should_retry(attempts, record):
+                    raise
+                await asyncio.sleep(policy.delay_before_retry(attempts - 1, record))
+
+    async def _fan_out_attempt(
+        self,
+        call: Mapping[str, Any],
+        timeout: float | None,
+        semaphore: asyncio.Semaphore | None,
+    ) -> Any:
+        """Run one attempt of one element, holding a slot of *semaphore* while it runs."""
+        if semaphore is None:
+            return await self._fan_out_call(call, timeout)
+        async with semaphore:
+            return await self._fan_out_call(call, timeout)
+
+    async def _fan_out_call(self, call: Mapping[str, Any], timeout: float | None) -> Any:
+        """Call ``process()`` for one element, turning an expiry into ``KnotTimeoutError``."""
+        if timeout is None:
+            return await self.process(**call)
+        try:
+            return await asyncio.wait_for(self.process(**call), timeout)
+        except TimeoutError as exc:
+            raise KnotTimeoutError(self.knot_id, timeout) from exc
 
     # ------------------------------------------------------------- mutation
 
