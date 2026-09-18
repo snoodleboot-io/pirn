@@ -70,7 +70,9 @@ Algorithm:
     5. It records the inner run ids for ``lineage_extra`` and raises
        ``SubTapestryError`` when the inner run failed, unless
        ``_inner_failures_reach_sink`` says the failures were delivered to a
-       sink that consumes them.
+       sink that consumes them.  ``_run_inner`` cannot check that -- it has no
+       sink -- so ``SubTapestry``, which does, re-raises when the sink produced
+       neither a value nor a skip.
 """
 
 from __future__ import annotations
@@ -107,16 +109,25 @@ class NestedRunKnot(Knot):
     Set ``_inner_failures_reach_sink = True`` on a subclass whose inner sink
     receives its parents' ``Result`` values (``ErrorPolicy.RECEIVE_ERRORS``) so an
     inner knot's failure is the sink's input rather than a ``SubTapestryError``.
+    See the flag for the difference between what it means here and on
+    ``SubTapestry``.
     """
 
     #: When ``True``, an inner run in which some knot failed does not fail this
-    #: knot as long as the sink produced a value: the failures were delivered
-    #: to the sink -- wired with ``ErrorPolicy.RECEIVE_ERRORS`` -- which is what
-    #: it exists to combine (a fan-out over tool calls reporting each call's
-    #: ``Ok | Err | Skipped`` beside its siblings; ADR agents-speaks-core,
-    #: WS1).  The failed knots are still recorded in the inner run's history
-    #: and lineage.  Off by default: an inner failure the sink did not receive
-    #: is this knot's ``Err``.
+    #: knot: the failures were delivered to a sink -- wired with
+    #: ``ErrorPolicy.RECEIVE_ERRORS`` -- which is what it exists to combine (a
+    #: fan-out over tool calls reporting each call's ``Ok | Err | Skipped``
+    #: beside its siblings; ADR agents-speaks-core, WS1).  The failed knots are
+    #: still recorded in the inner run's history and lineage.  Off by default:
+    #: an inner failure the sink did not receive is this knot's ``Err``.
+    #:
+    #: ``_run_inner`` has no sink to inspect -- a ``NestedRunKnot`` makes no
+    #: promise about what ``process()`` returns -- so here the flag simply means
+    #: "hand me the failed ``RunResult`` instead of raising", and it is
+    #: ``process()``'s job to read it.  ``SubTapestry``, which *does* have a
+    #: sink, enforces the stronger reading its docs always claimed: the failure
+    #: is tolerated only when the sink produced a value or a skip of its own,
+    #: and raises ``SubTapestryError`` otherwise (PIR-873).
     _inner_failures_reach_sink: ClassVar[bool] = False
 
     # A container holds no admission slot: its inner run's leaves are admitted

@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
+from typing import Any, ClassVar, Generic, TypeVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_context_vars import RunContextVars
+from pirn.nodes.loop_iteration_plan import LoopIterationPlan
 from pirn.nodes.loop_terminal import LoopTerminal
 from pirn.tapestry import Tapestry
-
-if TYPE_CHECKING:
-    from pirn.backends.base.run_history import RunHistory
-    from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 
 #: The loop state type, shared with the ``LoopSubTapestry`` the chain belongs to.
 S = TypeVar("S")
@@ -25,9 +22,12 @@ class IterationChainKnot(Knot, Generic[S]):
     plans the next iteration via ``step``, and self-registers the successor
     into the loop tapestry's store for the extensible engine to pick up.
 
-    ``state`` is always the single declared input, and is always a plain config
-    value: the second element of the tuple ``step`` returned for this iteration.
-    That is what ``fold`` receives, per the contract in the module docstring.
+    ``state`` is a plain config value: the second element of the tuple ``step``
+    returned for this iteration.  That is what ``fold`` receives, per the
+    contract in the module docstring.  The iteration's other declared input is
+    its ``LoopIterationPlan`` — the loop, that iteration's planned tapestry, its
+    index and the history to record it in — which is one opaque value rather
+    than four hidden ``_mutable_`` slots.
 
     Sequencing is carried separately by the ``_previous_iteration`` implicit
     parent, so iteration N+1 cannot begin before iteration N completes.  These
@@ -45,41 +45,28 @@ class IterationChainKnot(Knot, Generic[S]):
 
     _holds_admission_slot: ClassVar[bool] = False
 
-    def __init__(
-        self,
-        *,
-        _loop_sub: LoopSubTapestry[S],
-        _iter_tapestry: Tapestry,
-        _iteration_idx: int,
-        _outer_history: RunHistory | None = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(**kwargs)
-        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
-        # the freeze guard, so a plain assignment is enough here — no need to
-        # bypass __setattr__ via object.__setattr__ as well.
-        self._mutable_loop_sub = _loop_sub
-        self._mutable_iter_tapestry = _iter_tapestry
-        self._mutable_iteration_idx = _iteration_idx
-        self._mutable_outer_history = _outer_history
-
-    async def process(self, state: Any, **_: Any) -> Any:
+    async def process(self, state: Any, plan: LoopIterationPlan[S], **_: Any) -> Any:
         """Run this iteration's tapestry, fold the result into state, and register the next iteration or terminal knot.
 
         Args:
             state: Current loop state, either the initial value or the folded output of the previous iteration.
+            plan: This iteration's non-graph context — the loop, the tapestry
+                its graph was planned into, which iteration it is, and the
+                history its inner run is recorded in.  A declared input rather
+                than four ``_mutable_`` slots, so ``process()`` can be called
+                standalone with plain values and the plan is validated and
+                recorded like any other input (PIR-873).
 
         Returns:
             Updated state value produced by folding this iteration's RunResult.
         """
         from pirn.core.run_request import RunRequest
-        from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
         from pirn.nodes.nested_run_knot import NestedRunKnot
 
-        loop: LoopSubTapestry[S] = self._mutable_loop_sub
-        iter_tapestry: Tapestry = self._mutable_iter_tapestry
-        iteration_idx: int = self._mutable_iteration_idx
-        outer_history: RunHistory | None = self._mutable_outer_history
+        loop = plan.loop
+        iter_tapestry = plan.tapestry
+        iteration_idx = plan.index
+        outer_history = plan.history
 
         if outer_history is None:
             outer_history = RunContextVars.history.get(None)
@@ -174,11 +161,8 @@ class IterationChainKnot(Knot, Generic[S]):
 
         if next_outcome is not None:
             next_tapestry, next_state = next_outcome
-            next_knot = IterationChainKnot(
-                _loop_sub=loop,
-                _iter_tapestry=next_tapestry,
-                _iteration_idx=next_idx,
-                _outer_history=outer_history,
+            next_knot: IterationChainKnot[S] = IterationChainKnot(
+                plan=plan.next_plan(tapestry=next_tapestry, history=outer_history),
                 # ``state`` is the state ``step`` returned, matching iteration 1
                 # (see ``_first_iteration_knot``) and the documented contract:
                 # "return it alongside the updated state that ``fold`` will
@@ -193,8 +177,10 @@ class IterationChainKnot(Knot, Generic[S]):
             )
             store.register(next_knot)
         else:
-            store.register(
-                LoopTerminal(state=self, _config=KnotConfig(id=LoopSubTapestry.terminal_id()))
-            )
+            # ``loop.terminal_id()``, not the base class's: a subclass that
+            # overrides ``_terminal_id`` has ``_resolve_output_key`` looking for
+            # *its* id, so registering the terminal under the base id made the
+            # loop's output lookup a KeyError (PIR-873).
+            store.register(LoopTerminal(state=self, _config=KnotConfig(id=loop.terminal_id())))
 
         return new_state

@@ -65,6 +65,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_context_vars import RunContextVars
 from pirn.nodes.iteration_chain_knot import IterationChainKnot
+from pirn.nodes.loop_iteration_plan import LoopIterationPlan
 from pirn.nodes.loop_terminal import LoopTerminal
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -278,11 +279,11 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
 
         first_tapestry, first_state = first_outcome
         first_knot_id = self.step_id(first_state, 1)
-        return IterationChainKnot(
-            _loop_sub=self,
-            _iter_tapestry=first_tapestry,
-            _iteration_idx=1,
-            _outer_history=outer_history,
+        first_knot: IterationChainKnot[S] = IterationChainKnot(
+            plan=LoopIterationPlan(
+                loop=self, tapestry=first_tapestry, index=1, history=outer_history
+            ),
             state=first_state,
             _config=KnotConfig(id=first_knot_id),
         )
+        return first_knot

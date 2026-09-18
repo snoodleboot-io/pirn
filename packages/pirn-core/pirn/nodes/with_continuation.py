@@ -39,19 +39,24 @@ feeds back into the agent's own dynamic planning.
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import Callable
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.exceptions.extensible_run_required_error import ExtensibleRunRequiredError
 from pirn.nodes.end_knot import EndKnot
 from pirn.nodes.next import Next
 from pirn.tapestry import Tapestry
 
 # ── Types ─────────────────────────────────────────────────────────────────────
 
-Pool = dict[str, type[Knot]]
+#: Action name -> anything that constructs the successor knot for that action.
+#: A ``Knot`` subclass and a ``@KnotFactory.knot`` factory are both valid and
+#: both used in tree; the contract the spawn site relies on is exactly "call it
+#: with the ``Next``'s inputs and a ``_config`` and get a knot back", which is
+#: also what ``validate_io`` can actually check.
+Pool = dict[str, Callable[..., Knot]]
 ContinuationFn = Callable[[Any], "list[Next]"]
 
 
@@ -76,13 +81,16 @@ class WithContinuation(Knot):
            ``fn(result)``, which returns a ``list[Next]`` describing every
            successor to spawn.
         3. Non-empty guard — an empty return list is a caller error (there is
-           no defined successor); this raises via an assertion rather than
-           silently ending the flow, since a forgotten ``Next("end")`` should
-           not read as "everything finished".
+           no defined successor); it raises ``ValueError``, since a forgotten
+           ``Next("end")`` must not read as "everything finished".  A bare
+           ``assert`` used to stand here, which vanishes under ``python -O``
+           and let the empty list through as a silent success.
         4. Store availability — if no extensible store is active (a
-           non-extensible run, or a stray call outside a run), spawning is
-           silently skipped and ``result`` is returned unchanged; the
-           continuation still ran, but its successors are dropped.
+           non-extensible run, or a stray call outside a run), this raises
+           ``ExtensibleRunRequiredError``.  It used to return ``result``
+           unchanged, so the continuation ran and every successor it asked for
+           was dropped with no trace, and a pipeline reported success having
+           executed a prefix of itself.
         5. Pool lookup — for each ``Next`` entry, its ``action`` name is
            looked up in the pool (the built-in ``"end"`` action always maps to
            ``EndKnot`` unless the caller's pool overrides it). An unknown
@@ -90,7 +98,10 @@ class WithContinuation(Knot):
         6. Spawn — the resolved knot class is constructed with ``nxt.inputs``
            as constructor kwargs and a derived or caller-supplied id, then
            registered with the running store so the engine picks it up
-           mid-run.
+           mid-run.  A derived id is ``{continuation_id}_{action}_{index}``:
+           stable, so a recorded run replays to the same knot ids.  It used to
+           carry six hex digits of ``uuid4``, which made every spawned knot id
+           different on every run and the whole spawned tail unreplayable.
         7. Pass-through — ``process()`` returns ``result`` unchanged; spawning
            successors is a side effect, not a transformation of the value.
     """
@@ -106,55 +117,56 @@ class WithContinuation(Knot):
         pool: Pool,
         **kwargs: Any,
     ) -> None:
-        super().__init__(result=result, **kwargs)
-        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
-        # the freeze guard, so a plain assignment is enough here — no need to
-        # bypass __setattr__ via object.__setattr__ as well.
-        self._mutable_fn = fn
-        # Built-in end action is always available; user pool entries take
-        # precedence if they supply their own "end" knot.
-        self._mutable_pool = {WithContinuation._end: EndKnot, **pool}
+        # ``fn`` and ``pool`` are declared on ``process()``, so they are wired
+        # as this knot's inputs rather than stashed on ``_mutable_`` slots:
+        # ``process()`` can then be called standalone with plain values (Rule 2)
+        # and both are validated against their declared types (PIR-873).  The
+        # built-in end action is always available; a user pool entry named
+        # "end" takes precedence.
+        super().__init__(
+            result=result, fn=fn, pool={WithContinuation._end: EndKnot, **pool}, **kwargs
+        )
 
-    async def process(self, result: Any, **_: Any) -> Any:
+    async def process(self, result: Any, fn: ContinuationFn, pool: Pool, **_: Any) -> Any:
         """Invoke the continuation function on the upstream result, register successor knots, and return the result.
 
         Args:
             result: Output value of the wrapped upstream knot, passed unchanged to the continuation function.
+            fn: The continuation, ``(output) -> list[Next]``.
+            pool: Action name -> knot class, including the built-in ``"end"``.
 
         Returns:
             The upstream result value, forwarded unmodified after successor registration.
 
         Raises:
+            ValueError: If the continuation returned an empty list.
+            ExtensibleRunRequiredError: If no extensible run is active, so the
+                successors would have nowhere to go.
             KeyError: If a continuation-returned action name is not present in the pool.
         """
-        fn: ContinuationFn = self._mutable_fn
-        pool: Pool = self._mutable_pool
-
         nexts = fn(result)
-
-        assert nexts, (
-            f"{type(self).__name__}({self.knot_id!r}): continuation returned an "
-            "empty list — the flow has no defined successor.  Return at least "
-            "Next('end') to terminate explicitly."
-        )
+        if not nexts:
+            raise ValueError(
+                f"{type(self).__name__}({self.knot_id!r}): continuation returned an "
+                "empty list — the flow has no defined successor.  Return at least "
+                "Next('end') to terminate explicitly."
+            )
 
         store = Tapestry.current_store()
-        if store is not None:
-            for i, nxt in enumerate(nexts):
-                if nxt.action not in pool:
-                    raise KeyError(
-                        f"{type(self).__name__}({self.knot_id!r}): action "
-                        f"{nxt.action!r} not found in pool "
-                        f"(available: {sorted(pool)})"
-                    )
-                knot_cls = pool[nxt.action]
-                knot_id = (
-                    nxt.id
-                    if nxt.id is not None
-                    else f"{self.knot_id}__{nxt.action}_{i}_{uuid.uuid4().hex[:6]}"
+        if store is None:
+            raise ExtensibleRunRequiredError(knot_class=type(self).__name__, knot_id=self.knot_id)
+
+        for index, nxt in enumerate(nexts):
+            if nxt.action not in pool:
+                raise KeyError(
+                    f"{type(self).__name__}({self.knot_id!r}): action "
+                    f"{nxt.action!r} not found in pool "
+                    f"(available: {sorted(pool)})"
                 )
-                spawned = knot_cls(**nxt.inputs, _config=KnotConfig(id=knot_id))
-                store.register(spawned)
+            knot_cls = pool[nxt.action]
+            knot_id = nxt.id if nxt.id is not None else f"{self.knot_id}_{nxt.action}_{index}"
+            spawned = knot_cls(**nxt.inputs, _config=KnotConfig(id=knot_id))
+            store.register(spawned)
 
         return result
 
@@ -171,8 +183,8 @@ class WithContinuation(Knot):
         *knot* completes.  The continuation id is ``"{knot.knot_id}__cont"``.
 
         Must be used inside an extensible tapestry run.  In a non-extensible
-        run the continuation fires but spawned knots are silently dropped (the
-        store is not available).
+        run the continuation raises ``ExtensibleRunRequiredError`` rather than
+        dropping the successors it asked for.
 
         Args:
             knot:  The knot whose output drives the continuation.

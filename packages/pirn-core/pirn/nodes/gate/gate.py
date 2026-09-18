@@ -13,6 +13,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
 from pirn.core.skipped import Skipped
 from pirn.nodes.check import Check
 
@@ -54,7 +55,11 @@ class Gate(Knot):
            knot the closed gate skips records the same reason rather than the
            engine's generic ``"parent_failed_or_skipped"``.
         5. Lineage — ``Gate.__call__`` notes whether the gate opened as
-           ``extra["predicate_passed"]``.
+           ``extra["predicate_passed"]``.  A gate whose decision *failed* --
+           the predicate raised, or the verdict failed validation -- records
+           no such key: it reached no verdict, and reporting ``True`` (as it
+           once did) made a crashed predicate indistinguishable from one that
+           opened the gate.
         6. A ``Check`` that failed or was skipped never reaches ``process()``:
            under the default error policy the gate itself is skipped, like
            any knot whose parent did not produce a value.
@@ -131,6 +136,20 @@ class Gate(Knot):
         return {**super().lineage_extra(), **self._mutable_execution_extra}
 
     async def __call__(self, parent_results: Any) -> Any:
+        """Run the gate and note whether it opened, for lineage.
+
+        ``predicate_passed`` used to be ``not isinstance(result, Skipped)``,
+        which recorded ``True`` for a gate whose predicate *raised*: an ``Err``
+        is not a ``Skipped``, so a crashed predicate read in lineage exactly
+        like one that returned ``True``.  The gate opened only when it produced
+        a value, and a failed decision yields no verdict at all, so the key is
+        absent rather than guessed (PIR-873).
+        """
         result = await super().__call__(parent_results)
-        self._mutable_execution_extra = {"predicate_passed": not isinstance(result, Skipped)}
+        if isinstance(result, Ok):
+            self._mutable_execution_extra = {"predicate_passed": True}
+        elif isinstance(result, Skipped):
+            self._mutable_execution_extra = {"predicate_passed": False}
+        else:
+            self._mutable_execution_extra = {}
         return result

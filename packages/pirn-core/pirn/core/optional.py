@@ -10,9 +10,12 @@ Design
    replaced by :meth:`Optional._decorated_call`.  The result is an instance
    of ``SomeKnot`` (same class name, same ancestry, one graph node) whose
    runtime failures are silently converted to ``Ok(Skipped(...))``.
-3. **On construction failure** — returns a lightweight stub knot (same class
-   name, same ID) whose ``process()`` immediately emits ``Skipped`` carrying
-   the construction exception in ``detail``.
+3. **On a construction failure that means "not configured"** — returns a
+   lightweight stub knot (same class name, same ID) whose ``process()``
+   immediately emits ``Skipped`` carrying the construction exception in
+   ``detail``.  Only the failures in ``Optional._not_configured`` qualify;
+   every other exception propagates, because a knot that is *broken* must not
+   be reported as one that is merely absent.
 
 In both failure paths the original exception is captured and stored in
 ``Skipped.detail`` so lineage records *why* the skip occurred — "not
@@ -51,14 +54,16 @@ Example::
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Awaitable, Callable, Mapping
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional_marker import OptionalMarker
 from pirn.core.optional_meta import OptionalMeta
+from pirn.core.result import Result
 from pirn.core.skipped import Skipped
+from pirn.exceptions.pirn_error import PirnError
 
 
 class Optional(metaclass=OptionalMeta):
@@ -84,6 +89,19 @@ class Optional(metaclass=OptionalMeta):
         both are ``isinstance(..., Optional)``.
     """
 
+    #: The construction failures that mean "not configured here", and so become
+    #: a ``Skipped`` stub rather than propagating.  ``TypeError`` and
+    #: ``ValueError`` are what ``Knot.__init__`` and a knot's own argument
+    #: checks raise; ``PirnError`` is a domain refusal; ``ImportError`` is the
+    #: install hint ``OptionalDependency.require`` raises for a backend whose
+    #: extra is absent, which is the canonical "optional" condition.
+    _not_configured: ClassVar[tuple[type[Exception], ...]] = (
+        TypeError,
+        ValueError,
+        ImportError,
+        PirnError,
+    )
+
     def __new__(
         cls,
         knot_class: type[Knot],
@@ -103,11 +121,16 @@ class Optional(metaclass=OptionalMeta):
                 {"__call__": Optional._decorated_call},
             )
             return decorated_cls(_config=_config, **kwargs)
-        except Exception as exc:
-            # Construction failed — the caller provided insufficient or
-            # invalid config.  Return a stub that registers under the same
-            # ID and emits Skipped with the exception detail so lineage
-            # shows exactly why this source was not available.
+        except Optional._not_configured as exc:
+            # Construction failed for a reason that means "this source is not
+            # configured here": a bad or missing argument, a domain refusal, a
+            # backend whose extra is not installed.  Return a stub that
+            # registers under the same ID and emits Skipped with the exception
+            # detail so lineage shows exactly why this source was not
+            # available.  Anything else -- an AttributeError, a NameError, a
+            # KeyError, a RuntimeError -- is a bug in the knot, and turning it
+            # into a Skipped the engine records as a *success* is how a broken
+            # knot came to look like an unconfigured one (PIR-873).
             return Optional._make_stub(knot_class.__name__, exc, _config)
 
     @classmethod
@@ -150,6 +173,37 @@ class Optional(metaclass=OptionalMeta):
         )
         return stub_cls(_config=config)
 
+    @staticmethod
+    def _shadowed_call(
+        decorated: type[Knot],
+    ) -> Callable[[Knot, Mapping[str, Any]], Awaitable[Result[Any]]]:
+        """Return the ``__call__`` the decoration shadowed on *decorated*.
+
+        The next ``__call__`` down the MRO after this class's own, not
+        ``Knot.__call__``: an ``Optional(SubTapestry)`` subclass has its own
+        ``__call__`` that opens the inner tapestry, runs it and surfaces the
+        sink's output, and calling ``Knot.__call__`` outright skipped it -- the
+        inner pipeline never ran and the container's value was whatever
+        ``process()`` returned, which for a ``SubTapestry`` is the sink knot
+        object itself (PIR-873).
+
+        Args:
+            decorated: The dynamic subclass ``Optional.__new__`` built.
+
+        Returns:
+            The unbound ``__call__`` to invoke with ``(knot, parent_results)``.
+        """
+        shadowed = False
+        for klass in decorated.__mro__:
+            own = klass.__dict__.get("__call__")
+            if own is Optional._decorated_call:
+                shadowed = True
+                continue
+            if shadowed and own is not None:
+                found: Callable[[Knot, Mapping[str, Any]], Awaitable[Result[Any]]] = own
+                return found
+        return Knot.__call__
+
     async def _decorated_call(self: Any, parent_results: Mapping[str, Any]) -> Any:
         """Replacement ``__call__`` injected into every successfully decorated knot.
 
@@ -181,7 +235,8 @@ class Optional(metaclass=OptionalMeta):
         # Delegate to the standard Knot.__call__ pipeline.  This runs
         # input resolution, calls self.process(), validates output, and
         # returns Ok(value) on success or Err on any exception.
-        result = await Knot.__call__(self, parent_results)
+        decorated: type[Knot] = type(self)
+        result = await Optional._shadowed_call(decorated)(self, parent_results)
 
         if isinstance(result, Skipped):
             return Ok(value=result)

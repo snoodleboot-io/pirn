@@ -42,6 +42,7 @@ from pirn.core.result import Result
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 from pirn.nodes.nested_run_knot import NestedRunKnot
+from pirn.nodes.sub_tapestry_error import SubTapestryError
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
@@ -127,8 +128,14 @@ class SubTapestry(NestedRunKnot):
            ``run_result.outputs`` using the key returned by
            ``_resolve_output_key(sink)`` and wrap it in ``Ok``.  A sink the
            inner run *skipped* (a closed ``Gate`` upstream of it) makes this
-           knot ``Skipped`` with the sink's own ``skip_reason``, never an
-           ``Err`` over the missing output.
+           knot ``Skipped`` with the sink's own ``skip_reason``, marked
+           ``propagates`` so every knot downstream of this container records
+           that same reason rather than the engine's generic
+           ``"parent_failed_or_skipped"``; never an ``Err`` over the missing
+           output.  When ``_inner_failures_reach_sink`` is set and the sink
+           produced neither a value nor a skip, the inner run's failure is this
+           knot's ``SubTapestryError`` after all -- the flag tolerates failures
+           the sink *received*, not a sink that failed itself.
         10. Error wrapping — any exception escaping steps 3-9 is caught and
             wrapped in ``Err`` so the outer engine sees a normal knot failure,
             except a cancellation of the task itself, which propagates
@@ -211,6 +218,19 @@ class SubTapestry(NestedRunKnot):
             # a sibling's Ok record in it keeps a retrieval path.
             run_result = await self._run_inner(inner, extensible=self._extensible_inner_run)
             output_key = self._resolve_output_key(sink)
+            if (
+                not run_result.succeeded
+                and self._inner_failures_reach_sink
+                and output_key not in run_result.outputs
+                and output_key not in run_result.skipped
+            ):
+                # ``_inner_failures_reach_sink`` tolerates an inner failure
+                # *because the sink consumed it*.  With no sink output and no
+                # sink skip, nothing consumed anything: the run simply failed,
+                # and letting it through produced a ``KeyError`` on the missing
+                # output one line below, reported as this knot's error instead of
+                # the real one (PIR-873).
+                raise SubTapestryError(run_result)
             if output_key in run_result.skipped:
                 # The sink deliberately produced no value -- a closed ``Gate``
                 # on the way to it, a non-selected ``Branch`` arm -- so this
@@ -218,7 +238,13 @@ class SubTapestry(NestedRunKnot):
                 # skip, not a ``KeyError`` on the missing output (ADR
                 # agents-speaks-core, WS1: a denied tool call is ``Skipped``
                 # all the way out of the invocation that wraps it).
-                return Skipped(reason=self._sink_skip_reason(run_result, output_key))
+                # ``propagates`` so the inner reason survives outward: without
+                # it every knot downstream of this container recorded the
+                # engine's generic ``"parent_failed_or_skipped"`` and an inner
+                # ``approval_denied`` was unreadable one hop away (PIR-873).
+                return Skipped(
+                    reason=self._sink_skip_reason(run_result, output_key), propagates=True
+                )
             output = run_result.outputs[output_key]
         except BaseException as exc:
             # A real cancellation of this task propagates, like ``Knot.__call__``
