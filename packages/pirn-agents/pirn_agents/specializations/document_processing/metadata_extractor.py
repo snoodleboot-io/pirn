@@ -9,9 +9,12 @@ Algorithm:
     1. Build a structured extraction prompt instructing the LLM to return a JSON
        object with keys ``title``, ``author``, ``date``, and ``summary``.
     2. Send the prompt together with the full document text to the ``LLMProvider``.
-    3. Parse the LLM response: extract the first JSON object found via regex, then
-       call ``json.loads``.
-    4. Return a dict with the four keys; any key absent from the parsed JSON is
+    3. Parse the LLM response as a JSON object; if the whole reply is not one,
+       retry on the first brace-delimited span found by regex.
+    4. Raise :class:`~pirn_agents.exceptions.llm_response_parse_error.LLMResponseParseError`
+       when neither parses — a reply the extractor cannot read is a failed turn,
+       not a document with no metadata.
+    5. Return a dict with the four keys; any key absent from the parsed JSON is
        set to ``None``.
 
 Math:
@@ -33,7 +36,9 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.shape_guard import ShapeGuard
 
+from pirn_agents.exceptions.llm_response_parse_error import LLMResponseParseError
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
@@ -78,6 +83,9 @@ class MetadataExtractor(Knot):
         Returns:
             A dict with keys 'title', 'author', 'date', 'summary', each a string
             or None if not found.
+
+        Raises:
+            LLMResponseParseError: If the model's reply holds no JSON object.
         """
         prompt = type(self)._extraction_prompt.render(
             {"document": document},
@@ -94,14 +102,51 @@ class MetadataExtractor(Knot):
 
     @staticmethod
     def _parse_json(text: str) -> dict[str, Any]:
+        """Parse the reply as a JSON object, or the first JSON object inside it.
+
+        Args:
+            text: The model's reply.
+
+        Returns:
+            The parsed JSON object.
+
+        Raises:
+            LLMResponseParseError: If neither the whole reply nor the first
+                brace-delimited span inside it parses as a JSON object.
+        """
         try:
-            return dict(json.loads(text))
-        except (json.JSONDecodeError, ValueError):
-            pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return dict(json.loads(match.group()))
-            except (json.JSONDecodeError, ValueError):
-                pass
-        return {}
+            return MetadataExtractor._as_json_object(text)
+        except LLMResponseParseError:
+            match = re.search(r"\{.*\}", text, re.DOTALL)
+            if match is None:
+                raise
+            return MetadataExtractor._as_json_object(match.group())
+
+    @staticmethod
+    def _as_json_object(candidate: str) -> dict[str, Any]:
+        """Parse ``candidate`` as a JSON object.
+
+        Args:
+            candidate: Text expected to be a JSON object.
+
+        Returns:
+            The parsed object as a plain dict.
+
+        Raises:
+            LLMResponseParseError: If ``candidate`` is not valid JSON, or is
+                valid JSON that is not an object.
+        """
+        parsed: object
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            raise LLMResponseParseError(
+                "MetadataExtractor: the model's reply is not valid JSON", candidate
+            ) from exc
+        if not ShapeGuard.is_str_keyed_dict(parsed):
+            raise LLMResponseParseError(
+                "MetadataExtractor: the model's reply is JSON but not an object, got "
+                f"{type(parsed).__name__}",
+                candidate,
+            )
+        return dict(parsed)

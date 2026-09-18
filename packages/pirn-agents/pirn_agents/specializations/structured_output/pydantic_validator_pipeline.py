@@ -9,7 +9,9 @@ back into the next system prompt for self-correction).
 Algorithm:
     1. Receive ``prompt``, ``llm``, ``model_class``, and ``max_retries`` in :meth:`process`.
     2. Validate inputs: llm must be LLMProvider, model_class a BaseModel subclass, max_retries positive.
-    3. Derive a schema dict from the model class's JSON schema.
+    3. Derive a schema dict from the model class's JSON schema, raising
+       :class:`TypeError` when the class has none — an empty schema would
+       prompt the model with no fields to produce.
     4. Drive the attempts with a :class:`PydanticValidatorLoop`
        (``LoopSubTapestry``): each attempt is one real, individually-traceable
        :class:`JsonExtractorAttempt` invocation, validated against
@@ -35,6 +37,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pydantic import BaseModel
+from pydantic.errors import PydanticInvalidForJsonSchema
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
@@ -93,7 +96,7 @@ class PydanticValidatorPipeline(AgentPipeline):
 
         Raises:
             TypeError: If llm is not an LLMProvider, model_class not a BaseModel subclass,
-                or prompt is not a string.
+                model_class has no derivable JSON schema, or prompt is not a string.
             ValueError: If max_retries is not positive or all attempts are exhausted.
         """
         if not isinstance(model_class, type) or not issubclass(model_class, BaseModel):
@@ -128,10 +131,27 @@ class PydanticValidatorPipeline(AgentPipeline):
 
     @staticmethod
     def _derive_schema(model_class: type[BaseModel]) -> Mapping[str, Any]:
+        """Project ``model_class``'s JSON schema onto a ``{field: {"type": ...}}`` map.
+
+        Args:
+            model_class: The model the extraction must produce.
+
+        Returns:
+            One entry per declared field.
+
+        Raises:
+            TypeError: If ``model_class`` has no JSON schema. Returning an
+                empty schema instead would prompt the model with no fields at
+                all and then blame it for the malformed reply.
+        """
         try:
             full_schema = model_class.model_json_schema()
-        except Exception:
-            return {}
+        except PydanticInvalidForJsonSchema as exc:
+            raise TypeError(
+                f"PydanticValidatorPipeline: model_class {model_class.__name__} has no "
+                "JSON schema, so the extraction prompt cannot describe the fields to "
+                "produce"
+            ) from exc
         match full_schema.get("properties"):
             case {**properties}:
                 return {
