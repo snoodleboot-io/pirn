@@ -159,6 +159,30 @@ class Knot:
     # to it.  A container may therefore not declare a ``concurrency_group``.
     _holds_admission_slot: ClassVar[bool] = True
 
+    # The knot's *visual role* -- what a reader of a lineage row should see it
+    # as, independent of its Python class (PIR-873).  ``html_for_run`` renders
+    # from ``KnotLineage`` rows alone, with no live ``Knot`` objects to
+    # ``isinstance``-check, and it used to infer "this is a container" from the
+    # shape of the recorded output (``isinstance(output, RunResult)``) -- an
+    # inference the ``process() -> Knot`` contract made permanently false, so
+    # no container was ever marked.  Declaring the kind on the class, recording
+    # it on the row (``KnotLineage.knot_kind``) and rendering from the row
+    # keeps engine and viz depending on the ``Knot`` base alone: a new node type
+    # gets its own shape by overriding this, touching neither.
+    #
+    # ``"knot"`` is a leaf that does its own work.  ``SubTapestry`` (and every
+    # subclass, including ``LoopSubTapestry``) declares ``"sub_tapestry"``.
+    _knot_kind: ClassVar[str] = "knot"
+
+    @classmethod
+    def knot_kind(cls) -> str:
+        """The knot's visual role, recorded on every lineage row.
+
+        ``"knot"`` for a leaf; a container declares its own by setting
+        ``_knot_kind`` (see its comment).
+        """
+        return cls._knot_kind
+
     @classmethod
     def holds_admission_slot(cls) -> bool:
         """Whether knots of this class take a slot of the run's ``Admission``.

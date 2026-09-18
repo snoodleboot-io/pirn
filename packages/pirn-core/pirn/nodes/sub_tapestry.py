@@ -137,6 +137,11 @@ class SubTapestry(NestedRunKnot):
 
     _extensible_inner_run: ClassVar[bool] = False
 
+    # A container in every renderer: the Mermaid subroutine shape, the HTML
+    # explorer's drill-down node.  Inherited by ``LoopSubTapestry`` and every
+    # other subclass; see ``Knot._knot_kind``.
+    _knot_kind: ClassVar[str] = "sub_tapestry"
+
     # ``process`` below is declared in the gradual parameter form; see
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True

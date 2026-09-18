@@ -32,6 +32,12 @@ if TYPE_CHECKING:
 class TapestryHtmlRenderer:
     """Render tapestries and run results to standalone HTML documents."""
 
+    # The ``Knot.knot_kind()`` a renderer draws as a container rather than a
+    # leaf.  Compared against the kind on the class (or on the lineage row),
+    # so a new container node type gets the container shape by declaring its
+    # kind -- this module never names a concrete node class.
+    _container_kind: ClassVar[str] = "sub_tapestry"
+
     _css: ClassVar[str] = """
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -163,8 +169,6 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
         title = title or "pirn pipeline"
         knots = tapestry.store.all()
 
-        from pirn.nodes.sub_tapestry import SubTapestry
-
         nodes = [
             {
                 "id": k.knot_id,
@@ -175,7 +179,7 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
                 "config_hash": "",
                 "error_record_id": "",
                 "skip_reason": "",
-                "is_sub_tapestry": isinstance(k, SubTapestry),
+                "is_sub_tapestry": type(k).knot_kind() == cls._container_kind,
             }
             for k in knots
         ]
@@ -219,7 +223,7 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
                 "config_hash": rec.knot_config_hash,
                 "error_record_id": rec.error_record_id or "",
                 "skip_reason": rec.skip_reason or "",
-                "is_sub_tapestry": isinstance(result.outputs.get(rec.knot_id), RunResult),
+                "is_sub_tapestry": rec.knot_kind == cls._container_kind,
             }
             for rec in result.lineage
         ]

@@ -16,6 +16,12 @@ _logger = logging.getLogger(__name__)
 class TapestryGraphScanner:
     """Scan a folder for pirn tapestries and execution history."""
 
+    # The ``Knot.knot_kind()`` a renderer draws as a container rather than a
+    # leaf.  Compared against the kind on the class (or on the lineage row),
+    # so a new container node type gets the container shape by declaring its
+    # kind -- this module never names a concrete node class.
+    _container_kind: ClassVar[str] = "sub_tapestry"
+
     _builder_names: ClassVar[tuple[str, ...]] = (
         "build_tapestry",
         "build_pipeline",
@@ -333,8 +339,6 @@ class TapestryGraphScanner:
 
     @classmethod
     def _tapestry_to_graph(cls, tapestry: Any, name: str, source: str) -> TapestryGraph:
-        from pirn.nodes.sub_tapestry import SubTapestry as _SubTapestry
-
         nodes: list[dict[str, Any]] = []
         edges: list[dict[str, Any]] = []
         for knot in tapestry._store.all():
@@ -343,7 +347,7 @@ class TapestryGraphScanner:
                     "id": knot.knot_id,
                     "class": type(knot).__name__,
                     "description": cls._knot_description(knot),
-                    "is_sub_tapestry": isinstance(knot, _SubTapestry),
+                    "is_sub_tapestry": knot.knot_kind() == cls._container_kind,
                 }
             )
             for input_name, parent in knot.parents.items():
