@@ -101,6 +101,15 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### Airbyte OAuth2 client-credentials exchange implemented (PIR-873)
+
+`AirbyteConfig` documented a `client_id` / `client_secret` pair the connector
+then refused with "OAuth2 exchange not yet implemented". `AirbyteClient` now
+performs Airbyte Cloud's client-credentials grant (`POST
+{base_url}/applications/token`) on first use when no `access_token` is
+configured, on the same pooled client, unauthenticated, once per client. The
+token is never written back onto the frozen config.
+
 #### Every connector refusal is a typed `PirnError` (PIR-873)
 
 The 54 `raise RuntimeError(...)` sites in `pirn-core` are gone. A caller could

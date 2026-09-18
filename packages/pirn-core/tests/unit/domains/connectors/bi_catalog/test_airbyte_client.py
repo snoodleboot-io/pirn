@@ -9,6 +9,7 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.bi_catalog.airbyte_client import AirbyteClient
 from pirn.connectors.bi_catalog.airbyte_config import AirbyteConfig
 from pirn.connectors.capabilities.table_source import TableSource
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class FakeResponse:
@@ -47,6 +48,110 @@ class FakeHttpx:
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+class _FakeHttpxWithHeaders(FakeHttpx):
+    """``FakeHttpx`` plus the mutable ``headers`` mapping httpx clients expose."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.headers: dict[str, str] = {}
+
+
+class _ClientBuildingAirbyteClient(AirbyteClient):
+    """Builds a fake instead of a real ``httpx.AsyncClient``, so ``_create_client`` runs.
+
+    ``client=`` short-circuits ``_create_client`` entirely, so the token
+    exchange can only be exercised by faking the one seam that reaches httpx.
+    """
+
+    def __init__(self, config: AirbyteConfig, fake: _FakeHttpxWithHeaders) -> None:
+        super().__init__(config)
+        self._fake = fake
+
+    def _build_httpx_client(self, extra: str, *, scrub_errors: bool = False, **_: Any) -> Any:
+        return self._fake
+
+
+class TestClientCredentialsExchange(unittest.IsolatedAsyncioTestCase):
+    """The OAuth2 client-credentials grant ``AirbyteConfig`` documents, implemented."""
+
+    @staticmethod
+    def _client(
+        **config_kwargs: Any,
+    ) -> tuple[_ClientBuildingAirbyteClient, _FakeHttpxWithHeaders]:
+        fake = _FakeHttpxWithHeaders()
+        cfg = AirbyteConfig(base_url="https://api.airbyte.com/v1", **config_kwargs)
+        return _ClientBuildingAirbyteClient(cfg, fake), fake
+
+    async def test_client_id_and_secret_are_exchanged_for_a_bearer_token(self) -> None:
+        client, fake = self._client(client_id="cid", client_secret="sec")
+        fake.responses[("POST", "https://api.airbyte.com/v1/applications/token")] = {
+            "access_token": "exchanged-tok"
+        }
+        fake.responses[("POST", "https://api.airbyte.com/v1/connections/list")] = {"data": []}
+
+        await client.fetch_page()
+
+        grant = fake.calls[0]
+        assert grant["method"] == "POST"
+        assert grant["url"] == "https://api.airbyte.com/v1/applications/token"
+        assert grant["json"] == {
+            "grant_type": "client_credentials",
+            "client_id": "cid",
+            "client_secret": "sec",
+        }
+        assert fake.headers["Authorization"] == "Bearer exchanged-tok"
+
+    async def test_the_grant_is_sent_before_the_authorization_header_is_set(self) -> None:
+        """A client-credentials grant must not carry a bearer token it does not have."""
+        client, fake = self._client(client_id="cid", client_secret="sec")
+        fake.responses[("POST", "https://api.airbyte.com/v1/applications/token")] = {
+            "access_token": "exchanged-tok"
+        }
+
+        await client._ensure_client()
+
+        assert fake.calls[0]["headers"] is None
+
+    async def test_the_exchange_happens_once_and_is_pooled(self) -> None:
+        client, fake = self._client(client_id="cid", client_secret="sec")
+        fake.responses[("POST", "https://api.airbyte.com/v1/applications/token")] = {
+            "access_token": "exchanged-tok"
+        }
+        fake.responses[("POST", "https://api.airbyte.com/v1/connections/list")] = {"data": []}
+
+        await client.fetch_page()
+        await client.fetch_page()
+
+        grants = [c for c in fake.calls if c["url"].endswith("/applications/token")]
+        assert len(grants) == 1
+
+    async def test_an_explicit_access_token_skips_the_exchange(self) -> None:
+        client, fake = self._client(access_token="direct-tok")
+
+        await client._ensure_client()
+
+        assert fake.calls == []
+        assert fake.headers["Authorization"] == "Bearer direct-tok"
+
+    async def test_neither_a_token_nor_a_full_credential_pair_is_refused(self) -> None:
+        client, _ = self._client(client_id="cid")
+        with self.assertRaisesRegex(ConnectorConfigError, "client_secret"):
+            await client._ensure_client()
+
+    async def test_no_credentials_at_all_is_refused(self) -> None:
+        client, _ = self._client()
+        with self.assertRaisesRegex(ConnectorConfigError, "access_token"):
+            await client._ensure_client()
+
+    async def test_a_grant_response_without_a_token_is_refused(self) -> None:
+        client, fake = self._client(client_id="cid", client_secret="sec")
+        fake.responses[("POST", "https://api.airbyte.com/v1/applications/token")] = {
+            "error": "invalid_client"
+        }
+        with self.assertRaisesRegex(ConnectorConfigError, "no 'access_token'"):
+            await client._ensure_client()
 
 
 class _StandaloneTests(unittest.TestCase):
