@@ -1,15 +1,26 @@
 """Shared helper: pull plain text out of a provider chat-completion mapping.
 
-Every F8 pattern knot needs the same normalisation from the provider-neutral
-``LLMProvider.chat`` return value (a ``str`` or a ``{"content": ...}`` mapping,
-possibly with a list of ``{"text": ...}`` blocks) down to a plain ``str``. This
-module centralises that so each pattern does not re-implement it.
+Every knot that talks to an ``LLMProvider`` needs the same normalisation from
+the provider-neutral ``LLMProvider.chat`` return value (a ``str`` or a
+``{"content": ...}`` mapping, possibly with a list of ``{"text": ...}`` blocks)
+down to a plain ``str``. This module centralises that so no call site
+re-implements it.
+
+A response matching none of those shapes raises
+:class:`~pirn_agents.exceptions.unreadable_llm_response_error.UnreadableLlmResponseError`.
+It used to ``return str(raw)``, which fabricated an answer: the repr of
+whatever the provider sent became the RAG answer a user read, or the text a
+fact extractor split into "facts" and wrote to long-term memory (PIR-873).
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, TypeGuard
+
+from pirn_agents.exceptions.unreadable_llm_response_error import (
+    UnreadableLlmResponseError,
+)
 
 
 class LlmResponseText:
@@ -25,8 +36,12 @@ class LlmResponseText:
                 top-level ``"text"`` string.
 
         Returns:
-            The extracted text, or ``str(raw)`` as a last resort when no known
-            shape matches.
+            The extracted text.
+
+        Raises:
+            UnreadableLlmResponseError: If *raw* matches none of those shapes.
+                Never a fabricated ``str(raw)``: a response this code cannot
+                read is a failure, not an answer.
         """
         if isinstance(raw, str):
             return raw
@@ -45,7 +60,7 @@ class LlmResponseText:
             text = raw.get("text")
             if isinstance(text, str):
                 return text
-        return str(raw)
+        raise UnreadableLlmResponseError(raw)
 
     @staticmethod
     def _is_mapping(value: object) -> TypeGuard[Mapping[str, Any]]:

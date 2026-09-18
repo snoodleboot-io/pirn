@@ -6,7 +6,8 @@ Algorithm:
     3. Extract the last user message from the context.
     4. Build a classification prompt with the intent category labels.
     5. Call ``llm.chat`` with the prompt.
-    6. Extract text from the raw response.
+    6. Extract text from the raw response through ``LlmResponseText``, which
+       raises when the response carries none.
     7. Try exact lower-case match, then substring match against intent labels.
     8. Raise ``ValueError`` if no match found.
 
@@ -23,9 +24,9 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
@@ -106,7 +107,7 @@ class IntentClassifier(Knot):
         response = await llm.chat(
             messages=({"role": "user", "content": prompt},),
         )
-        raw = self._extract_text(response)
+        raw = LlmResponseText().extract(response)
         normalised = raw.strip().lower()
         for intent in intent_categories:
             if intent.lower() == normalised:
@@ -126,21 +127,3 @@ class IntentClassifier(Knot):
         if context.data:
             return context.data[-1].content
         raise ValueError("IntentClassifier: context has no messages to classify")
-
-    def _extract_text(self, response: Any) -> str:
-        if isinstance(response, str):
-            return response
-        if JsonShape.is_dict(response):
-            content = response.get("content")
-            if isinstance(content, str):
-                return content
-            if JsonShape.is_list(content) and content:
-                first = content[0]
-                if JsonShape.is_dict(first):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        raise TypeError(
-            "IntentClassifier: cannot extract text from LLM response of type "
-            f"{type(response).__name__}"
-        )
