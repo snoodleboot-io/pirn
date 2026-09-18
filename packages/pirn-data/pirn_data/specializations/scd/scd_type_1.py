@@ -29,7 +29,9 @@ Algorithm:
     3. Fetch every current target row; index it by primary key.
     4. Classify each source row: INSERT when its key is absent, UPDATE when a
        non-key value differs, skip when nothing changed.
-    5. Issue one ``execute_many`` for the inserts and one for the updates.
+    5. Inside one transaction on ``target_pool``, issue one ``execute_many`` for
+       the inserts and one for the updates, so a failure part-way through
+       leaves the dimension exactly as it was.
     6. Return ``succeeded``, ``target_table``, ``rows_inserted`` and
        ``rows_updated``.
 
@@ -113,10 +115,11 @@ class ScdType1(PoolMergeKnot):
             if not ScdType1._non_key_values_changed(existing, row, non_key_indices):
                 continue
             updates.append(tuple(row[i] for i in non_key_indices) + key)
-        if inserts:
-            await target_pool.execute_many(insert_q, inserts)
-        if updates and non_key_columns:
-            await target_pool.execute_many(update_q, updates)
+        async with target_pool.transaction() as transaction:
+            if inserts:
+                await transaction.execute_many(insert_q, inserts)
+            if updates and non_key_columns:
+                await transaction.execute_many(update_q, updates)
         return {"rows_inserted": len(inserts), "rows_updated": len(updates)}
 
     async def process(

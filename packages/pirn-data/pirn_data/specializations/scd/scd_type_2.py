@@ -43,7 +43,10 @@ Algorithm:
        primary key.
     4. Classify each source row: INSERT when its key is absent, EXPIRE + INSERT
        when it changed, skip when it did not.
-    5. Issue one ``execute_many`` for the expiries, then one for the inserts.
+    5. Inside one transaction on ``target_pool``, issue one ``execute_many`` for
+       the expiries and then one for the inserts. Expire-then-insert is two
+       statements: unwrapped, a failure between them left keys with no current
+       row at all — expired, with the replacement version never written.
     6. Return ``succeeded``, ``target_table``, ``rows_inserted`` and
        ``rows_expired``.
 
@@ -180,10 +183,11 @@ class ScdType2(PoolMergeKnot):
                 continue
             expires.append((now, *key))
             inserts.append(new_row)
-        if expires:
-            await target_pool.execute_many(expire_q, expires)
-        if inserts:
-            await target_pool.execute_many(insert_q, inserts)
+        async with target_pool.transaction() as transaction:
+            if expires:
+                await transaction.execute_many(expire_q, expires)
+            if inserts:
+                await transaction.execute_many(insert_q, inserts)
         return {"rows_inserted": len(inserts), "rows_expired": len(expires)}
 
     async def process(
