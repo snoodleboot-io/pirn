@@ -15,7 +15,7 @@ pirn_agents/specializations/document_processing/
 │
 │  ── Ingestion ──
 ├── document_ingestion_pipeline.py     DocumentIngestionPipeline    — load + chunk + embed + store
-├── embedding_indexer.py               EmbeddingIndexer             — embed chunks; write to memory store
+├── embedding_indexer.py               EmbeddingIndexer             — embed one document's chunks; write each under `{document_id}:{index}`
 ├── metadata_extractor.py              MetadataExtractor            — extract title, author, date, etc. from a document
 │
 │  ── Question answering ──
@@ -133,7 +133,7 @@ with Tapestry() as t:
 | Summarize a long document | `DocumentSummarizerPipeline` |
 | Translate a document | `DocumentTranslationPipeline` |
 | Extract document metadata | `MetadataExtractor` |
-| Embed + index pre-chunked content | `EmbeddingIndexer` |
+| Embed + index pre-chunked content | `EmbeddingIndexer(chunks=..., document_id=..., ...)` — keys are document-scoped (`{document_id}:{index}`) |
 
 ---
 
