@@ -5,6 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
+from pirn.core.content_hasher import ContentHasher
+
 from pirn_health.types.raw_eeg import RawEEG
 
 
@@ -43,13 +45,29 @@ class TestAuditDict(unittest.TestCase):
             fetched_at=when,
         )
         d = r._pirn_audit_dict()
-        assert d["subject_id"] == "S1"
         assert d["channel_count"] == 64
         assert d["sample_rate_hz"] == 1000.0
         assert d["duration_sec"] == 120.0
         assert d["fetched_at"] == when.isoformat()
         for value in d.values():
             assert isinstance(value, (str, int, float, list, type(None)))
+
+    def test_audit_dict_never_carries_the_raw_subject_id(self) -> None:
+        r = RawEEG(subject_id="MRN-4471", channel_count=64, sample_rate_hz=1000.0)
+
+        d = r._pirn_audit_dict()
+
+        assert "subject_id" not in d
+        assert "MRN-4471" not in repr(d)
+        assert d["subject_id_hash"] == ContentHasher.hash("MRN-4471")
+
+    def test_two_subjects_stay_distinguishable_in_lineage(self) -> None:
+        when = datetime(2026, 1, 1, tzinfo=UTC)
+        first = RawEEG(subject_id="MRN-4471", channel_count=64, fetched_at=when)
+        second = RawEEG(subject_id="MRN-9902", channel_count=64, fetched_at=when)
+
+        assert first._pirn_audit_dict() != second._pirn_audit_dict()
+        assert ContentHasher.hash(first) != ContentHasher.hash(second)
 
 
 class TestFrozen(unittest.TestCase):

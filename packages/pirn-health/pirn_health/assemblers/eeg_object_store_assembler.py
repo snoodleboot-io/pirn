@@ -7,9 +7,9 @@ Algorithm:
     1. Receive ``body`` (raw bytes), ``subject_id``, ``channel_count``, ``sample_rate_hz``,
        and ``duration_sec``.
     2. Validate types and values.
-    3. Attempt to load a numpy array from bytes via ``np.load``; fall back to a zero array
-       of shape ``(channel_count, int(sample_rate_hz * duration_sec))`` if the bytes are not
-       a valid npz file.
+    3. Decode the sample array with :class:`MneSampleArrayDecoder` — the same ``.npy``
+       buffer :class:`EegObjectStoreDisassembler` writes — and require its shape to be
+       ``(channel_count, int(sample_rate_hz * duration_sec))``.
     4. Return a :class:`HealthSignalPayload` carrying the decoded sample array and a
        :class:`HealthSignalFrame` built from the supplied metadata.
 
@@ -21,15 +21,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-import io
 from datetime import UTC, datetime
 from typing import Any
 
-import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.assemblers._mne_sample_array_decoder import MneSampleArrayDecoder
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
@@ -70,7 +69,8 @@ class EegObjectStoreAssembler(Assembler):
         """Decode raw EEG bytes into a :class:`HealthSignalPayload`.
 
         Args:
-            body: Raw bytes from an object store (npz format preferred; falls back to zeros).
+            body: Raw bytes from an object store, in NumPy ``.npy`` or single-array
+                ``.npz`` format.
             subject_id: Non-empty subject identifier string.
             channel_count: Positive integer number of EEG channels.
             sample_rate_hz: Positive sample rate in Hz.
@@ -82,7 +82,8 @@ class EegObjectStoreAssembler(Assembler):
 
         Raises:
             TypeError: If ``body`` is not ``bytes`` or a numeric param has wrong type.
-            ValueError: If ``subject_id`` is empty or any numeric value is non-positive.
+            ValueError: If ``subject_id`` is empty, any numeric value is non-positive, or
+                ``body`` does not decode to an array of the declared shape.
         """
         if not isinstance(body, bytes):
             raise TypeError(
@@ -124,16 +125,12 @@ class EegObjectStoreAssembler(Assembler):
         duration_sec: float,
     ) -> HealthSignalPayload:
         n_samples = int(sample_rate_hz * duration_sec)
-        try:
-            npz = np.load(io.BytesIO(body))
-            keys = list(npz.files)
-            if not keys:
-                raise ValueError("empty npz")
-            data = npz[keys[0]].astype(np.float32)
-            if data.ndim == 1:
-                data = data[np.newaxis, :]
-        except Exception:
-            data = np.zeros((channel_count, n_samples), dtype=np.float32)
+        data = MneSampleArrayDecoder.decode(
+            body,
+            knot_name="EegObjectStoreAssembler",
+            channel_count=channel_count,
+            samples_per_channel=n_samples,
+        )
         frame = HealthSignalFrame(
             signal_id=subject_id,
             channel_count=channel_count,

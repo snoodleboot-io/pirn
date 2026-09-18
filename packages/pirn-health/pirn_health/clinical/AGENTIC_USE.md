@@ -6,7 +6,7 @@ Clinical knots are stateless transforms over `ClinicalRecord` (`pirn_health.type
 
 `ClinicalDataQualityCheck` sits between ingestion and downstream analytics. It raises `ClinicalDataQualityError` when the fraction of complete records drops below `min_completeness`, so bad data fails loudly before reaching cohort or risk models. All other knots are unconditional — quality enforcement belongs in the check.
 
-`ClinicalRecord` may carry raw identifiers until `PHIRedactor` (or an assembler that hashes at construction time, such as `FhirPatientAssembler`) runs; its audit dict never includes `patient_id` or `encounter_id`. `Hl7v2Format` at the connector layer redacts PID name, date of birth, and address fields on decode.
+`ClinicalRecord` may carry raw identifiers until `PHIRedactor` (or a knot that hashes at construction time, such as `FhirPatientAssembler` and `HL7v2MessageParser`, both of which take the linkage `salt` as an input) runs; its audit dict never includes `patient_id` or `encounter_id`. `Hl7v2Format` at the connector layer redacts PID name, date of birth, and address fields on decode.
 
 Several knots are marked `_is_stub = True` (`HL7v2MessageParser`, `OMOPCDMMapper`, `ClinicalNLPExtractor`, `LOINCMapper`, `LabResultNormalizer`, `ReadmissionRiskScorer`): wired and testable end-to-end, not production-quality.
 
@@ -21,7 +21,7 @@ pirn_health/clinical/
 ├── clinical_trial_eligibility_filter.py  ClinicalTrialEligibilityFilter   — filters records against named predicate criteria
 ├── diagnosis_code_rollup.py              DiagnosisCodeRollup              — rolls ICD-10 codes up to a shorter prefix
 ├── encounter_timeline_assembler.py       EncounterTimelineAssembler       — per-patient records sorted by observed_at
-├── hl7v2_message_parser.py               HL7v2MessageParser               — parses an HL7v2 message string into a ClinicalRecord
+├── hl7v2_message_parser.py               HL7v2MessageParser               — parses an HL7v2 message into a ClinicalRecord, identifiers salted-hashed
 ├── icd10_code_validator.py               ICD10CodeValidator               — True iff every code matches the ICD-10-CM structure
 ├── lab_result_normalizer.py              LabResultNormalizer              — converts lab values to a target unit via a conversion map
 ├── loinc_mapper.py                       LOINCMapper                      — maps lab test names to LOINC codes via a supplied map
@@ -39,7 +39,7 @@ pirn_health/clinical/
 
 ## Canonical pattern
 
-HL7v2 message → parse → redact PHI → OMOP rows, with ICD-10 validation of the diagnosis codes:
+HL7v2 message → parse (identifiers hashed with the linkage salt) → OMOP rows, with ICD-10 validation of the diagnosis codes:
 
 ```python
 from pirn.core.knot_config import KnotConfig
@@ -49,7 +49,6 @@ from pirn.tapestry import Tapestry
 from pirn_health.clinical.hl7v2_message_parser import HL7v2MessageParser
 from pirn_health.clinical.icd10_code_validator import ICD10CodeValidator
 from pirn_health.clinical.omop_cdm_mapper import OMOPCDMMapper
-from pirn_health.clinical.phi_redactor import PHIRedactor
 
 with Tapestry() as t:
     hl7_message = Parameter("hl7_message", str)
@@ -58,15 +57,11 @@ with Tapestry() as t:
 
     parsed = HL7v2MessageParser(
         message=hl7_message,
+        salt=salt,
         _config=KnotConfig(id="parse"),
     )
-    redacted = PHIRedactor(
-        record=parsed,
-        salt=salt,
-        _config=KnotConfig(id="redact"),
-    )
     OMOPCDMMapper(
-        record=redacted,
+        record=parsed,
         _config=KnotConfig(id="omop"),
     )
     ICD10CodeValidator(
@@ -84,7 +79,7 @@ omop_rows = result.outputs["omop"]
 
 ## Anti-patterns
 
-**Letting raw identifiers reach sinks** — `HL7v2MessageParser` and other record producers do not hash identifiers. Wire `PHIRedactor` (with a stable, secret salt so linkage survives across runs) before any knot that writes records out.
+**Letting raw identifiers reach sinks** — `HL7v2MessageParser` and `FhirPatientAssembler` hash the identifiers they parse with the `salt` you pass (use a stable, secret salt so linkage survives across runs). A `ClinicalRecord` you build yourself still carries whatever you put in it: wire `PHIRedactor` — with that same salt — before any knot that writes such a record out. Do not run `PHIRedactor` over a record whose identifiers are already tokens: hashing a token again yields a different one, and the two ingestion paths stop linking.
 
 **Treating the static-map normalisers as terminology services** — `RxNormNormalizer`, `SnomedCTNormalizer`, and `LOINCMapper` only translate what is in the `mapping` you pass. They do not expand hierarchies or resolve synonyms; load and pass a maintained map.
 
