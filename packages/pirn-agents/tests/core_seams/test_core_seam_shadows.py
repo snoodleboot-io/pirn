@@ -125,8 +125,13 @@ class TestDetectorIsDiscriminating(unittest.TestCase):
 
     def test_a_fan_out_container_is_not_a_loop_step_shadow_but_a_bare_knot_is(self) -> None:
         container = self._class_of("class ParallelToolExecutor(SubTapestry):\n    pass\n")
+        seam = self._class_of("class ParallelToolExecutor(NestedRunKnot):\n    pass\n")
         bare = self._class_of("class ParallelToolExecutor(Knot):\n    pass\n")
         assert not CoreSeamShadowInventory.is_shadow(container, "async_loop_step")
+        # ``SubTapestry`` *is* a ``NestedRunKnot``; using the seam directly, to
+        # decide the inner run's concurrency from a resolved input, is no more
+        # a shadow than using the layer above it (PIR-873).
+        assert not CoreSeamShadowInventory.is_shadow(seam, "async_loop_step")
         assert CoreSeamShadowInventory.is_shadow(bare, "async_loop_step")
 
     def test_an_unrelated_name_is_not_a_shadow(self) -> None:

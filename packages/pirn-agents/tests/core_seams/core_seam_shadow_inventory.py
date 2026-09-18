@@ -76,13 +76,21 @@ class CoreSeamShadowInventory:
             frozenset({"Check", "Gate"}),
         ),
         # A batch of independent calls needs no loop step at all: one knot per
-        # call under an ``Aggregator`` inside a ``SubTapestry``, with core's
-        # ``GovernedDispatch`` owning per-call retry backoff and timeout
+        # call under an ``Aggregator`` inside a core nested-run container, with
+        # core's ``GovernedDispatch`` owning per-call retry backoff and timeout
         # (PIR-872). A hand-rolled ``asyncio.gather`` inside such a container
         # is still caught by ``USES_ASYNCIO_GATHER`` in test_no_engine_bypass.
+        #
+        # ``NestedRunKnot`` is the seam itself: ``SubTapestry`` is a
+        # ``NestedRunKnot`` that adds the sink-returning contract, and a
+        # container that must decide its inner run's ``ConcurrencyLimits`` from
+        # a *resolved* input — a cap an upstream knot produced — subclasses the
+        # seam directly and awaits ``self._run_inner(inner, concurrency=...)``.
+        # Listing only the ``SubTapestry`` layer made the more-direct use of
+        # core read as a shadow of it (PIR-873).
         "async_loop_step": (
             (r"^ParallelToolExecutor$",),
-            frozenset({"LoopSubTapestry", "AgentLoopPipeline", "SubTapestry"}),
+            frozenset({"LoopSubTapestry", "AgentLoopPipeline", "SubTapestry", "NestedRunKnot"}),
         ),
     }
 

@@ -29,7 +29,16 @@ from pirn_agents.prompt.prompt_pack_loader import PromptPackLoader
 
 
 class _BlockYamlFinder(MetaPathFinder):
-    """Meta-path finder that makes ``import yaml`` fail."""
+    """Meta-path finder that makes ``import yaml`` fail exactly as absence does.
+
+    The error has to be a ``ModuleNotFoundError`` carrying ``name="yaml"``,
+    which is what the import machinery raises for a module that is not
+    installed.  A bare ``ImportError`` with no ``name`` is what an installed
+    module raises when *its own* imports fail, and
+    ``OptionalDependency.require`` deliberately re-raises that one unchanged
+    rather than mislabelling it as a missing extra — so simulating absence
+    with it tested the wrong branch and never reached the install hint.
+    """
 
     def find_spec(
         self,
@@ -38,7 +47,7 @@ class _BlockYamlFinder(MetaPathFinder):
         target: ModuleType | None = None,
     ) -> ModuleSpec | None:
         if fullname == "yaml" or fullname.startswith("yaml."):
-            raise ImportError("No module named 'yaml'")
+            raise ModuleNotFoundError(f"No module named {fullname!r}", name=fullname)
         return None
 
 
