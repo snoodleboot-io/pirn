@@ -4,7 +4,7 @@
 
 ## Mental model
 
-ML specialization knots wrap the lifecycle of a model through its stages: feature preparation → training → evaluation → production. Each sub-package targets one stage. The `Estimator` interface (from `pirn_ml.knots`) is the common contract — any sklearn-compatible, PyTorch, or custom model that implements `fit()` / `predict()` works.
+ML specialization knots wrap the lifecycle of a model through its stages: feature preparation → training → evaluation → production. Each sub-package targets one stage. The `Estimator` contract is duck-typed, not a base class to import — any sklearn-compatible, PyTorch, or custom model that implements `fit()` / `predict()` works.
 
 Use a `task_pipeline` for a complete end-to-end ML task (classification, forecasting, anomaly detection). Use individual stage sub-packages when you need to customize a specific stage.
 

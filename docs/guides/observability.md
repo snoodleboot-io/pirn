@@ -119,15 +119,15 @@ Span attributes:
 
 | Attribute | Span | Value |
 |-----------|------|-------|
-| `pirn.run_id` | run + knot | UUID identifying the run |
-| `pirn.knot_id` | knot | The `id=` from `KnotConfig` |
-| `pirn.knot_class` | knot | Fully qualified class name |
-| `pirn.outcome` | knot | `"ok"`, `"err"`, or `"skipped"` |
-| `pirn.dispatcher` | run + knot | Which dispatcher ran the knot |
-| `pirn.output_hash` | knot (ok) | Content hash of output |
-| `pirn.error_record_id` | knot (err) | ID of the error record |
-| `pirn.skip_reason` | knot (skipped) | Why the knot was skipped |
-| `pirn.succeeded` | run | Whether all required knots succeeded |
+| `"pirn.run_id"` | run + knot | UUID identifying the run |
+| `"pirn.knot_id"` | knot | The `id=` from `KnotConfig` |
+| `"pirn.knot_class"` | knot | Fully qualified class name |
+| `"pirn.outcome"` | knot | `"ok"`, `"err"`, or `"skipped"` |
+| `"pirn.dispatcher"` | run + knot | Which dispatcher ran the knot |
+| `"pirn.output_hash"` | knot (ok) | Content hash of output |
+| `"pirn.error_record_id"` | knot (err) | ID of the error record |
+| `"pirn.skip_reason"` | knot (skipped) | Why the knot was skipped |
+| `"pirn.succeeded"` | run | Whether all required knots succeeded |
 
 ### Querying in Jaeger / Grafana
 
