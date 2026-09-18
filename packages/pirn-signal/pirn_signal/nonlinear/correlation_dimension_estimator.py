@@ -78,7 +78,8 @@ class CorrelationDimensionEstimator(Knot):
         Args:
             signal: Signal payload to estimate the correlation dimension from.
             embedding_dim: Embedding dimension for phase-space reconstruction (positive integer).
-            radius_min: Minimum radius for correlation integral (positive float).
+            radius_min: Smallest radius of the fitted scaling region (positive float);
+                the log-log slope is fitted over [radius_min, radius_max].
             radius_max: Maximum radius for correlation integral (must exceed radius_min).
 
         Returns:
@@ -102,6 +103,7 @@ class CorrelationDimensionEstimator(Knot):
                     CorrelationDimensionEstimator._corr_dim,
                     channel,
                     embedding_dim,
+                    float(radius_min),
                     float(radius_max),
                 )
                 for channel in channels
@@ -117,8 +119,17 @@ class CorrelationDimensionEstimator(Knot):
         )
 
     @staticmethod
-    def _corr_dim(signal_array: NDArray[np.float64], embedding_dim: int, r_max: float) -> float:
-        """Correlation dimension via Grassberger-Procaccia algorithm."""
+    def _corr_dim(
+        signal_array: NDArray[np.float64], embedding_dim: int, r_min: float, r_max: float
+    ) -> float:
+        """Correlation dimension via the Grassberger-Procaccia algorithm.
+
+        The scaling slope is fitted over the radii the caller asked for,
+        ``[r_min, r_max]``. Replacing ``r_min`` with the smallest non-zero pairwise
+        distance — as this method used to — fits the slope through the noise floor of
+        the attractor, where the correlation integral counts a handful of pairs and
+        the log-log curve has no scaling region at all.
+        """
         embedded = DelayEmbedding.embed(signal_array, embedding_dim)
         n_pts = len(embedded)
         if n_pts < 4:
@@ -133,7 +144,6 @@ class CorrelationDimensionEstimator(Knot):
         n_pairs = len(dists_arr)
         if n_pairs == 0:
             return 0.0
-        r_min = float(np.min(dists_arr[dists_arr > 0])) if np.any(dists_arr > 0) else 1e-6
         radii: NDArray[np.float64] = np.logspace(float(np.log10(r_min)), float(np.log10(r_max)), 20)
         log_r: list[float] = []
         log_c: list[float] = []
