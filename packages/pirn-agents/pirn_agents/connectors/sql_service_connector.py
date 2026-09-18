@@ -32,6 +32,7 @@ from typing import Any
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.connectors.databases.postgres_config import PostgresConfig
 from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
@@ -94,9 +95,25 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
             self._client = pool
 
     async def _create_client(self) -> ColumnAwarePool:
-        """Build the core-backed column-aware pool for the configured driver."""
+        """Build the core-backed column-aware pool for the configured driver.
+
+        The driver is required here, through
+        :meth:`~pirn.core.optional_dependency.OptionalDependency.require`, so a
+        missing backend fails at the seam with the workspace's standard
+        ``pip install "pirn-agents[sql]"`` / ``[postgres]`` message. ``execute`` used to
+        re-wrap an ``ImportError`` escaping the pool in a hand-written hint of
+        its own, which both duplicated that machinery and could relabel an
+        ``ImportError`` raised from *inside* an installed driver as a missing
+        extra (PIR-873).
+
+        Raises:
+            ImportError: If the configured driver is not installed, naming the
+                ``pirn-agents`` extra that installs it.
+        """
         if self._driver == "aiosqlite":
+            OptionalDependency.require("aiosqlite", extra="sql", package="pirn-agents")
             return ColumnAwareSqlitePool(SqliteConfig(database=self._database or ":memory:"))
+        OptionalDependency.require("asyncpg", extra="postgres", package="pirn-agents")
         dsn = self._dsn or (self._credential.reveal() if self._credential is not None else None)
         return ColumnAwarePostgresPool(PostgresConfig(dsn=dsn))
 
@@ -120,20 +137,14 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
         Raises:
             ValueError: In read-only mode, if ``query`` is not a single read.
             ImportError: If the driver's backend package is not installed, named
-                with the agents extra to install (the core pool underneath reports
-                the ``pirn[...]`` extra, which an agents user does not have).
+                with the agents extra to install; raised by
+                :meth:`_create_client` through ``OptionalDependency.require``,
+                not re-wrapped here.
         """
         if self._read_only:
             self._guard.assert_read_only(query)
         pool: ColumnAwarePool = await self._get_client()
-        try:
-            columns, rows = await pool.fetch_columns(query, parameters)
-        except ImportError as exc:
-            extra = "sql" if self._driver == "aiosqlite" else "postgres"
-            raise ImportError(
-                f"SqlServiceConnector: the {self._driver!r} backend is required; "
-                f'install it with: pip install "pirn-agents[{extra}]"'
-            ) from exc
+        columns, rows = await pool.fetch_columns(query, parameters)
         return columns, rows[: self._max_rows]
 
     async def close(self) -> None:

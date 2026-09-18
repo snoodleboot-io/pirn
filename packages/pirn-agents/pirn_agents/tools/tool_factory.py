@@ -47,13 +47,13 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import hashlib
 import inspect
 import re
 from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from inspect import iscoroutinefunction
 from typing import Any, ClassVar, Self, TypeGuard
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.json_schema_type_builder import JsonSchemaTypeBuilder
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -592,12 +592,19 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
 
     @staticmethod
     def knot_id_for(call_id: str) -> str:
-        """The knot id a call runs under: ``call_id`` when it is a valid id, else a hash of it."""
+        """The knot id a call runs under: ``call_id`` when it is a valid id, else a hash of it.
+
+        The hash goes through :class:`~pirn.core.content_hasher.ContentHasher`,
+        the workspace's one content-addressing seam, rather than a bare
+        ``hashlib.sha256`` of the string (PIR-873); its ``sha256:`` prefix is
+        dropped and the digest truncated so the id stays short and inside the
+        character set ``KnotConfig.id`` allows.
+        """
         try:
             KnotConfig(id=call_id)
         except ValueError:
-            digest = hashlib.sha256(str(call_id).encode("utf-8")).hexdigest()[:16]
-            return f"call-{digest}"
+            digest = ContentHasher.hash(str(call_id)).removeprefix("sha256:")
+            return f"call-{digest[:16]}"
         return call_id
 
     def for_call(

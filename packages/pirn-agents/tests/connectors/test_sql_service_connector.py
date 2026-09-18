@@ -201,3 +201,24 @@ class TestMissingDrivers:
         with mock.patch.dict(sys.modules, {"asyncpg": None}):
             with pytest.raises(ImportError, match=r'pip install "pirn-agents\[postgres\]"'):
                 await connector.execute("SELECT 1")
+
+    async def test_an_import_error_from_inside_the_driver_is_not_relabelled(self) -> None:
+        """PIR-873: ``execute`` wrapped *any* ImportError in a missing-extra hint.
+
+        The hint belongs to the one seam that knows the driver is absent
+        (``OptionalDependency.require`` in ``_create_client``). An ImportError
+        raised from inside an *installed* driver is a different failure and must
+        reach the caller as itself.
+        """
+
+        class _BrokenPool(_FakePool):
+            async def fetch_columns(
+                self, query: str, parameters: Sequence[Any] | None = None
+            ) -> tuple[list[str], list[list[Any]]]:
+                raise ImportError("cannot import name 'Cursor' from 'aiosqlite.cursor'")
+
+        connector = SqlServiceConnector(pool=_BrokenPool())
+        with pytest.raises(ImportError) as caught:
+            await connector.execute("SELECT 1")
+        assert "pip install" not in str(caught.value)
+        assert "aiosqlite.cursor" in str(caught.value)

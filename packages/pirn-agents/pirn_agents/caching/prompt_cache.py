@@ -51,6 +51,7 @@ from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.similarity_index import SimilarityIndex
+from pirn_agents.caching.tracked_store_keys import TrackedStoreKeys
 
 
 class PromptCache:
@@ -96,16 +97,19 @@ class PromptCache:
         self._store = InMemoryDataStore(max_values=max_entries)
         self._index = SimilarityIndex()
         # DataStore exposes no count or enumeration; this mirrors
-        # SemanticResultCache's own `_keys` bookkeeping so `asize()` and
-        # `apurge_expired()` don't need one either.
-        self._keys: set[str] = set()
+        # SemanticResultCache's own bookkeeping so `asize()` and
+        # `apurge_expired()` don't need one either. Pruned against the store
+        # after every write — and the similarity index with it — so a bounded
+        # cache's key set and index cannot outgrow the store (PIR-873).
+        self._tracked = TrackedStoreKeys(self._store, bounded=max_entries is not None)
         self.hits = 0
         self.semantic_hits = 0
         self.misses = 0
 
     async def asize(self) -> int:
         """Return the number of live (not yet evicted) entries."""
-        return len(self._keys)
+        await self._tracked.prune()
+        return len(self._tracked)
 
     @staticmethod
     def key_for(prompt: str, params: Mapping[str, Any] | None = None) -> str:
@@ -170,7 +174,7 @@ class PromptCache:
         """Evict every expired entry, returning the number removed."""
         now = self._clock()
         stale: list[str] = []
-        for key in list(self._keys):
+        for key in self._tracked.snapshot():
             entry = await self._get_entry(key)
             if entry is None or self._is_expired(entry, now):
                 stale.append(key)
@@ -183,7 +187,7 @@ class PromptCache:
         try:
             return await self._store.get(key)
         except (KeyError, ValueEvictedError):
-            self._keys.discard(key)
+            self._tracked.discard(key)
             self._index.discard(key)
             return None
 
@@ -208,14 +212,16 @@ class PromptCache:
     async def _astore(self, entry: CacheEntry) -> None:
         """Insert ``entry`` (and index its embedding) into the store."""
         await self._store.put(entry.key, entry)
-        self._keys.add(entry.key)
+        self._tracked.add(entry.key)
         if entry.embedding is not None:
             self._index.put(entry.key, entry.embedding)
+        for evicted in await self._tracked.prune():
+            self._index.discard(evicted)
 
     async def _adiscard(self, key: str) -> None:
         """Remove ``key`` from the store, the key set, and the similarity index."""
         await self._store.scrub(key)
-        self._keys.discard(key)
+        self._tracked.discard(key)
         self._index.discard(key)
 
     def _expiry(self, now: float) -> float | None:

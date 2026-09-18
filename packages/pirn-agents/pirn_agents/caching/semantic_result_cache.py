@@ -27,6 +27,7 @@ from pirn.core.content_hasher import ContentHasher
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.result_cache import ResultCache
 from pirn_agents.caching.similarity_index import SimilarityIndex
+from pirn_agents.caching.tracked_store_keys import TrackedStoreKeys
 
 
 class SemanticResultCache(ResultCache):
@@ -75,17 +76,19 @@ class SemanticResultCache(ResultCache):
         self.hits = 0
         self.misses = 0
         # Mirrors InMemoryResultCache's own bookkeeping: DataStore has no
-        # count/enumeration, so __len__ tracks the key set it was given,
-        # not the store's internal state.
-        self._keys: set[str] = set()
+        # count/enumeration, so __len__ tracks the key set it was given, not
+        # the store's internal state. Pruned against the store after every
+        # write — and the similarity index with it, since a scan over keys the
+        # store has already evicted is both a leak and wasted work (PIR-873).
+        self._tracked = TrackedStoreKeys(self.store, bounded=max_entries is not None)
 
     def __len__(self) -> int:
-        return len(self._keys)
+        return len(self._tracked)
 
     async def invalidate(self, key: str) -> None:
         """Drop the entry under ``key`` if present, from both the store and the index."""
         await super().invalidate(key)
-        self._keys.discard(key)
+        self._tracked.discard(key)
         self._index.discard(key)
 
     async def get_or_compute_semantic(
@@ -118,7 +121,7 @@ class SemanticResultCache(ResultCache):
         entry = await super()._lookup(key)
         if entry is None:
             self.misses += 1
-            self._keys.discard(key)
+            self._tracked.discard(key)
             self._index.discard(key)
             return None
         self.hits += 1
@@ -127,6 +130,8 @@ class SemanticResultCache(ResultCache):
     async def _record(self, entry: CacheEntry) -> None:
         """Store ``entry``, indexing its embedding (if any) for the semantic scan."""
         await super()._record(entry)
-        self._keys.add(entry.key)
+        self._tracked.add(entry.key)
         if entry.embedding is not None:
             self._index.put(entry.key, entry.embedding)
+        for evicted in await self._tracked.prune():
+            self._index.discard(evicted)

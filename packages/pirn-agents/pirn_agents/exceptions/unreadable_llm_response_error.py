@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-
+from pirn.core.shape_guard import ShapeGuard
 from pirn.exceptions.pirn_error import PirnError
 
 
@@ -34,7 +33,7 @@ class UnreadableLlmResponseError(PirnError, TypeError):
     def __init__(self, raw: object) -> None:
         self.response_type = type(raw).__name__
         self.keys: tuple[str, ...] = (
-            tuple(str(key) for key in raw) if isinstance(raw, Mapping) else ()
+            tuple(str(key) for key in raw) if ShapeGuard.is_mapping(raw) else ()
         )
         detail = f" with keys {list(self.keys)!r}" if self.keys else ""
         super().__init__(
