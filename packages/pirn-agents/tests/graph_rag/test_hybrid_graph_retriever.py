@@ -145,7 +145,7 @@ class TestHybridGraphRetriever(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 query_text="q",
                 traversal=traversal_subgraph,
-                embedding_index=123,  # type: ignore[arg-type]
+                embedding_index=123,
             )
 
     async def test_rejects_non_positive_top_k(self) -> None:

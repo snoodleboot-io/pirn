@@ -91,7 +91,7 @@ class TestForcedToolChoiceExtractorErrors(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_basemodel(self) -> None:
         with self.assertRaisesRegex(TypeError, "model_class must be a BaseModel"):
-            ForcedToolChoiceExtractor(model_class=int)  # type: ignore[type-var]
+            ForcedToolChoiceExtractor(model_class=int)
 
     async def test_rejects_empty_tool_name(self) -> None:
         with self.assertRaisesRegex(TypeError, "tool_name must be"):

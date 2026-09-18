@@ -105,7 +105,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_mapping(self) -> None:
         k = await self._make_knot()
         with self.assertRaisesRegex(TypeError, "non-empty"):
-            await k.process(batch=_make_batch(), mapping="bad")  # type: ignore[arg-type]
+            await k.process(batch=_make_batch(), mapping="bad")
 
     async def test_rejects_injection_in_mapping_value(self) -> None:
         k = await self._make_knot()

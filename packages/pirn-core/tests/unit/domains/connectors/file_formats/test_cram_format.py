@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 try:
-    import pysam  # noqa: F401
+    import pysam  # noqa: F401  # imported only to skip when pysam is absent
 except ImportError as _e:
     raise unittest.SkipTest("pysam not installed") from _e
 
@@ -99,7 +99,7 @@ class TestCramFormatConstruction(unittest.TestCase):
 
     def test_invalid_header_type(self) -> None:
         with self.assertRaises(TypeError):
-            CramFormat(header_lines="not-a-sequence")  # type: ignore[arg-type]
+            CramFormat(header_lines="not-a-sequence")
 
     def test_empty_header_line_rejected(self) -> None:
         with self.assertRaises(ValueError):

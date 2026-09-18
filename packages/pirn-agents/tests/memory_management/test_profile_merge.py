@@ -31,4 +31,4 @@ class TestMergeProfileFields(unittest.TestCase):
 
     def test_rejects_non_mapping(self) -> None:
         with self.assertRaises(TypeError):
-            ProfileMerge.merge_fields({}, "bad")  # type: ignore[arg-type]
+            ProfileMerge.merge_fields({}, "bad")

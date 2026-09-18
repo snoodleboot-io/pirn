@@ -50,4 +50,4 @@ class TestKafkaConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = KafkaConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.bootstrap_servers = "mutated"  # type: ignore[misc]
+            cfg.bootstrap_servers = "mutated"

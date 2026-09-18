@@ -17,7 +17,7 @@ _PVT = PVTTable(fluid_id="f")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, method: str = "corey") -> RelativePermeabilityModeler:
         return RelativePermeabilityModeler(
-            pvt=None,  # type: ignore[arg-type]
+            pvt=None,
             method=method,
             _config=KnotConfig(id="rp", validate_io=False),
         )

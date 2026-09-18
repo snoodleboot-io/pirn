@@ -18,7 +18,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string(self) -> None:
         knot = HL7v2MessageParser(message="MSH|...", _config=_CFG)
         with self.assertRaisesRegex(TypeError, "message"):
-            await knot.process(message=42)  # type: ignore[arg-type]
+            await knot.process(message=42)
 
     async def test_rejects_empty(self) -> None:
         knot = HL7v2MessageParser(message="MSH|...", _config=_CFG)

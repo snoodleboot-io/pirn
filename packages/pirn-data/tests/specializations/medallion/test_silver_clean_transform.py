@@ -20,7 +20,7 @@ _SOURCE_QUERY = "SELECT id, name FROM bronze_t ORDER BY id"
 _COLUMN_NAMES = ["id", "name"]
 _TARGET_TABLE = "silver_t"
 _CASTS: dict[str, type] = {"id": int}
-_FILTER = lambda row: bool(row.get("id"))  # noqa: E731
+_FILTER = lambda row: bool(row.get("id"))  # noqa: E731  # a one-expression predicate used as test data
 _PRIMARY_KEYS = ["id"]
 
 

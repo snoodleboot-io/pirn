@@ -15,7 +15,7 @@ _PATH = WellPath3D(well_id="W", point_count=20)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> CasingDesignEvaluator:
         return CasingDesignEvaluator(
-            well_path=None,  # type: ignore[arg-type]
+            well_path=None,
             burst_limit_psi=10000.0,
             collapse_limit_psi=8000.0,
             tension_limit_lbf=300000.0,

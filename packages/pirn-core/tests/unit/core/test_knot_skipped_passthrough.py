@@ -25,7 +25,7 @@ class _Denied(Knot):
     """Declares a skip although its return hint says int."""
 
     async def process(self, x: int, **_: Any) -> int:
-        return Skipped(reason="denied", detail={"by": "policy"})  # type: ignore[return-value]
+        return Skipped(reason="denied", detail={"by": "policy"})
 
 
 class _Echo(Knot):

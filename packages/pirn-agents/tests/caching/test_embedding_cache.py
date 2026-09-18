@@ -38,7 +38,7 @@ class TestValidation:
     async def test_bare_str_rejected(self) -> None:
         cache = EmbeddingCache(_StubBatchEmbedder())
         with pytest.raises(TypeError, match="sequence"):
-            await cache.embed("oops")  # type: ignore[arg-type]
+            await cache.embed("oops")
 
     async def test_provider_count_mismatch_raises(self) -> None:
         async def bad(texts: Sequence[str]) -> list[list[float]]:

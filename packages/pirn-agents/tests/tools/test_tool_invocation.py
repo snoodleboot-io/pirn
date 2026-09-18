@@ -362,7 +362,7 @@ class TestOutcomes(unittest.IsolatedAsyncioTestCase):
             with Tapestry():
                 ToolInvocation(
                     tool=Echo,
-                    call="not a call",  # type: ignore[arg-type]
+                    call="not a call",
                     _config=KnotConfig(id="inv"),
                 )
 

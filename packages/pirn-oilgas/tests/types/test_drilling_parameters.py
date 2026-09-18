@@ -39,7 +39,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         params = DrillingParameters(well_id="W")
         try:
-            params.depth_count = 1  # type: ignore[misc]
+            params.depth_count = 1
         except Exception:
             return
         raise AssertionError("DrillingParameters must be frozen")

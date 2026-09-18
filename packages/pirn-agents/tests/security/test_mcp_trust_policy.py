@@ -118,4 +118,4 @@ async def test_authorize_non_sensitive_tool_skips_hook() -> None:
 
 def test_bad_allowed_servers_type_rejected() -> None:
     with pytest.raises(TypeError):
-        McpTrustPolicy(allowed_servers=["files"])  # type: ignore[arg-type]
+        McpTrustPolicy(allowed_servers=["files"])

@@ -35,4 +35,4 @@ class TestTwilioConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = TwilioConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.account_sid = "mutated"  # type: ignore[misc]
+            cfg.account_sid = "mutated"

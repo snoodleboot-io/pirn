@@ -35,7 +35,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         top = FormationTop(well_id="W")
         try:
-            top.depth_md = 9.0  # type: ignore[misc]
+            top.depth_md = 9.0
         except Exception:
             return
         raise AssertionError("FormationTop must be frozen")

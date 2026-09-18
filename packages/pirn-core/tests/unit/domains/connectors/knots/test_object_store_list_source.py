@@ -46,12 +46,12 @@ class TestObjectStoreListSource(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_object_store(self) -> None:
         with self.assertRaises(TypeError) as ctx:
-            await self.source.process(store=object(), prefix="")  # type: ignore[arg-type]
+            await self.source.process(store=object(), prefix="")
         assert "ObjectStore" in str(ctx.exception)
 
     async def test_rejects_non_string_prefix(self) -> None:
         with self.assertRaises(TypeError):
-            await self.source.process(store=self.store, prefix=123)  # type: ignore[arg-type]
+            await self.source.process(store=self.store, prefix=123)
 
 
 class TestObjectStoreKnot(unittest.IsolatedAsyncioTestCase):

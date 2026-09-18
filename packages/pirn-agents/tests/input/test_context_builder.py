@@ -48,7 +48,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "system_prompt"):
             await k.process(
                 messages=(),
-                system_prompt=42,  # type: ignore[arg-type]
+                system_prompt=42,
             )
 
     async def test_rejects_empty_system_prompt(self) -> None:
@@ -60,6 +60,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         with self.assertRaises(TypeError):
             await k.process(
-                messages="not a sequence",  # type: ignore[arg-type]
+                messages="not a sequence",
                 system_prompt=None,
             )

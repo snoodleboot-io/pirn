@@ -33,4 +33,4 @@ class TestGoogleChatConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = GoogleChatConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.timeout = 99.0  # type: ignore[misc]
+            cfg.timeout = 99.0

@@ -195,7 +195,7 @@ async def test_mermaid_for_tapestry_uses_subroutine_shape_for_sub_tapestry():
     from pirn.nodes.sub_tapestry import SubTapestry
 
     class _Inner(SubTapestry):
-        async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]
+        async def process(self, x: int, **_: Any) -> None:
             pass
 
     with Tapestry() as t:
@@ -224,7 +224,7 @@ async def test_html_for_tapestry_marks_sub_tapestry_node():
     from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 
     class _Inner(SubTapestry):
-        async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]
+        async def process(self, x: int, **_: Any) -> None:
             pass
 
     with Tapestry() as t:

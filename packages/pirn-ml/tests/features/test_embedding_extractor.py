@@ -54,5 +54,5 @@ class TestEmbeddingExtractorProcess(unittest.IsolatedAsyncioTestCase):
             await extractor.process(
                 split=split,
                 text_column="review",
-                embedding_provider="not a provider",  # type: ignore[arg-type]
+                embedding_provider="not a provider",
             )

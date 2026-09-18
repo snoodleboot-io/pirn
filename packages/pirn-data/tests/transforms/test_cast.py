@@ -133,7 +133,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_type_value(self) -> None:
         k = await self._make_knot()
         with self.assertRaisesRegex(TypeError, "must be a type"):
-            await k.process(batch=_make_batch(), casts={"id": "int"})  # type: ignore[arg-type]
+            await k.process(batch=_make_batch(), casts={"id": "int"})
 
     async def test_rejects_empty_key(self) -> None:
         k = await self._make_knot()

@@ -28,5 +28,5 @@ class TestRebindableError(unittest.TestCase):
         # RebindableError is catchable via the builtin Exception base. Narrowing
         # to RebindableError would duplicate test_raise_and_catch and drop that
         # coverage; the raise is inline, so there is no false-green risk.
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # catchability via the Exception base is the assertion
             raise RebindableError("E", "m", "t")

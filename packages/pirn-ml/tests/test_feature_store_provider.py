@@ -36,7 +36,7 @@ class TestFeatureStoreProviderInterface(unittest.IsolatedAsyncioTestCase):
 
     def test_clear_credentials_nullifies_config(self) -> None:
         store = FeatureStoreProvider()
-        store._config = {"token": "abc"}  # type: ignore[assignment]
+        store._config = {"token": "abc"}
         store._clear_credentials()
         self.assertIsNone(store._config)
 

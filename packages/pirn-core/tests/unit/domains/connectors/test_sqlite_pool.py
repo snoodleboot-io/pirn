@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 
 try:
-    import aiosqlite  # noqa: F401
+    import aiosqlite  # noqa: F401  # imported only to skip when aiosqlite is absent
 except ImportError as _e:
     raise unittest.SkipTest("aiosqlite not installed") from _e
 

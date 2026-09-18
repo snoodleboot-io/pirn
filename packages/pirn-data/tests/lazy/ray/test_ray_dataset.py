@@ -43,4 +43,4 @@ class TestRayDataset(unittest.TestCase):
         ds = _make_ray_dataset()
         rds = RayDataset(dataset=ds)
         with self.assertRaises((AttributeError, TypeError)):
-            rds.backend_name = "other"  # type: ignore[misc]
+            rds.backend_name = "other"

@@ -33,7 +33,7 @@ class TestOpenMetadataConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = OpenMetadataConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.host_url = "mutated"  # type: ignore[misc]
+            cfg.host_url = "mutated"
 
     def test_audit_dict(self) -> None:
         cfg = OpenMetadataConfig(jwt_token="tok")

@@ -46,7 +46,7 @@ class TestValkeyStreamBrokerPublish(unittest.IsolatedAsyncioTestCase):
         client = _make_client()
         broker = ValkeyStreamBroker(config=_make_config(), client=client)
         with self.assertRaises(TypeError):
-            await broker.publish("stream", "not-bytes")  # type: ignore[arg-type]
+            await broker.publish("stream", "not-bytes")
 
     async def test_publish_includes_key_field(self) -> None:
         client = _make_client()

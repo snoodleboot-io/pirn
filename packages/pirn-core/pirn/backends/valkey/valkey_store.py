@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
 
     from pirn.core.knot import Knot
 
-_logger = logging.getLogger(__name__)
-
 
 class ValKeyStore(TapestryStore, SubscribableStore):
     """TapestryStore backed by ValKey.
@@ -29,6 +27,8 @@ class ValKeyStore(TapestryStore, SubscribableStore):
     of knot ids and a hash per knot. Cross-process queries read the
     snapshot without touching live Python objects.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     _ids_key = "pirn:tapestry:ids"
     _knot_key_prefix = "pirn:tapestry:knot:"
@@ -220,7 +220,7 @@ class ValKeyStore(TapestryStore, SubscribableStore):
                 try:
                     cb(knot)
                 except Exception:
-                    _logger.warning(
+                    ValKeyStore._logger.warning(
                         "ValKeyStore: subscriber callback raised an exception for knot %r",
                         notice.knot_id,
                         exc_info=True,

@@ -41,7 +41,7 @@ class TestRagFusionPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             RagFusionPipeline(
                 query="q",
-                memory="nope",  # type: ignore[arg-type]
+                memory="nope",
                 llm=StubLLMProvider(["a", "b"]),
                 _config=KnotConfig(id="fusion"),
             )

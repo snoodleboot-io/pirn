@@ -24,8 +24,8 @@ _WATER = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> WaterCutTracker:
         return WaterCutTracker(
-            oil_rate=None,  # type: ignore[arg-type]
-            water_rate=None,  # type: ignore[arg-type]
+            oil_rate=None,
+            water_rate=None,
             _config=KnotConfig(id="wc", validate_io=False),
         )
 

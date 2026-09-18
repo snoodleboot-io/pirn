@@ -33,11 +33,11 @@ class ExactMatchTests(unittest.TestCase):
 
     def test_non_str_prediction_raises(self) -> None:
         with self.assertRaises(TypeError):
-            ExactMatch().score(1, "x")  # type: ignore[arg-type]
+            ExactMatch().score(1, "x")
 
     def test_non_str_reference_raises(self) -> None:
         with self.assertRaises(TypeError):
-            ExactMatch().score("x", 1)  # type: ignore[arg-type]
+            ExactMatch().score("x", 1)
 
 
 if __name__ == "__main__":

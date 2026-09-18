@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 try:
-    import PyEMD  # noqa: F401
+    import PyEMD  # noqa: F401  # imported only to skip when PyEMD is absent
 except ImportError as _e:
     raise unittest.SkipTest("PyEMD not installed") from _e
 
@@ -47,7 +47,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_positive_max_imf_count(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, max_imf_count=0)  # type: ignore[arg-type]
+            await k.process(signal=None, max_imf_count=0)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

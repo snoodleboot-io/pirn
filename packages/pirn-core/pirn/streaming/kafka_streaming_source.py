@@ -5,12 +5,10 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.streaming.streaming_source import StreamingSource
-
-_logger = logging.getLogger(__name__)
 
 
 class KafkaStreamingSource(StreamingSource):
@@ -28,6 +26,8 @@ class KafkaStreamingSource(StreamingSource):
     * ``KafkaStreamingSource(topic=..., bootstrap_servers=...,
       parameter_name=...)`` — build a consumer lazily.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -84,7 +84,7 @@ class KafkaStreamingSource(StreamingSource):
             try:
                 await self._consumer.stop()
             except Exception:
-                _logger.warning(
+                KafkaStreamingSource._logger.warning(
                     "KafkaStreamingSource: consumer.stop() raised during close", exc_info=True
                 )
 

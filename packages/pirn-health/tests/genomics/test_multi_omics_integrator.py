@@ -24,17 +24,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_mapping_rna(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "rna_features"):
-            await knot.process(rna_features=42, dna_features={}, epi_features={})  # type: ignore[arg-type]
+            await knot.process(rna_features=42, dna_features={}, epi_features={})
 
     async def test_rejects_non_mapping_dna(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "dna_features"):
-            await knot.process(rna_features={}, dna_features=42, epi_features={})  # type: ignore[arg-type]
+            await knot.process(rna_features={}, dna_features=42, epi_features={})
 
     async def test_rejects_non_mapping_epi(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "epi_features"):
-            await knot.process(rna_features={}, dna_features={}, epi_features=42)  # type: ignore[arg-type]
+            await knot.process(rna_features={}, dna_features={}, epi_features=42)
 
     async def test_returns_per_sample_mapping(self) -> None:
         knot = self._make_knot()

@@ -78,7 +78,7 @@ class TestEmbeddingIndexerProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot(embedder, store)
         with self.assertRaises(TypeError):
             await k.process(
-                chunks=["ok", 42],  # type: ignore[list-item]
+                chunks=["ok", 42],
                 document_id="doc",
                 embedding_provider=embedder,
                 store=store,

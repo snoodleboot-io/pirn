@@ -39,4 +39,4 @@ class TestAirtableConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = AirtableConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.base_id = "mutated"  # type: ignore[misc]
+            cfg.base_id = "mutated"

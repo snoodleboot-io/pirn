@@ -29,4 +29,4 @@ class TestTeamsConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = TeamsConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.timeout = 99.0  # type: ignore[misc]
+            cfg.timeout = 99.0

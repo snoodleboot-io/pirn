@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 try:
-    import duckdb  # noqa: F401
+    import duckdb  # noqa: F401  # imported only to skip when duckdb is absent
 except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 
@@ -104,6 +104,6 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         rows = await ro_pool.fetch_all("SELECT x FROM t")
         assert rows == [(1,)]
         # Writes are rejected by DuckDB.
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # DuckDB chooses its own read-only rejection type
             await ro_pool.execute("INSERT INTO t VALUES (?)", (2,))
         await ro_pool.close()

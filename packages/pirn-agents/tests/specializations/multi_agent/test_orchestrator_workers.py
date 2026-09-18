@@ -118,7 +118,7 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
             knot = OrchestratorWorkers.__new__(OrchestratorWorkers)
             object.__setattr__(knot, "_config", KnotConfig(id="ow"))
         with self.assertRaises(TypeError):
-            await knot.process(tasks=("t",), worker="bad")  # type: ignore[arg-type]
+            await knot.process(tasks=("t",), worker="bad")
 
     async def test_rejects_bad_max_concurrency(self) -> None:
         with Tapestry():

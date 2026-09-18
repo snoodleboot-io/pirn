@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from threading import Lock
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
@@ -13,8 +13,6 @@ from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
-_logger = logging.getLogger(__name__)
-
 
 class InMemoryStore(TapestryStore, SubscribableStore):
     """In-memory TapestryStore.
@@ -22,6 +20,8 @@ class InMemoryStore(TapestryStore, SubscribableStore):
     Implements SubscribableStore: callers can subscribe(callback) to receive
     each newly-registered Knot.  Used by the engine's mid-run extension mode.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(self) -> None:
         self._knots: dict[str, Knot] = {}
@@ -56,7 +56,7 @@ class InMemoryStore(TapestryStore, SubscribableStore):
             try:
                 cb(knot)
             except Exception:
-                _logger.warning(
+                InMemoryStore._logger.warning(
                     "InMemoryStore: subscriber callback raised for knot %r",
                     knot.knot_id,
                     exc_info=True,

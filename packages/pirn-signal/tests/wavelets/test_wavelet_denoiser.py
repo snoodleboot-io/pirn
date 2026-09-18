@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 try:
-    import pywt  # noqa: F401
+    import pywt  # noqa: F401  # imported only to skip when pywt is absent
 except ImportError as _e:
     raise unittest.SkipTest("pywt not installed") from _e
 
@@ -34,17 +34,17 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_wavelet(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, wavelet="", level=3, threshold_mode="soft")  # type: ignore[arg-type]
+            await k.process(signal=None, wavelet="", level=3, threshold_mode="soft")
 
     async def test_rejects_non_positive_level(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, wavelet="db4", level=0, threshold_mode="soft")  # type: ignore[arg-type]
+            await k.process(signal=None, wavelet="db4", level=0, threshold_mode="soft")
 
     async def test_rejects_invalid_threshold_mode(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, wavelet="db4", level=3, threshold_mode="garrote")  # type: ignore[arg-type]
+            await k.process(signal=None, wavelet="db4", level=3, threshold_mode="garrote")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

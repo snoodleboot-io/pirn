@@ -24,12 +24,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "regions"):
-            await knot.process(t1_nifti_path="x", regions=42)  # type: ignore[arg-type]
+            await knot.process(t1_nifti_path="x", regions=42)
 
     async def test_rejects_non_string_region(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(t1_nifti_path="x", regions=[1])  # type: ignore[list-item]
+            await knot.process(t1_nifti_path="x", regions=[1])
 
     async def test_returns_per_region_mapping(self) -> None:
         from unittest.mock import AsyncMock, MagicMock, patch

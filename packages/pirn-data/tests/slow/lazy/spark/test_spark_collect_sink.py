@@ -69,6 +69,6 @@ def test_construct_rejects_non_int_max_rows(_spark_session) -> None:
         with pytest.raises(TypeError, match="max_rows"):
             SparkCollectSink(
                 frame=src,
-                max_rows="ten",  # type: ignore[arg-type]
+                max_rows="ten",
                 _config=KnotConfig(id="x"),
             )

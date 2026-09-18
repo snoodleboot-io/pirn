@@ -52,7 +52,7 @@ class TestDatabaseQuerySource(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_pool(self) -> None:
         with self.assertRaises(TypeError) as ctx:
             await self.source.process(
-                pool=object(),  # type: ignore[arg-type]
+                pool=object(),
                 query="SELECT 1",
             )
         assert "DatabaseConnectionPool" in str(ctx.exception)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import lasio  # noqa: F401
+    import lasio  # noqa: F401  # imported only to skip when lasio is absent
 except ImportError as _e:
     raise unittest.SkipTest("lasio not installed") from _e
 
@@ -54,7 +54,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "segy_body must be bytes"):
             await knot.process(
-                segy_body="not-bytes",  # type: ignore[arg-type]
+                segy_body="not-bytes",
                 volume_id="vol",
                 las_body=b"las-bytes",
                 well_id="W",

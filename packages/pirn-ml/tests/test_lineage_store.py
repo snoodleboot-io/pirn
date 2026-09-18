@@ -41,7 +41,7 @@ class TestLineageStoreInterface(unittest.IsolatedAsyncioTestCase):
 
     def test_clear_credentials_nullifies_config(self) -> None:
         store = LineageStore()
-        store._config = {"token": "tok"}  # type: ignore[assignment]
+        store._config = {"token": "tok"}
         store._clear_credentials()
         self.assertIsNone(store._config)
 

@@ -92,7 +92,7 @@ class _StandaloneTests(unittest.TestCase):
 
     def test_construction_rejects_bogus_config_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "MySQLConfig"):
-            MySQLPool(config="not-a-config")  # type: ignore[arg-type]
+            MySQLPool(config="not-a-config")
 
 
 # ────────────────────────────────────────────────────────── delegation

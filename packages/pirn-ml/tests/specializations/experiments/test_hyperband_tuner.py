@@ -49,7 +49,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="nn",
                 search_space={"lr": [0.01]},
                 primary_metric="val_loss",
@@ -60,7 +60,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="",
                 search_space={"lr": [0.01]},
                 primary_metric="val_loss",

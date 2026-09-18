@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 try:
-    import onnx  # noqa: F401
+    import onnx  # noqa: F401  # imported only to skip when onnx is absent
 except ImportError as _e:
     raise unittest.SkipTest("onnx not installed") from _e
 
@@ -46,7 +46,7 @@ class TestOnnxFormatConstruction(unittest.TestCase):
 
     def test_non_bool_validate_rejected(self) -> None:
         with self.assertRaises(TypeError):
-            OnnxFormat(validate="yes")  # type: ignore[arg-type]
+            OnnxFormat(validate="yes")
 
 
 class TestOnnxFormatBasics(unittest.TestCase):

@@ -12,7 +12,7 @@ from unittest.mock import patch
 import numpy as np
 
 try:
-    import pyedflib  # noqa: F401
+    import pyedflib  # noqa: F401  # imported only to skip when pyedflib is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyedflib not installed") from _e
 
@@ -214,7 +214,7 @@ class TestBdfFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is not a bdf file"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

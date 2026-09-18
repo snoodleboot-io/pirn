@@ -26,7 +26,7 @@ _SERIES_NO_GAP: list[dict[str, Any]] = [
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, gap_threshold_hours: float = 4.0) -> DowntimeEventClassifier:
         return DowntimeEventClassifier(
-            production_series=None,  # type: ignore[arg-type]
+            production_series=None,
             gap_threshold_hours=gap_threshold_hours,
             _config=KnotConfig(id="dec", validate_io=False),
         )
@@ -39,7 +39,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_threshold(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "gap_threshold_hours"):
-            await knot.process(production_series=_SERIES_WITH_GAP, gap_threshold_hours="4")  # type: ignore[arg-type]
+            await knot.process(production_series=_SERIES_WITH_GAP, gap_threshold_hours="4")
 
     async def test_rejects_missing_timestamp(self) -> None:
         knot = self._make_knot()

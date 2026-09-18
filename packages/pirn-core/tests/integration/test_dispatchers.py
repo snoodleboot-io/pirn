@@ -129,17 +129,17 @@ def test_thread_dispatcher_keeps_its_own_executor():
 def test_local_dispatcher_runs_containers_on_itself():
     """The default ``dispatcher_for_container`` is the identity (PIR-870)."""
     dispatcher = LocalDispatcher()
-    assert dispatcher.dispatcher_for_container(object()) is dispatcher  # type: ignore[arg-type]
+    assert dispatcher.dispatcher_for_container(object()) is dispatcher
 
 
 def test_thread_dispatcher_routes_containers_to_a_local_dispatcher():
     """A container must not spend a pool worker awaiting its own inner run (PIR-870)."""
     dispatcher = ThreadDispatcher(max_workers=2)
     try:
-        container_dispatcher = dispatcher.dispatcher_for_container(object())  # type: ignore[arg-type]
+        container_dispatcher = dispatcher.dispatcher_for_container(object())
         assert isinstance(container_dispatcher, LocalDispatcher)
         # Stable across calls: it is one shared instance, not built fresh
         # each time.
-        assert dispatcher.dispatcher_for_container(object()) is container_dispatcher  # type: ignore[arg-type]
+        assert dispatcher.dispatcher_for_container(object()) is container_dispatcher
     finally:
         dispatcher.shutdown()

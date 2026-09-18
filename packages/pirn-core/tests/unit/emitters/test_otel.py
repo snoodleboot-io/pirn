@@ -139,7 +139,7 @@ class TestOpenTelemetryEmitterEvents(unittest.IsolatedAsyncioTestCase):
 
     async def test_err_outcome_sets_error_status(self) -> None:
         try:
-            from opentelemetry.trace import Status, StatusCode  # noqa: F401
+            from opentelemetry.trace import Status, StatusCode  # noqa: F401  # the skip guard above
         except ModuleNotFoundError:
             self.skipTest("opentelemetry not installed")
         span = _make_span()

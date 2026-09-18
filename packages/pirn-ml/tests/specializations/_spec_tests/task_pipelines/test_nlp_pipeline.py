@@ -29,7 +29,7 @@ class TestConstruction(unittest.TestCase):
                     query="SELECT 1",
                     text_column="text",
                     target_column="y",
-                    embedding_provider="not-a-provider",  # type: ignore[arg-type]
+                    embedding_provider="not-a-provider",
                     _config=KnotConfig(id="bad"),
                 )
 

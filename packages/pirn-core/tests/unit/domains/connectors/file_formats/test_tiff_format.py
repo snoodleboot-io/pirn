@@ -9,11 +9,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import tifffile  # noqa: F401
+    import tifffile  # noqa: F401  # imported only to skip when tifffile is absent
 except ImportError as _e:
     raise unittest.SkipTest("tifffile not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -57,7 +57,7 @@ class TestTiffFormatConstruction(unittest.TestCase):
 
     def test_non_string_compression_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            TiffFormat(compression=0)  # type: ignore[arg-type]
+            TiffFormat(compression=0)
 
 
 class TestTiffFormatBasics(unittest.TestCase):

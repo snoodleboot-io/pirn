@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import nibabel  # noqa: F401
+    import nibabel  # noqa: F401  # imported only to skip when nibabel is absent
 except ImportError as _e:
     raise unittest.SkipTest("nibabel not installed") from _e
 
@@ -46,12 +46,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "roi_labels"):
-            await knot.process(nifti_path="x", atlas_label_path="a", roi_labels=42)  # type: ignore[arg-type]
+            await knot.process(nifti_path="x", atlas_label_path="a", roi_labels=42)
 
     async def test_rejects_non_int_label(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "int"):
-            await knot.process(nifti_path="x", atlas_label_path="a", roi_labels=["x"])  # type: ignore[list-item]
+            await knot.process(nifti_path="x", atlas_label_path="a", roi_labels=["x"])
 
     async def test_returns_mapping(self) -> None:
         knot = self._make_knot()

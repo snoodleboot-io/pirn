@@ -34,7 +34,7 @@ from tests.batch.batch_doubles import InFlightCounter, StubAgent, TrackingIterab
 
 
 async def _drain(runner: MapAgent, inputs: object) -> list:
-    return [result async for result in runner.run(inputs)]  # type: ignore[arg-type]
+    return [result async for result in runner.run(inputs)]
 
 
 async def test_maps_agent_over_all_inputs() -> None:
@@ -236,7 +236,7 @@ async def test_cancellation_cancels_inflight_items() -> None:
 
 def test_rejects_non_callable_run_item() -> None:
     with pytest.raises(TypeError):
-        MapAgent(run_item="not-callable", _config=KnotConfig(id="map-agent"))  # type: ignore[arg-type]
+        MapAgent(run_item="not-callable", _config=KnotConfig(id="map-agent"))
 
 
 async def test_rejects_bad_concurrency() -> None:

@@ -73,7 +73,7 @@ class TestSklearnTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 split=_split(),
                 algorithm="rf",
-                lineage="bad",  # type: ignore[arg-type]
+                lineage="bad",
                 store=_StubStore(),
                 metrics=["accuracy"],
             )

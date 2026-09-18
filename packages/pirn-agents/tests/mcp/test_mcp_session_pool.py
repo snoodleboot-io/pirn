@@ -77,4 +77,4 @@ def test_register_rejects_bad_arguments() -> None:
     with pytest.raises(TypeError):
         pool.register("", lambda: McpConnector(transport_factory=StubMcpTransport))
     with pytest.raises(TypeError):
-        pool.register("srv", object())  # type: ignore[arg-type]
+        pool.register("srv", object())

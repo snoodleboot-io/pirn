@@ -26,7 +26,7 @@ class TestRAGSynthesizerProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 query="q",
                 documents=[],
-                llm="bad",  # type: ignore[arg-type]
+                llm="bad",
             )
 
     async def test_synthesizes_answer_from_documents(self) -> None:

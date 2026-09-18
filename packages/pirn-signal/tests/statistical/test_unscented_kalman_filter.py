@@ -46,7 +46,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="ukf"))
         signal = make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal, state_dim=2, observation_dim=1, beta="bad")  # type: ignore[arg-type]
+            await k.process(signal=signal, state_dim=2, observation_dim=1, beta="bad")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -21,22 +21,22 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_records(self) -> None:
         knot = PatientCohortBuilder(records=_RECORDS, stages={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "records"):
-            await knot.process(records=42, stages={})  # type: ignore[arg-type]
+            await knot.process(records=42, stages={})
 
     async def test_rejects_non_record(self) -> None:
         knot = PatientCohortBuilder(records=_RECORDS, stages={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
-            await knot.process(records=["x"], stages={})  # type: ignore[list-item]
+            await knot.process(records=["x"], stages={})
 
     async def test_rejects_non_mapping_stages(self) -> None:
         knot = PatientCohortBuilder(records=_RECORDS, stages={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "stages"):
-            await knot.process(records=(), stages=42)  # type: ignore[arg-type]
+            await knot.process(records=(), stages=42)
 
     async def test_rejects_non_mapping_stage_criteria(self) -> None:
         knot = PatientCohortBuilder(records=_RECORDS, stages={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "stage"):
-            await knot.process(records=(), stages={"s1": 42})  # type: ignore[dict-item]
+            await knot.process(records=(), stages={"s1": 42})
 
     async def test_runs_inner_pipeline(self) -> None:
         records = (

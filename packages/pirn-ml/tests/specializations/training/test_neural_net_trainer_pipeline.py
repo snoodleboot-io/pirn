@@ -75,7 +75,7 @@ class TestNeuralNetTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_wrong_lineage_type(self) -> None:
         k = _make_knot()
         with self.assertRaises((ValueError, TypeError)):
-            await k.process(split=_split(), lineage="bad", store=_StubStore(), metrics=["val_loss"])  # type: ignore[arg-type]
+            await k.process(split=_split(), lineage="bad", store=_StubStore(), metrics=["val_loss"])
 
     async def test_rejects_empty_metrics(self) -> None:
         k = _make_knot()

@@ -40,7 +40,7 @@ class TestFixedSizeChunkingStrategy(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_string_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a string"):
-            await FixedSizeChunkingStrategy().chunk(b"bytes")  # type: ignore[arg-type]
+            await FixedSizeChunkingStrategy().chunk(b"bytes")
 
     def test_invalid_overlap_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "chunk_overlap"):

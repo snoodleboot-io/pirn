@@ -50,7 +50,7 @@ class TestDatabaseExecuteSink(unittest.IsolatedAsyncioTestCase):
             await self.sink.process(
                 pool=self.pool,
                 query="INSERT INTO items VALUES (?, ?)",
-                rows="not a list of tuples",  # type: ignore[arg-type]
+                rows="not a list of tuples",
             )
         assert "iterable of parameter tuples" in str(ctx.exception)
 
@@ -59,13 +59,13 @@ class TestDatabaseExecuteSink(unittest.IsolatedAsyncioTestCase):
             await self.sink.process(
                 pool=self.pool,
                 query="INSERT INTO items VALUES (?, ?)",
-                rows=b"bytes",  # type: ignore[arg-type]
+                rows=b"bytes",
             )
 
     async def test_rejects_non_pool(self) -> None:
         with self.assertRaises(TypeError) as ctx:
             await self.sink.process(
-                pool=object(),  # type: ignore[arg-type]
+                pool=object(),
                 query="INSERT INTO items VALUES (?, ?)",
                 rows=[],
             )

@@ -15,18 +15,18 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
-_logger = logging.getLogger(__name__)
-
 
 class RunDriver:
     """Stateless driver shared by ``Trigger.run_forever`` and ``StreamingSource.run_stream``."""
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     @staticmethod
     async def drive(
@@ -79,7 +79,7 @@ class RunDriver:
             try:
                 await close()
             except Exception:
-                _logger.warning(
+                RunDriver._logger.warning(
                     "RunDriver: %s raised while shutting down",
                     close_error_context,
                     exc_info=True,

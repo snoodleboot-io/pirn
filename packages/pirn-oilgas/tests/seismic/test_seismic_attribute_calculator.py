@@ -17,7 +17,7 @@ _VOLUME = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, attribute: str = "envelope") -> SeismicAttributeCalculator:
         return SeismicAttributeCalculator(
-            volume=None,  # type: ignore[arg-type]
+            volume=None,
             attribute=attribute,
             _config=KnotConfig(id="attr", validate_io=False),
         )

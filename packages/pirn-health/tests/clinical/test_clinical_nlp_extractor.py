@@ -20,12 +20,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_provider(self) -> None:
         knot = ClinicalNLPExtractor(provider=_PROVIDER, note_text="note", _config=_CFG)
         with self.assertRaisesRegex(TypeError, "HealthLLMProvider"):
-            await knot.process(provider="x", note_text="note")  # type: ignore[arg-type]
+            await knot.process(provider="x", note_text="note")
 
     async def test_rejects_non_string_note(self) -> None:
         knot = ClinicalNLPExtractor(provider=_PROVIDER, note_text="note", _config=_CFG)
         with self.assertRaisesRegex(TypeError, "note_text"):
-            await knot.process(provider=_PROVIDER, note_text=42)  # type: ignore[arg-type]
+            await knot.process(provider=_PROVIDER, note_text=42)
 
     async def test_rejects_empty_note(self) -> None:
         knot = ClinicalNLPExtractor(provider=_PROVIDER, note_text="note", _config=_CFG)

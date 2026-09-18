@@ -55,4 +55,4 @@ async def test_dask_source_path_with_reader(tmp_path) -> None:
 
 def test_construct_rejects_non_callable_factory() -> None:
     with pytest.raises(TypeError, match="callable"):
-        DaskSource(factory="not callable", _config=KnotConfig(id="x"))  # type: ignore[arg-type]
+        DaskSource(factory="not callable", _config=KnotConfig(id="x"))

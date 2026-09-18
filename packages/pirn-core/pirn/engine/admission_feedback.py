@@ -29,7 +29,7 @@ import logging
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.engine.admission.admission_event import AdmissionEvent
 
@@ -38,11 +38,11 @@ if TYPE_CHECKING:
     from pirn.engine.admission.admission_observer import AdmissionObserver
     from pirn.engine.admission.admission_ticket import AdmissionTicket
 
-_log = logging.getLogger(__name__)
-
 
 class AdmissionFeedback:
     """Reports a run's admissions and releases to its ``AdmissionObserver``s."""
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -162,7 +162,7 @@ class AdmissionFeedback:
             else:
                 observer.on_release(event)
         except Exception:
-            _log.warning(
+            AdmissionFeedback._log.warning(
                 "AdmissionObserver %r raised in %s for knot %r; ignored",
                 type(observer).__name__,
                 hook,

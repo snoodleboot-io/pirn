@@ -236,7 +236,7 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
                 return _FakeJson({"entities": first_page, "total": 150})
             return _FakeJson({"entities": second_page, "total": 150})
 
-        fake.request = request_request  # type: ignore[assignment]
+        fake.request = request_request
         client = DataHubClient(cfg, client=fake)
 
         results = []

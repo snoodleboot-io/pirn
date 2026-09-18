@@ -28,7 +28,7 @@ class TestEmbeddingProviderInterface(unittest.IsolatedAsyncioTestCase):
 
     def test_clear_credentials_nullifies_config(self) -> None:
         provider = EmbeddingProvider()
-        provider._config = {"api_key": "secret"}  # type: ignore[assignment]
+        provider._config = {"api_key": "secret"}
         provider._clear_credentials()
         self.assertIsNone(provider._config)
 

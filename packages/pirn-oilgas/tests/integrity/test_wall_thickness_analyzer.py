@@ -17,7 +17,7 @@ _PIG_RUN: dict[str, Any] = {"feature_count": 5, "longest_anomaly_in": 1.0}
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, nominal: float = 0.5, minimum: float = 0.25) -> WallThicknessAnalyzer:
         return WallThicknessAnalyzer(
-            pig_run=None,  # type: ignore[arg-type]
+            pig_run=None,
             nominal_thickness_in=nominal,
             minimum_allowable_thickness_in=minimum,
             _config=KnotConfig(id="wta", validate_io=False),

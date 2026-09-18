@@ -69,7 +69,7 @@ class TestMessageBrokerPublishSink(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_broker(self) -> None:
         with self.assertRaises(TypeError) as ctx:
             await self.sink.process(
-                broker=object(),  # type: ignore[arg-type]
+                broker=object(),
                 topic="events",
                 value=b"msg",
             )
@@ -84,7 +84,7 @@ class TestMessageBrokerPublishSink(unittest.IsolatedAsyncioTestCase):
             await self.sink.process(
                 broker=self.broker,
                 topic="events",
-                value="not bytes",  # type: ignore[arg-type]
+                value="not bytes",
             )
         assert "bytes" in str(ctx.exception)
 

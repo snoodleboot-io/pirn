@@ -47,7 +47,7 @@ class TestRerankerKnotBackend(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_backend_reranker(self) -> None:
         knot = Reranker(query="q", documents=[], reranker=None, _config=KnotConfig(id="rerank"))
         with self.assertRaisesRegex(TypeError, "reranker must be a RerankerBackend"):
-            await knot.process(query="q", documents=[{"text": "a"}], reranker=object())  # type: ignore[arg-type]
+            await knot.process(query="q", documents=[{"text": "a"}], reranker=object())
 
     async def test_requires_llm_or_reranker(self) -> None:
         knot = Reranker(query="q", documents=[], _config=KnotConfig(id="rerank"))

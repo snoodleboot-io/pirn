@@ -23,8 +23,8 @@ _HORIZON: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> RMSAmplitudeWindowExtractor:
         return RMSAmplitudeWindowExtractor(
-            volume=None,  # type: ignore[arg-type]
-            horizon=None,  # type: ignore[arg-type]
+            volume=None,
+            horizon=None,
             window_ms_above=20.0,
             window_ms_below=20.0,
             _config=KnotConfig(id="rms", validate_io=False),

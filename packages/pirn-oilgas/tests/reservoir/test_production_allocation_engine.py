@@ -21,8 +21,8 @@ _WELL_TESTS: list[dict[str, Any]] = [
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, allocation_method: str = "ratio") -> ProductionAllocationEngine:
         return ProductionAllocationEngine(
-            field_totals=None,  # type: ignore[arg-type]
-            well_tests=None,  # type: ignore[arg-type]
+            field_totals=None,
+            well_tests=None,
             allocation_method=allocation_method,
             _config=KnotConfig(id="pae", validate_io=False),
         )

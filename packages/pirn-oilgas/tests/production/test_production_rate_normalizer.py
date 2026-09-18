@@ -19,7 +19,7 @@ _MEASUREMENTS: list[dict[str, Any]] = [
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> ProductionRateNormalizer:
         return ProductionRateNormalizer(
-            measurements=None,  # type: ignore[arg-type]
+            measurements=None,
             reference_pressure_psia=14.7,
             reference_temp_f=60.0,
             _config=KnotConfig(id="prn", validate_io=False),

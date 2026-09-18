@@ -43,7 +43,7 @@ class TestDataAnalystAgentProcess(unittest.IsolatedAsyncioTestCase):
             _config=KnotConfig(id="analyst"),
         )
         with self.assertRaisesRegex(TypeError, "schema_description"):
-            await agent.process(question="?", llm=llm, pool=pool, schema_description=123)  # type: ignore[arg-type]
+            await agent.process(question="?", llm=llm, pool=pool, schema_description=123)
 
 
 class TestDataAnalystAgentHappyPath(unittest.IsolatedAsyncioTestCase):

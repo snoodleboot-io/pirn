@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import netCDF4  # noqa: F401
+    import netCDF4  # noqa: F401  # imported only to skip when netCDF4 is absent
 except ImportError as _e:
     raise unittest.SkipTest("netCDF4 not installed") from _e
 
@@ -170,7 +170,7 @@ class TestNetcdf4FormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"not a netcdf4 file"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass

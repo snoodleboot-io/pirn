@@ -171,6 +171,6 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             return SchemaValidator(batch=batch, _config=KnotConfig(id="sv"), **kwargs)
 
     async def test_rejects_non_data_schema(self) -> None:
-        k = self._make_knot(schema={"id": int})  # type: ignore[arg-type]
+        k = self._make_knot(schema={"id": int})
         with self.assertRaisesRegex(TypeError, "DataSchema"):
             await k.process(batch=DataBatch(), schema={"id": int})

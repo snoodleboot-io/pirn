@@ -46,4 +46,4 @@ class TestAzureBlobConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = AzureBlobConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.container = "mutated"  # type: ignore[misc]
+            cfg.container = "mutated"

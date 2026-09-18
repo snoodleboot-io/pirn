@@ -31,7 +31,7 @@ class TestOk(unittest.TestCase):
     def test_frozen(self):
         ok = Ok(value=1)
         with self.assertRaises(ValidationError):
-            ok.value = 2  # type: ignore[misc]
+            ok.value = 2
 
     def test_none_value(self):
         ok = Ok(value=None)

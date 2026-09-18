@@ -29,4 +29,4 @@ class TestPubSubConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = PubSubConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.project = "mutated"  # type: ignore[misc]
+            cfg.project = "mutated"

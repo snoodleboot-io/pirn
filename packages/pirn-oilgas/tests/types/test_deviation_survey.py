@@ -39,7 +39,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         survey = DeviationSurvey(well_id="W1")
         try:
-            survey.station_count = 5  # type: ignore[misc]
+            survey.station_count = 5
         except Exception:
             return
         raise AssertionError("DeviationSurvey must be frozen")

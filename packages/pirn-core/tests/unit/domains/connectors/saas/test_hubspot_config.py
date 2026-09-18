@@ -31,4 +31,4 @@ class TestHubSpotConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = HubSpotConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.access_token = "mutated"  # type: ignore[misc]
+            cfg.access_token = "mutated"

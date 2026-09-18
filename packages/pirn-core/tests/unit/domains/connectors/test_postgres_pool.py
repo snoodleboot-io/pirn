@@ -196,7 +196,7 @@ class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
         async def boom(*_: Any, **__: Any) -> None:
             raise ConnectionError("could not connect: postgres://alice:secret-pw@db/main timed out")
 
-        fake_asyncpg.create_pool = boom  # type: ignore[attr-defined]
+        fake_asyncpg.create_pool = boom
         with unittest.mock.patch.dict(__import__("sys").modules, {"asyncpg": fake_asyncpg}):
             pool = PostgresPool(PostgresConfig(dsn="postgres://alice:secret-pw@db/main"))
             with self.assertRaises(ConnectionError) as exc_info:

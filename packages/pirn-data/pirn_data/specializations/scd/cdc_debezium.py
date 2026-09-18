@@ -56,7 +56,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.message_broker import MessageBroker
@@ -66,11 +66,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn_data.identifier_validator import IdentifierValidator
 from pirn_data.value_shape import ValueShape
 
-_logger = logging.getLogger(__name__)
-
 
 class CDCDebezium(Knot):
     """Apply Debezium change events from a broker topic to a target table."""
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -106,16 +106,22 @@ class CDCDebezium(Knot):
             try:
                 value = value.decode("utf-8")
             except UnicodeDecodeError:
-                _logger.warning("cdc.debezium.decode_failed topic=%s reason=non_utf8", topic)
+                CDCDebezium._logger.warning(
+                    "cdc.debezium.decode_failed topic=%s reason=non_utf8", topic
+                )
                 return None
         if isinstance(value, str):
             try:
                 value = json.loads(value)
             except json.JSONDecodeError:
-                _logger.warning("cdc.debezium.decode_failed topic=%s reason=invalid_json", topic)
+                CDCDebezium._logger.warning(
+                    "cdc.debezium.decode_failed topic=%s reason=invalid_json", topic
+                )
                 return None
         if not ValueShape.is_str_mapping(value):
-            _logger.warning("cdc.debezium.decode_failed topic=%s reason=not_object", topic)
+            CDCDebezium._logger.warning(
+                "cdc.debezium.decode_failed topic=%s reason=not_object", topic
+            )
             return None
         return value
 
@@ -230,7 +236,9 @@ class CDCDebezium(Knot):
                     )
                     applied += 1
                 except Exception:
-                    _logger.exception("cdc.debezium.apply_failed table=%s", target_table)
+                    CDCDebezium._logger.exception(
+                        "cdc.debezium.apply_failed table=%s", target_table
+                    )
                     errors += 1
             consumed += 1
             if max_messages is not None and consumed >= max_messages:

@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import markdown_it  # noqa: F401
+    import markdown_it  # noqa: F401  # imported only to skip when markdown_it is absent
 except ImportError as _e:
     raise unittest.SkipTest("markdown_it not installed") from _e
 try:
-    import markdown  # noqa: F401
+    import markdown  # noqa: F401  # imported only to skip when markdown is absent
 except ImportError as _e:
     raise unittest.SkipTest("markdown not installed") from _e
 
@@ -32,7 +32,7 @@ class TestMarkdownFormatConstruction(unittest.TestCase):
 
     def test_split_on_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            MarkdownFormat(split_on=1)  # type: ignore[arg-type]
+            MarkdownFormat(split_on=1)
 
     def test_split_on_must_be_supported(self) -> None:
         with self.assertRaises(ValueError):
@@ -40,7 +40,7 @@ class TestMarkdownFormatConstruction(unittest.TestCase):
 
     def test_encoding_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            MarkdownFormat(encoding=1)  # type: ignore[arg-type]
+            MarkdownFormat(encoding=1)
 
     def test_encoding_must_be_nonempty(self) -> None:
         with self.assertRaises(ValueError):

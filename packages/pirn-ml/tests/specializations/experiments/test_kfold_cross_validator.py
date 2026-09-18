@@ -50,7 +50,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                dataset=object(),  # type: ignore[arg-type]
+                dataset=object(),
                 algorithm="rf",
                 metrics=["accuracy"],
                 k=1,
@@ -60,7 +60,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                dataset=object(),  # type: ignore[arg-type]
+                dataset=object(),
                 algorithm="rf",
                 metrics=[],
                 k=5,
@@ -70,8 +70,8 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(TypeError):
             await knot.process(
-                dataset=object(),  # type: ignore[arg-type]
+                dataset=object(),
                 algorithm="rf",
                 metrics=["accuracy"],
-                k=5.0,  # type: ignore[arg-type]
+                k=5.0,
             )

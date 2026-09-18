@@ -59,4 +59,4 @@ class TestContextualCompressor(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm(self) -> None:
         knot = _compressor()
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(query="q", documents=[], llm="nope")  # type: ignore[arg-type]
+            await knot.process(query="q", documents=[], llm="nope")

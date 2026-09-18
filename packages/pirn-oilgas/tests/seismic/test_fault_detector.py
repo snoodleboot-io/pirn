@@ -15,7 +15,7 @@ _VOLUME = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> FaultDetector:
         return FaultDetector(
-            attribute_volume=None,  # type: ignore[arg-type]
+            attribute_volume=None,
             coherence_threshold=0.5,
             _config=KnotConfig(id="fd", validate_io=False),
         )
@@ -23,7 +23,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_threshold(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "coherence_threshold"):
-            await knot.process(attribute_volume=_VOLUME, coherence_threshold="x")  # type: ignore[arg-type]
+            await knot.process(attribute_volume=_VOLUME, coherence_threshold="x")
 
     async def test_rejects_out_of_range_threshold(self) -> None:
         knot = self._make_knot()

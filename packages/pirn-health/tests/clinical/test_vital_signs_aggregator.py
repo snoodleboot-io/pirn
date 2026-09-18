@@ -18,11 +18,11 @@ _KNOT = VitalSignsAggregator(rows=[], _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "rows"):
-            await _KNOT.process(rows=42)  # type: ignore[arg-type]
+            await _KNOT.process(rows=42)
 
     async def test_rejects_non_mapping_row(self) -> None:
         with self.assertRaisesRegex(TypeError, "row"):
-            await _KNOT.process(rows=["x"])  # type: ignore[list-item]
+            await _KNOT.process(rows=["x"])
 
     async def test_raises_on_missing_patient_id(self) -> None:
         with self.assertRaisesRegex(KeyError, "patient_id"):

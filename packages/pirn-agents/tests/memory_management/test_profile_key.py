@@ -19,7 +19,7 @@ class TestProfileKey(unittest.TestCase):
 
     def test_rejects_bad_namespace(self) -> None:
         with self.assertRaises(ValueError):
-            ProfileKey(namespace="org", subject_id="x")  # type: ignore[arg-type]
+            ProfileKey(namespace="org", subject_id="x")
 
     def test_rejects_empty_subject(self) -> None:
         with self.assertRaises(TypeError):

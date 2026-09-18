@@ -15,7 +15,7 @@ _VOLUME = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, method: str = "kirchhoff") -> MigrationProcessor:
         return MigrationProcessor(
-            volume=None,  # type: ignore[arg-type]
+            volume=None,
             method=method,
             _config=KnotConfig(id="mig", validate_io=False),
         )

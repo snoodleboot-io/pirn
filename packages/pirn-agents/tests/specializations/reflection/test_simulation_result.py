@@ -27,7 +27,7 @@ class TestSimulationResult(unittest.TestCase):
             worst_case="bad",
         )
         with self.assertRaises((AttributeError, TypeError)):
-            sr.data = "modified"  # type: ignore[misc]
+            sr.data = "modified"
 
     def test_pirn_audit_dict(self) -> None:
         sr = SimulationResult(

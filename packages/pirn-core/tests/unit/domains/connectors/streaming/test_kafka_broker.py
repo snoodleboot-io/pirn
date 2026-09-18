@@ -44,13 +44,13 @@ class TestKafkaBrokerPublish(unittest.IsolatedAsyncioTestCase):
         producer = _make_producer()
         broker = KafkaBroker(config=_make_config(), producer=producer)
         with self.assertRaises(TypeError):
-            await broker.publish("topic", "not-bytes")  # type: ignore[arg-type]
+            await broker.publish("topic", "not-bytes")
 
     async def test_publish_rejects_non_bytes_key(self) -> None:
         producer = _make_producer()
         broker = KafkaBroker(config=_make_config(), producer=producer)
         with self.assertRaises(TypeError):
-            await broker.publish("topic", b"val", key="not-bytes")  # type: ignore[arg-type]
+            await broker.publish("topic", b"val", key="not-bytes")
 
 
 class TestKafkaBrokerClose(unittest.IsolatedAsyncioTestCase):

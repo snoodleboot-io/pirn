@@ -20,7 +20,7 @@ _LAS = LASPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> LogNormalizer:
         return LogNormalizer(
-            payload=None,  # type: ignore[arg-type]
+            payload=None,
             target_depth_step=0.5,
             _config=KnotConfig(id="ln", validate_io=False),
         )
@@ -28,7 +28,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_step(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "target_depth_step"):
-            await knot.process(payload=_LAS, target_depth_step="x")  # type: ignore[arg-type]
+            await knot.process(payload=_LAS, target_depth_step="x")
 
     async def test_rejects_non_positive_step(self) -> None:
         knot = self._make_knot()

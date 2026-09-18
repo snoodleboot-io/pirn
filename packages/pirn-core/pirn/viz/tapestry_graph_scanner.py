@@ -10,11 +10,11 @@ from typing import Any, ClassVar
 
 from pirn.viz._tapestry_graph import TapestryGraph
 
-_logger = logging.getLogger(__name__)
-
 
 class TapestryGraphScanner:
     """Scan a folder for pirn tapestries and execution history."""
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     _builder_names: ClassVar[tuple[str, ...]] = (
         "build_tapestry",
@@ -145,7 +145,7 @@ class TapestryGraphScanner:
                         parent_knot_ids = extra.get("parent_knot_ids") or {}
                         source_hash = payload.get("source_hash") or ""
                     except Exception:
-                        _logger.warning(
+                        TapestryGraphScanner._logger.warning(
                             "TapestryGraphScanner: parsing lineage payload_json for knot %r "
                             "raised; extra/parent_knot_ids/source_hash left empty",
                             kid,
@@ -202,7 +202,7 @@ class TapestryGraphScanner:
                         else:
                             existing.append(child_rid)
                 except Exception:
-                    _logger.warning(
+                    TapestryGraphScanner._logger.warning(
                         "TapestryGraphScanner: reading child run ids for run %r raised; "
                         "child_run_ids left as gathered so far",
                         run_id,
@@ -222,7 +222,7 @@ class TapestryGraphScanner:
                                 pih = knots[kid].setdefault("parent_input_hashes", {})
                                 pih[input_name] = input_hash
                     except Exception:
-                        _logger.warning(
+                        TapestryGraphScanner._logger.warning(
                             "TapestryGraphScanner: reading lineage_inputs for run %r raised; "
                             "parent_input_hashes left as gathered so far",
                             run_id,
@@ -249,7 +249,7 @@ class TapestryGraphScanner:
                                     "pirn_version": pv,
                                 }
                         except Exception:
-                            _logger.warning(
+                            TapestryGraphScanner._logger.warning(
                                 "TapestryGraphScanner: reading knot_sources for run %r raised; "
                                 "knot_sources left as gathered so far",
                                 run_id,
@@ -280,7 +280,7 @@ class TapestryGraphScanner:
             conn.close()
             return result
         except Exception:
-            _logger.warning(
+            TapestryGraphScanner._logger.warning(
                 "TapestryGraphScanner: scanning run history db %r raised; reporting no runs",
                 str(db_path),
                 exc_info=True,
@@ -301,7 +301,7 @@ class TapestryGraphScanner:
                 ),
             )
         except Exception:
-            _logger.warning(
+            TapestryGraphScanner._logger.warning(
                 "TapestryGraphScanner: computing duration from %r/%r raised; reporting 0ms",
                 start,
                 end,
@@ -405,14 +405,14 @@ class TapestryGraphScanner:
                                 results.append(cls._tapestry_to_graph(val, path.stem, source))
                                 break
                         except Exception:
-                            _logger.warning(
+                            TapestryGraphScanner._logger.warning(
                                 "TapestryGraphScanner: calling builder %r in %r raised",
                                 builder_name,
                                 str(path),
                                 exc_info=True,
                             )
         except Exception:
-            _logger.warning(
+            TapestryGraphScanner._logger.warning(
                 "TapestryGraphScanner: scanning python module %r raised; reporting no tapestries",
                 str(path),
                 exc_info=True,

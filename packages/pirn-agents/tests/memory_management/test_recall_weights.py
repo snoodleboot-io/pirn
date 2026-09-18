@@ -18,4 +18,4 @@ class TestRecallWeights(unittest.TestCase):
 
     def test_rejects_bool_weight(self) -> None:
         with self.assertRaises(TypeError):
-            RecallWeights(recency=True)  # type: ignore[arg-type]
+            RecallWeights(recency=True)

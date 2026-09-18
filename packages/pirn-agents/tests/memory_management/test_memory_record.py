@@ -18,7 +18,7 @@ class TestMemoryRecordValidation(unittest.TestCase):
         with self.assertRaises(ValueError):
             MemoryRecord(
                 id="r1",
-                kind="working",  # type: ignore[arg-type]
+                kind="working",
                 content="c",
                 provenance=make_provenance(),
                 created_at=datetime(2026, 1, 1, tzinfo=UTC),
@@ -34,7 +34,7 @@ class TestMemoryRecordValidation(unittest.TestCase):
                 id="r1",
                 kind="episodic",
                 content="c",
-                provenance="bad",  # type: ignore[arg-type]
+                provenance="bad",
                 created_at=datetime(2026, 1, 1, tzinfo=UTC),
             )
 

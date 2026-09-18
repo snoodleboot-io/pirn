@@ -46,4 +46,4 @@ class TestOracleConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = OracleConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.user = "mutated"  # type: ignore[misc]
+            cfg.user = "mutated"

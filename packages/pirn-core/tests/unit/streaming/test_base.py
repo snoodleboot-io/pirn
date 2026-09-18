@@ -123,7 +123,7 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
                 raise RuntimeError("boom")
 
         stream = _SimpleStream(["x"])
-        await stream.run_stream(_BrokenTapestry(), on_error=on_err)  # type: ignore
+        await stream.run_stream(_BrokenTapestry(), on_error=on_err)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0][0], "x")
 
@@ -141,7 +141,7 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
 
         # Act / Assert
         with self.assertRaises(asyncio.CancelledError):
-            await stream.run_stream(tapestry, on_error=on_err)  # type: ignore[arg-type]
+            await stream.run_stream(tapestry, on_error=on_err)
         self.assertEqual(errors, [])
         self.assertEqual(tapestry.runs, 1)
         self.assertTrue(stream._closed)

@@ -39,7 +39,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         path = WellPath3D(well_id="W1")
         try:
-            path.point_count = 99  # type: ignore[misc]
+            path.point_count = 99
         except Exception:
             return
         raise AssertionError("WellPath3D must be frozen")

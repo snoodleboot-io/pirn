@@ -68,4 +68,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             k = MultiHopRAGPipeline.__new__(MultiHopRAGPipeline)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, AttributeError)):
-            await k.process(query=42, memory=memory, llm=llm, top_k=5, num_hops=3)  # type: ignore[arg-type]
+            await k.process(query=42, memory=memory, llm=llm, top_k=5, num_hops=3)

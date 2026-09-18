@@ -20,7 +20,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
-                pool="not-a-pool",  # type: ignore[arg-type]
+                pool="not-a-pool",
                 query="SELECT 1",
                 time_column="ts",
                 target_column="y",

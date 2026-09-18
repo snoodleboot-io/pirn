@@ -37,4 +37,4 @@ class TestAzureServiceBusConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = AzureServiceBusConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.namespace = "mutated"  # type: ignore[misc]
+            cfg.namespace = "mutated"

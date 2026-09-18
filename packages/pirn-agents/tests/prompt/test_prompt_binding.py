@@ -29,7 +29,7 @@ class ConstructionTests(unittest.TestCase):
     def test_is_frozen(self) -> None:
         binding = PromptBinding(name="a.b", default="text")
         with self.assertRaises(FrozenInstanceError):
-            binding.default = "other"  # type: ignore[misc]
+            binding.default = "other"
 
     def test_rejects_empty_name(self) -> None:
         with self.assertRaisesRegex(TypeError, "name"):
@@ -37,7 +37,7 @@ class ConstructionTests(unittest.TestCase):
 
     def test_rejects_non_string_default(self) -> None:
         with self.assertRaisesRegex(TypeError, "default"):
-            PromptBinding(name="a", default=1)  # type: ignore[arg-type]
+            PromptBinding(name="a", default=1)
 
     def test_rejects_empty_namespace(self) -> None:
         with self.assertRaisesRegex(TypeError, "namespace"):

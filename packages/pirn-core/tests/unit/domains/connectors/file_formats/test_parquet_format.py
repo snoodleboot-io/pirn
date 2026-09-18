@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pyarrow  # noqa: F401
+    import pyarrow  # noqa: F401  # imported only to skip when pyarrow is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
@@ -27,7 +27,7 @@ class TestParquetFormatConstruction(unittest.TestCase):
 
     def test_compression_must_be_str_or_none(self) -> None:
         with self.assertRaises(TypeError):
-            ParquetFormat(compression=123)  # type: ignore[arg-type]
+            ParquetFormat(compression=123)
 
     def test_unsupported_compression_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -35,11 +35,11 @@ class TestParquetFormatConstruction(unittest.TestCase):
 
     def test_row_group_size_must_be_int(self) -> None:
         with self.assertRaises(TypeError):
-            ParquetFormat(row_group_size="50000")  # type: ignore[arg-type]
+            ParquetFormat(row_group_size="50000")
 
     def test_row_group_size_rejects_bool(self) -> None:
         with self.assertRaises(TypeError):
-            ParquetFormat(row_group_size=True)  # type: ignore[arg-type]
+            ParquetFormat(row_group_size=True)
 
     def test_row_group_size_must_be_positive(self) -> None:
         with self.assertRaises(ValueError):

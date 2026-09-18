@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import ebooklib  # noqa: F401
+    import ebooklib  # noqa: F401  # imported only to skip when ebooklib is absent
 except ImportError as _e:
     raise unittest.SkipTest("ebooklib not installed") from _e
 
@@ -45,7 +45,7 @@ class TestEpubFormatConstruction(unittest.TestCase):
 
     def test_non_string_title_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            EpubFormat(title=1)  # type: ignore[arg-type]
+            EpubFormat(title=1)
 
 
 class TestEpubFormatProperties(unittest.TestCase):

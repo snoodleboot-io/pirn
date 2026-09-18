@@ -36,4 +36,4 @@ class TestRecencyTrustConflictPolicy(unittest.TestCase):
 
     def test_rejects_non_record(self) -> None:
         with self.assertRaises(TypeError):
-            RecencyTrustConflictPolicy().resolve(["bad"])  # type: ignore[list-item]
+            RecencyTrustConflictPolicy().resolve(["bad"])

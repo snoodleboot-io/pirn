@@ -57,7 +57,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         model, split = _fixtures()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(model=model, split=split, n_bins=5.5)  # type: ignore[arg-type]
+            await k.process(model=model, split=split, n_bins=5.5)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

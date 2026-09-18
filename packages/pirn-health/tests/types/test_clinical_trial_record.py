@@ -56,7 +56,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         r = ClinicalTrialRecord()
         try:
-            r.trial_id = "X"  # type: ignore[misc]
+            r.trial_id = "X"
         except Exception:
             return
         raise AssertionError("ClinicalTrialRecord must be frozen")

@@ -48,7 +48,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
-                split="not-a-split",  # type: ignore[arg-type]
+                split="not-a-split",
                 feature_store=RecordingFeatureStoreProvider(),
             )
 

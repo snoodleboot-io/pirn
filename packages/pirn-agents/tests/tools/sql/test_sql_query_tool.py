@@ -115,7 +115,7 @@ class TestRowCapAndShape:
 
     def test_rejects_non_connector(self) -> None:
         with pytest.raises(TypeError):
-            SqlQueryTool.bind(connector=object())  # type: ignore[arg-type]
+            SqlQueryTool.bind(connector=object())
 
 
 class TestSqliteConnector:
@@ -132,7 +132,7 @@ class TestSqliteConnector:
 
     def test_rejects_non_connection(self) -> None:
         with pytest.raises(TypeError):
-            SqliteConnector(connection=object())  # type: ignore[arg-type]
+            SqliteConnector(connection=object())
 
 
 class TestSqliteConnectorDurability:

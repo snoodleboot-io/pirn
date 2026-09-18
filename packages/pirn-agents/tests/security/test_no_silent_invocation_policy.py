@@ -65,4 +65,4 @@ def test_custom_patterns_override_defaults() -> None:
 
 def test_detect_rejects_bad_type() -> None:
     with pytest.raises(TypeError):
-        NoSilentInvocationPolicy().detect(object())  # type: ignore[arg-type]
+        NoSilentInvocationPolicy().detect(object())

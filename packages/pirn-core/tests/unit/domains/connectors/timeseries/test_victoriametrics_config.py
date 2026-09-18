@@ -42,4 +42,4 @@ class TestVictoriaMetricsConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = VictoriaMetricsConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.url = "mutated"  # type: ignore[misc]
+            cfg.url = "mutated"

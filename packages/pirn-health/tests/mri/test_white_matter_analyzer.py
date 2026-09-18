@@ -28,12 +28,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_tracts(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "tracts"):
-            await knot.process(dwi_nifti_path="x", bvec_path="b", bval_path="v", tracts=42)  # type: ignore[arg-type]
+            await knot.process(dwi_nifti_path="x", bvec_path="b", bval_path="v", tracts=42)
 
     async def test_rejects_non_string_tract(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(dwi_nifti_path="x", bvec_path="b", bval_path="v", tracts=[1])  # type: ignore[list-item]
+            await knot.process(dwi_nifti_path="x", bvec_path="b", bval_path="v", tracts=[1])
 
     async def test_returns_per_tract_mapping(self) -> None:
         knot = self._make_knot()

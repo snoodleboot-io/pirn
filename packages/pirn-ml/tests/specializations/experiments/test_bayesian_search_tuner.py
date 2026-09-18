@@ -51,7 +51,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="xgboost",
                 search_space={},
                 primary_metric="accuracy",
@@ -61,7 +61,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="xgboost",
                 search_space={"lr": [0.01, 0.1]},
                 primary_metric="accuracy",
@@ -72,7 +72,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="xgboost",
                 search_space={"lr": [0.01]},
                 primary_metric="",

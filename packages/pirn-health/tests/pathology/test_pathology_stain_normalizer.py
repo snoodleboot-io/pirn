@@ -29,7 +29,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_dict_image_tile(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(TypeError, "dict"):
-            await knot.process(image_tile="not-a-dict", method="macenko")  # type: ignore[arg-type]
+            await knot.process(image_tile="not-a-dict", method="macenko")
 
     async def test_rejects_invalid_method(self) -> None:
         knot = _make_knot()

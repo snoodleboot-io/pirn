@@ -56,7 +56,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         series = DICOMSeries()
         try:
-            series.study_uid = "X"  # type: ignore[misc]
+            series.study_uid = "X"
         except Exception:
             return
         raise AssertionError("DICOMSeries must be frozen")

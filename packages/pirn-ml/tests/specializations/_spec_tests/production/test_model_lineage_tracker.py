@@ -61,7 +61,7 @@ class TestConstruction(unittest.TestCase):
                     split=split,
                     model=model,
                     report=report,
-                    lineage="not-a-store",  # type: ignore[arg-type]
+                    lineage="not-a-store",
                     _config=KnotConfig(id="bad"),
                 )
 

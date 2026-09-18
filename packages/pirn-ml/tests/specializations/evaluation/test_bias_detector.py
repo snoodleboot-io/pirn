@@ -52,7 +52,7 @@ class TestConstruction(unittest.TestCase):
         with self.assertRaises(TypeError):
             with Tapestry():
                 BiasDetector(
-                    model="not-a-knot",  # type: ignore[arg-type]
+                    model="not-a-knot",
                     split=_SplitSource(_config=KnotConfig(id="s")),
                     sensitive_columns=["gender"],
                     _config=KnotConfig(id="bd"),

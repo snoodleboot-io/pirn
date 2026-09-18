@@ -15,15 +15,15 @@ class TestAgentSpecValidation(unittest.TestCase):
 
     def test_rejects_non_str_pattern(self) -> None:
         with self.assertRaisesRegex(TypeError, "pattern must be a str"):
-            AgentSpec(pattern=123)  # type: ignore[arg-type]
+            AgentSpec(pattern=123)
 
     def test_rejects_non_str_tool_reference(self) -> None:
         with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a str"):
-            AgentSpec(pattern="react", tools=(1,))  # type: ignore[arg-type]
+            AgentSpec(pattern="react", tools=(1,))
 
     def test_rejects_non_primitive_option_value(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a str/int/float/bool"):
-            AgentSpec(pattern="react", options={"x": object()})  # type: ignore[dict-item]
+            AgentSpec(pattern="react", options={"x": object()})
 
     def test_preserves_bool_option_as_bool(self) -> None:
         # Arrange / Act
@@ -44,7 +44,7 @@ class TestAgentSpecFromDict(unittest.TestCase):
 
     def test_rejects_non_mapping(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a mapping"):
-            AgentSpec.from_dict(["pattern", "react"])  # type: ignore[arg-type]
+            AgentSpec.from_dict(["pattern", "react"])
 
     def test_rejects_string_tools(self) -> None:
         with self.assertRaisesRegex(TypeError, "tools must be a sequence"):
@@ -83,11 +83,11 @@ class TestAgentSpecComponents(unittest.TestCase):
 
     def test_a_live_object_is_rejected_in_place_of_a_reference(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a str reference"):
-            AgentSpec(pattern="graph_rag", components={"graph_memory": object()})  # type: ignore[dict-item]
+            AgentSpec(pattern="graph_rag", components={"graph_memory": object()})
 
     def test_components_must_be_a_mapping(self) -> None:
         with self.assertRaisesRegex(TypeError, "components must be a mapping"):
-            AgentSpec(pattern="graph_rag", components=["graph_memory"])  # type: ignore[arg-type]
+            AgentSpec(pattern="graph_rag", components=["graph_memory"])
 
     def test_components_load_from_a_mapping(self) -> None:
         spec = AgentSpec.from_dict(

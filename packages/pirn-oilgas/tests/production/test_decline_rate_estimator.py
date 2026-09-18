@@ -20,7 +20,7 @@ _SERIES = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, window_days: int = 90) -> DeclineRateEstimator:
         return DeclineRateEstimator(
-            rate_series=None,  # type: ignore[arg-type]
+            rate_series=None,
             window_days=window_days,
             _config=KnotConfig(id="dr", validate_io=False),
         )

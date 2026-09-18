@@ -34,4 +34,4 @@ class TestStripeConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = StripeConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.api_key = "mutated"  # type: ignore[misc]
+            cfg.api_key = "mutated"

@@ -58,7 +58,7 @@ class TestSemanticFactWriterProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         store = _TrackingStore()
         with self.assertRaises(TypeError):
-            await k.process(facts=[42], store=store)  # type: ignore[list-item]
+            await k.process(facts=[42], store=store)
 
     async def test_rejects_non_memory_store(self) -> None:
         k = _make_knot()

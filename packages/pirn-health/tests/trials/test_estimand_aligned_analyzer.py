@@ -55,7 +55,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "strategy"):
             await knot.process(
                 records=_RECORDS,
-                strategy=42,  # type: ignore[arg-type]
+                strategy=42,
             )
 
     async def test_rejects_non_sequence_intercurrent_codes(self) -> None:
@@ -64,7 +64,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 records=_RECORDS,
                 strategy="while-on-treatment",
-                intercurrent_event_codes=42,  # type: ignore[arg-type]
+                intercurrent_event_codes=42,
             )
 
     async def test_treatment_policy_returns_input_unchanged(self) -> None:

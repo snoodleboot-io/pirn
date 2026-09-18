@@ -27,20 +27,20 @@ pirn-explore examples/ --output my_explorer.html --no-open
 
 ## data_pipeline
 
-### simple_etl.py
+### simple_etl
 
 ```bash
-uv run python examples/data_pipeline/simple_etl.py
+uv run python -m examples.data_pipeline.simple_etl
 ```
 
 The simplest possible real-world pipeline: read CSV data, clean it (drop bad rows, normalise types), enrich it (add derived columns), write to SQLite. There is nothing clever about the domain — the point is to see how pirn handles a linear chain of typed transformations.
 
 The interesting bit is caching. Run it twice in a row and watch the second run skip every knot — the inputs haven't changed so the cached outputs are replayed. Then modify the source data and run again: only the knots downstream of the change re-execute. This is pirn's content-addressed cache in its most visible form.
 
-### complex_analytics.py
+### complex_analytics
 
 ```bash
-uv run python examples/data_pipeline/complex_analytics.py
+uv run python -m examples.data_pipeline.complex_analytics
 ```
 
 A daily business metrics pipeline that models the kind of workload a data engineering team actually runs: three independent data sources (orders, events, users) are ingested in parallel, joined into a unified snapshot, then aggregated along two independent dimensions (region and cohort) simultaneously, before being merged into a final report.
@@ -51,20 +51,20 @@ The topology is deliberately wide — multiple parallel fan-outs — to show tha
 
 ## software_execution
 
-### ci_pipeline.py
+### ci_pipeline
 
 ```bash
-uv run python examples/software_execution/ci_pipeline.py
+uv run python -m examples.software_execution.ci_pipeline
 ```
 
 A CI/CD pipeline that mirrors what most teams already have in GitHub Actions or Jenkins, but expressed as a pirn tapestry: checkout, then lint and typecheck in parallel, then a suite of tests in parallel, then build, then deploy. The build knot will not execute if any test suite fails — pirn propagates the error and skips all downstream knots automatically, so you never need to write explicit gate logic.
 
 The example runs the same tapestry for several different commits. Open it in the explorer and compare runs side by side — the outcome badges (✓ / ✗ / ⊘) on each node tell you exactly where each run diverged and which knots were skipped as a consequence.
 
-### request_handler.py
+### request_handler
 
 ```bash
-uv run python examples/software_execution/request_handler.py
+uv run python -m examples.software_execution.request_handler
 ```
 
 An HTTP request handler decomposed as a tapestry. Each stage — parse, authenticate, authorise, validate body, fetch user, fetch account, process, audit log, send notification — is its own knot. The fetch_user and fetch_account knots run in parallel; audit and notification fire in parallel after processing.
@@ -76,10 +76,10 @@ The most instructive scenario is the failing auth case. When `authenticate` rais
 ## content_moderation
 
 ```bash
-uv run python examples/content_moderation/run.py
+uv run python -m examples.content_moderation
 ```
 
-This is the YAML loader example. The pipeline is declared entirely in `tapestry.yaml` — nodes, their types, their parent wiring, and the callable references that implement each step. `run.py` loads the YAML, creates the tapestry, and runs it against several test inputs.
+This is the YAML loader example. The pipeline is declared entirely in `tapestry.yaml` — nodes, their types, their parent wiring, and the callable references that implement each step. `content_moderation.py` loads the YAML, creates the tapestry, and runs it against several test inputs.
 
 The pipeline itself models a content moderation backend: normalise text, then extract four signals in parallel (language detection, profanity check, PII detection, toxicity scoring), classify the combined signals, make a policy decision (allow / warn / block), and write an audit record.
 
@@ -90,7 +90,7 @@ This example is the right starting point if you want to define pipelines in conf
 ## pipeline_composition
 
 ```bash
-uv run python examples/pipeline_composition/sub_tapestry.py
+uv run python -m examples.pipeline_composition.sub_tapestry
 ```
 
 Demonstrates `SubTapestry` — a knot whose execution body is itself a complete inner tapestry. The outer pipeline stays clean (three high-level nodes), while each node owns a fully independent inner execution graph with its own caching, versioning, and lineage.
@@ -105,7 +105,7 @@ The example runs four scenarios: a happy path, a payment blocked by amount limit
 nodes:
   - id: validate
     type: knot
-    callable: examples.pipeline_composition.sub_tapestry.ValidateOrder
+    callable: examples.pipeline_composition.sub_tapestry.validate_order.ValidateOrder
     parents:
       order: order
 ```
@@ -116,60 +116,60 @@ nodes:
 
 End-to-end examples that wire real `pirn_agents` and `pirn.connectors` knots into runnable pipelines. Synthetic data is used throughout so none of them require external files or network access.
 
-### medical_triage_agent.py
+### medical_triage_agent
 
 ```bash
-uv run python examples/domain_formats/medical_triage_agent.py
+uv run python -m examples.domain_formats.medical_triage_agent
 ```
 
 A dynamic DAG that processes a queue of synthetic DICOM studies through a multi-step medical imaging triage pipeline. Each study is dispatched to three concurrent analysis knots — windowing parameter calculation, tissue classification, and anomaly detection — and the results are aggregated into a triage decision (routine / review / urgent). `TriageDecider` registers the next dispatcher or a terminal `_TriageReport` knot at runtime, growing the graph as the queue drains.
 
-The `DicomRecord` schema matches the output of `DicomFormat.decode()` exactly, so swapping in real DICOM files requires only replacing the `_synthetic_study()` helper with connector reads.
+The `DicomRecord` schema matches the output of `DicomFormat.decode()` exactly, so swapping in real DICOM files requires only replacing the `Study.synthetic()` helper with connector reads.
 
-### seismic_survey_pipeline.py
+### seismic_survey_pipeline
 
 ```bash
-uv run python examples/domain_formats/seismic_survey_pipeline.py
+uv run python -m examples.domain_formats.seismic_survey_pipeline
 ```
 
 Processes synthetic SEG-Y seismic survey data through a QC and attribute extraction pipeline. Each survey is decoded into traces, passed through frequency analysis and amplitude QC knots running in parallel, then horizon picks are extracted and a survey report assembled. Data structures match the record schema emitted by `SegyFormat`, making the step to real field data straightforward.
 
-### weather_forecast_pipeline.py
+### weather_forecast_pipeline
 
 ```bash
-uv run python examples/domain_formats/weather_forecast_pipeline.py
+uv run python -m examples.domain_formats.weather_forecast_pipeline
 ```
 
 A GRIB-backed numerical weather prediction pipeline. Synthetic forecast grids (matching `GribFormat` output) flow through ensemble decoding, surface parameter extraction, alert threshold checking, and forecast report assembly. Shows how to fan out across forecast variables in parallel and converge into a single summary per grid point.
 
-### ml_evaluation_loop.py
+### ml_evaluation_loop
 
 ```bash
-uv run python examples/domain_formats/ml_evaluation_loop.py
+uv run python -m examples.domain_formats.ml_evaluation_loop
 ```
 
-An ML model evaluation loop that dynamically registers a benchmark suite for each candidate model. Each model runs accuracy, latency, and memory profiling knots concurrently; results flow into an `EvaluationAggregator` and then a `PromotionDecider` that either promotes the model to production or rejects it. Demonstrates the dynamic DAG pattern applied to iterative evaluation workloads.
+An ML model evaluation loop that dynamically registers a benchmark suite for each candidate model. Each model runs accuracy, latency, and memory profiling knots concurrently; results flow into a `MetricsAggregator` and then a `PromotionDecider` that either promotes the model to production or rejects it. Demonstrates the dynamic DAG pattern applied to iterative evaluation workloads.
 
-### geospatial_layer_analysis.py
+### geospatial_layer_analysis
 
 ```bash
-uv run python examples/domain_formats/geospatial_layer_analysis.py
+uv run python -m examples.domain_formats.geospatial_layer_analysis
 ```
 
 Site suitability scoring over synthetic GeoJSON/Shapefile layers. Each candidate site is scored across four spatial analysis knots (geometry validation, elevation, land cover, planning zone) running in parallel before a composite suitability score is assembled. Record schemas align with `GeoJsonFormat` and `ShapefileFormat` output.
 
-### hl7v2_message_router.py
+### hl7v2_message_router
 
 ```bash
-uv run python examples/domain_formats/hl7v2_message_router.py
+uv run python -m examples.domain_formats.hl7v2_message_router
 ```
 
 Routes synthetic HL7 v2 messages through a clinical message processing pipeline. Each message is parsed (matching `Hl7v2Format` record output), classified by message type (ADT, ORM, ORU), then dispatched to a type-specific handler knot. PHI fields are scrubbed before any downstream processing, mirroring the redaction built into `Hl7v2Format`.
 
-### genomics_batch_qc.py
+### genomics_batch_qc
 
 ```bash
-uv run python examples/domain_formats/genomics_batch_qc.py
+uv run python -m examples.domain_formats.genomics_batch_qc
 ```
 
 FASTQ sequencing run QC pipeline. Each read batch flows through quality trimming, alignment simulation, and QC metric assembly knots. Record schemas match `FastqFormat` output (`seq_id`, `sequence`, `quality`), so the pipeline accepts real FASTQ data with no code changes.
@@ -178,22 +178,22 @@ FASTQ sequencing run QC pipeline. Each read batch flows through quality trimming
 
 ## llm_agent
 
-### chatbot_pipeline.py
+### chatbot_pipeline
 
 ```bash
-uv run python examples/llm_agent/chatbot_pipeline.py
+uv run python -m examples.llm_agent.chatbot_pipeline
 ```
 
 A production-style chatbot backend modelled as a pirn tapestry. Each stage of handling a conversation turn is its own knot: parse the message, then classify intent and extract entities in parallel (two LLM calls that do not depend on each other), retrieve context from a knowledge base, run a safety check in parallel with retrieval, generate a response once both context and safety results are available, then post-process and log the turn in parallel.
 
-The LLM calls use a fake Anthropic client by default so the example runs without any API key or network access. To wire in the real SDK, replace `_fake_llm_call()` with an `anthropic.AsyncAnthropic` call and set `ANTHROPIC_API_KEY` in your environment.
+The LLM calls go through `FakeLLMClient` by default, so the example runs without any API key or network access. To wire in a real model, install your vendor's client, set its API key in your environment, and replace `FakeLLMClient.call()` with a real client call — nothing else in the tapestry changes.
 
 The key thing this example illustrates is that pirn's dependency graph naturally encodes the latency-optimal execution order for an LLM pipeline — you do not have to manually orchestrate which calls can overlap. The lineage also gives you a full record of every turn: inputs, outputs, timing, and any errors, without writing any instrumentation code.
 
-### agent_loop.py
+### agent_loop
 
 ```bash
-uv run python examples/llm_agent/agent_loop.py
+uv run python -m examples.llm_agent.agent_loop
 ```
 
 An agentic session over multiple messages where the execution graph grows dynamically at runtime. There is no pre-planned loop structure — each `AgentPlanner` knot runs, decides what actions to take, and registers those knots directly into the running extensible tapestry using `Tapestry.current_store()`. Data flows through real parent edges; there is no shared mutable state blob.
@@ -216,13 +216,13 @@ Knot IDs use a message-content slug (`whats_the_weather__m1i1`) so you can immed
 
 This is the right starting point for modelling real agent workloads where the execution plan is unknown until runtime.
 
-### agent_loop_v2.py
+### agent_loop_v2
 
 ```bash
-uv run python examples/llm_agent/agent_loop_v2.py
+uv run python -m examples.llm_agent.agent_loop_v2
 ```
 
-A second take on the dynamic agent loop that replaces ad-hoc action helpers with real `pirn_agents` composites. The outer dynamic DAG shell is identical to `agent_loop.py` — `AgentPlanner` registers actions, `AgentDecider` integrates results and grows the graph. What changes is the action layer:
+A second take on the dynamic agent loop that replaces ad-hoc action helpers with real `pirn_agents` composites. The outer dynamic DAG shell is identical to `agent_loop` — `AgentPlanner` registers actions, `AgentDecider` integrates results and grows the graph. What changes is the action layer:
 
 | Action type | Inner pipeline |
 |-------------|----------------|
@@ -230,16 +230,16 @@ A second take on the dynamic agent loop that replaces ad-hoc action helpers with
 | `react` | `ReActLoop` (Reason+Act, 3 iterations) |
 | `planner` | `ContextBuilder → Planner → ToolRouter → ToolExecutor` |
 
-All three are `SubTapestry` instances and return `AgentResponse`. `StubLLMProvider` and `StubTool` (defined inline) satisfy the `LLMProvider` and `Tool` interfaces without network access — swap them for a real provider by implementing `LLMProvider.chat`.
+All three are `SubTapestry` instances and return `AgentResponse`. `ScriptedLLMProvider` and `StubTool` (each in its own module beside the driver, shared through `StubToolbox`) satisfy the `LLMProvider` and `Tool` interfaces without network access — swap them for a real provider by implementing `LLMProvider.chat`.
 
-Compare this with `agent_loop.py` in the explorer: the outer topology is identical, but drilling into an action node reveals the real agent sub-graph rather than a two-step stub.
+Compare this with `agent_loop` in the explorer: the outer topology is identical, but drilling into an action node reveals the real agent sub-graph rather than a two-step stub.
 
 ---
 
 ## document_analysis
 
 ```bash
-uv run python examples/document_analysis/document_analysis.py
+uv run python -m examples.document_analysis
 ```
 
 A document analysis pipeline that demonstrates subclassing `Knot` directly rather than using the `@KnotFactory.knot` decorator. All processing nodes are class-based — typed, named, and composable through inheritance.
@@ -267,7 +267,7 @@ Three sample articles (science, finance, health) are analysed in sequence agains
 ## lab_batch
 
 ```bash
-uv run python examples/lab_batch/lab_batch.py
+uv run python -m examples.lab_batch
 ```
 
 A pathology lab receives batches of patient samples, each containing multiple individual samples. Every sample must be independently analysed against reference ranges for five biomarkers and a per-sample report generated, then all reports are aggregated into a batch summary.
@@ -285,20 +285,20 @@ The knot appears in the graph and lineage as itself (`analyse_sample`, not `Map`
 
 ## financial
 
-### fraud_detection.py
+### fraud_detection
 
 ```bash
-uv run python examples/financial/fraud_detection.py
+uv run python -m examples.financial.fraud_detection
 ```
 
 A fraud pipeline that runs a required core risk analysis on every transaction, then enriches the decision with three supplementary signals — device fingerprinting, geolocation cross-reference, and a third-party fraud bureau lookup. Any of these optional sources can be absent or unavailable (rate limits, no device ID for mobile web, etc.) without stopping the pipeline.
 
 This demonstrates `RECEIVE_ERRORS` error policy: the `decide` knot receives all its parents as `Result` objects rather than unwrapped values. It checks each optional signal with `isinstance(signal, Ok)` and uses the value only when it arrived. The five test transactions cover a range: clean approval, review cases, a mobile checkout with no device ID, a high-risk country transaction, and a blocked case. Open the explorer to see which nodes show `err` vs `skipped` vs `ok` across the runs.
 
-### loan_underwriting.py
+### loan_underwriting
 
 ```bash
-uv run python examples/financial/loan_underwriting.py
+uv run python -m examples.financial.loan_underwriting
 ```
 
 A loan application is risk-assessed, then routed to one of three underwriting tracks (prime / near-prime / subprime) based on credit score, debt-to-income ratio, and employment history. Each track runs its own approval logic and produces a decision. An `Aggregator` collects all three tracks — exactly one will be `Ok`, the other two `Skipped` — and merges them into a final decision record.

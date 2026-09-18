@@ -109,7 +109,7 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
         fake = FakeNeo4jDriver()
         pool = Neo4jPool(Neo4jConfig(database="neo4j"), driver=fake)
         with self.assertRaises(TypeError):
-            await pool.execute("QUERY", {"a": 1}, {"b": 2})  # type: ignore[call-arg]
+            await pool.execute("QUERY", {"a": 1}, {"b": 2})
 
     async def test_fetch_all_returns_records_as_dicts(self) -> None:
         records = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]

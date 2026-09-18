@@ -113,7 +113,7 @@ class TestCapabilityWiring:
 
     def test_rejects_a_non_connector(self) -> None:
         with pytest.raises(TypeError, match="SqlTableSource"):
-            SqlTableSource(connector=object(), table="users")  # pyright: ignore[reportArgumentType]
+            SqlTableSource(connector=object(), table="users")
 
     def test_rejects_a_hostile_table_name_at_construction(self) -> None:
         with pytest.raises(ValueError, match="SqlIdentifier"):
@@ -141,7 +141,7 @@ class TestABareStringOrderByIsRejected:
             SqlTableSource(
                 connector=_FakeSqlConnector(),
                 table="users",
-                order_by="id",  # pyright: ignore[reportArgumentType]
+                order_by="id",
             )
 
     def test_it_is_refused_rather_than_silently_coerced(self) -> None:
@@ -151,7 +151,7 @@ class TestABareStringOrderByIsRejected:
             SqlTableSource(
                 connector=connector,
                 table="users",
-                order_by="id",  # pyright: ignore[reportArgumentType]
+                order_by="id",
             )
         assert connector.calls == []
 
@@ -160,7 +160,7 @@ class TestABareStringOrderByIsRejected:
             SqlTableSource(
                 connector=_FakeSqlConnector(),
                 table="users",
-                order_by="secret_column",  # pyright: ignore[reportArgumentType]
+                order_by="secret_column",
             )
         assert "secret_column" not in str(info.value)
         assert "str" in str(info.value)
@@ -173,7 +173,7 @@ class TestABareStringOrderByIsRejected:
             SqlTableSource(
                 connector=_FakeSqlConnector(),
                 table="users",
-                order_by=b"id",  # pyright: ignore[reportArgumentType]
+                order_by=b"id",
             )
 
     @pytest.mark.parametrize("columns", [["id"], ("id",), ["id", "created_at"]])
@@ -315,7 +315,7 @@ class TestHostileCursorsAreRejected:
     async def test_non_string_cursor_is_rejected(self) -> None:
         source = SqlTableSource(connector=_FakeSqlConnector(), table="users")
         with pytest.raises(TypeError, match="cursor"):
-            await source.fetch_page(7)  # pyright: ignore[reportArgumentType]
+            await source.fetch_page(7)
 
     async def test_a_lying_str_subclass_cursor_never_reaches_int(self) -> None:
         # A str subclass can override isdigit()/isascii() to vouch for a payload

@@ -32,7 +32,7 @@ def _make_store(*, chunks: list[bytes] | None = None, keys: list[str] | None = N
 
 
 def _transport(store: MagicMock, **kwargs: object) -> ObjectStoreTransport:
-    return ObjectStoreTransport(store=store, **kwargs)  # type: ignore[arg-type]
+    return ObjectStoreTransport(store=store, **kwargs)
 
 
 class TestObjectStoreTransportInit(unittest.TestCase):

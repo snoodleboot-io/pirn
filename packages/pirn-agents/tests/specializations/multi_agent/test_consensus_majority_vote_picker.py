@@ -50,7 +50,7 @@ class TestConsensusMajorityVotePickerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_response_value(self) -> None:
         k = _make_knot()
         with self.assertRaises(TypeError):
-            await k.process(responses={"a": "not-a-response"})  # type: ignore[dict-item]
+            await k.process(responses={"a": "not-a-response"})
 
     async def test_single_response_returns_that_response(self) -> None:
         k = _make_knot()

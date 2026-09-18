@@ -94,7 +94,7 @@ class StubTable:
 
 def _stub_pyarrow_module() -> Any:
     try:
-        import pyarrow  # type: ignore[import-not-found]
+        import pyarrow
     except ImportError:
         pa_mod = types.ModuleType("pyarrow")
 
@@ -109,7 +109,7 @@ def _stub_pyarrow_module() -> Any:
             def from_pylist(cls, rows: list[dict[str, Any]]) -> _Table:
                 return cls(list(rows))
 
-        pa_mod.Table = _Table  # type: ignore[attr-defined]
+        pa_mod.Table = _Table
         sys.modules["pyarrow"] = pa_mod
         return pa_mod
     return pyarrow
@@ -136,11 +136,11 @@ def _install_pyiceberg_expressions() -> None:
     def _and(left: _Expr, right: _Expr) -> _Expr:
         return _Expr("And", left, right)
 
-    expr_mod.EqualTo = _eq  # type: ignore[attr-defined]
-    expr_mod.And = _and  # type: ignore[attr-defined]
+    expr_mod.EqualTo = _eq
+    expr_mod.And = _and
 
     pyiceberg_mod = types.ModuleType("pyiceberg")
-    pyiceberg_mod.expressions = expr_mod  # type: ignore[attr-defined]
+    pyiceberg_mod.expressions = expr_mod
 
     sys.modules["pyiceberg"] = pyiceberg_mod
     sys.modules["pyiceberg.expressions"] = expr_mod
@@ -163,7 +163,7 @@ class TestConstruction(unittest.TestCase):
 
     def test_rejects_wrong_config_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "IcebergTableConfig"):
-            IcebergTable("not-a-config")  # type: ignore[arg-type]
+            IcebergTable("not-a-config")
 
     def test_rejects_empty_table_identifier(self) -> None:
         with self.assertRaisesRegex(ValueError, "table_identifier"):

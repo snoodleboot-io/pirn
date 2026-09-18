@@ -94,7 +94,7 @@ async def test_branch_outputs_skipped_have_lineage():
 def test_branch_requires_known_input_kwarg():
     with pytest.raises(TypeError):
         Branch(
-            input="not a knot",  # type: ignore[arg-type]
+            input="not a knot",
             selector=lambda x: "a",
             branches=("a",),
             _config=KnotConfig(id="b"),

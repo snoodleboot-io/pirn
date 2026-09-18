@@ -37,4 +37,4 @@ class TestDatadogConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = DatadogConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.site = "mutated"  # type: ignore[misc]
+            cfg.site = "mutated"

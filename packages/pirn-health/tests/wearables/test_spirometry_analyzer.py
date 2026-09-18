@@ -20,7 +20,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "flow_l_per_sec"):
             await SpirometryAnalyzer.process(
                 inst,
-                flow_l_per_sec=42,  # type: ignore[arg-type]
+                flow_l_per_sec=42,
                 sample_rate_hz=100.0,
             )
 
@@ -29,7 +29,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "numeric"):
             await SpirometryAnalyzer.process(
                 inst,
-                flow_l_per_sec=["x"],  # type: ignore[list-item]
+                flow_l_per_sec=["x"],
                 sample_rate_hz=100.0,
             )
 

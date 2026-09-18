@@ -17,17 +17,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_codes(self) -> None:
         knot = DiagnosisCodeRollup(codes=[], _config=_CFG)
         with self.assertRaisesRegex(TypeError, "codes"):
-            await knot.process(codes=42)  # type: ignore[arg-type]
+            await knot.process(codes=42)
 
     async def test_rejects_non_string_code(self) -> None:
         knot = DiagnosisCodeRollup(codes=[], _config=_CFG)
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(codes=[1])  # type: ignore[list-item]
+            await knot.process(codes=[1])
 
     async def test_rejects_non_int_prefix_length(self) -> None:
         knot = DiagnosisCodeRollup(codes=[], _config=_CFG)
         with self.assertRaisesRegex(TypeError, "prefix_length"):
-            await knot.process(codes=[], prefix_length="x")  # type: ignore[arg-type]
+            await knot.process(codes=[], prefix_length="x")
 
     async def test_rejects_non_positive_prefix_length(self) -> None:
         knot = DiagnosisCodeRollup(codes=[], _config=_CFG)

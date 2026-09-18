@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import docx  # noqa: F401
+    import docx  # noqa: F401  # imported only to skip when docx is absent
 except ImportError as _e:
     raise unittest.SkipTest("docx not installed") from _e
 
@@ -29,7 +29,7 @@ class TestDocxFormatConstruction(unittest.TestCase):
 
     def test_non_string_paragraph_separator(self) -> None:
         with self.assertRaises(TypeError):
-            DocxFormat(paragraph_separator=42)  # type: ignore[arg-type]
+            DocxFormat(paragraph_separator=42)
 
 
 class TestDocxFormatBasics(unittest.TestCase):

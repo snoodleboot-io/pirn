@@ -43,4 +43,4 @@ class TestColumnProfileConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         cp = ColumnProfile("x", 10, 0, 10)
         with self.assertRaises((AttributeError, TypeError)):
-            cp.name = "y"  # type: ignore[misc]
+            cp.name = "y"

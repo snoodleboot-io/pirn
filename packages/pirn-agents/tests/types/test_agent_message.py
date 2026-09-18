@@ -40,7 +40,7 @@ class TestRoundtrip(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         msg = AgentMessage(role="user", content="hi")
         try:
-            msg.content = "bye"  # type: ignore[misc]
+            msg.content = "bye"
         except Exception:
             return
         raise AssertionError("AgentMessage should be frozen")

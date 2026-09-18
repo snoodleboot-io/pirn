@@ -15,7 +15,7 @@ from pirn.tapestry import Tapestry
 class _FakePool(DatabaseConnectionPool):
     """Minimal concrete pool for testing."""
 
-    async def acquire(self) -> None:  # type: ignore[override]
+    async def acquire(self) -> None:
         return None
 
     async def release(self, connection: object) -> None:

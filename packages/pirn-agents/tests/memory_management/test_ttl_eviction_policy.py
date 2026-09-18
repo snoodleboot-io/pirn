@@ -41,4 +41,4 @@ class TestTtlEvictionPolicy(unittest.TestCase):
     def test_rejects_non_datetime_now(self) -> None:
         policy = TtlEvictionPolicy(ttl_seconds=10)
         with self.assertRaises(TypeError):
-            policy.select([make_record(id="r1")], now="now")  # type: ignore[arg-type]
+            policy.select([make_record(id="r1")], now="now")

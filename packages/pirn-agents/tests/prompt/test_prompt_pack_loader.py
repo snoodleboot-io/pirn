@@ -56,7 +56,7 @@ class FromMappingTests(unittest.TestCase):
 
     def test_rejects_non_mapping_pack(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a mapping"):
-            PromptPackLoader.from_mapping(["nope"], default_namespace="ns")  # type: ignore[arg-type]
+            PromptPackLoader.from_mapping(["nope"], default_namespace="ns")
 
     def test_rejects_missing_templates_key(self) -> None:
         with self.assertRaisesRegex(ValueError, "'templates'"):

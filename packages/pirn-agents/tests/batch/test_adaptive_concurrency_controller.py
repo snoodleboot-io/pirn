@@ -49,7 +49,7 @@ def _release(
             queued_seconds=0.0,
             held_seconds=0.01,
             outcome=outcome,
-            gate=gate,  # type: ignore[arg-type]
+            gate=gate,
         )
     )
     return gate
@@ -76,7 +76,7 @@ def _admit(
             queued_seconds=0.0,
             held_seconds=None,
             outcome=None,
-            gate=gate,  # type: ignore[arg-type]
+            gate=gate,
         )
     )
     return gate

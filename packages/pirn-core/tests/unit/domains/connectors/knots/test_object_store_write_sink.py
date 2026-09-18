@@ -44,14 +44,14 @@ class TestObjectStoreWriteSink(unittest.IsolatedAsyncioTestCase):
             await self.sink.process(
                 store=self.store,
                 key="x.bin",
-                body="not bytes",  # type: ignore[arg-type]
+                body="not bytes",
             )
         assert "body must be bytes" in str(ctx.exception)
 
     async def test_rejects_non_object_store(self) -> None:
         with self.assertRaises(TypeError) as ctx:
             await self.sink.process(
-                store=object(),  # type: ignore[arg-type]
+                store=object(),
                 key="x",
                 body=b"data",
             )

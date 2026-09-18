@@ -39,7 +39,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_dict_idat(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(TypeError, "idat_data"):
-            await knot.process(idat_data="not_a_dict", array_type="epic", normalization="ssnoob")  # type: ignore[arg-type]
+            await knot.process(idat_data="not_a_dict", array_type="epic", normalization="ssnoob")
 
     async def test_returns_dict(self) -> None:
         knot = _make_knot()

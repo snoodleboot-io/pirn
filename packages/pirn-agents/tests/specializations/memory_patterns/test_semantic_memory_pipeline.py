@@ -74,7 +74,7 @@ class TestSemanticMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             await k.process(
                 messages=(),
-                llm="bad",  # type: ignore[arg-type]
+                llm="bad",
                 store=store,
             )
 

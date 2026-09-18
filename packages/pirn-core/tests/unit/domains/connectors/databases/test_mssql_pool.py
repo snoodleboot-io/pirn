@@ -449,7 +449,7 @@ class TestTransactionOwnership(unittest.IsolatedAsyncioTestCase):
         async def exploding_rollback() -> None:
             raise RuntimeError("mssql: connection is dead")
 
-        connection.rollback = exploding_rollback  # type: ignore[method-assign]
+        connection.rollback = exploding_rollback
 
         with self.assertRaisesRegex(RuntimeError, "connection is dead"):
             await pool.release(connection)

@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import soundfile  # noqa: F401
+    import soundfile  # noqa: F401  # imported only to skip when soundfile is absent
 except ImportError as _e:
     raise unittest.SkipTest("soundfile not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -76,7 +76,7 @@ class TestOggFormatErrors(unittest.IsolatedAsyncioTestCase):
 
         async def _no_records():
             return
-            yield  # pragma: no cover
+            yield  # pragma: no cover  # the yield only makes this an async generator
 
         with self.assertRaisesRegex(ValueError, "empty"):
             chunk_iter = await fmt.write(_no_records())

@@ -31,12 +31,12 @@ class TestInMemoryGraphStoreSpecifics(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_graph_node(self) -> None:
         store = InMemoryGraphStore()
         with self.assertRaisesRegex(TypeError, "nodes must be GraphNode"):
-            await store.upsert_nodes(["nope"])  # type: ignore[list-item]
+            await store.upsert_nodes(["nope"])
 
     async def test_rejects_non_graph_edge(self) -> None:
         store = InMemoryGraphStore()
         with self.assertRaisesRegex(TypeError, "edges must be GraphEdge"):
-            await store.upsert_edges(["nope"])  # type: ignore[list-item]
+            await store.upsert_edges(["nope"])
 
     async def test_upsert_edge_overwrite_keeps_single_adjacency(self) -> None:
         store = InMemoryGraphStore()

@@ -31,7 +31,7 @@ class TestCandidateValidation:
 
     def test_rejects_non_callable_operation(self) -> None:
         with pytest.raises(TypeError, match="operation"):
-            FailoverCandidate("a", object())  # type: ignore[arg-type]
+            FailoverCandidate("a", object())
 
     def test_rejects_bad_timeout(self) -> None:
         with pytest.raises(ValueError, match="timeout"):

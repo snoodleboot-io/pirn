@@ -17,7 +17,7 @@ class TestJsonlFormatConstruction(unittest.TestCase):
 
     def test_encoding_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            JsonlFormat(encoding=1)  # type: ignore[arg-type]
+            JsonlFormat(encoding=1)
 
     def test_encoding_must_be_nonempty(self) -> None:
         with self.assertRaises(ValueError):

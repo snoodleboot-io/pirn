@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -35,11 +35,11 @@ _KNOT = ConnectivityAnalyzer(signal=_SIGNAL, channel_names=[], method="plv", _co
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", channel_names=[], method="plv")  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", channel_names=[], method="plv")
 
     async def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "channel_names"):
-            await _KNOT.process(signal=_SIGNAL, channel_names=42, method="plv")  # type: ignore[arg-type]
+            await _KNOT.process(signal=_SIGNAL, channel_names=42, method="plv")
 
     async def test_rejects_invalid_method(self) -> None:
         with self.assertRaisesRegex(ValueError, "method"):

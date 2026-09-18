@@ -18,11 +18,11 @@ class TestJsonFormatConstruction(unittest.TestCase):
 
     def test_array_root_must_be_bool(self) -> None:
         with self.assertRaises(TypeError):
-            JsonFormat(array_root="yes")  # type: ignore[arg-type]
+            JsonFormat(array_root="yes")
 
     def test_encoding_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            JsonFormat(encoding=1)  # type: ignore[arg-type]
+            JsonFormat(encoding=1)
 
     def test_encoding_must_be_nonempty(self) -> None:
         with self.assertRaises(ValueError):

@@ -25,11 +25,11 @@ _KNOT = MEGBeamformer(signal=_SIGNAL, steering_vector=_STEERING, _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", steering_vector=_STEERING)  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", steering_vector=_STEERING)
 
     async def test_rejects_non_list_steering(self) -> None:
         with self.assertRaisesRegex(TypeError, "steering_vector"):
-            await _KNOT.process(signal=_SIGNAL, steering_vector="x")  # type: ignore[arg-type]
+            await _KNOT.process(signal=_SIGNAL, steering_vector="x")
 
     async def test_rejects_mismatched_steering_length(self) -> None:
         with self.assertRaisesRegex(ValueError, "steering_vector"):

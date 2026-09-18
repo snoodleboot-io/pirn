@@ -70,5 +70,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 split=self._make_split(),
                 text_column="text",
-                embedding_provider="bad",  # type: ignore[arg-type]
+                embedding_provider="bad",
             )

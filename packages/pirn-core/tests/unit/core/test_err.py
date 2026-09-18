@@ -47,4 +47,4 @@ class TestErr(unittest.TestCase):
     def test_frozen(self):
         err = Err(record=_make_record())
         with self.assertRaises(ValidationError):
-            err.record = _make_record()  # type: ignore[misc]
+            err.record = _make_record()

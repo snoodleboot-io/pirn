@@ -72,7 +72,7 @@ def _declared_distributions(root: str = "pirn-agents") -> set[str]:
         seen.add(key)
         try:
             reqs = requires(name) or []
-        except PackageNotFoundError:  # pragma: no cover - not installed
+        except PackageNotFoundError:  # pragma: no cover  # only when the distribution is absent
             continue
         for raw in reqs:
             # Parsed by hand rather than with `packaging.requirements`: this

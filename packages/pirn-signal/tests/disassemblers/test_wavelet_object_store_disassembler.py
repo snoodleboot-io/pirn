@@ -53,7 +53,7 @@ class TestWaveletObjectStoreDisassembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_wavelet_payload(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="payload must be WaveletPayload"):
-            await knot.process(payload={"not": "a payload"})  # type: ignore[arg-type]
+            await knot.process(payload={"not": "a payload"})
 
     async def test_rejects_empty_level_list(self) -> None:
         knot = _make()

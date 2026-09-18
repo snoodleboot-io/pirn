@@ -39,7 +39,7 @@ class TestConstruction(unittest.TestCase):
         with self.assertRaises(TypeError):
             with Tapestry():
                 FeatureStoreWriter(
-                    split="bad",  # type: ignore[arg-type]
+                    split="bad",
                     feature_store=_StubStore(),
                     _config=KnotConfig(id="fsw"),
                 )
@@ -49,7 +49,7 @@ class TestConstruction(unittest.TestCase):
             with Tapestry():
                 FeatureStoreWriter(
                     split=_KnotStub(_config=KnotConfig(id="s")),
-                    feature_store="bad",  # type: ignore[arg-type]
+                    feature_store="bad",
                     _config=KnotConfig(id="fsw"),
                 )
 

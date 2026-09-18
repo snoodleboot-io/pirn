@@ -28,7 +28,7 @@ class ConstructionTests(unittest.TestCase):
 
     def test_rejects_a_non_registry(self) -> None:
         with self.assertRaisesRegex(TypeError, "PromptTemplateRegistry"):
-            PromptCatalog("nope")  # type: ignore[arg-type]
+            PromptCatalog("nope")
 
 
 class ResolveTests(unittest.TestCase):

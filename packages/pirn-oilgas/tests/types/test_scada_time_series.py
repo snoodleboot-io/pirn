@@ -52,7 +52,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         series = ScadaTimeSeries(sensor_id="s")
         try:
-            series.sensor_id = "x"  # type: ignore[misc]
+            series.sensor_id = "x"
         except Exception:
             return
         raise AssertionError("ScadaTimeSeries must be frozen")

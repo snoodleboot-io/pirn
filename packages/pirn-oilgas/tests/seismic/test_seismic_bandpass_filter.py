@@ -18,7 +18,7 @@ _DATA: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> SeismicBandpassFilter:
         return SeismicBandpassFilter(
-            data=None,  # type: ignore[arg-type]
+            data=None,
             low_cut_hz=5.0,
             low_pass_hz=10.0,
             high_pass_hz=80.0,

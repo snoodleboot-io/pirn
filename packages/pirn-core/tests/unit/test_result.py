@@ -49,17 +49,17 @@ class _StandaloneTests(unittest.TestCase):
     def test_ok_is_frozen(self):
         o = Ok(value=1)
         with self.assertRaises(ValidationError):
-            o.value = 2  # type: ignore[misc]
+            o.value = 2
 
     def test_err_is_frozen(self):
         e = Err(record=_record())
         with self.assertRaises(ValidationError):
-            e.record = _record()  # type: ignore[misc]
+            e.record = _record()
 
     def test_skipped_is_frozen(self):
         s = Skipped(reason="x")
         with self.assertRaises(ValidationError):
-            s.reason = "y"  # type: ignore[misc]
+            s.reason = "y"
 
     def test_skipped_carries_detail(self):
         s = Skipped(reason="branch_not_selected", detail={"branch_name": "tool"})

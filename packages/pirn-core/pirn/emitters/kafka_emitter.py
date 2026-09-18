@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.emitters.emitter import Emitter
@@ -12,8 +12,6 @@ if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
-
-_logger = logging.getLogger(__name__)
 
 
 class KafkaEmitter(Emitter):
@@ -29,6 +27,8 @@ class KafkaEmitter(Emitter):
     * ``KafkaEmitter(topic="pirn-events", bootstrap_servers="...")``
       — build a producer lazily.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -145,4 +145,6 @@ class KafkaEmitter(Emitter):
             try:
                 await self._producer.stop()
             except Exception:
-                _logger.warning("KafkaEmitter: producer.stop() raised during close", exc_info=True)
+                KafkaEmitter._logger.warning(
+                    "KafkaEmitter: producer.stop() raised during close", exc_info=True
+                )

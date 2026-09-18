@@ -56,7 +56,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         s = HealthSignalFrame()
         try:
-            s.signal_id = "X"  # type: ignore[misc]
+            s.signal_id = "X"
         except Exception:
             return
         raise AssertionError("HealthSignalFrame must be frozen")

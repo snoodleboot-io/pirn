@@ -13,8 +13,12 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "examples" / "llm_agent"))
-from agent_loop import SESSION_COMPLETE_ID, SessionContext, build_tapestry, make_session  # noqa: I001
+# The example is a package under the repository root, so the root goes on the path
+# and the example is imported by its real dotted name.
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
+from examples.llm_agent.agent_loop.agent_loop import AgentLoop
+from examples.llm_agent.agent_loop.session_config import SessionConfig
+from examples.llm_agent.agent_loop.session_context import SessionContext
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
@@ -25,11 +29,11 @@ DB = Path(__file__).resolve().parents[4] / "examples" / "pirn.db"
 async def test_run_session_to_db(seed: int) -> None:
     history = SQLiteHistory(path=str(DB))
     try:
-        ctx = make_session(run_seed=seed)
-        t = build_tapestry(initial_ctx=ctx, history=history)
+        ctx = AgentLoop.make_session(run_seed=seed)
+        t = AgentLoop.build_tapestry(initial_ctx=ctx, history=history)
         r = await t.run(extensible=True)
         assert r.succeeded, f"seed={seed}: {r.exceptions}"
-        final: SessionContext = r.outputs[SESSION_COMPLETE_ID]
+        final: SessionContext = r.outputs[SessionConfig.session_complete_id]
         assert final.done
         assert len(final.responses) > 0
     finally:

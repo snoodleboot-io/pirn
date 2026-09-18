@@ -10,7 +10,7 @@ from unittest.mock import patch
 import numpy as np
 
 try:
-    import pyedflib  # noqa: F401
+    import pyedflib  # noqa: F401  # imported only to skip when pyedflib is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyedflib not installed") from _e
 

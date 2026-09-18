@@ -182,3 +182,16 @@ def test_find_cycle_detects_a_loop() -> None:
 def test_find_cycle_returns_none_for_a_dag() -> None:
     edges = {"a": {"b"}, "b": {"c"}, "c": set()}
     assert CheckImportGraph._find_cycle(edges) is None
+
+
+def test_distribution_name_strips_a_version_specifier() -> None:
+    assert CheckImportGraph._distribution_name("pirn-core>=0.4.0,<0.5.0") == "pirn-core"
+
+
+def test_distribution_name_strips_extras_and_a_marker() -> None:
+    spec = 'pirn-data[s3] >= 1.0 ; python_version >= "3.12"'
+    assert CheckImportGraph._distribution_name(spec) == "pirn-data"
+
+
+def test_distribution_name_leaves_a_bare_name_alone() -> None:
+    assert CheckImportGraph._distribution_name("pirn-ml") == "pirn-ml"

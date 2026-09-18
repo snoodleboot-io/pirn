@@ -16,13 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
-
-_log = logging.getLogger(__name__)
 
 
 class DualWriteTransport(DataTransport):
@@ -39,6 +37,8 @@ class DualWriteTransport(DataTransport):
         ``"warn"``  — log a warning and continue if the mirror write fails.
         ``"ignore"`` — silently swallow mirror errors.
     """
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -106,4 +106,4 @@ class DualWriteTransport(DataTransport):
         if self._mirror_errors == "raise":
             raise TransportError(message) from exc
         if self._mirror_errors == "warn":
-            _log.warning(message)
+            DualWriteTransport._log.warning(message)

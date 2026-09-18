@@ -25,15 +25,15 @@ from tests.specializations.conftest import (
 class TestBuilderValidation(unittest.TestCase):
     def test_llm_rejects_non_provider(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be an LLMProvider"):
-            Agent.builder().llm("nope")  # type: ignore[arg-type]
+            Agent.builder().llm("nope")
 
     def test_memory_rejects_non_store(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a MemoryStore"):
-            Agent.builder().memory("nope")  # type: ignore[arg-type]
+            Agent.builder().memory("nope")
 
     def test_tools_rejects_non_tool_element(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a Tool"):
-            Agent.builder().tools(["nope"])  # type: ignore[list-item]
+            Agent.builder().tools(["nope"])
 
     def test_pattern_rejects_unknown(self) -> None:
         with self.assertRaisesRegex(ValueError, "unknown pattern"):
@@ -59,7 +59,7 @@ class TestComponentSlot(unittest.TestCase):
 
     def test_component_rejects_a_non_string_name(self) -> None:
         with self.assertRaisesRegex(TypeError, "name must be a str"):
-            Agent.builder().component(7, object())  # type: ignore[arg-type]
+            Agent.builder().component(7, object())
 
     def test_components_are_readable_back(self) -> None:
         # Arrange

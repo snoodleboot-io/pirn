@@ -40,7 +40,7 @@ class RubricModeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_provider_judge_raises(self) -> None:
         with self.assertRaises(TypeError):
-            EvaluationJudge(judge=object())  # type: ignore[arg-type]
+            EvaluationJudge(judge=object())
 
     async def test_zero_self_consistency_raises(self) -> None:
         with self.assertRaises(ValueError):

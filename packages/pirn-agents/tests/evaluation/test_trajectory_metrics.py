@@ -48,7 +48,7 @@ class ToolChoiceAccuracyTests(unittest.TestCase):
 
     def test_non_trajectory_raises(self) -> None:
         with self.assertRaises(TypeError):
-            ToolChoiceAccuracy().score("x", _traj())  # type: ignore[arg-type]
+            ToolChoiceAccuracy().score("x", _traj())
 
 
 class StepEfficiencyTests(unittest.TestCase):
@@ -95,7 +95,7 @@ class RedundantCallRateTests(unittest.TestCase):
 
     def test_non_trajectory_raises(self) -> None:
         with self.assertRaises(TypeError):
-            RedundantCallRate().score([1, 2])  # type: ignore[arg-type]
+            RedundantCallRate().score([1, 2])
 
 
 if __name__ == "__main__":

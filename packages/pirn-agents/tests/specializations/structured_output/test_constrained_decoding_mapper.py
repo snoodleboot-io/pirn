@@ -67,11 +67,11 @@ class TestConstrainedDecodingMapperCapabilityGate(unittest.TestCase):
     def test_rejects_non_provider(self) -> None:
         mapper = ConstrainedDecodingMapper(schema=_UserRecord)
         with self.assertRaisesRegex(TypeError, "must be a StructuredOutputProvider"):
-            mapper.map_request(object())  # type: ignore[arg-type]
+            mapper.map_request(object())
 
     def test_rejects_bad_schema(self) -> None:
         with self.assertRaisesRegex(TypeError, "schema must be"):
-            ConstrainedDecodingMapper(schema=123)  # type: ignore[arg-type]
+            ConstrainedDecodingMapper(schema=123)
 
 
 class TestConstrainedDecodingMapperGrammarValidation(unittest.TestCase):

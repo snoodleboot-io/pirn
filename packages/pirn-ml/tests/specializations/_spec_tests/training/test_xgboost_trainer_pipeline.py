@@ -57,7 +57,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 split=_split_fixture(),
                 lineage=RecordingLineageStore(),
-                store="not-a-store",  # type: ignore[arg-type]
+                store="not-a-store",
                 metrics=("accuracy",),
                 algorithm="xgboost",
             )

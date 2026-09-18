@@ -46,7 +46,7 @@ def _make_knot() -> ContextAssembler:
 
 
 def _word_item(content: str, **kwargs: object) -> ContextItem:
-    return ContextItem(content=content, **kwargs)  # type: ignore[arg-type]
+    return ContextItem(content=content, **kwargs)
 
 
 class TestBudgetFitting(unittest.IsolatedAsyncioTestCase):
@@ -167,22 +167,22 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_items(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "items"):
-            await k.process(items=5, budget=1, counter=_counter())  # type: ignore[arg-type]
+            await k.process(items=5, budget=1, counter=_counter())
 
     async def test_rejects_non_item_element(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, r"items\[0\]"):
-            await k.process(items=("x",), budget=1, counter=_counter())  # type: ignore[arg-type]
+            await k.process(items=("x",), budget=1, counter=_counter())
 
     async def test_rejects_non_counter(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "counter"):
-            await k.process(items=(), budget=1, counter="nope")  # type: ignore[arg-type]
+            await k.process(items=(), budget=1, counter="nope")
 
     async def test_rejects_bad_budget_type(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "budget"):
-            await k.process(items=(), budget="big", counter=_counter())  # type: ignore[arg-type]
+            await k.process(items=(), budget="big", counter=_counter())
 
     async def test_rejects_negative_budget(self) -> None:
         k = _make_knot()
@@ -192,7 +192,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_policy(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "policy"):
-            await k.process(items=(), budget=1, counter=_counter(), policy="nope")  # type: ignore[arg-type]
+            await k.process(items=(), budget=1, counter=_counter(), policy="nope")
 
 
 if __name__ == "__main__":

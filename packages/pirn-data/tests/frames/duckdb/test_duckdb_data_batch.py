@@ -50,7 +50,7 @@ class TestDuckdbDataBatch(unittest.TestCase):
         relation = connection.sql("SELECT 1 AS x")
         batch = DuckdbDataBatch(relation=relation, connection=connection)
         try:
-            batch.relation = connection.sql("SELECT 2 AS x")  # type: ignore[misc]
+            batch.relation = connection.sql("SELECT 2 AS x")
         except Exception:
             return
         raise AssertionError("expected FrozenInstanceError")

@@ -117,7 +117,7 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 context=[AgentMessage(role="user", content="hi")],
                 llm=llm,
-                tools=("not-a-tool",),  # type: ignore[arg-type]
+                tools=("not-a-tool",),
                 already_terminated=False,
             )
 
@@ -186,7 +186,7 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_a_raising_tool_reports_a_scrubbed_error_observation(self) -> None:
         """PIR-856: routed through ToolInvocation now, so failures are scrubbed."""
 
-        def raise_error(_args):  # type: ignore[no-untyped-def]
+        def raise_error(_args):
             raise RuntimeError("boom")
 
         llm = StubLLMProvider(["Action: search\nAction Input: x"])

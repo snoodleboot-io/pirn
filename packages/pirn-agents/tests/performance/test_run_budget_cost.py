@@ -26,7 +26,7 @@ class TestRunBudgetCost:
 
     def test_bool_cost_rejected(self) -> None:
         with pytest.raises(ValueError, match="max_cost"):
-            RunBudget(max_cost=True)  # type: ignore[arg-type]
+            RunBudget(max_cost=True)
 
     def test_cost_breach_raises_typed(self) -> None:
         budget = RunBudget(max_cost=1.0)

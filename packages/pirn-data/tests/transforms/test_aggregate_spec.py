@@ -26,7 +26,7 @@ class TestAggregateSpecConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         s = AggregateSpec(source="x", function="sum")
         with self.assertRaises((AttributeError, TypeError)):
-            s.source = "y"  # type: ignore[misc]
+            s.source = "y"
 
     def test_allowed_functions_is_tuple(self) -> None:
         fns = AggregateSpec._allowed_functions()

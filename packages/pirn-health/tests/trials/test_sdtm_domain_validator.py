@@ -68,7 +68,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 records=_RECORDS,
                 domain="AE",
-                required_fields=42,  # type: ignore[arg-type]
+                required_fields=42,
             )
 
     async def test_returns_true_when_all_fields_populated(self) -> None:

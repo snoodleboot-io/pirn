@@ -42,7 +42,7 @@ class TestTfSavedModelFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_decode_non_bytes_rejected(self) -> None:
         fmt = TfSavedModelFormat()
         with self.assertRaises(TypeError):
-            await fmt._decode_full("not-bytes")  # type: ignore[arg-type]
+            await fmt._decode_full("not-bytes")
 
     async def test_encode_missing_path_rejected(self) -> None:
         fmt = TfSavedModelFormat()

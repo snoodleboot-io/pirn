@@ -24,7 +24,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         pipe_length_ft: float = 1000.0,
     ) -> FlowlinePressureModeler:
         return FlowlinePressureModeler(
-            rate_series=None,  # type: ignore[arg-type]
+            rate_series=None,
             pipe_inner_diameter_in=pipe_inner_diameter_in,
             pipe_length_ft=pipe_length_ft,
             _config=KnotConfig(id="fp", validate_io=False),

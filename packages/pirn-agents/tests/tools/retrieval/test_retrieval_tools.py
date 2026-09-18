@@ -49,7 +49,7 @@ class TestRetrieverTool:
         import pytest
 
         with pytest.raises(TypeError):
-            RetrieverTool.bind(store=object())  # type: ignore[arg-type]
+            RetrieverTool.bind(store=object())
 
 
 class TestRagTool:
@@ -78,4 +78,4 @@ class TestRagTool:
         import pytest
 
         with pytest.raises(TypeError):
-            RagTool.bind(store=StubMemoryStore(), llm=object())  # type: ignore[arg-type]
+            RagTool.bind(store=StubMemoryStore(), llm=object())

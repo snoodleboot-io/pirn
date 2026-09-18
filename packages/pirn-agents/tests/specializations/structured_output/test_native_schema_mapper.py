@@ -61,16 +61,16 @@ class TestNativeSchemaMapperUnsupported(unittest.TestCase):
 class TestNativeSchemaMapperValidation(unittest.TestCase):
     def test_rejects_bad_schema_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "schema must be"):
-            NativeSchemaMapper(schema=123)  # type: ignore[arg-type]
+            NativeSchemaMapper(schema=123)
 
     def test_rejects_bad_name_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "name must be"):
-            NativeSchemaMapper(schema=_UserRecord, name=object())  # type: ignore[arg-type]
+            NativeSchemaMapper(schema=_UserRecord, name=object())
 
     def test_rejects_non_provider(self) -> None:
         mapper = NativeSchemaMapper(schema=_UserRecord)
         with self.assertRaisesRegex(TypeError, "must be a StructuredOutputProvider"):
-            mapper.map_request(object())  # type: ignore[arg-type]
+            mapper.map_request(object())
 
     def test_json_schema_derived_from_model(self) -> None:
         mapper = NativeSchemaMapper(schema=_UserRecord)

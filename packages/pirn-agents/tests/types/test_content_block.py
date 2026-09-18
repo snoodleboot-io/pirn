@@ -63,7 +63,7 @@ class TestMediaHandle(unittest.TestCase):
     def test_frozen(self) -> None:
         handle = MediaHandle(media_type="image/png", data=b"d")
         with self.assertRaises(FrozenInstanceError):
-            handle.media_type = "image/jpeg"  # type: ignore[misc]
+            handle.media_type = "image/jpeg"
 
 
 class TestBlocks(unittest.TestCase):
@@ -75,7 +75,7 @@ class TestBlocks(unittest.TestCase):
 
     def test_text_block_rejects_non_str(self) -> None:
         with self.assertRaises(TypeError):
-            TextBlock(text=123)  # type: ignore[arg-type]
+            TextBlock(text=123)
 
     def test_image_block_alt_text_projection(self) -> None:
         block = ImageBlock(source=MediaHandle(media_type="image/png", data=b"d"), alt_text="cap")
@@ -89,7 +89,7 @@ class TestBlocks(unittest.TestCase):
 
     def test_image_block_rejects_non_handle_source(self) -> None:
         with self.assertRaises(TypeError):
-            ImageBlock(source="not-a-handle")  # type: ignore[arg-type]
+            ImageBlock(source="not-a-handle")
 
     def test_audio_block_transcript_projection(self) -> None:
         block = AudioBlock(source=MediaHandle(media_type="audio/wav", uri="u"), transcript="hello")
@@ -112,7 +112,7 @@ class TestBlocks(unittest.TestCase):
 
     def test_tool_result_block_rejects_non_block(self) -> None:
         with self.assertRaises(TypeError):
-            ToolResultBlock(call_id="c1", blocks=("nope",))  # type: ignore[arg-type]
+            ToolResultBlock(call_id="c1", blocks=("nope",))
 
 
 class TestMessageContent(unittest.TestCase):
@@ -138,11 +138,11 @@ class TestMessageContent(unittest.TestCase):
 
     def test_coerce_rejects_bad_type(self) -> None:
         with self.assertRaises(TypeError):
-            MessageContent.coerce(42)  # type: ignore[arg-type]
+            MessageContent.coerce(42)
 
     def test_rejects_non_block_item(self) -> None:
         with self.assertRaises(TypeError):
-            MessageContent(blocks=("nope",))  # type: ignore[arg-type]
+            MessageContent(blocks=("nope",))
 
     def test_iteration_and_audit(self) -> None:
         content = MessageContent.coerce([TextBlock(text="a"), TextBlock(text="b")])
@@ -174,11 +174,11 @@ class TestAgentMessageBackwardCompat(unittest.TestCase):
 
     def test_blocks_validated_via_isinstance(self) -> None:
         with self.assertRaises(TypeError):
-            AgentMessage(role="user", content="", blocks=("nope",))  # type: ignore[arg-type]
+            AgentMessage(role="user", content="", blocks=("nope",))
 
     def test_from_blocks_rejects_non_block(self) -> None:
         with self.assertRaises(TypeError):
-            AgentMessage.from_blocks(role="user", blocks=["nope"])  # type: ignore[list-item]
+            AgentMessage.from_blocks(role="user", blocks=["nope"])
 
     def test_audit_includes_blocks_and_hides_bytes(self) -> None:
         img = ImageBlock(source=MediaHandle(media_type="image/png", data=b"RAWPIXELS"))

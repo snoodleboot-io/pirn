@@ -16,7 +16,7 @@ _VOLUME = SegyVolume(volume_id="v")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> SegyHeaderParser:
         return SegyHeaderParser(
-            volume=None,  # type: ignore[arg-type]
+            volume=None,
             _config=KnotConfig(id="hp", validate_io=False),
         )
 

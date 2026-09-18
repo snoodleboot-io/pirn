@@ -75,7 +75,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_lakehouse_table(self) -> None:
         src = self._make_src()
         with self.assertRaisesRegex(TypeError, "LakehouseTable"):
-            await src.process(table=object())  # type: ignore
+            await src.process(table=object())
 
     async def test_rejects_both_snapshot_id_and_timestamp(self) -> None:
         src = self._make_src()
@@ -91,7 +91,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "DataSchema"):
             await src.process(
                 table=self._make_table(),
-                schema=object(),  # type: ignore
+                schema=object(),
             )
 
     async def test_snapshot_id_without_timestamp_is_valid(self) -> None:

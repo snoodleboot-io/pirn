@@ -42,15 +42,13 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 from uuid import uuid4
 
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
-
-_log = logging.getLogger(__name__)
 
 
 class FilesystemTransport(DataTransport):
@@ -75,6 +73,8 @@ class FilesystemTransport(DataTransport):
         Registry of type→serialiser mappings. Defaults to
         :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`.
     """
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     _manifest_name = "pirn-manifest.json"
     _lock_name = "pirn-lock"
@@ -247,9 +247,13 @@ class FilesystemTransport(DataTransport):
             try:
                 shutil.rmtree(entry)
                 removed += 1
-                _log.info("FilesystemTransport: swept abandoned run directory %s", entry)
+                FilesystemTransport._log.info(
+                    "FilesystemTransport: swept abandoned run directory %s", entry
+                )
             except OSError as exc:
-                _log.warning("FilesystemTransport: could not sweep %s: %s", entry, exc)
+                FilesystemTransport._log.warning(
+                    "FilesystemTransport: could not sweep %s: %s", entry, exc
+                )
         return removed
 
     def _run_dir(self, run_id: str) -> Path:
@@ -282,7 +286,9 @@ class FilesystemTransport(DataTransport):
                 pass  # Windows — skip advisory locking
             self._lock_handles[run_id] = fh
         except OSError as exc:
-            _log.warning("FilesystemTransport: could not acquire lock for run %s: %s", run_id, exc)
+            FilesystemTransport._log.warning(
+                "FilesystemTransport: could not acquire lock for run %s: %s", run_id, exc
+            )
 
     def _release_lock(self, run_id: str) -> None:
         fh = self._lock_handles.pop(run_id, None)

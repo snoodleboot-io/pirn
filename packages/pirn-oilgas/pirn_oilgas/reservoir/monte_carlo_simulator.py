@@ -31,19 +31,19 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-# Lognormal spread representing typical reservoir parameter uncertainty
-# (±30% coefficient of variation is a common industry default for P10/P90 range).
-_lognormal_sigma = 0.3
-
 
 class MonteCarloSimulator(Knot):
     """Run a Monte-Carlo simulation over a configured number of trials."""
+
+    # Lognormal spread representing typical reservoir parameter uncertainty
+    # (±30% coefficient of variation is a common industry default for P10/P90 range).
+    _lognormal_sigma: ClassVar[float] = 0.3
 
     def __init__(
         self,
@@ -94,7 +94,9 @@ class MonteCarloSimulator(Knot):
         # Lognormal distribution centred on the deterministic estimate with
         # _lognormal_sigma capturing typical volumetric parameter spread.
         trials = rng.lognormal(
-            mean=np.log(max(base, 1e-9)), sigma=_lognormal_sigma, size=trial_count
+            mean=np.log(max(base, 1e-9)),
+            sigma=MonteCarloSimulator._lognormal_sigma,
+            size=trial_count,
         )
         return {
             "p10": float(np.percentile(trials, 10)),

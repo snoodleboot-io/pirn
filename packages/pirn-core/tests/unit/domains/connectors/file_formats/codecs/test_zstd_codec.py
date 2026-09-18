@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import zstandard  # noqa: F401
+    import zstandard  # noqa: F401  # imported only to skip when zstandard is absent
 except ImportError as _e:
     raise unittest.SkipTest("zstandard not installed") from _e
 
@@ -22,7 +22,7 @@ class TestZstdCodecConstruction(unittest.TestCase):
 
     def test_level_must_be_int(self) -> None:
         with self.assertRaises(TypeError):
-            ZstdCodec(level="3")  # type: ignore[arg-type]
+            ZstdCodec(level="3")
 
 
 class TestZstdCodecRoundTrip(unittest.IsolatedAsyncioTestCase):

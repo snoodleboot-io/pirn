@@ -41,4 +41,4 @@ class TestQuestDBConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = QuestDBConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.host = "mutated"  # type: ignore[misc]
+            cfg.host = "mutated"

@@ -69,7 +69,7 @@ class TestCrossValidatorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_k_not_int(self) -> None:
         k_knot = self._make_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k_knot.process(dataset=_make_dataset(), k="five")  # type: ignore[arg-type]
+            await k_knot.process(dataset=_make_dataset(), k="five")
 
     async def test_rejects_row_count_less_than_k(self) -> None:
         k_knot = self._make_knot()

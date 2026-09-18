@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pysam  # noqa: F401
+    import pysam  # noqa: F401  # imported only to skip when pysam is absent
 except ImportError as _e:
     raise unittest.SkipTest("pysam not installed") from _e
 
@@ -35,7 +35,7 @@ class TestBcfFormatConstruction(unittest.TestCase):
 
     def test_header_lines_must_be_sequence(self) -> None:
         with self.assertRaises(TypeError):
-            BcfFormat(header_lines="##contig=<ID=chr1>")  # type: ignore[arg-type]
+            BcfFormat(header_lines="##contig=<ID=chr1>")
 
     def test_empty_header_line_rejected(self) -> None:
         with self.assertRaises(ValueError):

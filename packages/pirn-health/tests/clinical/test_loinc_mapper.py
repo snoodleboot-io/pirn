@@ -15,15 +15,15 @@ _KNOT = LOINCMapper(lab_test_names=[], mapping={}, _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_names(self) -> None:
         with self.assertRaisesRegex(TypeError, "lab_test_names"):
-            await _KNOT.process(lab_test_names=42, mapping={})  # type: ignore[arg-type]
+            await _KNOT.process(lab_test_names=42, mapping={})
 
     async def test_rejects_non_mapping(self) -> None:
         with self.assertRaisesRegex(TypeError, "mapping"):
-            await _KNOT.process(lab_test_names=[], mapping=42)  # type: ignore[arg-type]
+            await _KNOT.process(lab_test_names=[], mapping=42)
 
     async def test_rejects_non_string_name(self) -> None:
         with self.assertRaisesRegex(TypeError, "string"):
-            await _KNOT.process(lab_test_names=[1], mapping={})  # type: ignore[list-item]
+            await _KNOT.process(lab_test_names=[1], mapping={})
 
     async def test_returns_mapped_codes(self) -> None:
         out = await _KNOT.process(lab_test_names=["glucose"], mapping={"glucose": "2345-7"})

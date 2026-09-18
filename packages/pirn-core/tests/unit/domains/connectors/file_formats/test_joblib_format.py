@@ -10,7 +10,7 @@ import unittest
 from typing import Any
 
 try:
-    import joblib  # noqa: F401
+    import joblib  # noqa: F401  # imported only to skip when joblib is absent
 except ImportError as _e:
     raise unittest.SkipTest("joblib not installed") from _e
 
@@ -39,7 +39,7 @@ class TestJoblibFormatConstruction(unittest.TestCase):
 
     def test_non_bool_allow_unsigned_rejected(self) -> None:
         with self.assertRaises(TypeError):
-            JoblibFormat(allow_unsigned="yes")  # type: ignore[arg-type]
+            JoblibFormat(allow_unsigned="yes")
 
 
 class TestJoblibFormatBasics(unittest.TestCase):

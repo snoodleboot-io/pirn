@@ -21,7 +21,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_list_records(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "records"):
-            await knot.process(records="x", salt="seed")  # type: ignore[arg-type]
+            await knot.process(records="x", salt="seed")
 
     async def test_rejects_empty_records(self) -> None:
         knot = self._make_knot()
@@ -31,7 +31,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_salt(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "salt"):
-            await knot.process(records=_RECORDS, salt=42)  # type: ignore[arg-type]
+            await knot.process(records=_RECORDS, salt=42)
 
     async def test_rejects_empty_salt(self) -> None:
         knot = self._make_knot()

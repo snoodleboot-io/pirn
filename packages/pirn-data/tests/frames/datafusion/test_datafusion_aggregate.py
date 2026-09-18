@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import datafusion  # noqa: F401
+    import datafusion  # noqa: F401  # imported only to skip when datafusion is absent
 except ImportError as _e:
     raise unittest.SkipTest("datafusion not installed") from _e
 
@@ -131,10 +131,10 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_rejects_non_expression_value(self) -> None:
-        k = self._make_knot(by=("a",), aggs={"total": "SUM(x)"})  # type: ignore[arg-type]
+        k = self._make_knot(by=("a",), aggs={"total": "SUM(x)"})
         with self.assertRaisesRegex(TypeError, "datafusion.Expr"):
             await k.process(
                 batch=_make_empty_batch(),
                 by=("a",),
-                aggs={"total": "SUM(x)"},  # type: ignore[arg-type]
+                aggs={"total": "SUM(x)"},
             )

@@ -58,7 +58,7 @@ class TestInputMessageScrubberProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         with self.assertRaises(TypeError):
             await k.process(
-                messages=["not a message"],  # type: ignore[list-item]
+                messages=["not a message"],
                 deny_patterns=[],
                 pii_patterns=[],
             )

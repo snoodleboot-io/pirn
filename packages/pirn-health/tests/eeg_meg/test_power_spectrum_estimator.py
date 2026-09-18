@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -35,7 +35,7 @@ _KNOT = PowerSpectrumEstimator(signal=_SIGNAL, method="welch", _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", method="welch")  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", method="welch")
 
     async def test_rejects_invalid_method(self) -> None:
         with self.assertRaisesRegex(ValueError, "method"):

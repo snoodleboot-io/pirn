@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import lz4  # noqa: F401
+    import lz4  # noqa: F401  # imported only to skip when lz4 is absent
 except ImportError as _e:
     raise unittest.SkipTest("lz4 not installed") from _e
 

@@ -17,11 +17,11 @@ class MetricThresholdTests(unittest.TestCase):
 
     def test_non_str_metric_raises(self) -> None:
         with self.assertRaises(TypeError):
-            MetricThreshold(metric=1, min_score=0.5)  # type: ignore[arg-type]
+            MetricThreshold(metric=1, min_score=0.5)
 
     def test_non_numeric_min_raises(self) -> None:
         with self.assertRaises(TypeError):
-            MetricThreshold(metric="m", min_score="high")  # type: ignore[arg-type]
+            MetricThreshold(metric="m", min_score="high")
 
 
 class ThresholdConfigTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class ThresholdConfigTests(unittest.TestCase):
 
     def test_non_threshold_element_raises(self) -> None:
         with self.assertRaises(TypeError):
-            ThresholdConfig(thresholds=["nope"])  # type: ignore[list-item]
+            ThresholdConfig(thresholds=["nope"])
 
     def test_json_roundtrip(self) -> None:
         config = ThresholdConfig(

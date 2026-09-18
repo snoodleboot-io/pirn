@@ -21,7 +21,7 @@ class TestRootFrame(unittest.TestCase):
 
     def test_is_frozen(self) -> None:
         with self.assertRaises(AttributeError):
-            RunNesting().depth = 3  # type: ignore[misc]
+            RunNesting().depth = 3
 
     def test_current_outside_a_run_is_the_root_frame(self) -> None:
         self.assertEqual(RunNesting.current(), RunNesting())

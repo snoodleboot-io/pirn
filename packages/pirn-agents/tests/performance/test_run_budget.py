@@ -36,7 +36,7 @@ class TestValidation:
     def test_frozen(self) -> None:
         budget = RunBudget(max_iterations=3)
         with pytest.raises(dataclasses.FrozenInstanceError):
-            budget.max_iterations = 5  # type: ignore[misc]
+            budget.max_iterations = 5
 
 
 class TestChecks:

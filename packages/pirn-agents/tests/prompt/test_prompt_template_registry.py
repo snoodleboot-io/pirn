@@ -53,7 +53,7 @@ class TestRegister(unittest.TestCase):
     def test_register_rejects_non_template(self) -> None:
         reg = PromptTemplateRegistry()
         with self.assertRaisesRegex(TypeError, "PromptTemplate"):
-            reg.register("nope")  # type: ignore[arg-type]
+            reg.register("nope")
 
 
 class TestLookupMisses(unittest.TestCase):

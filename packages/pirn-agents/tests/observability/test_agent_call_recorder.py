@@ -146,5 +146,5 @@ async def test_multiple_calls_in_one_knot_share_knot_id() -> None:
     assert {e.extra["kind"] for e in events} == {"retrieval", "llm"}
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover  # only when the module is run directly
     unittest.main()

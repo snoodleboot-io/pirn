@@ -37,7 +37,7 @@ class TestGgufFormatValidation(unittest.IsolatedAsyncioTestCase):
         # Async _decode_full direct call ensures the type guard fires
         # without needing the SDK installed.
         with self.assertRaises(TypeError):
-            await fmt._decode_full("not-bytes")  # type: ignore[arg-type]
+            await fmt._decode_full("not-bytes")
 
     async def test_encode_empty_rejected(self) -> None:
         fmt = GgufFormat()

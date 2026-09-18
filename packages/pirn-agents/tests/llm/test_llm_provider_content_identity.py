@@ -397,7 +397,7 @@ class TestProvidersFallBackToIdentity(unittest.TestCase):
         values: dict[str, dict[str, Any]] = {
             "bool max tokens": {"default_max_tokens": True},
             "float max tokens": {"default_max_tokens": 1.5},
-            "string price": {"pricing": ModelPricing(input_per_million="1")},  # type: ignore[arg-type]
+            "string price": {"pricing": ModelPricing(input_per_million="1")},
             "string attempts": {"retry_policy": KnotRetryPolicy.model_construct(max_attempts="3")},
             "int jitter": {"retry_policy": KnotRetryPolicy.model_construct(jitter=1)},
             "retry predicate": {

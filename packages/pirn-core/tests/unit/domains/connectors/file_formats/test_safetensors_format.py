@@ -6,11 +6,11 @@ import unittest
 from typing import Any
 
 try:
-    import safetensors  # noqa: F401
+    import safetensors  # noqa: F401  # imported only to skip when safetensors is absent
 except ImportError as _e:
     raise unittest.SkipTest("safetensors not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -38,7 +38,7 @@ class TestSafetensorsFormatConstruction(unittest.TestCase):
 
     def test_non_bool_include_data_rejected(self) -> None:
         with self.assertRaises(TypeError):
-            SafetensorsFormat(include_data="yes")  # type: ignore[arg-type]
+            SafetensorsFormat(include_data="yes")
 
 
 class TestSafetensorsFormatBasics(unittest.TestCase):

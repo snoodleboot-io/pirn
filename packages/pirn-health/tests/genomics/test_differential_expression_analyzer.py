@@ -31,22 +31,22 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_mapping_case(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "case_counts"):
-            await knot.process(case_counts=42, control_counts={}, gene_ids=[])  # type: ignore[arg-type]
+            await knot.process(case_counts=42, control_counts={}, gene_ids=[])
 
     async def test_rejects_non_mapping_control(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "control_counts"):
-            await knot.process(case_counts={}, control_counts=42, gene_ids=[])  # type: ignore[arg-type]
+            await knot.process(case_counts={}, control_counts=42, gene_ids=[])
 
     async def test_rejects_non_sequence_genes(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "gene_ids"):
-            await knot.process(case_counts={}, control_counts={}, gene_ids=42)  # type: ignore[arg-type]
+            await knot.process(case_counts={}, control_counts={}, gene_ids=42)
 
     async def test_rejects_non_string_gene(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(case_counts={}, control_counts={}, gene_ids=[1])  # type: ignore[list-item]
+            await knot.process(case_counts={}, control_counts={}, gene_ids=[1])
 
     async def test_returns_per_gene_mapping(self) -> None:
         knot = self._make_knot()

@@ -22,7 +22,7 @@ class TestChunk(unittest.TestCase):
 
     def test_rejects_non_str_text(self) -> None:
         with self.assertRaises(TypeError):
-            Chunk(text=123, index=0)  # type: ignore[arg-type]
+            Chunk(text=123, index=0)
 
     def test_rejects_negative_index(self) -> None:
         with self.assertRaises(ValueError):
@@ -30,8 +30,8 @@ class TestChunk(unittest.TestCase):
 
     def test_rejects_bool_index(self) -> None:
         with self.assertRaises(TypeError):
-            Chunk(text="body", index=True)  # type: ignore[arg-type]
+            Chunk(text="body", index=True)
 
     def test_rejects_non_mapping_metadata(self) -> None:
         with self.assertRaises(TypeError):
-            Chunk(text="body", index=0, metadata=["not", "a", "map"])  # type: ignore[arg-type]
+            Chunk(text="body", index=0, metadata=["not", "a", "map"])

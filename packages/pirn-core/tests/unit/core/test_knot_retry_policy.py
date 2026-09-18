@@ -26,7 +26,7 @@ class TestKnotRetryPolicyConstruction(unittest.TestCase):
     def test_is_frozen(self) -> None:
         policy = KnotRetryPolicy()
         with self.assertRaises(ValidationError):
-            policy.max_attempts = 3  # type: ignore[misc]
+            policy.max_attempts = 3
 
     def test_rejects_zero_attempts(self) -> None:
         with self.assertRaises(ValidationError):
@@ -34,7 +34,7 @@ class TestKnotRetryPolicyConstruction(unittest.TestCase):
 
     def test_rejects_bool_attempts(self) -> None:
         with self.assertRaises(ValidationError):
-            KnotRetryPolicy(max_attempts=True)  # type: ignore[arg-type]
+            KnotRetryPolicy(max_attempts=True)
 
     def test_rejects_negative_delays(self) -> None:
         with self.assertRaises(ValidationError):
@@ -50,7 +50,7 @@ class TestKnotRetryPolicyConstruction(unittest.TestCase):
 
     def test_rejects_unknown_fields(self) -> None:
         with self.assertRaises(ValidationError):
-            KnotRetryPolicy(max_retries=2)  # type: ignore[call-arg]
+            KnotRetryPolicy(max_retries=2)
 
     def test_callables_are_excluded_from_the_dump(self) -> None:
         policy = KnotRetryPolicy(is_retryable=lambda r: True, retry_after=lambda r: 1.0)

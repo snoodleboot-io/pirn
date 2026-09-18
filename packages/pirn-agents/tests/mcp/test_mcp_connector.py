@@ -124,12 +124,12 @@ async def test_close_tears_down_session() -> None:
 
 def test_rejects_non_callable_factory() -> None:
     with pytest.raises(TypeError):
-        McpConnector(transport_factory=object())  # type: ignore[arg-type]
+        McpConnector(transport_factory=object())
 
 
 def test_rejects_a_reconnect_that_is_not_a_policy() -> None:
     with pytest.raises(TypeError, match="KnotRetryPolicy"):
-        McpConnector(transport_factory=StubMcpTransport, reconnect=5)  # type: ignore[arg-type]
+        McpConnector(transport_factory=StubMcpTransport, reconnect=5)
 
 
 async def test_jitter_draw_scales_the_delay() -> None:

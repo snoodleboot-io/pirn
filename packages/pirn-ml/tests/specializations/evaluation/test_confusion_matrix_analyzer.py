@@ -35,7 +35,7 @@ class TestConstruction(unittest.TestCase):
             split = emit_split(_config=KnotConfig(id="split"))
             with self.assertRaises(TypeError):
                 ConfusionMatrixAnalyzer(
-                    model="bad",  # type: ignore[arg-type]
+                    model="bad",
                     split=split,
                     _config=KnotConfig(id="bad"),
                 )

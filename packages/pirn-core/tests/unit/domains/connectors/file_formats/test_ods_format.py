@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import odf  # noqa: F401
+    import odf  # noqa: F401  # imported only to skip when odf is absent
 except ImportError as _e:
     raise unittest.SkipTest("odf not installed") from _e
 
@@ -37,11 +37,11 @@ class TestOdsFormatConstruction(unittest.TestCase):
 
     def test_non_string_sheet_name(self) -> None:
         with self.assertRaises(ValueError):
-            OdsFormat(sheet_name=123)  # type: ignore[arg-type]
+            OdsFormat(sheet_name=123)
 
     def test_non_bool_has_header(self) -> None:
         with self.assertRaises(TypeError):
-            OdsFormat(has_header="yes")  # type: ignore[arg-type]
+            OdsFormat(has_header="yes")
 
 
 class TestOdsFormatBasics(unittest.TestCase):

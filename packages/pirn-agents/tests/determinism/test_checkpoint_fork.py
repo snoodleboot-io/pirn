@@ -172,7 +172,7 @@ class TestCheckpointForker:
         with pytest.raises(TypeError):
             await CheckpointForker().fork(
                 tapestry=_build_fork_tapestry(InMemoryHistory(), data_store),
-                history="bad",  # type: ignore[arg-type]
+                history="bad",
                 data_store=data_store,
                 fork_point=ResumeToken(run_id="x", output_hash="sha256:y"),
                 source_knot_id="double",

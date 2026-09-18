@@ -94,7 +94,7 @@ class TestBackwardCompatibility(unittest.TestCase):
 
     def test_non_callable_still_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "callable"):
-            ToolDecorator.decorate("not a function")  # type: ignore[arg-type]
+            ToolDecorator.decorate("not a function")
 
 
 # ----------------------------------------------------------------- pydantic args
@@ -150,7 +150,7 @@ class TestReturnSchema(unittest.TestCase):
 
     def test_no_annotation_is_none(self) -> None:
         @ToolDecorator.decorate
-        async def untyped():  # type: ignore[no-untyped-def]
+        async def untyped():
             """No return annotation."""
             return 1
 

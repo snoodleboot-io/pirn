@@ -25,7 +25,7 @@ class TestReduceConstruction(unittest.TestCase):
     def test_rejects_non_knot_of(self) -> None:
         with self.assertRaisesRegex(TypeError, "'of' must be a Knot"):
             with Tapestry():
-                Reduce(of=42, combine=sum, _config=KnotConfig(id="r"))  # type: ignore
+                Reduce(of=42, combine=sum, _config=KnotConfig(id="r"))
 
     def test_rejects_non_callable_combine(self) -> None:
         with self.assertRaisesRegex(TypeError, "'combine' must be callable"):

@@ -44,19 +44,19 @@ class TestToolPermissionsSchemaFragment(unittest.TestCase):
 class TestToolPermissionsValidation(unittest.TestCase):
     def test_scope_wrong_type_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "scope"):
-            ToolPermissions(scope=123)  # type: ignore[arg-type]
+            ToolPermissions(scope=123)
 
     def test_mutating_wrong_type_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "mutating"):
-            ToolPermissions(mutating="yes")  # type: ignore[arg-type]
+            ToolPermissions(mutating="yes")
 
     def test_cost_hint_wrong_type_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "cost_hint"):
-            ToolPermissions(cost_hint="cheap")  # type: ignore[arg-type]
+            ToolPermissions(cost_hint="cheap")
 
     def test_cost_hint_bool_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "cost_hint"):
-            ToolPermissions(cost_hint=True)  # type: ignore[arg-type]
+            ToolPermissions(cost_hint=True)
 
     def test_negative_cost_hint_raises(self) -> None:
         with self.assertRaisesRegex(ValueError, "non-negative"):

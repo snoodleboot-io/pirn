@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pandas  # noqa: F401
+    import pandas  # noqa: F401  # imported only to skip when pandas is absent
 except ImportError as _e:
     raise unittest.SkipTest("pandas not installed") from _e
 from datetime import UTC
@@ -39,7 +39,7 @@ class TestPandasDataBatch(unittest.TestCase):
     def test_dataclass_is_frozen(self) -> None:
         batch = PandasDataBatch(frame=pd.DataFrame())
         try:
-            batch.frame = pd.DataFrame()  # type: ignore[misc]
+            batch.frame = pd.DataFrame()
         except Exception:
             return
         raise AssertionError("expected FrozenInstanceError")

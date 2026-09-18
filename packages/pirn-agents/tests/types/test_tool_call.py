@@ -42,4 +42,4 @@ class TestRawField(unittest.TestCase):
     def test_frozen(self) -> None:
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
         with self.assertRaises(FrozenInstanceError):
-            call.tool_name = "other"  # type: ignore[misc]
+            call.tool_name = "other"

@@ -26,7 +26,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         temperature_threshold_c: float = 100.0,
     ) -> EspHealthMonitor:
         return EspHealthMonitor(
-            telemetry=None,  # type: ignore[arg-type]
+            telemetry=None,
             vibration_threshold_g=vibration_threshold_g,
             temperature_threshold_c=temperature_threshold_c,
             _config=KnotConfig(id="esp", validate_io=False),

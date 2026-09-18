@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import shapefile  # noqa: F401
+    import shapefile  # noqa: F401  # imported only to skip when shapefile is absent
 except ImportError as _e:
     raise unittest.SkipTest("shapefile not installed") from _e
 

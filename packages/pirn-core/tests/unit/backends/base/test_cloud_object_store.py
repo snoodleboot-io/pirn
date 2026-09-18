@@ -226,7 +226,7 @@ class TestCloudObjectStoreComposition(unittest.IsolatedAsyncioTestCase):
             raise _Boom(key)
 
         await self.store.put("sha256:abc", 1)
-        self.store.builds[0].get = _get  # type: ignore[method-assign]
+        self.store.builds[0].get = _get
         with self.assertRaises(_Boom):
             await self.store.get("sha256:abc")
 

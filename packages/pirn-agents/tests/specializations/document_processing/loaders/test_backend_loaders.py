@@ -35,7 +35,7 @@ def _fake_pypdf(pages: list[str], *, raise_on_read: bool = False) -> types.Modul
                 raise ValueError("corrupt pdf")
             self.pages = [_Page(text) for text in pages]
 
-    module.PdfReader = _Reader  # type: ignore[attr-defined]
+    module.PdfReader = _Reader
     return module
 
 
@@ -66,7 +66,7 @@ def _fake_bs4() -> types.ModuleType:
             parts = [p.strip() for p in self._text.split("\n") if p.strip()]
             return separator.join(parts)
 
-    module.BeautifulSoup = _Soup  # type: ignore[attr-defined]
+    module.BeautifulSoup = _Soup
     return module
 
 
@@ -83,7 +83,7 @@ def _fake_docx(paragraphs: list[str], *, raise_on_read: bool = False) -> types.M
                 raise ValueError("bad docx")
             self.paragraphs = [_Para(text) for text in paragraphs]
 
-    module.Document = _Document  # type: ignore[attr-defined]
+    module.Document = _Document
     return module
 
 
@@ -107,7 +107,7 @@ class TestPdfLoader(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_bytes_raises_typeerror(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be bytes"):
-            await PdfLoader().load("nope")  # type: ignore[arg-type]
+            await PdfLoader().load("nope")
 
 
 class TestHtmlLoader(unittest.IsolatedAsyncioTestCase):

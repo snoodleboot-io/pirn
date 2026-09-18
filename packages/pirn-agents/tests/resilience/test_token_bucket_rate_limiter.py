@@ -52,7 +52,7 @@ def _limiter(
 class TestConstruction:
     def test_rejects_non_config(self) -> None:
         with pytest.raises(TypeError, match="RateLimiterConfig"):
-            TokenBucketRateLimiter(object())  # type: ignore[arg-type]
+            TokenBucketRateLimiter(object())
 
     def test_starts_full(self) -> None:
         clock = _ManualClock()

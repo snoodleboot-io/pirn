@@ -28,4 +28,4 @@ class TestAdmissionTicket(unittest.TestCase):
 
         # Act / Assert
         with self.assertRaises(dataclasses.FrozenInstanceError):
-            ticket.knot_id = "other"  # type: ignore[misc]
+            ticket.knot_id = "other"

@@ -62,7 +62,7 @@ class TestGraphEmbeddingIndex(unittest.IsolatedAsyncioTestCase):
 
     def test_rejects_bad_embedder(self) -> None:
         with self.assertRaisesRegex(TypeError, "embedder must be an EmbeddingProvider"):
-            GraphEmbeddingIndex(embedder="nope")  # type: ignore[arg-type]
+            GraphEmbeddingIndex(embedder="nope")
 
     async def test_empty_index_calls_return_cleanly(self) -> None:
         index = GraphEmbeddingIndex(embedder=KeywordEmbedder(["alpha"]))

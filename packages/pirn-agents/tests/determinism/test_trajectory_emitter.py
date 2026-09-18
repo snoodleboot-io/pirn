@@ -110,7 +110,7 @@ class TestTrajectoryEmitter:
 
     def test_rejects_non_clock(self) -> None:
         try:
-            TrajectoryEmitter(clock="not a clock")  # type: ignore[arg-type]
+            TrajectoryEmitter(clock="not a clock")
         except TypeError:
             pass
         else:

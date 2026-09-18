@@ -29,17 +29,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_cells(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "cell_ids"):
-            await knot.process(count_matrix_path="x", cell_ids=42, resolution=0.5)  # type: ignore[arg-type]
+            await knot.process(count_matrix_path="x", cell_ids=42, resolution=0.5)
 
     async def test_rejects_non_string_cell(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(count_matrix_path="x", cell_ids=[1], resolution=0.5)  # type: ignore[list-item]
+            await knot.process(count_matrix_path="x", cell_ids=[1], resolution=0.5)
 
     async def test_rejects_non_numeric_resolution(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "resolution"):
-            await knot.process(count_matrix_path="x", cell_ids=[], resolution="x")  # type: ignore[arg-type]
+            await knot.process(count_matrix_path="x", cell_ids=[], resolution="x")
 
     async def test_rejects_non_positive_resolution(self) -> None:
         knot = self._make_knot()

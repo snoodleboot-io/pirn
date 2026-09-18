@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import librosa  # noqa: F401
+    import librosa  # noqa: F401  # imported only to skip when librosa is absent
 except ImportError as _e:
     raise unittest.SkipTest("librosa not installed") from _e
 
@@ -76,12 +76,12 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="body must be bytes"):
-            await knot.process(body="not-bytes", signal_id="x")  # type: ignore[arg-type]
+            await knot.process(body="not-bytes", signal_id="x")
 
     async def test_rejects_non_str_signal_id(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="signal_id must be str"):
-            await knot.process(body=b"x", signal_id=123)  # type: ignore[arg-type]
+            await knot.process(body=b"x", signal_id=123)
 
     async def test_rejects_empty_signal_id(self) -> None:
         knot = _make()

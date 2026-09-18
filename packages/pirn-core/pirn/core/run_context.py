@@ -7,7 +7,7 @@ import socket
 import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
@@ -16,11 +16,11 @@ from pirn.core.run_result import RunResult
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.status_manager import StatusManager
 
-_logger = logging.getLogger(__name__)
-
 
 class RunContext:
     """Live, run-scoped services carried through the engine."""
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -99,7 +99,7 @@ class RunContext:
             )
             return result.stdout.strip() if result.returncode == 0 else ""
         except Exception:
-            _logger.warning(
+            RunContext._logger.warning(
                 "RunContext: resolving the VCS commit via `git rev-parse` raised; "
                 "runtime_info.vcs_commit will be empty",
                 exc_info=True,

@@ -50,5 +50,5 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
                 query="SELECT 1",
                 image_column="img",
                 target_column="label",
-                image_encoder="bad",  # type: ignore[arg-type]
+                image_encoder="bad",
             )

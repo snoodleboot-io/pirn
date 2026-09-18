@@ -23,7 +23,7 @@ class TestSelfRAGPipelineProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             SelfRAGPipeline(
                 query="q",
-                memory="not-a-store",  # type: ignore[arg-type]
+                memory="not-a-store",
                 llm=StubLLMProvider(["draft", "NO"]),
                 _config=KnotConfig(id="self_rag"),
             )
@@ -33,7 +33,7 @@ class TestSelfRAGPipelineProcess(unittest.IsolatedAsyncioTestCase):
             SelfRAGPipeline(
                 query="q",
                 memory=StubMemoryStore([]),
-                llm="not-llm",  # type: ignore[arg-type]
+                llm="not-llm",
                 _config=KnotConfig(id="self_rag"),
             )
 
@@ -51,7 +51,7 @@ class TestSelfRAGPipelineProcess(unittest.IsolatedAsyncioTestCase):
     def test_rejects_non_string_query(self) -> None:
         with self.assertRaises(TypeError):
             SelfRAGPipeline(
-                query=123,  # type: ignore[arg-type]
+                query=123,
                 memory=StubMemoryStore([]),
                 llm=StubLLMProvider(["draft", "NO"]),
                 _config=KnotConfig(id="self_rag"),

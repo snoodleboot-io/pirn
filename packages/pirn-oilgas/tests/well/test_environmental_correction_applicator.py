@@ -18,7 +18,7 @@ _LOG_CURVE: list[dict[str, Any]] = [{"depth_ft": 1000.0, "raw_value": 50.0}]
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> EnvironmentalCorrectionApplicator:
         return EnvironmentalCorrectionApplicator(
-            log_curve=None,  # type: ignore[arg-type]
+            log_curve=None,
             correction_table={"correction_factor": 1.1},
             log_type="density",
             _config=KnotConfig(id="eca", validate_io=False),
@@ -38,7 +38,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "correction_table"):
             await knot.process(
                 log_curve=_LOG_CURVE,
-                correction_table="not_a_dict",  # type: ignore[arg-type]
+                correction_table="not_a_dict",
                 log_type="density",
             )
 

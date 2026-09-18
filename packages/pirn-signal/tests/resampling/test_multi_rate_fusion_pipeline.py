@@ -7,7 +7,7 @@ import unittest
 import numpy as np
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 

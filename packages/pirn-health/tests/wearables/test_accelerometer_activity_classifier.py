@@ -37,7 +37,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "accel_data"):
             await AccelerometerActivityClassifier.process(
                 inst,
-                accel_data="not-a-dict",  # type: ignore[arg-type]
+                accel_data="not-a-dict",
                 sample_rate_hz=50.0,
                 window_sec=5.0,
             )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pandas  # noqa: F401
+    import pandas  # noqa: F401  # imported only to skip when pandas is absent
 except ImportError as _e:
     raise unittest.SkipTest("pandas not installed") from _e
 

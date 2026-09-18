@@ -17,7 +17,7 @@ from tests.conftest import StubLLMProvider, StubMemoryStore
 
 
 def _names(toolset: object) -> set[str]:
-    return {tool.name for tool in toolset}  # type: ignore[attr-defined]
+    return {tool.name for tool in toolset}
 
 
 def test_calculator_toolset() -> None:
@@ -29,7 +29,7 @@ def test_web_toolset_default_and_with_search() -> None:
     from pirn_agents.tools.web.search_backend import SearchBackend
 
     class _B(SearchBackend):
-        async def search(self, query: str, *, max_results: int):  # type: ignore[no-untyped-def]
+        async def search(self, query: str, *, max_results: int):
             return []
 
     assert _names(Bundles.web_toolset(search_backend=_B())) == {
@@ -39,7 +39,7 @@ def test_web_toolset_default_and_with_search() -> None:
     }
 
 
-def test_filesystem_toolset(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_filesystem_toolset(tmp_path) -> None:
     full = _names(Bundles.filesystem_toolset(root=str(tmp_path)))
     assert full == {"read_file", "write_file", "list_dir", "glob"}
     read_only = _names(Bundles.filesystem_toolset(root=str(tmp_path), include_write=False))

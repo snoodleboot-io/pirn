@@ -141,7 +141,7 @@ class TestConfigSafety(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "report_request must be a Mapping"):
             GoogleAnalyticsClient(
                 client=FakeGoogleAnalyticsClient(),
-                report_request=[],  # type: ignore[arg-type]
+                report_request=[],
             )
 
     def test_report_request_property_returns_copy(self) -> None:
@@ -164,7 +164,7 @@ class TestRunReport(unittest.IsolatedAsyncioTestCase):
     async def test_run_report_rejects_non_mapping(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
         with self.assertRaisesRegex(ValueError, "must be a Mapping"):
-            await client.run_report([])  # type: ignore[arg-type]
+            await client.run_report([])
 
 
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
@@ -172,7 +172,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         fake = FakeGoogleAnalyticsClient()
-        fake.run_report = lambda req: {  # type: ignore[method-assign]
+        fake.run_report = lambda req: {
             "rows": [{"v": i} for i in range(3)],
             "request": dict(req),
         }
@@ -194,7 +194,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             captured.append(dict(req))
             return {"rows": [{"v": i} for i in range(2)]}
 
-        fake.run_report = _run_report  # type: ignore[method-assign]
+        fake.run_report = _run_report
         client = GoogleAnalyticsClient(
             client=fake,
             report_request={"property": "properties/1"},
@@ -210,7 +210,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 
     async def test_fetch_page_partial_terminates(self) -> None:
         fake = FakeGoogleAnalyticsClient()
-        fake.run_report = lambda req: {"rows": [{"v": 0}]}  # type: ignore[method-assign]
+        fake.run_report = lambda req: {"rows": [{"v": 0}]}
         client = GoogleAnalyticsClient(
             client=fake,
             report_request={"property": "properties/1"},
@@ -223,7 +223,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 
     async def test_fetch_page_empty_terminates(self) -> None:
         fake = FakeGoogleAnalyticsClient()
-        fake.run_report = lambda req: {"rows": []}  # type: ignore[method-assign]
+        fake.run_report = lambda req: {"rows": []}
         client = GoogleAnalyticsClient(
             client=fake,
             report_request={"property": "properties/1"},

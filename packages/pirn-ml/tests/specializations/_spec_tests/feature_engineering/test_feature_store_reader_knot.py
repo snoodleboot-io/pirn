@@ -31,7 +31,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=_split_fixture(),
-                feature_store="not-a-store",  # type: ignore[arg-type]
+                feature_store="not-a-store",
                 entity_keys=("id",),
                 feature_names=("feat",),
             )

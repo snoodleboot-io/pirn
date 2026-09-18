@@ -40,4 +40,4 @@ class TestCouchDBConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = CouchDBConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.url = "mutated"  # type: ignore[misc]
+            cfg.url = "mutated"

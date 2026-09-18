@@ -38,7 +38,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="fft"))
         signal = _make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal)  # type: ignore[call-arg]
+            await k.process(signal=signal)
 
     async def test_rejects_non_integer_n_fft(self) -> None:
         with Tapestry():
@@ -46,7 +46,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="fft"))
         signal = _make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal, n_fft=2.5)  # type: ignore[arg-type]
+            await k.process(signal=signal, n_fft=2.5)
 
     async def test_rejects_zero_n_fft(self) -> None:
         with Tapestry():

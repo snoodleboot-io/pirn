@@ -56,12 +56,12 @@ class TestWellCompletionObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="body must be bytes"):
-            await knot.process(body="not-bytes", well_id="W-01")  # type: ignore[arg-type]
+            await knot.process(body="not-bytes", well_id="W-01")
 
     async def test_rejects_non_str_well_id(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="well_id must be str"):
-            await knot.process(body=b"x", well_id=42)  # type: ignore[arg-type]
+            await knot.process(body=b"x", well_id=42)
 
     async def test_rejects_empty_well_id(self) -> None:
         knot = _make()

@@ -45,7 +45,7 @@ def _boom(message: str):
 def _hang():
     async def _op() -> object:
         await asyncio.sleep(3600)
-        return "never"  # pragma: no cover
+        return "never"  # pragma: no cover  # the hour-long sleep is always cancelled first
 
     return _op
 
@@ -62,7 +62,7 @@ class TestConstruction:
         # against its declared type eagerly, at construction time, so the
         # bad entry never reaches process().
         with Tapestry(), pytest.raises(TypeError, match="FailoverCandidate"):
-            FailoverChain(candidates=[object()], _config=KnotConfig(id="failover"))  # type: ignore[list-item]
+            FailoverChain(candidates=[object()], _config=KnotConfig(id="failover"))
 
     async def test_rejects_bad_breakers(self) -> None:
         # ``breakers`` is a typed ``CircuitBreakerRegistry`` input now that the
@@ -71,14 +71,14 @@ class TestConstruction:
         with Tapestry(), pytest.raises(TypeError, match="CircuitBreakerRegistry"):
             FailoverChain(
                 candidates=[FailoverCandidate("a", _ok(1))],
-                breakers=object(),  # type: ignore[arg-type]
+                breakers=object(),
                 _config=KnotConfig(id="failover"),
             )
         with pytest.raises(TypeError, match="CircuitBreakerRegistry"):
             await FailoverChain.process(
                 object.__new__(FailoverChain),
                 candidates=[FailoverCandidate("a", _ok(1))],
-                breakers=object(),  # type: ignore[arg-type]
+                breakers=object(),
             )
 
 

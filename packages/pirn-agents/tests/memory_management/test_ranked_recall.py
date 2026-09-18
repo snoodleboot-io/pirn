@@ -103,7 +103,7 @@ class TestRankedRecall(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_candidate(self) -> None:
         knot = _make_knot()
         with self.assertRaises(TypeError):
-            await knot.process(query="q", candidates=["bad"], now=_NOW)  # type: ignore[list-item]
+            await knot.process(query="q", candidates=["bad"], now=_NOW)
 
     async def test_rejects_non_weights(self) -> None:
         knot = _make_knot()
@@ -120,5 +120,5 @@ class TestRankedRecall(unittest.IsolatedAsyncioTestCase):
                 query="q",
                 candidates=_candidates(),
                 now=_NOW,
-                reranker=object(),  # type: ignore[arg-type]
+                reranker=object(),
             )

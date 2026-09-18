@@ -44,7 +44,7 @@ class TestExecutionPlaneValue(unittest.TestCase):
             identity_resolver=_Nobody(),
         )
         with self.assertRaises(dataclasses.FrozenInstanceError):
-            plane.limits = ConcurrencyLimits()  # type: ignore[misc]
+            plane.limits = ConcurrencyLimits()
 
     def test_current_is_none_outside_a_run(self) -> None:
         self.assertIsNone(ExecutionPlane.current())

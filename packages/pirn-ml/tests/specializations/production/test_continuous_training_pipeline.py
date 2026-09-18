@@ -41,7 +41,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
-                pool="bad",  # type: ignore[arg-type]
+                pool="bad",
                 query="SELECT 1",
                 name="m",
                 feature_names=["a"],

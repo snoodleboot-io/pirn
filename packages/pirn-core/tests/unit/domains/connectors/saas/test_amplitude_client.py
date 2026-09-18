@@ -47,7 +47,7 @@ class FakeAmplitudeClient:
 from pirn.connectors.saas.amplitude_client import AmplitudeClient
 
 _fake_amplitude = types.ModuleType("amplitude")
-_fake_amplitude.BaseEvent = FakeBaseEvent  # type: ignore[attr-defined]
+_fake_amplitude.BaseEvent = FakeBaseEvent
 
 
 def setUpModule() -> None:

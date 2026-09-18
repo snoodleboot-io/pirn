@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import snappy  # noqa: F401
+    import snappy  # noqa: F401  # imported only to skip when snappy is absent
 except ImportError as _e:
     raise unittest.SkipTest("snappy not installed") from _e
 

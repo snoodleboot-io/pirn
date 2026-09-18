@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pyarrow  # noqa: F401
+    import pyarrow  # noqa: F401  # imported only to skip when pyarrow is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
@@ -141,7 +141,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 batch=_empty_batch(),
                 by=("a",),
-                aggs=[("total", ("a", "sum"))],  # type: ignore[arg-type]
+                aggs=[("total", ("a", "sum"))],
             )
 
     async def test_rejects_empty_aggs(self) -> None:

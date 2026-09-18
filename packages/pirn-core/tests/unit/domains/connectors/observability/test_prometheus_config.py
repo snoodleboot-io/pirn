@@ -32,4 +32,4 @@ class TestPrometheusConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = PrometheusConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.base_url = "mutated"  # type: ignore[misc]
+            cfg.base_url = "mutated"

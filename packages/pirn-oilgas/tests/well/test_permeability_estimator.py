@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import lasio  # noqa: F401
+    import lasio  # noqa: F401  # imported only to skip when lasio is absent
 except ImportError as _e:
     raise unittest.SkipTest("lasio not installed") from _e
 

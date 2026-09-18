@@ -23,7 +23,7 @@ class TestTapestrySnapshot(unittest.TestCase):
     def test_snapshot_is_frozen_cannot_mutate(self) -> None:
         snap = TapestrySnapshot(knot_ids=["x"])
         with self.assertRaises(ValidationError):
-            snap.knot_ids = ["y"]  # type: ignore[misc]
+            snap.knot_ids = ["y"]
 
     def test_snapshot_equality_by_value(self) -> None:
         a = TapestrySnapshot(knot_ids=["a", "b"])

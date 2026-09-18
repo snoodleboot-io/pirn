@@ -55,4 +55,4 @@ class TestDecayScorer(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_datetime_now(self) -> None:
         knot = _make_knot()
         with self.assertRaises(TypeError):
-            await knot.process(record=make_record(id="r1"), now="now")  # type: ignore[arg-type]
+            await knot.process(record=make_record(id="r1"), now="now")

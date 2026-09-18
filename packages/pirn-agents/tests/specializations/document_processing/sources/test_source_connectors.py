@@ -151,7 +151,7 @@ class TestObjectStoreSourceConnector(unittest.IsolatedAsyncioTestCase):
 
     def test_wrong_blob_store_type_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be an ObjectStore"):
-            ObjectStoreSourceConnector(blob_store=object())  # type: ignore[arg-type]
+            ObjectStoreSourceConnector(blob_store=object())
 
 
 class TestWebCrawlSourceConnector(unittest.IsolatedAsyncioTestCase):
@@ -188,7 +188,7 @@ class TestWebCrawlSourceConnector(unittest.IsolatedAsyncioTestCase):
 
     def test_wrong_connector_type_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be an HttpConnector"):
-            WebCrawlSourceConnector(connector=object(), urls=[])  # type: ignore[arg-type]
+            WebCrawlSourceConnector(connector=object(), urls=[])
 
 
 if __name__ == "__main__":

@@ -159,12 +159,12 @@ class TestSQLAgentOptedInWriteIsDurable:
         pytest.importorskip("aiosqlite")
         database = str(tmp_path / "agent_write.db")
 
-        setup = SqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        setup = SqlitePool(SqliteConfig(database=database))
         await setup.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
         await setup.close()
 
         llm = StubLLMProvider(["INSERT INTO users (id, name) VALUES (1, 'Ada')"])
-        pool = SqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = SqlitePool(SqliteConfig(database=database))
         try:
             with Tapestry() as t:
                 ReadWriteSQLAgent(

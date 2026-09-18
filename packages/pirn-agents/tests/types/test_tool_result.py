@@ -73,7 +73,7 @@ class TestOutcomeViews(unittest.TestCase):
     def test_is_frozen(self) -> None:
         result = ToolResult(call_id="c1", outcome=Ok(value=1))
         with self.assertRaises(FrozenInstanceError):
-            result.call_id = "c2"  # type: ignore[misc]
+            result.call_id = "c2"
 
     def test_equality_is_structural(self) -> None:
         a = ToolResult(call_id="c1", outcome=Ok(value=1), latency=0.1, tokens=5)
@@ -82,7 +82,7 @@ class TestOutcomeViews(unittest.TestCase):
 
     def test_rejects_an_outcome_that_is_not_a_result(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be Ok, Err, or Skipped"):
-            ToolResult(call_id="c1", outcome="boom")  # type: ignore[arg-type]
+            ToolResult(call_id="c1", outcome="boom")
 
     def test_audit_dict_carries_the_record_and_status(self) -> None:
         audit = ToolResult(
@@ -131,7 +131,7 @@ class FromResultTests(unittest.TestCase):
 
     def test_rejects_a_non_result(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be Ok, Err, or Skipped"):
-            ToolResult.from_result("c1", "not a result")  # type: ignore[arg-type]
+            ToolResult.from_result("c1", "not a result")
 
     def test_outcome_round_trips_through_from_result(self) -> None:
         original = ToolResult(call_id="c1", outcome=Ok(value="value"), latency=0.2)

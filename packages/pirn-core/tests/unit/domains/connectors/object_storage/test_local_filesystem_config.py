@@ -31,7 +31,7 @@ class TestLocalFilesystemConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = LocalFilesystemConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.root = Path("/mutated")  # type: ignore[misc]
+            cfg.root = Path("/mutated")
 
     def test_root_defaults_to_empty_path(self) -> None:
         cfg1 = LocalFilesystemConfig()

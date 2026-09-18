@@ -250,7 +250,7 @@ class TestTypeSafety(unittest.IsolatedAsyncioTestCase):
         store = self.store
 
         async def bad() -> AsyncIterator[bytes]:
-            yield "not bytes"  # type: ignore[misc]
+            yield "not bytes"
 
         with self.assertRaisesRegex(TypeError, "must yield bytes"):
             await store.put("k", bad())

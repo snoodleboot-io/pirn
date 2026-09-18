@@ -28,16 +28,16 @@ class MetricResultTests(unittest.TestCase):
 
     def test_non_str_name_raises_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            MetricResult(name=123, score=1.0)  # type: ignore[arg-type]
+            MetricResult(name=123, score=1.0)
 
     def test_bool_score_is_rejected(self) -> None:
         # Guards against `True` silently coercing to 1.0.
         with self.assertRaises(TypeError):
-            MetricResult(name="m", score=True)  # type: ignore[arg-type]
+            MetricResult(name="m", score=True)
 
     def test_non_numeric_score_raises_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            MetricResult(name="m", score="high")  # type: ignore[arg-type]
+            MetricResult(name="m", score="high")
 
     def test_audit_dict_is_primitive(self) -> None:
         result = MetricResult(name="m", score=0.25, detail={"a": 1})
@@ -46,7 +46,7 @@ class MetricResultTests(unittest.TestCase):
     def test_is_frozen(self) -> None:
         result = MetricResult(name="m", score=0.5)
         with self.assertRaises((AttributeError, TypeError)):
-            result.score = 0.9  # type: ignore[misc]
+            result.score = 0.9
 
 
 if __name__ == "__main__":

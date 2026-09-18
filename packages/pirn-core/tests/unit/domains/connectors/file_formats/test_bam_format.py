@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pysam  # noqa: F401
+    import pysam  # noqa: F401  # imported only to skip when pysam is absent
 except ImportError as _e:
     raise unittest.SkipTest("pysam not installed") from _e
 
@@ -76,7 +76,7 @@ class TestBamFormatConstruction(unittest.TestCase):
 
     def test_invalid_header_type(self) -> None:
         with self.assertRaises(TypeError):
-            BamFormat(header_lines="not-a-sequence")  # type: ignore[arg-type]
+            BamFormat(header_lines="not-a-sequence")
 
     def test_empty_header_line_rejected(self) -> None:
         with self.assertRaises(ValueError):

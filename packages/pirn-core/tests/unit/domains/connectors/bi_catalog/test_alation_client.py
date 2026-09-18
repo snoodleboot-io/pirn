@@ -194,7 +194,7 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
                 return _FakeJson([{"id": x} for x in range(100)])
             return _FakeJson([{"id": 100}])
 
-        fake.request = request_request  # type: ignore[assignment]
+        fake.request = request_request
         client = AlationClient(cfg, client=fake)
 
         results = []

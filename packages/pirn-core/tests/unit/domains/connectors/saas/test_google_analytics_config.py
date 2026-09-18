@@ -32,4 +32,4 @@ class TestGoogleAnalyticsConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = GoogleAnalyticsConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.property_id = "mutated"  # type: ignore[misc]
+            cfg.property_id = "mutated"

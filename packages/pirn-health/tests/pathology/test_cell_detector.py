@@ -24,12 +24,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "tiles"):
-            await knot.process(tiles=42, model_name="stardist")  # type: ignore[arg-type]
+            await knot.process(tiles=42, model_name="stardist")
 
     async def test_rejects_non_payload(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "WSITilePayload"):
-            await knot.process(tiles=[_TILE], model_name="stardist")  # type: ignore[list-item]
+            await knot.process(tiles=[_TILE], model_name="stardist")
 
     async def test_rejects_empty_model(self) -> None:
         knot = self._make_knot()

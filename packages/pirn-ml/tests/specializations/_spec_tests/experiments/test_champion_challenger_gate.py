@@ -55,7 +55,7 @@ class TestConstruction(unittest.TestCase):
             challenger = emit_challenger(_config=KnotConfig(id="chal"))
             with self.assertRaises(TypeError):
                 ChampionChallengerCheck(
-                    champion="not-a-knot",  # type: ignore[arg-type]
+                    champion="not-a-knot",
                     challenger=challenger,
                     split=split,
                     primary_metric="accuracy",
@@ -81,9 +81,9 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         check = self._make_knot()
         with self.assertRaises(ValueError):
             await check.process(
-                champion=object(),  # type: ignore[arg-type]
-                challenger=object(),  # type: ignore[arg-type]
-                split=object(),  # type: ignore[arg-type]
+                champion=object(),
+                challenger=object(),
+                split=object(),
                 primary_metric="",
             )
 

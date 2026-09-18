@@ -52,7 +52,7 @@ class SyncStubConnector(ConnectorBase):
 class TestConnectorBase(unittest.IsolatedAsyncioTestCase):
     def test_rejects_non_credential_ref(self) -> None:
         with self.assertRaises(TypeError):
-            StubConnector(credential="not-a-ref")  # type: ignore[arg-type]
+            StubConnector(credential="not-a-ref")
 
     def test_base_create_client_is_interface_contract(self) -> None:
         connector = ConnectorBase()

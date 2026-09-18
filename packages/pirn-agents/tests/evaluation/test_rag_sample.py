@@ -23,19 +23,19 @@ class RagSampleTests(unittest.TestCase):
 
     def test_contexts_as_bare_str_raises(self) -> None:
         with self.assertRaises(TypeError):
-            RagSample(query="q", contexts="not-a-list")  # type: ignore[arg-type]
+            RagSample(query="q", contexts="not-a-list")
 
     def test_non_str_context_element_raises(self) -> None:
         with self.assertRaises(TypeError):
-            RagSample(query="q", contexts=["ok", 5])  # type: ignore[list-item]
+            RagSample(query="q", contexts=["ok", 5])
 
     def test_non_str_query_raises(self) -> None:
         with self.assertRaises(TypeError):
-            RagSample(query=1)  # type: ignore[arg-type]
+            RagSample(query=1)
 
     def test_non_str_ground_truth_raises(self) -> None:
         with self.assertRaises(TypeError):
-            RagSample(query="q", ground_truth=5)  # type: ignore[arg-type]
+            RagSample(query="q", ground_truth=5)
 
     def test_audit_dict_is_primitive(self) -> None:
         sample = RagSample(query="q", contexts=["a"], answer="x", ground_truth="g")

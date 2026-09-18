@@ -115,7 +115,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_string_keys_argument(self) -> None:
         k = await self._make_knot()
         with self.assertRaisesRegex(TypeError, "sequence"):
-            await k.process(batch=_make_batch(), keys="id")  # type: ignore[arg-type]
+            await k.process(batch=_make_batch(), keys="id")
 
     async def test_rejects_unsafe_key(self) -> None:
         k = await self._make_knot()

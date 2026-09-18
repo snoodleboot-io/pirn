@@ -38,6 +38,6 @@ class TestSubQuestionRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
             SubQuestionRagPipeline(
                 query="q",
                 memory=StubMemoryStore([]),
-                llm="nope",  # type: ignore[arg-type]
+                llm="nope",
                 _config=KnotConfig(id="subq"),
             )

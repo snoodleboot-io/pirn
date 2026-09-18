@@ -9,11 +9,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import bs4  # noqa: F401
+    import bs4  # noqa: F401  # imported only to skip when bs4 is absent
 except ImportError as _e:
     raise unittest.SkipTest("bs4 not installed") from _e
 try:
-    import lxml  # noqa: F401
+    import lxml  # noqa: F401  # imported only to skip when lxml is absent
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 
@@ -37,7 +37,7 @@ class TestHtmlFormatConstruction(unittest.TestCase):
 
     def test_non_bool_extract_tables(self) -> None:
         with self.assertRaises(TypeError):
-            HtmlFormat(extract_tables="yes")  # type: ignore[arg-type]
+            HtmlFormat(extract_tables="yes")
 
 
 class TestHtmlFormatBasics(unittest.TestCase):

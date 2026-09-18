@@ -43,7 +43,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "spec"):
             await knot.process(
                 dataset_name="ADSL",
-                variables={"USUBJID": "not-a-mapping"},  # type: ignore[dict-item]
+                variables={"USUBJID": "not-a-mapping"},
             )
 
     async def test_rejects_variable_missing_type_or_length(self) -> None:

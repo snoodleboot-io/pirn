@@ -15,7 +15,7 @@ _VOLUME = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> FrequencyDecomposer:
         return FrequencyDecomposer(
-            volume=None,  # type: ignore[arg-type]
+            volume=None,
             center_frequencies_hz=(10.0, 30.0, 60.0),
             _config=KnotConfig(id="fd", validate_io=False),
         )

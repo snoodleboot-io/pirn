@@ -6,7 +6,7 @@ import sys
 import unittest
 
 try:
-    import sklearn  # noqa: F401
+    import sklearn  # noqa: F401  # imported only to skip when sklearn is absent
 except ImportError as _e:
     raise unittest.SkipTest("sklearn not installed") from _e
 

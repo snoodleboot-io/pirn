@@ -36,4 +36,4 @@ class TestCouchbaseConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = CouchbaseConfig(bucket="b")
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.bucket = "mutated"  # type: ignore[misc]
+            cfg.bucket = "mutated"

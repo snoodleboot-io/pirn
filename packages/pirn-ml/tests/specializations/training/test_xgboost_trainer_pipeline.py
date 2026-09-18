@@ -62,7 +62,7 @@ class TestXGBoostTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 split=_split(),
                 lineage=_StubLineage(),
-                store="bad",  # type: ignore[arg-type]
+                store="bad",
                 metrics=["accuracy"],
             )
 
@@ -71,7 +71,7 @@ class TestXGBoostTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=_split(),
-                lineage="bad",  # type: ignore[arg-type]
+                lineage="bad",
                 store=_StubStore(),
                 metrics=["accuracy"],
             )

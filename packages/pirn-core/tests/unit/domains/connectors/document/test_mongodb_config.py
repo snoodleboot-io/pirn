@@ -49,4 +49,4 @@ class TestMongoDBConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = MongoDBConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.host = "mutated"  # type: ignore[misc]
+            cfg.host = "mutated"

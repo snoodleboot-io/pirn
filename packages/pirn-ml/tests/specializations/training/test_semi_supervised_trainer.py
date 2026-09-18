@@ -51,7 +51,7 @@ class TestSemiSupervisedTrainerValidation(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=_split(), algorithm="rf", unlabeled_row_count=100.5, metrics=["accuracy"]
-            )  # type: ignore[arg-type]
+            )
 
     async def test_rejects_empty_metrics(self) -> None:
         k = _make_knot()

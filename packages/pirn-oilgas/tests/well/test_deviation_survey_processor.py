@@ -28,7 +28,7 @@ _SURVEY = DeviationSurveyPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> DeviationSurveyProcessor:
         return DeviationSurveyProcessor(
-            survey=None,  # type: ignore[arg-type]
+            survey=None,
             target_md_step=5.0,
             _config=KnotConfig(id="dp", validate_io=False),
         )
@@ -36,7 +36,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_step(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "target_md_step"):
-            await knot.process(survey=_SURVEY, target_md_step="x")  # type: ignore[arg-type]
+            await knot.process(survey=_SURVEY, target_md_step="x")
 
     async def test_rejects_non_positive_step(self) -> None:
         knot = self._make_knot()

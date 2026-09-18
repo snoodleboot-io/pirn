@@ -60,12 +60,12 @@ class TestSegyObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="body must be bytes"):
-            await knot.process(body="not-bytes", volume_id="vol-01")  # type: ignore[arg-type]
+            await knot.process(body="not-bytes", volume_id="vol-01")
 
     async def test_rejects_non_str_volume_id(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="volume_id must be str"):
-            await knot.process(body=b"x", volume_id=99)  # type: ignore[arg-type]
+            await knot.process(body=b"x", volume_id=99)
 
     async def test_rejects_empty_volume_id(self) -> None:
         knot = _make()

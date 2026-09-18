@@ -31,7 +31,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -39,13 +39,13 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
 
-_frame_size = 512
-_hop_size = 256
-_spectral_floor = 0.002
-
 
 class AudioDenoiser(Knot):
     """Spectral-subtraction noise reduction for audio signals."""
+
+    _frame_size: ClassVar[int] = 512
+    _hop_size: ClassVar[int] = 256
+    _spectral_floor: ClassVar[float] = 0.002
 
     def __init__(
         self,
@@ -106,14 +106,20 @@ class AudioDenoiser(Knot):
     ) -> np.ndarray:
         """Apply spectral gating via overlap-add STFT frames."""
         signal_length = len(signal_array)
-        num_frames = max(1, (signal_length - _frame_size) // _hop_size + 1)
-        window = np.hanning(_frame_size)
+        num_frames = max(
+            1, (signal_length - AudioDenoiser._frame_size) // AudioDenoiser._hop_size + 1
+        )
+        window = np.hanning(AudioDenoiser._frame_size)
 
         frames = np.array(
             [
-                signal_array[i * _hop_size : i * _hop_size + _frame_size] * window
+                signal_array[
+                    i * AudioDenoiser._hop_size : i * AudioDenoiser._hop_size
+                    + AudioDenoiser._frame_size
+                ]
+                * window
                 for i in range(num_frames)
-                if i * _hop_size + _frame_size <= signal_length
+                if i * AudioDenoiser._hop_size + AudioDenoiser._frame_size <= signal_length
             ]
         )
         if frames.ndim == 1 or len(frames) == 0:
@@ -128,16 +134,16 @@ class AudioDenoiser(Knot):
 
         cleaned_mag = np.maximum(
             magnitudes - alpha * noise_floor,
-            _spectral_floor * magnitudes,
+            AudioDenoiser._spectral_floor * magnitudes,
         )
         cleaned_spectra = cleaned_mag * np.exp(1j * phases)
-        cleaned_frames = np.fft.irfft(cleaned_spectra, n=_frame_size, axis=1)
+        cleaned_frames = np.fft.irfft(cleaned_spectra, n=AudioDenoiser._frame_size, axis=1)
 
         output_signal = np.zeros(signal_length, dtype=np.float32)
         norm = np.zeros(signal_length, dtype=np.float32)
         for i, frame in enumerate(cleaned_frames):
-            start = i * _hop_size
-            end = start + _frame_size
+            start = i * AudioDenoiser._hop_size
+            end = start + AudioDenoiser._frame_size
             output_signal[start:end] += frame * window
             norm[start:end] += window**2
 

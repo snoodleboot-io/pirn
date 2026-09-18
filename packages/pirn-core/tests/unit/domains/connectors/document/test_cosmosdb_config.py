@@ -39,4 +39,4 @@ class TestCosmosDBConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = CosmosDBConfig(endpoint="https://acc.documents.azure.com/")
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.endpoint = "mutated"  # type: ignore[misc]
+            cfg.endpoint = "mutated"

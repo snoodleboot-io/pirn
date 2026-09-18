@@ -52,7 +52,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=self._make_split(), image_column="img", image_encoder="not-an-encoder"
-            )  # type: ignore[arg-type]
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

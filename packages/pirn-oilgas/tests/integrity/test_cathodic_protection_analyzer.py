@@ -22,7 +22,7 @@ _SERIES = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, threshold: float = -850.0) -> CathodicProtectionAnalyzer:
         return CathodicProtectionAnalyzer(
-            potential_series=None,  # type: ignore[arg-type]
+            potential_series=None,
             protection_threshold_mv=threshold,
             _config=KnotConfig(id="cp", validate_io=False),
         )
@@ -30,7 +30,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_threshold(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "protection_threshold_mv"):
-            await knot.process(potential_series=_SERIES, protection_threshold_mv="x")  # type: ignore[arg-type]
+            await knot.process(potential_series=_SERIES, protection_threshold_mv="x")
 
     async def test_returns_coverage(self) -> None:
         knot = self._make_knot(threshold=-850.0)

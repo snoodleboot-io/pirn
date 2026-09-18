@@ -28,7 +28,7 @@ class TestDlisFormatConstruction(unittest.TestCase):
 class TestDlisFormatDecode(unittest.IsolatedAsyncioTestCase):
     async def test_decode_requires_dlisio(self) -> None:
         try:
-            import dlisio  # noqa: F401
+            import dlisio  # noqa: F401  # imported only to skip when dlisio is absent
         except ImportError as _e:
             self.skipTest("dlisio not installed")
         pytest.skip("DLIS fixture too complex to synthesise in-memory")

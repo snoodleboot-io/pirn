@@ -29,15 +29,13 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
-
-_log = logging.getLogger(__name__)
 
 
 class ValkeyTransport(DataTransport):
@@ -68,6 +66,8 @@ class ValkeyTransport(DataTransport):
         Registry of type→serialiser mappings. Defaults to
         :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`.
     """
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     _key_prefix = "pirn"
 
@@ -168,7 +168,7 @@ class ValkeyTransport(DataTransport):
             result = await self._client.exists([handle.key])
             return bool(result)
         except Exception:
-            _log.warning(
+            ValkeyTransport._log.warning(
                 "ValkeyTransport: EXISTS for key %r raised; reporting as not found",
                 handle.key,
                 exc_info=True,
@@ -182,7 +182,7 @@ class ValkeyTransport(DataTransport):
         try:
             await self._client.delete(keys)
         except Exception as exc:
-            _log.warning(
+            ValkeyTransport._log.warning(
                 "ValkeyTransport: failed to delete %d keys for run %s: %s",
                 len(keys),
                 run_id,

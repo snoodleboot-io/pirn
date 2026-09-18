@@ -95,7 +95,7 @@ class TestConstitutionalFilterProcess(unittest.IsolatedAsyncioTestCase):
                 ConstitutionalFilter(
                     response=r,
                     principles=("safe",),
-                    llm="bad",  # type: ignore[arg-type]
+                    llm="bad",
                     _config=KnotConfig(id="cf"),
                 )
 

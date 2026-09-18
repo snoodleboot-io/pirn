@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import asdf  # noqa: F401
+    import asdf  # noqa: F401  # imported only to skip when asdf is absent
 except ImportError as _e:
     raise unittest.SkipTest("asdf not installed") from _e
 
@@ -93,7 +93,7 @@ class TestAsdfFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"not an asdf file !@#$%^&*()"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass

@@ -29,7 +29,7 @@ class TestEntityProfile(unittest.TestCase):
     def test_rejects_non_key(self) -> None:
         with self.assertRaises(TypeError):
             EntityProfile(
-                key="bad",  # type: ignore[arg-type]
+                key="bad",
                 fields={},
                 provenance=make_provenance(),
                 updated_at=datetime(2026, 1, 1, tzinfo=UTC),

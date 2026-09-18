@@ -42,4 +42,4 @@ class TestArangoDBConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = ArangoDBConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.url = "mutated"  # type: ignore[misc]
+            cfg.url = "mutated"

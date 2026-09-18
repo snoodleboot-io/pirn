@@ -29,7 +29,7 @@ class TestConstruction(unittest.TestCase):
                     query="SELECT 1",
                     image_column="img",
                     target_column="y",
-                    image_encoder="not-an-encoder",  # type: ignore[arg-type]
+                    image_encoder="not-an-encoder",
                     _config=KnotConfig(id="bad"),
                 )
 

@@ -117,7 +117,7 @@ class TestDocumentedImportsAreReal(unittest.TestCase):
                 with self.subTest(doc=where, module=module_name):
                     try:
                         module = importlib.import_module(module_name)
-                    except ImportError as exc:  # pragma: no cover - failure path
+                    except ImportError as exc:  # pragma: no cover  # only on a broken doc import
                         self.fail(f"{where}: `from {module_name} import …` fails: {exc}")
                     for symbol in symbols:
                         self.assertTrue(

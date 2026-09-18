@@ -40,14 +40,14 @@ class TestTimeoutAndRetryFields(unittest.TestCase):
                 KnotConfig(id="k", timeout=bad)
 
     def test_retry_accepts_a_mapping_and_coerces_it(self) -> None:
-        cfg = KnotConfig(id="k", retry={"max_attempts": 3})  # type: ignore[arg-type]
+        cfg = KnotConfig(id="k", retry={"max_attempts": 3})
         self.assertIsInstance(cfg.retry, KnotRetryPolicy)
         assert cfg.retry is not None
         self.assertEqual(cfg.retry.max_attempts, 3)
 
     def test_retry_rejects_a_non_policy(self) -> None:
         with self.assertRaises(ValidationError):
-            KnotConfig(id="k", retry=3)  # type: ignore[arg-type]
+            KnotConfig(id="k", retry=3)
 
     def test_are_excluded_from_the_config_dump(self) -> None:
         cfg = KnotConfig(id="k", timeout=1.0, retry=KnotRetryPolicy(max_attempts=2))

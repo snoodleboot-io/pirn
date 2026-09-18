@@ -42,7 +42,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_mapping_variables(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "variables"):
-            await k.process(template=_TEMPLATE, variables=["x"])  # type: ignore[arg-type]
+            await k.process(template=_TEMPLATE, variables=["x"])
 
     async def test_strict_missing_variable_raises(self) -> None:
         k = _make_knot()

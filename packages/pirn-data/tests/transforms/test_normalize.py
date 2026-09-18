@@ -163,7 +163,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "NormalizeColumnRule"):
             await k.process(
                 batch=_make_batch(),
-                rules={"name": "lower"},  # type: ignore[arg-type]
+                rules={"name": "lower"},
             )
 
     async def test_rejects_empty_key(self) -> None:

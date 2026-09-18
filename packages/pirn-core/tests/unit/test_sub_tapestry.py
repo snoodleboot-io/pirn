@@ -82,7 +82,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     def test_requires_config_kwarg(self):
         p = Parameter("v", int)
         with self.assertRaisesRegex(TypeError, "_config"):
-            _DoublerPipeline(value=p)  # type: ignore[call-arg]
+            _DoublerPipeline(value=p)
 
     def test_rejects_unknown_kwargs(self):
         p = Parameter("v", int)
@@ -91,13 +91,13 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
 
     def test_missing_required_input_raises(self):
         with self.assertRaisesRegex(TypeError, "missing"):
-            _DoublerPipeline(_config=KnotConfig(id="sub"))  # type: ignore[call-arg]
+            _DoublerPipeline(_config=KnotConfig(id="sub"))
 
     def test_knot_is_frozen_after_construction(self):
         p = Parameter("v", int, default=1)
         sub = _DoublerPipeline(value=p, _config=KnotConfig(id="sub"))
         with self.assertRaises(AttributeError):
-            sub.knot_id = "other"  # type: ignore[misc]
+            sub.knot_id = "other"
 
     # -------------------------------------------------------- base process
 

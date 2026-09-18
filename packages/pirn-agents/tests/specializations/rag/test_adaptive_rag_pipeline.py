@@ -168,7 +168,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         # annotation, at the point a real caller constructs the knot.
         with self.assertRaises(TypeError):
             AdaptiveRAGPipeline(
-                query=123,  # type: ignore[arg-type]
+                query=123,
                 memory=StubMemoryStore([]),
                 llm=StubLLMProvider(["SIMPLE", "answer"]),
                 top_k=5,
@@ -260,7 +260,7 @@ class TestAdaptiveRAGPipelineArmObservability(unittest.IsolatedAsyncioTestCase):
                 memory=memory,
                 llm=llm,
                 _config=KnotConfig(id="adaptive"),
-                **kwargs,  # type: ignore[arg-type]
+                **kwargs,
             )
         run = await t.run(RunRequest())
         assert run.succeeded

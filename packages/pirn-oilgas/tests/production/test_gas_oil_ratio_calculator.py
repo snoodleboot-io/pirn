@@ -24,8 +24,8 @@ _GAS = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> GasOilRatioCalculator:
         return GasOilRatioCalculator(
-            oil_rate=None,  # type: ignore[arg-type]
-            gas_rate=None,  # type: ignore[arg-type]
+            oil_rate=None,
+            gas_rate=None,
             _config=KnotConfig(id="gor", validate_io=False),
         )
 

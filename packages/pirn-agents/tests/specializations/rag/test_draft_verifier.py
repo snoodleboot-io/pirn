@@ -45,4 +45,4 @@ class TestDraftVerifier(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_draft(self) -> None:
         knot = _verifier()
         with self.assertRaisesRegex(TypeError, "draft must be a string"):
-            await knot.process(query="q", draft=1, documents=[], llm=StubLLMProvider(["x"]))  # type: ignore[arg-type]
+            await knot.process(query="q", draft=1, documents=[], llm=StubLLMProvider(["x"]))

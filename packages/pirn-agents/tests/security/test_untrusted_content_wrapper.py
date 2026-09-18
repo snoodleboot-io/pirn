@@ -86,7 +86,7 @@ def test_explicit_timestamp_overrides_clock() -> None:
 
 def test_wrap_rejects_non_string_payload() -> None:
     with pytest.raises(TypeError):
-        _wrapper().wrap(123, source_kind="tool", source_name="t")  # type: ignore[arg-type]
+        _wrapper().wrap(123, source_kind="tool", source_name="t")
 
 
 def test_equal_markers_rejected() -> None:

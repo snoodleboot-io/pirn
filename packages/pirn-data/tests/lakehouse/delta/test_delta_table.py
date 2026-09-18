@@ -111,7 +111,7 @@ class StubDt:
 
 def _stub_pyarrow_module() -> Any:
     try:
-        import pyarrow  # type: ignore[import-not-found]
+        import pyarrow
     except ImportError:
         pa_mod = types.ModuleType("pyarrow")
 
@@ -126,7 +126,7 @@ def _stub_pyarrow_module() -> Any:
             def from_pylist(cls, rows: list[dict[str, Any]]) -> _Table:
                 return cls(list(rows))
 
-        pa_mod.Table = _Table  # type: ignore[attr-defined]
+        pa_mod.Table = _Table
         sys.modules["pyarrow"] = pa_mod
         return pa_mod
     return pyarrow
@@ -149,7 +149,7 @@ class TestConstruction(unittest.TestCase):
 
     def test_rejects_wrong_config_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "DeltaTableConfig"):
-            DeltaTable("not-a-config")  # type: ignore[arg-type]
+            DeltaTable("not-a-config")
 
     def test_rejects_empty_table_uri(self) -> None:
         with self.assertRaisesRegex(ValueError, "table_uri"):
@@ -266,8 +266,8 @@ class TestWrites(unittest.IsolatedAsyncioTestCase):
                 }
             )
 
-        delta_mod.write_deltalake = _write  # type: ignore[attr-defined]
-        delta_mod.DeltaTable = StubDt  # type: ignore[attr-defined]
+        delta_mod.write_deltalake = _write
+        delta_mod.DeltaTable = StubDt
         sys.modules["deltalake"] = delta_mod
         self.addCleanup(lambda: sys.modules.pop("deltalake", None))
         return captured

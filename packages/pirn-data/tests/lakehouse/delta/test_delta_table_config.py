@@ -27,7 +27,7 @@ class TestDeltaTableConfigConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = DeltaTableConfig(table_uri="s3://bucket/tbl")
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.table_uri = "s3://other"  # type: ignore[misc]
+            cfg.table_uri = "s3://other"
 
     def test_sensitive_fields_empty(self) -> None:
         self.assertEqual(DeltaTableConfig.sensitive_fields, ())

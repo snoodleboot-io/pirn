@@ -37,7 +37,7 @@ class _FakeClock:
 class TestConstruction:
     def test_rejects_non_budget(self) -> None:
         with pytest.raises(TypeError, match="RunBudget"):
-            RunBudgetMeter(object())  # type: ignore[arg-type]
+            RunBudgetMeter(object())
 
     def test_creates_own_token_when_absent(self) -> None:
         meter = RunBudgetMeter(RunBudget())

@@ -34,7 +34,7 @@ class TestSchemaEnforcerProcess(unittest.IsolatedAsyncioTestCase):
         knot = _make_knot()
         response = AgentResponse(content="{}", finish_reason="stop")
         with self.assertRaisesRegex(TypeError, "BaseModel"):
-            await knot.process(response=response, model_class=str)  # type: ignore[arg-type]
+            await knot.process(response=response, model_class=str)
 
     async def test_rejects_non_agent_response(self) -> None:
         knot = _make_knot()

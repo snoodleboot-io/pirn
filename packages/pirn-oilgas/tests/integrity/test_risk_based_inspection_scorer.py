@@ -16,7 +16,7 @@ _CORROSION: dict[str, float] = {"max_rate_mpy": 5.0, "mean_rate_mpy": 1.0, "feat
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, consequence_score: float = 0.5) -> RiskBasedInspectionScorer:
         return RiskBasedInspectionScorer(
-            corrosion_assessment=None,  # type: ignore[arg-type]
+            corrosion_assessment=None,
             consequence_score=consequence_score,
             _config=KnotConfig(id="rbi", validate_io=False),
         )
@@ -24,7 +24,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_consequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "consequence_score"):
-            await knot.process(corrosion_assessment=_CORROSION, consequence_score="x")  # type: ignore[arg-type]
+            await knot.process(corrosion_assessment=_CORROSION, consequence_score="x")
 
     async def test_rejects_out_of_range(self) -> None:
         knot = self._make_knot()

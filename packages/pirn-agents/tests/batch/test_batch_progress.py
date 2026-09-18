@@ -25,7 +25,7 @@ class TestBatchProgress:
 
     def test_rejects_non_frozenset_keys(self) -> None:
         with pytest.raises(TypeError):
-            BatchProgress(batch_id="b1", completed_keys={"a"})  # type: ignore[arg-type]
+            BatchProgress(batch_id="b1", completed_keys={"a"})
 
     def test_checkpoints_nothing(self) -> None:
         """A summary only: no restore path back into a run (PIR-872)."""

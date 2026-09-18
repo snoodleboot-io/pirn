@@ -38,4 +38,4 @@ class TestSlackConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = SlackConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.bot_token = "mutated"  # type: ignore[misc]
+            cfg.bot_token = "mutated"

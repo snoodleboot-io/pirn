@@ -23,18 +23,18 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_positive_mode_count(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, mode_count=0, bandwidth_constraint=1.0)  # type: ignore[arg-type]
+            await k.process(signal=None, mode_count=0, bandwidth_constraint=1.0)
 
     async def test_rejects_non_positive_bandwidth(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, mode_count=4, bandwidth_constraint=0)  # type: ignore[arg-type]
+            await k.process(signal=None, mode_count=4, bandwidth_constraint=0)
 
     async def test_rejects_unknown_backend(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaisesRegex(ValueError, "backend must be one of"):
             await k.process(
-                signal=None,  # type: ignore[arg-type]
+                signal=None,
                 mode_count=4,
                 bandwidth_constraint=1.0,
                 backend="scipy",
@@ -63,7 +63,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = self._bare_knot()
         payload = make_signal_payload()
         try:
-            import vmdpy  # noqa: F401
+            import vmdpy  # noqa: F401  # the import probes whether vmdpy is installed
         except ImportError:
             with self.assertRaisesRegex(ImportError, r"'vmdpy' is required.*pirn-signal\[signal\]"):
                 await k.process(signal=payload, mode_count=4, bandwidth_constraint=1.0)
@@ -74,7 +74,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_vmdpy_backend_raises_import_error_when_missing(self) -> None:
         try:
-            import vmdpy  # noqa: F401
+            import vmdpy  # noqa: F401  # imported only to skip when vmdpy is absent
 
             self.skipTest("vmdpy is installed; cannot test the missing-dependency path")
         except ImportError:

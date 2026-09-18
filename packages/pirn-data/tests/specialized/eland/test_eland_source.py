@@ -44,7 +44,7 @@ class TestElandSourceValidation(unittest.IsolatedAsyncioTestCase):
         conn = ElasticsearchConnection(client=client)
         src = object.__new__(ElandSource)
         with self.assertRaisesRegex(ValueError, "non-empty"):
-            await ElandSource.process(src, connection=conn, index=123)  # type: ignore[arg-type]
+            await ElandSource.process(src, connection=conn, index=123)
 
 
 class TestElandSourceProcess(unittest.IsolatedAsyncioTestCase):

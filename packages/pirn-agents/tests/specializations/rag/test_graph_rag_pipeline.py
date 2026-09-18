@@ -71,4 +71,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             k = GraphRAGPipeline.__new__(GraphRAGPipeline)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, AttributeError)):
-            await k.process(query=42, graph_memory=memory, llm=llm, hop_count=2)  # type: ignore[arg-type]
+            await k.process(query=42, graph_memory=memory, llm=llm, hop_count=2)

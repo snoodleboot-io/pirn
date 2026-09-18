@@ -25,7 +25,7 @@ class TestPlainTextFormatConstruction(unittest.TestCase):
 
     def test_split_on_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            PlainTextFormat(split_on=1)  # type: ignore[arg-type]
+            PlainTextFormat(split_on=1)
 
     def test_split_on_must_be_supported(self) -> None:
         with self.assertRaises(ValueError):
@@ -33,7 +33,7 @@ class TestPlainTextFormatConstruction(unittest.TestCase):
 
     def test_encoding_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            PlainTextFormat(encoding=1)  # type: ignore[arg-type]
+            PlainTextFormat(encoding=1)
 
     def test_encoding_must_be_nonempty(self) -> None:
         with self.assertRaises(ValueError):

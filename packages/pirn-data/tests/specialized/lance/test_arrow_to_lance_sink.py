@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pyarrow  # noqa: F401
+    import pyarrow  # noqa: F401  # imported only to skip when pyarrow is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
 try:
-    from lance.dataset import write_dataset as _lance_write_dataset  # noqa: F401
+    from lance.dataset import write_dataset as _lance_write_dataset  # noqa: F401  # guards the skip
 except ImportError as _e:
     raise unittest.SkipTest("lance not installed") from _e
 

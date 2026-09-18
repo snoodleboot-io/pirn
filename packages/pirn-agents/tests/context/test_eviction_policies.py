@@ -23,7 +23,7 @@ class TestRecency(unittest.TestCase):
 
     def test_rejects_non_item(self) -> None:
         with self.assertRaisesRegex(TypeError, "ContextItem"):
-            RecencyEvictionPolicy().eviction_rank("nope")  # type: ignore[arg-type]
+            RecencyEvictionPolicy().eviction_rank("nope")
 
 
 class TestRelevance(unittest.TestCase):

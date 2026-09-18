@@ -39,7 +39,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 classifier_model="silva",
                 confidence_threshold=0.8,
                 taxonomic_level="genus",
-            )  # type: ignore[arg-type]
+            )
 
     async def test_rejects_empty_classifier_model(self) -> None:
         knot = _make_knot()

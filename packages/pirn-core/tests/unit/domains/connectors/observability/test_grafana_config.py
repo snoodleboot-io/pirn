@@ -32,4 +32,4 @@ class TestGrafanaConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = GrafanaConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.base_url = "mutated"  # type: ignore[misc]
+            cfg.base_url = "mutated"

@@ -42,7 +42,7 @@ class TestGeoJsonFormatConstruction(unittest.TestCase):
 
     def test_invalid_encoding_type(self) -> None:
         with self.assertRaises(TypeError):
-            GeoJsonFormat(encoding=1)  # type: ignore[arg-type]
+            GeoJsonFormat(encoding=1)
 
     def test_empty_encoding_rejected(self) -> None:
         with self.assertRaises(ValueError):

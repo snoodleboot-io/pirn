@@ -8,7 +8,7 @@ import zipfile
 from unittest.mock import patch
 
 try:
-    import bids  # noqa: F401
+    import bids  # noqa: F401  # imported only to skip when bids is absent
 except ImportError as _e:
     raise unittest.SkipTest("bids not installed") from _e
 

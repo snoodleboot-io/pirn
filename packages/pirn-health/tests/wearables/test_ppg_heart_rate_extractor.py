@@ -6,7 +6,7 @@ import sys
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -43,7 +43,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "ppg_data"):
             await PPGHeartRateExtractor.process(
                 inst,
-                ppg_data="not-a-dict",  # type: ignore[arg-type]
+                ppg_data="not-a-dict",
                 sample_rate_hz=25.0,
                 window_sec=10.0,
             )

@@ -39,4 +39,4 @@ class TestSqliteConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = SqliteConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.database = "mutated"  # type: ignore[misc]
+            cfg.database = "mutated"

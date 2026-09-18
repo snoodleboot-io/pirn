@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pyarrow  # noqa: F401
+    import pyarrow  # noqa: F401  # imported only to skip when pyarrow is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
@@ -128,7 +128,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_string_keys(self) -> None:
         k = self._make_knot(keys="id")
         with self.assertRaisesRegex(TypeError, "sequence"):
-            await k.process(batch=_empty_batch(), keys="id")  # type: ignore[arg-type]
+            await k.process(batch=_empty_batch(), keys="id")
 
     async def test_rejects_empty_keys(self) -> None:
         k = self._make_knot(keys=())

@@ -20,7 +20,7 @@ class TestMemorySearchRetrieverConstruction(unittest.IsolatedAsyncioTestCase):
             k = MemorySearchRetriever.__new__(MemorySearchRetriever)
             object.__setattr__(k, "_config", KnotConfig(id="msr"))
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(store="bad", query="q")  # type: ignore[arg-type]
+            await k.process(store="bad", query="q")
 
     async def test_rejects_non_positive_top_k(self) -> None:
         store = StubMemoryStore(hits=[])
@@ -65,7 +65,7 @@ class TestMemorySearchRetrieverProcess(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(TypeError):
                 MemorySearchRetriever(
                     store=store,
-                    query=42,  # type: ignore[arg-type]
+                    query=42,
                     top_k=5,
                     _config=KnotConfig(id="msr"),
                 )

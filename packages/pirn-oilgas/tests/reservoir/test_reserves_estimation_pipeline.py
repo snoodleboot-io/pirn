@@ -21,7 +21,7 @@ _HISTORY: list[dict[str, Any]] = [
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> ReservesEstimationPipeline:
         return ReservesEstimationPipeline(
-            production_history=None,  # type: ignore[arg-type]
+            production_history=None,
             economic_limit_bopd=5.0,
             royalty_rate=0.2,
             _config=KnotConfig(id="rep", validate_io=False),

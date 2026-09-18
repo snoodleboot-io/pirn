@@ -37,4 +37,4 @@ async def test_ray_source_emits_deferred_dataset() -> None:
 
 def test_construct_rejects_non_callable_factory() -> None:
     with pytest.raises(TypeError, match="callable"):
-        RaySource(factory="not callable", _config=KnotConfig(id="x"))  # type: ignore[arg-type]
+        RaySource(factory="not callable", _config=KnotConfig(id="x"))

@@ -76,12 +76,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_layers(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "layers"):
-            await k.process(layers=42)  # type: ignore[arg-type]
+            await k.process(layers=42)
 
     async def test_rejects_non_layer_element(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "layers\\[0\\]"):
-            await k.process(layers=("nope",))  # type: ignore[arg-type]
+            await k.process(layers=("nope",))
 
     async def test_rejects_non_str_separator(self) -> None:
         k = _make_knot()

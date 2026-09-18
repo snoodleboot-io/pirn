@@ -72,7 +72,7 @@ class TestDataBatch(unittest.TestCase):
     def test_dataclass_is_frozen(self) -> None:
         b = DataBatch()
         with self.assertRaises((TypeError, AttributeError)):  # FrozenInstanceError or similar
-            b.rows = ({"id": 1},)  # type: ignore[misc]
+            b.rows = ({"id": 1},)
 
 
 # ─────────────────────────────────────────────────────── QualityCheck/Report

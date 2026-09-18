@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pyarrow  # noqa: F401
+    import pyarrow  # noqa: F401  # imported only to skip when pyarrow is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
@@ -26,7 +26,7 @@ class TestArrowIpcFormatConstruction(unittest.TestCase):
 
     def test_compression_must_be_str_or_none(self) -> None:
         with self.assertRaises(TypeError):
-            ArrowIpcFormat(compression=1)  # type: ignore[arg-type]
+            ArrowIpcFormat(compression=1)
 
     def test_unsupported_compression_rejected(self) -> None:
         with self.assertRaises(ValueError):

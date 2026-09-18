@@ -20,7 +20,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "readings"):
             await GlucoseMonitorProcessor.process(
                 inst,
-                readings=42,  # type: ignore[arg-type]
+                readings=42,
                 target_low_mg_dl=70.0,
                 target_high_mg_dl=180.0,
             )
@@ -30,7 +30,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "reading"):
             await GlucoseMonitorProcessor.process(
                 inst,
-                readings=["x"],  # type: ignore[list-item]
+                readings=["x"],
                 target_low_mg_dl=70.0,
                 target_high_mg_dl=180.0,
             )

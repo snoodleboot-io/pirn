@@ -49,7 +49,7 @@ class TestObjectStoreReadSource(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_object_store(self) -> None:
         with self.assertRaises(TypeError) as ctx:
-            await self.source.process(store=object(), key="x")  # type: ignore[arg-type]
+            await self.source.process(store=object(), key="x")
         assert "ObjectStore" in str(ctx.exception)
 
     async def test_rejects_empty_key(self) -> None:

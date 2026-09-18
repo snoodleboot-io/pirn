@@ -15,7 +15,7 @@ _GATHER = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> StaticCorrection:
         return StaticCorrection(
-            gather=None,  # type: ignore[arg-type]
+            gather=None,
             datum_elevation_m=200.0,
             replacement_velocity_m_s=1800.0,
             _config=KnotConfig(id="sc", validate_io=False),
@@ -26,7 +26,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "datum_elevation_m"):
             await knot.process(
                 gather=_GATHER,
-                datum_elevation_m="hi",  # type: ignore[arg-type]
+                datum_elevation_m="hi",
                 replacement_velocity_m_s=2000.0,
             )
 

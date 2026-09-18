@@ -25,7 +25,7 @@ class TestRerankerProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 query="q",
                 documents=[],
-                llm="bad",  # type: ignore[arg-type]
+                llm="bad",
             )
 
     async def test_rejects_zero_top_k(self) -> None:

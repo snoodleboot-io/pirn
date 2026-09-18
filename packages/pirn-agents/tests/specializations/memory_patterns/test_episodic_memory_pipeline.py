@@ -76,7 +76,7 @@ class TestEpisodicMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
         store = RecordingMemoryStore()
         k = _make_knot(store)
         with self.assertRaises(TypeError):
-            await k.process(messages=(), session_id="s1", store="bad")  # type: ignore[arg-type]
+            await k.process(messages=(), session_id="s1", store="bad")
 
     async def test_rejects_empty_session_id(self) -> None:
         store = RecordingMemoryStore()

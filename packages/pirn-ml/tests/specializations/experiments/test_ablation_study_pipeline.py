@@ -50,7 +50,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="",
                 feature_groups={"g1": ["a"]},
                 metrics=["accuracy"],
@@ -60,7 +60,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="logistic",
                 feature_groups={},
                 metrics=["accuracy"],
@@ -70,7 +70,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="logistic",
                 feature_groups={"full": ["a"]},
                 metrics=["accuracy"],
@@ -80,7 +80,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="logistic",
                 feature_groups={"g1": ["a"]},
                 metrics=[],

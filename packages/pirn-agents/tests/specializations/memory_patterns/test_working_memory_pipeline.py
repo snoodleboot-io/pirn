@@ -81,7 +81,7 @@ class TestWorkingMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 new_message=AgentMessage(role="user", content="hi"),
                 session_id="s1",
-                store="bad",  # type: ignore[arg-type]
+                store="bad",
                 max_size=5,
             )
 

@@ -64,14 +64,14 @@ async def test_render_non_string_argument_raises_type_error() -> None:
     template = await _template()
 
     with pytest.raises(TypeError):
-        template.render({"name": 123})  # type: ignore[dict-item]
+        template.render({"name": 123})
 
 
 async def test_render_non_mapping_raises_type_error() -> None:
     template = await _template()
 
     with pytest.raises(TypeError):
-        template.render("nope")  # type: ignore[arg-type]
+        template.render("nope")
 
 
 async def test_build_template_unknown_prompt_raises() -> None:

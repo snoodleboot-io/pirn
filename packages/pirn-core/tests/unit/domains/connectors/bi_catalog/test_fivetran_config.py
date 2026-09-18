@@ -38,7 +38,7 @@ class TestFivetranConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = FivetranConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.api_key = "mutated"  # type: ignore[misc]
+            cfg.api_key = "mutated"
 
     def test_audit_dict(self) -> None:
         cfg = FivetranConfig(api_key="k", api_secret="s")

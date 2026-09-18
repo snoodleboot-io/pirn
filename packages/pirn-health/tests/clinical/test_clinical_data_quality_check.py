@@ -19,17 +19,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_records(self) -> None:
         knot = ClinicalDataQualityCheck(records=(), min_completeness=0.5, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "records"):
-            await knot.process(records=42, min_completeness=0.5)  # type: ignore[arg-type]
+            await knot.process(records=42, min_completeness=0.5)
 
     async def test_rejects_non_record_in_sequence(self) -> None:
         knot = ClinicalDataQualityCheck(records=(), min_completeness=0.5, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
-            await knot.process(records=["not-a-record"], min_completeness=0.5)  # type: ignore[arg-type]
+            await knot.process(records=["not-a-record"], min_completeness=0.5)
 
     async def test_rejects_non_numeric_threshold(self) -> None:
         knot = ClinicalDataQualityCheck(records=(), min_completeness=0.5, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "numeric"):
-            await knot.process(records=(), min_completeness="x")  # type: ignore[arg-type]
+            await knot.process(records=(), min_completeness="x")
 
     async def test_rejects_out_of_range_threshold(self) -> None:
         knot = ClinicalDataQualityCheck(records=(), min_completeness=0.5, _config=_CFG)

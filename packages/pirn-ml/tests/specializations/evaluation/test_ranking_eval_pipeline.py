@@ -55,4 +55,4 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         knot = _make_knot()
         model, split = _fixtures()
         with self.assertRaises(TypeError):
-            await knot.process(model=model, split=split, k=5.0)  # type: ignore[arg-type]
+            await knot.process(model=model, split=split, k=5.0)

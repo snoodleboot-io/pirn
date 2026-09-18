@@ -49,7 +49,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         record = GenomicsRecord()
         try:
-            record.sample_id = "X"  # type: ignore[misc]
+            record.sample_id = "X"
         except Exception:
             return
         raise AssertionError("GenomicsRecord must be frozen")

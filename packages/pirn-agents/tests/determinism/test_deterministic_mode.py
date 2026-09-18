@@ -30,7 +30,7 @@ class FrozenClockTests(unittest.TestCase):
 
     def test_rejects_non_datetime_epoch(self) -> None:
         with self.assertRaises(TypeError):
-            FrozenClock(epoch="2026")  # type: ignore[arg-type]
+            FrozenClock(epoch="2026")
 
 
 class SystemClockTests(unittest.TestCase):
@@ -62,7 +62,7 @@ class DeterministicRngTests(unittest.TestCase):
 
     def test_rejects_non_int_seed(self) -> None:
         with self.assertRaises(TypeError):
-            DeterministicRng(seed=True)  # type: ignore[arg-type]
+            DeterministicRng(seed=True)
 
 
 class DeterminismContextTests(unittest.TestCase):
@@ -88,7 +88,7 @@ class DeterminismContextTests(unittest.TestCase):
     def test_rejects_bad_clock(self) -> None:
         with self.assertRaises(TypeError):
             DeterminismContext(
-                clock=object(),  # type: ignore[arg-type]
+                clock=object(),
                 rng=DeterministicRng(seed=1),
                 deterministic=True,
             )

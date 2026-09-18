@@ -39,7 +39,7 @@ class HybridRetrieverBase(Retriever, Generic[ProcessReturnT]):
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True
 
-    async def process(self, *args: Any, **kwargs: Any) -> ProcessReturnT:
+    async def process(self, *args: Any, **_: Any) -> ProcessReturnT:
         """Retrieve two candidate rankings and fuse them into ``top_k`` hits.
 
         Returns:

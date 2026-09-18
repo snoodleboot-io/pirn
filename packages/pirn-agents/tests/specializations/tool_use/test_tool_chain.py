@@ -66,7 +66,7 @@ class TestToolChainValidation(unittest.IsolatedAsyncioTestCase):
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
         chain = _make_chain(call, [StubTool(name="x")])
         with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
-            await chain.process(initial_call=call, tools=["bad"])  # type: ignore[list-item]
+            await chain.process(initial_call=call, tools=["bad"])
 
     async def test_rejects_non_tool_call(self) -> None:
         tool = StubTool(name="step1", handler="result1")
@@ -88,7 +88,7 @@ class TestToolChainHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_pipes_output_as_input_through_chain(self) -> None:
         received_args: list[dict] = []
 
-        def capture(args):  # type: ignore[no-untyped-def]
+        def capture(args):
             received_args.append(dict(args))
             return f"processed:{args.get('input', '')}"
 
@@ -100,7 +100,7 @@ class TestToolChainHappyPath(unittest.IsolatedAsyncioTestCase):
         assert received_args[0] == {"input": "first-output"}
 
     async def test_returns_error_on_tool_exception(self) -> None:
-        def fail(args):  # type: ignore[no-untyped-def]
+        def fail(args):
             raise ValueError("step exploded")
 
         tool = StubTool(name="explode", handler=fail)
@@ -124,7 +124,7 @@ class TestToolChainShortCircuits(unittest.IsolatedAsyncioTestCase):
     """PIR-856: a failing step must stop the chain — later tools never run."""
 
     async def test_a_failure_stops_the_chain_before_the_next_tool(self) -> None:
-        def fail(args):  # type: ignore[no-untyped-def]
+        def fail(args):
             raise RuntimeError("boom")
 
         tool1 = StubTool(name="step1", handler=fail)
@@ -137,7 +137,7 @@ class TestToolChainShortCircuits(unittest.IsolatedAsyncioTestCase):
         assert tool2.invocations == []
 
     async def test_a_middle_failure_stops_a_three_tool_chain(self) -> None:
-        def fail(args):  # type: ignore[no-untyped-def]
+        def fail(args):
             raise RuntimeError("middle boom")
 
         tool1 = StubTool(name="step1", handler="ok1")

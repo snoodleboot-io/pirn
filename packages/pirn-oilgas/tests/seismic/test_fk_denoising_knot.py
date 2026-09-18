@@ -20,7 +20,7 @@ _GATHER: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> FKDenoisingKnot:
         return FKDenoisingKnot(
-            gather=None,  # type: ignore[arg-type]
+            gather=None,
             velocity_threshold_m_s=1500.0,
             taper_width_pct=10.0,
             _config=KnotConfig(id="fk", validate_io=False),

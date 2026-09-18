@@ -135,11 +135,11 @@ class TestSpecValidation(unittest.TestCase):
 
     def test_from_spec_requires_a_spec(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be an AgentSpec"):
-            AgentBuilder.from_spec({"pattern": "react"}, references=AgentReferences())  # type: ignore[arg-type]
+            AgentBuilder.from_spec({"pattern": "react"}, references=AgentReferences())
 
     def test_from_spec_requires_a_references_table(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be an AgentReferences"):
-            AgentBuilder.from_spec(AgentSpec(pattern="react"), references={})  # type: ignore[arg-type]
+            AgentBuilder.from_spec(AgentSpec(pattern="react"), references={})
 
 
 class TestConfigDrivenAgentRuns(unittest.IsolatedAsyncioTestCase):

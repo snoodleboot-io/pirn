@@ -33,7 +33,7 @@ class TestQualityCheckConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         qc = QualityCheck(name="x", passed=True, threshold="t", actual="a")
         with self.assertRaises((AttributeError, TypeError)):
-            qc.passed = False  # type: ignore[misc]
+            qc.passed = False
 
     def test_equality(self) -> None:
         a = QualityCheck(name="x", passed=True, threshold="t", actual="a")

@@ -79,4 +79,4 @@ def test_non_http_scheme_blocked() -> None:
 
 def test_bad_denied_hosts_type_rejected() -> None:
     with pytest.raises(TypeError):
-        EgressPolicy(denied_hosts="evil.example")  # type: ignore[arg-type]
+        EgressPolicy(denied_hosts="evil.example")

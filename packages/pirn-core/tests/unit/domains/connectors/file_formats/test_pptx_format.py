@@ -10,7 +10,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pptx  # noqa: F401
+    import pptx  # noqa: F401  # imported only to skip when pptx is absent
 except ImportError as _e:
     raise unittest.SkipTest("pptx not installed") from _e
 
@@ -38,7 +38,7 @@ class TestPptxFormatConstruction(unittest.TestCase):
 
     def test_non_bool_extract_speaker_notes(self) -> None:
         with self.assertRaises(TypeError):
-            PptxFormat(extract_speaker_notes="yes")  # type: ignore[arg-type]
+            PptxFormat(extract_speaker_notes="yes")
 
 
 class TestPptxFormatBasics(unittest.TestCase):

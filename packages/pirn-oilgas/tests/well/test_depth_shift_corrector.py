@@ -19,7 +19,7 @@ _LOG: list[dict[str, Any]] = [
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> DepthShiftCorrector:
         return DepthShiftCorrector(
-            log_curve=None,  # type: ignore[arg-type]
+            log_curve=None,
             shift_ft=5.0,
             _config=KnotConfig(id="dsc", validate_io=False),
         )
@@ -27,7 +27,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_shift(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "shift_ft"):
-            await knot.process(log_curve=_LOG, shift_ft="five")  # type: ignore[arg-type]
+            await knot.process(log_curve=_LOG, shift_ft="five")
 
     async def test_shifts_depths(self) -> None:
         knot = self._make_knot()

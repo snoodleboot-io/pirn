@@ -42,4 +42,4 @@ class TestZendeskConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = ZendeskConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.subdomain = "mutated"  # type: ignore[misc]
+            cfg.subdomain = "mutated"

@@ -56,7 +56,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         r = RawEEG()
         try:
-            r.subject_id = "X"  # type: ignore[misc]
+            r.subject_id = "X"
         except Exception:
             return
         raise AssertionError("RawEEG must be frozen")

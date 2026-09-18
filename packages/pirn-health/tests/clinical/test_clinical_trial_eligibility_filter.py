@@ -19,22 +19,22 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_records(self) -> None:
         knot = ClinicalTrialEligibilityFilter(records=_RECORDS, criteria={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "records"):
-            await knot.process(records=42, criteria={})  # type: ignore[arg-type]
+            await knot.process(records=42, criteria={})
 
     async def test_rejects_non_record(self) -> None:
         knot = ClinicalTrialEligibilityFilter(records=_RECORDS, criteria={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
-            await knot.process(records=["x"], criteria={})  # type: ignore[arg-type]
+            await knot.process(records=["x"], criteria={})
 
     async def test_rejects_non_mapping_criteria(self) -> None:
         knot = ClinicalTrialEligibilityFilter(records=_RECORDS, criteria={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "criteria"):
-            await knot.process(records=(), criteria=42)  # type: ignore[arg-type]
+            await knot.process(records=(), criteria=42)
 
     async def test_rejects_non_callable_criterion(self) -> None:
         knot = ClinicalTrialEligibilityFilter(records=_RECORDS, criteria={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "callable"):
-            await knot.process(records=(), criteria={"c1": "not-callable"})  # type: ignore[dict-item]
+            await knot.process(records=(), criteria={"c1": "not-callable"})
 
     async def test_filters_using_predicate(self) -> None:
         records = (

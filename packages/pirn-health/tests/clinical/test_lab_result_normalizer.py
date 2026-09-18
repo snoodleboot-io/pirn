@@ -17,15 +17,15 @@ _KNOT = LabResultNormalizer(rows=[], unit_conversions={}, target_unit="mg/dL", _
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_rows(self) -> None:
         with self.assertRaisesRegex(TypeError, "rows"):
-            await _KNOT.process(rows=42, unit_conversions={}, target_unit="mg/dL")  # type: ignore[arg-type]
+            await _KNOT.process(rows=42, unit_conversions={}, target_unit="mg/dL")
 
     async def test_rejects_non_mapping_conversions(self) -> None:
         with self.assertRaisesRegex(TypeError, "unit_conversions"):
-            await _KNOT.process(rows=[], unit_conversions=42, target_unit="mg/dL")  # type: ignore[arg-type]
+            await _KNOT.process(rows=[], unit_conversions=42, target_unit="mg/dL")
 
     async def test_rejects_non_string_target_unit(self) -> None:
         with self.assertRaisesRegex(TypeError, "target_unit"):
-            await _KNOT.process(rows=[], unit_conversions={}, target_unit=42)  # type: ignore[arg-type]
+            await _KNOT.process(rows=[], unit_conversions={}, target_unit=42)
 
     async def test_rejects_empty_target_unit(self) -> None:
         with self.assertRaisesRegex(ValueError, "non-empty"):

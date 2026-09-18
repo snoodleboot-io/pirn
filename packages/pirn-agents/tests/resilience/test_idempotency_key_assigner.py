@@ -23,7 +23,7 @@ class TestCallerKeyPassthrough:
 
     def test_rejects_non_string_caller_key(self) -> None:
         with pytest.raises(TypeError, match="caller_key"):
-            IdempotencyKeyAssigner().assign(operation="x", arguments={}, caller_key=5)  # type: ignore[arg-type]
+            IdempotencyKeyAssigner().assign(operation="x", arguments={}, caller_key=5)
 
 
 class TestDerivation:
@@ -52,7 +52,7 @@ class TestDerivation:
 
     def test_rejects_non_mapping_arguments(self) -> None:
         with pytest.raises(TypeError, match="Mapping"):
-            IdempotencyKeyAssigner().assign(operation="x", arguments=[1, 2])  # type: ignore[arg-type]
+            IdempotencyKeyAssigner().assign(operation="x", arguments=[1, 2])
 
 
 class TestOpaqueArgumentsAreContentKeyed:

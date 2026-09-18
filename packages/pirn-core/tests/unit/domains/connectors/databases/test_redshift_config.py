@@ -45,4 +45,4 @@ class TestRedshiftConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = RedshiftConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.host = "mutated"  # type: ignore[misc]
+            cfg.host = "mutated"

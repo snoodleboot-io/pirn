@@ -15,7 +15,7 @@ _VOLUME = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> SubvolumeExtractor:
         return SubvolumeExtractor(
-            volume=None,  # type: ignore[arg-type]
+            volume=None,
             inline_start=0,
             inline_end=10,
             xline_start=0,

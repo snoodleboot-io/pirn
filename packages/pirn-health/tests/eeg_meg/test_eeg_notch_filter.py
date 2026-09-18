@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -31,7 +31,7 @@ _KNOT = EegNotchFilter(signal=_SIGNAL, notch_hz=60.0, _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", notch_hz=60.0)  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", notch_hz=60.0)
 
     async def test_rejects_non_positive(self) -> None:
         with self.assertRaisesRegex(ValueError, "positive"):

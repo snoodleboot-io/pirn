@@ -24,7 +24,7 @@ _WELL_DATA: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> GasLiftOptimizer:
         return GasLiftOptimizer(
-            well_data=None,  # type: ignore[arg-type]
+            well_data=None,
             injection_gas_cost_per_mscf=2.5,
             max_injection_rate_mmscfd=2.0,
             _config=KnotConfig(id="gl", validate_io=False),

@@ -22,17 +22,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "records"):
-            await knot.process(records=42, min_quality=10.0)  # type: ignore[arg-type]
+            await knot.process(records=42, min_quality=10.0)
 
     async def test_rejects_non_record(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "GenomicsRecord"):
-            await knot.process(records=["x"], min_quality=10.0)  # type: ignore[list-item]
+            await knot.process(records=["x"], min_quality=10.0)
 
     async def test_rejects_non_numeric_threshold(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "numeric"):
-            await knot.process(records=(), min_quality="x")  # type: ignore[arg-type]
+            await knot.process(records=(), min_quality="x")
 
     async def test_passes_when_quality_above(self) -> None:
         knot = self._make_knot()

@@ -15,7 +15,7 @@ _VOLUME = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, cmp_inline: int = 10, cmp_xline: int = 20) -> CmpGatherExtractor:
         return CmpGatherExtractor(
-            volume=None,  # type: ignore[arg-type]
+            volume=None,
             cmp_inline=cmp_inline,
             cmp_xline=cmp_xline,
             _config=KnotConfig(id="cmp", validate_io=False),
@@ -29,7 +29,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_int_xline(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "cmp_xline"):
-            await knot.process(volume=_VOLUME, cmp_inline=0, cmp_xline=1.5)  # type: ignore[arg-type]
+            await knot.process(volume=_VOLUME, cmp_inline=0, cmp_xline=1.5)
 
     async def test_returns_subvolume(self) -> None:
         knot = self._make_knot()

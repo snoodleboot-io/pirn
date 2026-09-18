@@ -84,7 +84,7 @@ class TestAgenticRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             AgenticRagPipeline(
                 query="q",
-                rag_tool="nope",  # type: ignore[arg-type]
+                rag_tool="nope",
                 llm=StubLLMProvider(["DONE"]),
                 _config=KnotConfig(id="x"),
             )

@@ -143,6 +143,6 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             return Profiler(batch=batch, _config=KnotConfig(id="p"), **kwargs)
 
     async def test_rejects_non_string_columns(self) -> None:
-        k = self._make_knot(columns=("ok", 7))  # type: ignore[arg-type]
+        k = self._make_knot(columns=("ok", 7))
         with self.assertRaisesRegex(TypeError, "strings"):
             await k.process(batch=DataBatch(), columns=("ok", 7))

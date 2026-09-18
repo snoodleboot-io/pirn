@@ -61,4 +61,4 @@ class TestQualityReportConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         r = QualityReport(passed=True)
         with self.assertRaises((AttributeError, TypeError)):
-            r.passed = False  # type: ignore[misc]
+            r.passed = False

@@ -131,7 +131,7 @@ class TestStructuredDecodeFunction(unittest.IsolatedAsyncioTestCase):
 class TestStructuredDecoderValidation(unittest.IsolatedAsyncioTestCase):
     def test_rejects_non_basemodel(self) -> None:
         with self.assertRaisesRegex(TypeError, "model_class must be a BaseModel"):
-            StructuredDecoder(model_class=int)  # type: ignore[type-var]
+            StructuredDecoder(model_class=int)
 
     def test_rejects_zero_max_retries(self) -> None:
         with self.assertRaisesRegex(ValueError, "max_retries"):
@@ -144,12 +144,12 @@ class TestStructuredDecoderValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_prompt(self) -> None:
         decoder = StructuredDecoder(model_class=_UserRecord)
         with self.assertRaisesRegex(TypeError, "prompt must be"):
-            await decoder.decode(prompt=123, llm=StubLLMProvider([_VALID_JSON]))  # type: ignore[arg-type]
+            await decoder.decode(prompt=123, llm=StubLLMProvider([_VALID_JSON]))
 
     async def test_rejects_non_provider_llm(self) -> None:
         decoder = StructuredDecoder(model_class=_UserRecord)
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await decoder.decode(prompt="x", llm=object())  # type: ignore[arg-type]
+            await decoder.decode(prompt="x", llm=object())
 
 
 if __name__ == "__main__":

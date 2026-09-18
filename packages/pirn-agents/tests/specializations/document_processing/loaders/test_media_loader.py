@@ -45,7 +45,7 @@ class TestMediaLoader(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_bytes(self) -> None:
         with self.assertRaises(TypeError):
-            await MediaLoader(media_type="image/png").load("not-bytes")  # type: ignore[arg-type]
+            await MediaLoader(media_type="image/png").load("not-bytes")
 
     def test_rejects_empty_media_type(self) -> None:
         with self.assertRaises(TypeError):
@@ -53,7 +53,7 @@ class TestMediaLoader(unittest.IsolatedAsyncioTestCase):
 
     def test_rejects_bad_caption(self) -> None:
         with self.assertRaises(TypeError):
-            MediaLoader(media_type="image/png", caption=123)  # type: ignore[arg-type]
+            MediaLoader(media_type="image/png", caption=123)
 
 
 class TestLoadedDocumentBlocks(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestLoadedDocumentBlocks(unittest.TestCase):
 
     def test_rejects_non_block_in_blocks(self) -> None:
         with self.assertRaises(TypeError):
-            LoadedDocument(text="", blocks=("nope",))  # type: ignore[arg-type]
+            LoadedDocument(text="", blocks=("nope",))
 
 
 if __name__ == "__main__":

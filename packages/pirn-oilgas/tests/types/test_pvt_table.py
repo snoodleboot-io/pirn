@@ -35,7 +35,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         pvt = PVTTable(fluid_id="f")
         try:
-            pvt.fluid_id = "g"  # type: ignore[misc]
+            pvt.fluid_id = "g"
         except Exception:
             return
         raise AssertionError("PVTTable must be frozen")

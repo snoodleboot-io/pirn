@@ -39,7 +39,7 @@ class TestStatusEvent(unittest.TestCase):
     def test_frozen(self):
         ev = self._make()
         with self.assertRaises(ValidationError):
-            ev.run_id = "other"  # type: ignore[misc]
+            ev.run_id = "other"
 
     def test_extra_defaults_to_empty_dict(self):
         ev = self._make()

@@ -38,9 +38,9 @@ class TestDatabaseConnectionPoolHelpers(unittest.TestCase):
 
     def test_clear_credentials_nulls_config(self) -> None:
         pool = DatabaseConnectionPool()
-        pool._config = "secret"  # type: ignore[attr-defined]
+        pool._config = "secret"
         pool._clear_credentials()
-        self.assertIsNone(pool._config)  # type: ignore[attr-defined]
+        self.assertIsNone(pool._config)
 
 
 class TestPoolCallConventionConformance(unittest.TestCase):

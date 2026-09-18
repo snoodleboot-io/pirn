@@ -51,7 +51,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         header = ParsedTraceHeader(inline=1)
         try:
-            header.inline = 9  # type: ignore[misc]
+            header.inline = 9
         except Exception:
             return
         raise AssertionError("ParsedTraceHeader must be frozen")

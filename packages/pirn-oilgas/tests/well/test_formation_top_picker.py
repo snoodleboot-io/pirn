@@ -16,7 +16,7 @@ _LAS = LASFile(well_id="W", curves=("GR",))
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> FormationTopPicker:
         return FormationTopPicker(
-            las_file=None,  # type: ignore[arg-type]
+            las_file=None,
             formation_name="Niobrara",
             depth_md=2500.0,
             _config=KnotConfig(id="ft", validate_io=False),
@@ -35,7 +35,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_depth(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "depth_md"):
-            await knot.process(las_file=_LAS, formation_name="N", depth_md="x")  # type: ignore[arg-type]
+            await knot.process(las_file=_LAS, formation_name="N", depth_md="x")
 
     async def test_returns_formation_top(self) -> None:
         knot = self._make_knot()

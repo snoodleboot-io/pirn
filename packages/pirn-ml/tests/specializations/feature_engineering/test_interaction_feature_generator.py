@@ -46,7 +46,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=self._make_split(),
-                column_pairs=[("a",)],  # type: ignore[list-item]
+                column_pairs=[("a",)],
             )
 
     async def test_appends_interaction_features(self) -> None:

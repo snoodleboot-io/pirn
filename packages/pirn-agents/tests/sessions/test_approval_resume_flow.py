@@ -237,4 +237,4 @@ class TestHumanDecisionIdentityResolver:
 
     def test_rejects_non_decision(self) -> None:
         with pytest.raises(TypeError):
-            HumanDecisionIdentityResolver("not a decision")  # type: ignore[arg-type]
+            HumanDecisionIdentityResolver("not a decision")

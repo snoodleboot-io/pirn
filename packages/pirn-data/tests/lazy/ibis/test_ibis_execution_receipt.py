@@ -40,4 +40,4 @@ class TestIbisExecutionReceipt(unittest.TestCase):
             compiled_sql="SELECT 1",
         )
         with self.assertRaises((AttributeError, TypeError)):
-            receipt.backend_name = "other"  # type: ignore[misc]
+            receipt.backend_name = "other"

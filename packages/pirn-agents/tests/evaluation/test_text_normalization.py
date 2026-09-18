@@ -28,7 +28,7 @@ class NormalizeTextTests(unittest.TestCase):
 
     def test_non_str_raises_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            TextNormalizer().normalize(42)  # type: ignore[arg-type]
+            TextNormalizer().normalize(42)
 
 
 if __name__ == "__main__":

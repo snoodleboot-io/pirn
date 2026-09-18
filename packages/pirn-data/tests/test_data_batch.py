@@ -34,7 +34,7 @@ class TestDataBatchConstruction(unittest.TestCase):
     def test_immutable(self) -> None:
         b = DataBatch()
         with self.assertRaises((AttributeError, TypeError)):
-            b.source_uri = "new_value"  # type: ignore[misc]
+            b.source_uri = "new_value"
 
 
 class TestDataBatchWithRows(unittest.TestCase):

@@ -45,7 +45,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 location=_LOC,
                 boundary=_BOUNDARY,
-                buffer_distance_m="x",  # type: ignore[arg-type]
+                buffer_distance_m="x",
             )
 
     async def test_returns_check_result(self) -> None:

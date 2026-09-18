@@ -20,7 +20,7 @@ _LAS = LASPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> LithologyClassifier:
         return LithologyClassifier(
-            payload=None,  # type: ignore[arg-type]
+            payload=None,
             method="rule_based",
             _config=KnotConfig(id="lc", validate_io=False),
         )

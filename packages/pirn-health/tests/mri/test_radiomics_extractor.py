@@ -28,12 +28,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "feature_classes"):
-            await knot.process(image_path="i", mask_path="m", feature_classes=42)  # type: ignore[arg-type]
+            await knot.process(image_path="i", mask_path="m", feature_classes=42)
 
     async def test_rejects_non_string_class(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(image_path="i", mask_path="m", feature_classes=[1])  # type: ignore[list-item]
+            await knot.process(image_path="i", mask_path="m", feature_classes=[1])
 
     async def test_raises_not_implemented_for_valid_input(self) -> None:
         knot = self._make_knot()

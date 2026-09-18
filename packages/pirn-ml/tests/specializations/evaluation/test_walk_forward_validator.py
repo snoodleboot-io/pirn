@@ -99,7 +99,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
             await validator.process(
                 dataset=_dataset(),
                 time_column="ts",
-                train_window="ten",  # type: ignore[arg-type]
+                train_window="ten",
                 test_window=5,
                 algorithm="arima",
                 n_steps=5,

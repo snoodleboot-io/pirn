@@ -72,7 +72,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         fs = self._make_fs()
         with self.assertRaisesRegex(TypeError, "ObjectStore"):
             await fs.process(
-                store=object(),  # type: ignore[arg-type]
+                store=object(),
                 format=self._make_format(),
                 key="data.parquet",
             )
@@ -82,7 +82,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "FileFormat"):
             await fs.process(
                 store=self._make_store(),
-                format=object(),  # type: ignore[arg-type]
+                format=object(),
                 key="data.parquet",
             )
 
@@ -101,7 +101,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             await fs.process(
                 store=self._make_store(),
                 format=self._make_format(),
-                key=None,  # type: ignore[arg-type]
+                key=None,
             )
 
     async def test_rejects_invalid_schema(self) -> None:
@@ -111,7 +111,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
                 store=self._make_store(),
                 format=self._make_format(),
                 key="f.csv",
-                schema=object(),  # type: ignore[arg-type]
+                schema=object(),
             )
 
     async def test_default_source_uri_includes_key(self) -> None:

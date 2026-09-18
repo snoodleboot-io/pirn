@@ -52,11 +52,11 @@ class TestPytorchFormatConstruction(unittest.TestCase):
 
     def test_non_bool_weights_only_rejected(self) -> None:
         with self.assertRaises(TypeError):
-            PytorchFormat(weights_only="yes")  # type: ignore[arg-type]
+            PytorchFormat(weights_only="yes")
 
     def test_invalid_signer_type_rejected(self) -> None:
         with self.assertRaises(TypeError):
-            PytorchFormat(signer="not-a-signer")  # type: ignore[arg-type]
+            PytorchFormat(signer="not-a-signer")
 
 
 class TestPytorchFormatBasics(unittest.TestCase):
@@ -84,7 +84,7 @@ class TestPytorchFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_decode_non_bytes_rejected(self) -> None:
         fmt = PytorchFormat()
         with self.assertRaises(TypeError):
-            await fmt._decode_full("not-bytes")  # type: ignore[arg-type]
+            await fmt._decode_full("not-bytes")
 
 
 @pytest.mark.skipif(not _HAS_TORCH, reason="requires torch")

@@ -39,4 +39,4 @@ class TestRayExecutionReceipt(unittest.TestCase):
     def test_frozen(self) -> None:
         receipt = RayExecutionReceipt(backend_name="ray", target_path=None)
         with self.assertRaises((AttributeError, TypeError)):
-            receipt.backend_name = "other"  # type: ignore[misc]
+            receipt.backend_name = "other"

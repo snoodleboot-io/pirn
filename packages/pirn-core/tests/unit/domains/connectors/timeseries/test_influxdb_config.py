@@ -49,4 +49,4 @@ class TestInfluxDBConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = InfluxDBConfig(org="o", bucket="b")
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.url = "mutated"  # type: ignore[misc]
+            cfg.url = "mutated"

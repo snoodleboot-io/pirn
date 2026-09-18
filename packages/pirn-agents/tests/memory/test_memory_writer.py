@@ -48,7 +48,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             await k.process(
                 key="alpha",
-                value="not a mapping",  # type: ignore[arg-type]
+                value="not a mapping",
                 store=store,
             )
 

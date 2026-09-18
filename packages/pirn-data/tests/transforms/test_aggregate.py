@@ -229,5 +229,5 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 batch=_make_batch(),
                 by=("region",),
-                aggs={"total": "sum"},  # type: ignore[arg-type]
+                aggs={"total": "sum"},
             )

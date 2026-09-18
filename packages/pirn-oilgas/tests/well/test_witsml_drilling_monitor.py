@@ -43,7 +43,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "alert_thresholds"):
             await k.process(
                 witsml_data={"log_data": []},
-                alert_thresholds="not_a_dict",  # type: ignore[arg-type]
+                alert_thresholds="not_a_dict",
                 well_uid="WELL-001",
             )
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -31,7 +31,7 @@ class TestNumpyNpyFormatConstruction(unittest.TestCase):
 
     def test_invalid_field_names_type(self) -> None:
         with self.assertRaises(TypeError):
-            NumpyNpyFormat(field_names="ab")  # type: ignore[arg-type]
+            NumpyNpyFormat(field_names="ab")
 
     def test_empty_field_name_rejected(self) -> None:
         with self.assertRaises(ValueError):

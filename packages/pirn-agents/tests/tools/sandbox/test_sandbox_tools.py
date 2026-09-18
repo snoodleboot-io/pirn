@@ -97,7 +97,7 @@ class TestWithStubBackend:
 
     def test_executor_rejects_bad_backend(self) -> None:
         with pytest.raises(TypeError):
-            SandboxExecutor(enabled=True, backend=object())  # type: ignore[arg-type]
+            SandboxExecutor(enabled=True, backend=object())
 
     async def test_executor_rejects_empty_command(self) -> None:
         executor = SandboxExecutor(enabled=True, backend=_StubSandboxBackend(_ok_result()))

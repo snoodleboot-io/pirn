@@ -52,7 +52,7 @@ def _breaker(
 class TestConstruction:
     def test_rejects_non_config(self) -> None:
         with pytest.raises(TypeError, match="CircuitBreakerConfig"):
-            CircuitBreaker(object())  # type: ignore[arg-type]
+            CircuitBreaker(object())
 
     def test_starts_closed(self) -> None:
         assert _breaker().state is CircuitState.CLOSED

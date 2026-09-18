@@ -85,7 +85,7 @@ class TestBatchItemResultOutcome:
 
     def test_error_is_read_only(self) -> None:
         with pytest.raises(AttributeError):
-            _failed().error = "clobbered"  # type: ignore[misc]
+            _failed().error = "clobbered"
 
 
 class TestBatchItemResultPayload:
@@ -144,4 +144,4 @@ class TestBatchItemResultValidation:
 
     def test_rejects_an_outcome_that_is_not_a_result(self) -> None:
         with pytest.raises(TypeError):
-            BatchItemResult(index=0, key="k", outcome="ok")  # type: ignore[arg-type]
+            BatchItemResult(index=0, key="k", outcome="ok")

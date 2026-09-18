@@ -80,7 +80,7 @@ class TestFromToolResult(unittest.TestCase):
 
     def test_rejects_non_tool_result(self) -> None:
         with self.assertRaises(TypeError):
-            ToolResultBlock.from_tool_result("not-a-result")  # type: ignore[arg-type]
+            ToolResultBlock.from_tool_result("not-a-result")
 
 
 if __name__ == "__main__":

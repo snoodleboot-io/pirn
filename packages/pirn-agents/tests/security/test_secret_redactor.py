@@ -90,7 +90,7 @@ def test_clean_arguments_report_no_leak() -> None:
 
 def test_redact_arguments_rejects_non_mapping() -> None:
     with pytest.raises(TypeError):
-        SecretRedactor().redact_arguments(["not", "a", "mapping"])  # type: ignore[arg-type]
+        SecretRedactor().redact_arguments(["not", "a", "mapping"])
 
 
 def test_log_filter_redacts_before_emit() -> None:

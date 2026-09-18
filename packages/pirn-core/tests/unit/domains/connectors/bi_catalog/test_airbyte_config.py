@@ -41,7 +41,7 @@ class TestAirbyteConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = AirbyteConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.base_url = "mutated"  # type: ignore[misc]
+            cfg.base_url = "mutated"
 
     def test_audit_dict_redacts(self) -> None:
         cfg = AirbyteConfig(client_secret="s3cr3t", access_token="tok")

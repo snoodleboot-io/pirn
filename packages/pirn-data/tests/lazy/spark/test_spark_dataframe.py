@@ -44,4 +44,4 @@ class TestSparkDataFrame(unittest.TestCase):
         frame = _mock_frame(["a"])
         sdf = SparkDataFrame(frame=frame)
         with self.assertRaises((AttributeError, TypeError)):
-            sdf.backend_name = "other"  # type: ignore[misc]
+            sdf.backend_name = "other"

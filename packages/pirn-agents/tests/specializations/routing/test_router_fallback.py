@@ -56,7 +56,7 @@ class TestCandidateRouter(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="r", validate_io=False),
             )
         with pytest.raises(TypeError, match="confidences"):
-            await router.process(candidates=_cands(), confidences="bad")  # type: ignore[arg-type]
+            await router.process(candidates=_cands(), confidences="bad")
 
 
 class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
@@ -157,4 +157,4 @@ class TestRouterFallbackPipeline(unittest.IsolatedAsyncioTestCase):
             knot = RouterFallbackPipeline.__new__(RouterFallbackPipeline)
             object.__setattr__(knot, "_config", KnotConfig(id="rf"))
         with self.assertRaises(TypeError):
-            await knot.process(candidates=("bad",), confidences={}, arguments={})  # type: ignore[arg-type]
+            await knot.process(candidates=("bad",), confidences={}, arguments={})

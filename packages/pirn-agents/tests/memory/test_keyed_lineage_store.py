@@ -151,8 +151,8 @@ class TestDelete:
 class TestConstruction:
     def test_rejects_non_run_history(self) -> None:
         with pytest.raises(TypeError):
-            KeyedLineageStore(history="bad", data_store=InMemoryDataStore())  # type: ignore[arg-type]
+            KeyedLineageStore(history="bad", data_store=InMemoryDataStore())
 
     def test_rejects_non_data_store(self) -> None:
         with pytest.raises(TypeError):
-            KeyedLineageStore(history=InMemoryHistory(), data_store="bad")  # type: ignore[arg-type]
+            KeyedLineageStore(history=InMemoryHistory(), data_store="bad")

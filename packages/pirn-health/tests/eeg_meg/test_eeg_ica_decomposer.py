@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import sklearn  # noqa: F401
+    import sklearn  # noqa: F401  # imported only to skip when sklearn is absent
 except ImportError as _e:
     raise unittest.SkipTest("sklearn not installed") from _e
 
@@ -63,7 +63,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_dict_eeg_data(self) -> None:
         knot_inst = _make_knot()
         with self.assertRaisesRegex(TypeError, "dict"):
-            await knot_inst.process(eeg_data="not-a-dict", n_components=5, algorithm="fastica")  # type: ignore[arg-type]
+            await knot_inst.process(eeg_data="not-a-dict", n_components=5, algorithm="fastica")
 
     async def test_rejects_non_positive_n_components(self) -> None:
         knot_inst = _make_knot()

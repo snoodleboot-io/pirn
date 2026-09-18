@@ -31,7 +31,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -39,11 +39,11 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
 
-_apf_delta = 1e-6
-
 
 class AffineProjectionFilter(Knot):
     """Affine projection adaptive filter."""
+
+    _apf_delta: ClassVar[float] = 1e-6
 
     def __init__(
         self,
@@ -148,7 +148,9 @@ class AffineProjectionFilter(Knot):
             ]
             output_vector = input_matrix @ filter_weights
             e_vec = desired_vector - output_vector
-            gram = input_matrix @ input_matrix.T + _apf_delta * np.eye(projection_order)
+            gram = input_matrix @ input_matrix.T + AffineProjectionFilter._apf_delta * np.eye(
+                projection_order
+            )
             filter_weights = filter_weights + step_size * input_matrix.T @ np.linalg.solve(
                 gram, e_vec
             )

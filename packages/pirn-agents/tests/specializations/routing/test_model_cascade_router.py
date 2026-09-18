@@ -91,7 +91,7 @@ class TestValidation:
                 tiers=["nope"],
                 confidence=_confidence_from({}),
                 _config=KnotConfig(id="cascade"),
-            )  # type: ignore[list-item]
+            )
 
     def test_bad_min_confidence_rejected(self) -> None:
         with pytest.raises(ValueError, match="min_confidence"):
@@ -99,7 +99,7 @@ class TestValidation:
 
     def test_non_provider_rejected(self) -> None:
         with pytest.raises(TypeError, match="LLMProvider"):
-            CascadeTier(name="t", llm="not-a-provider")  # type: ignore[arg-type]
+            CascadeTier(name="t", llm="not-a-provider")
 
 
 class TestCheapFirst:

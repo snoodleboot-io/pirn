@@ -23,13 +23,13 @@ class FakeMemgraphRecord:
     def __init__(self, data: dict[str, Any]) -> None:
         self._data = data
 
-    def __iter__(self):  # type: ignore[override]
+    def __iter__(self):
         return iter(self._data.items())
 
-    def keys(self):  # type: ignore[return]
+    def keys(self):
         return self._data.keys()
 
-    def values(self):  # type: ignore[return]
+    def values(self):
         return self._data.values()
 
     def __getitem__(self, key: str) -> Any:

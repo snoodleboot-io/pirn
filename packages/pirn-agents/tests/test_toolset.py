@@ -61,7 +61,7 @@ class TestToolsetConstruction(unittest.TestCase):
 
     def test_non_tool_element_raises_type_error(self) -> None:
         with self.assertRaises(TypeError) as ctx:
-            Toolset([_stub("a"), "not-a-tool"])  # type: ignore[list-item]
+            Toolset([_stub("a"), "not-a-tool"])
         message = str(ctx.exception)
         assert "1" in message
         assert "str" in message

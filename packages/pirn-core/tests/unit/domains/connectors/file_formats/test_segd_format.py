@@ -106,4 +106,4 @@ class TestSegdFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_non_bytes_raises(self) -> None:
         fmt = SegdFormat()
         with self.assertRaises(TypeError):
-            await fmt._decode_full("not bytes")  # type: ignore[arg-type]
+            await fmt._decode_full("not bytes")

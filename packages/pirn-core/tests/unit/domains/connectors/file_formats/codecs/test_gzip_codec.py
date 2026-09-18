@@ -17,7 +17,7 @@ class TestGzipCodecConstruction(unittest.TestCase):
 
     def test_compresslevel_must_be_int(self) -> None:
         with self.assertRaises(TypeError):
-            GzipCodec(compresslevel="9")  # type: ignore[arg-type]
+            GzipCodec(compresslevel="9")
 
     def test_compresslevel_out_of_range(self) -> None:
         with self.assertRaises(ValueError):

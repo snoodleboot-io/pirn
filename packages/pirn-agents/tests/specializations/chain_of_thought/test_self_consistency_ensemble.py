@@ -60,7 +60,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "LLMProvider"):
             await k.process(
                 prompt="q",
-                llm=object(),  # type: ignore[arg-type]
+                llm=object(),
                 samples=3,
             )
 

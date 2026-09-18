@@ -31,7 +31,7 @@ class TestNaiveRAGPipelineInputContract(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError) as caught:
             NaiveRAGPipeline(
                 query="q",
-                memory="not-a-store",  # type: ignore[arg-type]
+                memory="not-a-store",
                 llm=StubLLMProvider(["answer"]),
                 _config=KnotConfig(id="rag"),
             )
@@ -42,7 +42,7 @@ class TestNaiveRAGPipelineInputContract(unittest.IsolatedAsyncioTestCase):
             NaiveRAGPipeline(
                 query="q",
                 memory=StubMemoryStore([]),
-                llm="not-a-provider",  # type: ignore[arg-type]
+                llm="not-a-provider",
                 _config=KnotConfig(id="rag"),
             )
 

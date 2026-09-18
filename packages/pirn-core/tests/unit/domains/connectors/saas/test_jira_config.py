@@ -41,4 +41,4 @@ class TestJiraConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = JiraConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.url = "mutated"  # type: ignore[misc]
+            cfg.url = "mutated"

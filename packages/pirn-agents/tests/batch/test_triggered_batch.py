@@ -258,11 +258,11 @@ def test_validates_constructor_arguments() -> None:
     runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1)
     trigger = IntervalTrigger(interval=0.0, max_fires=1, sleep=_fake_sleep)
     with pytest.raises(TypeError):
-        TriggeredBatch(trigger="nope", map_agent=runner, inputs_fn=lambda o: [])  # type: ignore[arg-type]
+        TriggeredBatch(trigger="nope", map_agent=runner, inputs_fn=lambda o: [])
     with pytest.raises(TypeError):
-        TriggeredBatch(trigger=trigger, map_agent="nope", inputs_fn=lambda o: [])  # type: ignore[arg-type]
+        TriggeredBatch(trigger=trigger, map_agent="nope", inputs_fn=lambda o: [])
     with pytest.raises(TypeError):
-        TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=123)  # type: ignore[arg-type]
+        TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=123)
     with pytest.raises(ValueError):
         TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=lambda o: [], batch_id="")
     with pytest.raises(TypeError):
@@ -270,5 +270,5 @@ def test_validates_constructor_arguments() -> None:
             trigger=trigger,
             map_agent=runner,
             inputs_fn=lambda o: [],
-            owns_trigger="yes",  # type: ignore[arg-type]
+            owns_trigger="yes",
         )

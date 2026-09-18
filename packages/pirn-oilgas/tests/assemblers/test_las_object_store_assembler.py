@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import lasio  # noqa: F401
+    import lasio  # noqa: F401  # imported only to skip when lasio is absent
 except ImportError as _e:
     raise unittest.SkipTest("lasio not installed") from _e
 
@@ -84,12 +84,12 @@ class TestLasObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="body must be bytes"):
-            await knot.process(body="not-bytes", well_id="W-01", curves=("GR",), depth_unit="m")  # type: ignore[arg-type]
+            await knot.process(body="not-bytes", well_id="W-01", curves=("GR",), depth_unit="m")
 
     async def test_rejects_non_str_well_id(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="well_id must be str"):
-            await knot.process(body=b"x", well_id=42, curves=("GR",), depth_unit="m")  # type: ignore[arg-type]
+            await knot.process(body=b"x", well_id=42, curves=("GR",), depth_unit="m")
 
     async def test_rejects_empty_well_id(self) -> None:
         knot = _make()

@@ -23,7 +23,7 @@ def _counter() -> TokenCounter:
 def _request(items: tuple[ContextItem, ...], **kwargs: object) -> CompactionRequest:
     params: dict[str, object] = {"budget": 6, "counter": _counter()}
     params.update(kwargs)
-    return CompactionRequest(items=items, **params)  # type: ignore[arg-type]
+    return CompactionRequest(items=items, **params)
 
 
 _ITEMS = (
@@ -126,16 +126,16 @@ class TestMemoryIntegration(unittest.IsolatedAsyncioTestCase):
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_constructor_rejects_non_summarizer(self) -> None:
         with self.assertRaisesRegex(TypeError, "summarizer"):
-            SummaryMemoryCompactor(summarizer=object())  # type: ignore[arg-type]
+            SummaryMemoryCompactor(summarizer=object())
 
     async def test_constructor_rejects_bad_store(self) -> None:
         with self.assertRaisesRegex(TypeError, "memory_store"):
-            SummaryMemoryCompactor(summarizer=StubSummarizer(), memory_store=object())  # type: ignore[arg-type]
+            SummaryMemoryCompactor(summarizer=StubSummarizer(), memory_store=object())
 
     async def test_compact_rejects_non_request(self) -> None:
         compactor = SummaryMemoryCompactor(summarizer=StubSummarizer())
         with self.assertRaisesRegex(TypeError, "request"):
-            await compactor.compact("nope")  # type: ignore[arg-type]
+            await compactor.compact("nope")
 
 
 class TestRequestValidation(unittest.TestCase):
@@ -145,7 +145,7 @@ class TestRequestValidation(unittest.TestCase):
 
     def test_rejects_non_tuple_items(self) -> None:
         with self.assertRaisesRegex(TypeError, "items"):
-            CompactionRequest(items=[_ITEMS[0]], budget=6, counter=_counter())  # type: ignore[arg-type]
+            CompactionRequest(items=[_ITEMS[0]], budget=6, counter=_counter())
 
 
 if __name__ == "__main__":

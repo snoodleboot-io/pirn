@@ -28,7 +28,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_invalid_mitosis_type(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(TypeError, "Mapping or int"):
-            await knot.process(cell_counts=_CELL_COUNTS, mitosis_counts="bad")  # type: ignore[arg-type]
+            await knot.process(cell_counts=_CELL_COUNTS, mitosis_counts="bad")
 
     async def test_returns_per_tile_features(self) -> None:
         knot = _make_knot()

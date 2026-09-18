@@ -27,7 +27,7 @@ class TestConstruction(unittest.TestCase):
         with self.assertRaises(TypeError):
             with Tapestry():
                 BaselineEstablisher(
-                    split="bad",  # type: ignore[arg-type]
+                    split="bad",
                     _config=KnotConfig(id="be"),
                 )
 
@@ -52,7 +52,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="",
                 metrics=("accuracy",),
             )
@@ -61,7 +61,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(
-                split=object(),  # type: ignore[arg-type]
+                split=object(),
                 algorithm="linear",
                 metrics=[],
             )

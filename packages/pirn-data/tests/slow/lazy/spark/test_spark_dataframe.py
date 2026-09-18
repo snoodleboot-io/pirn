@@ -46,4 +46,4 @@ class TestSparkDataFrame:
     def test_dataframe_is_frozen(self) -> None:
         batch = SparkDataFrame(frame=_orders_frame())
         with pytest.raises(FrozenInstanceError):
-            batch.backend_name = "other"  # type: ignore[misc]
+            batch.backend_name = "other"

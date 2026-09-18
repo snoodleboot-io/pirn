@@ -17,15 +17,15 @@ _KNOT = SnomedCTNormalizer(codes=[], mapping={}, _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "codes"):
-            await _KNOT.process(codes=42, mapping={})  # type: ignore[arg-type]
+            await _KNOT.process(codes=42, mapping={})
 
     async def test_rejects_non_mapping(self) -> None:
         with self.assertRaisesRegex(TypeError, "mapping"):
-            await _KNOT.process(codes=[], mapping=42)  # type: ignore[arg-type]
+            await _KNOT.process(codes=[], mapping=42)
 
     async def test_rejects_non_string_code(self) -> None:
         with self.assertRaisesRegex(TypeError, "string"):
-            await _KNOT.process(codes=[1], mapping={})  # type: ignore[list-item]
+            await _KNOT.process(codes=[1], mapping={})
 
     async def test_maps_codes_to_snomed(self) -> None:
         out = await _KNOT.process(codes=["E11.9"], mapping={"E11.9": "44054006"})

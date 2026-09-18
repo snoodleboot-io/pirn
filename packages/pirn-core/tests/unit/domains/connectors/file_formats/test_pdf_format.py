@@ -11,11 +11,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pypdf  # noqa: F401
+    import pypdf  # noqa: F401  # imported only to skip when pypdf is absent
 except ImportError as _e:
     raise unittest.SkipTest("pypdf not installed") from _e
 try:
-    import reportlab  # noqa: F401
+    import reportlab  # noqa: F401  # imported only to skip when reportlab is absent
 except ImportError as _e:
     raise unittest.SkipTest("reportlab not installed") from _e
 
@@ -43,7 +43,7 @@ class TestPdfFormatConstruction(unittest.TestCase):
 
     def test_non_bool_extract_layout(self) -> None:
         with self.assertRaises(TypeError):
-            PdfFormat(extract_layout="yes")  # type: ignore[arg-type]
+            PdfFormat(extract_layout="yes")
 
 
 class TestPdfFormatBasics(unittest.TestCase):

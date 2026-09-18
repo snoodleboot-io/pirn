@@ -26,7 +26,7 @@ class TestConnectionConfigDecorator(unittest.TestCase):
 
         cfg = MyConfig()
         with self.assertRaises((dataclasses.FrozenInstanceError, AttributeError)):
-            cfg.host = "other"  # type: ignore[misc]
+            cfg.host = "other"
 
     def test_repr_not_generated(self) -> None:
         @ConnectionConfigDecorator.apply

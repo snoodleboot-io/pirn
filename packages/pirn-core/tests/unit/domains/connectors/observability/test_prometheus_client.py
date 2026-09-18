@@ -26,7 +26,7 @@ class FakeResponse:
     def __init__(self, payload: Any) -> None:
         self._payload = payload
 
-    def raise_for_status(self) -> None:  # pragma: no cover - no-op
+    def raise_for_status(self) -> None:
         return None
 
     def json(self) -> Any:

@@ -184,7 +184,7 @@ class TestSQLExecutorWriteDurability:
     @staticmethod
     async def _seed(database: str) -> None:
         """Create ``widget`` with a UNIQUE name and three committed rows."""
-        pool = SqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = SqlitePool(SqliteConfig(database=database))
         try:
             await pool.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
             for row_id, name in ((1, "a"), (2, "b"), (3, "c")):
@@ -200,7 +200,7 @@ class TestSQLExecutorWriteDurability:
         database = str(tmp_path / "durable.db")
         await self._seed(database)
 
-        pool = SqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = SqlitePool(SqliteConfig(database=database))
         sql = "INSERT INTO widget (id, name) VALUES (4, 'sprocket')"
         executor = _build(sql, pool, read_only=False)
         try:
@@ -220,7 +220,7 @@ class TestSQLExecutorWriteDurability:
         database = str(tmp_path / "residue.db")
         await self._seed(database)
 
-        pool = SqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = SqlitePool(SqliteConfig(database=database))
         # ``UPDATE OR FAIL`` renames row 1, then hits the UNIQUE constraint on
         # row 2 and aborts — keeping row 1's change and leaving the transaction
         # open. Without a rollback that partial write survives to be committed
@@ -242,7 +242,7 @@ class TestSQLExecutorWriteDurability:
         database = str(tmp_path / "caller_txn.db")
         await self._seed(database)
 
-        pool = SqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = SqlitePool(SqliteConfig(database=database))
         sql = "SELECT id, name FROM widget"
         executor = _build(sql, pool, read_only=False)
         try:

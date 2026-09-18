@@ -19,7 +19,7 @@ class TestEdge(unittest.TestCase):
     def test_is_frozen(self) -> None:
         e = Edge(child_id="c", parent_id="p", name="n")
         with self.assertRaises(ValidationError):
-            e.child_id = "other"  # type: ignore
+            e.child_id = "other"
 
     def test_equality(self) -> None:
         e1 = Edge(child_id="c", parent_id="p", name="n")

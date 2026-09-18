@@ -45,4 +45,4 @@ class TestTypedMemoryValidator(unittest.IsolatedAsyncioTestCase):
         knot = _make_knot()
         record = make_record(id="r1")
         with self.assertRaises(ValueError):
-            await knot.process(record=record, allowed_kinds=["nope"])  # type: ignore[list-item]
+            await knot.process(record=record, allowed_kinds=["nope"])

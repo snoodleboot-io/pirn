@@ -57,7 +57,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         strategy = SummaryMemoryCompactor(summarizer=StubSummarizer())
         with self.assertRaisesRegex(TypeError, "request"):
-            await k.process(strategy=strategy, request="nope")  # type: ignore[arg-type]
+            await k.process(strategy=strategy, request="nope")
 
 
 if __name__ == "__main__":

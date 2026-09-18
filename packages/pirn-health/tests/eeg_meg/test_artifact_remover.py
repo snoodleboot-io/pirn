@@ -7,12 +7,12 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 try:
-    import sklearn  # noqa: F401
+    import sklearn  # noqa: F401  # imported only to skip when sklearn is absent
 except ImportError as _e:
     raise unittest.SkipTest("sklearn not installed") from _e
 
@@ -44,11 +44,11 @@ _KNOT = ArtifactRemover(signal=_SIGNAL, n_components=2, method="infomax", _confi
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", n_components=10, method="infomax")  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", n_components=10, method="infomax")
 
     async def test_rejects_non_int_components(self) -> None:
         with self.assertRaisesRegex(TypeError, "n_components"):
-            await _KNOT.process(signal=_SIGNAL, n_components="x", method="infomax")  # type: ignore[arg-type]
+            await _KNOT.process(signal=_SIGNAL, n_components="x", method="infomax")
 
     async def test_rejects_non_positive_components(self) -> None:
         with self.assertRaisesRegex(ValueError, "positive"):

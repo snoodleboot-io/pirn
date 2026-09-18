@@ -124,7 +124,7 @@ class TestHttpSearchConnector:
 
     def test_rejects_non_http_connector(self) -> None:
         with pytest.raises(TypeError, match="HttpConnector"):
-            HttpSearchConnector(http=object(), endpoint="https://x")  # type: ignore[arg-type]
+            HttpSearchConnector(http=object(), endpoint="https://x")
 
     def test_rejects_empty_endpoint(self) -> None:
         http, _ = _connector({})

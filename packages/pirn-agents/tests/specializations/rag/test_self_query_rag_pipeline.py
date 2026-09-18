@@ -55,7 +55,7 @@ class TestSelfQueryRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             SelfQueryRagPipeline(
                 query="q",
-                store="nope",  # type: ignore[arg-type]
+                store="nope",
                 embedder=StubEmbeddingProvider(dimension=4),
                 llm=StubLLMProvider(["{}", "a"]),
                 _config=KnotConfig(id="selfquery"),

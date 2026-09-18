@@ -103,7 +103,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 batch=_make_batch(),
                 fn=lambda b: b,
-                batch_format=123,  # type: ignore[arg-type]
+                batch_format=123,
                 batch_size=None,
             )
 

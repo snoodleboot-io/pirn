@@ -23,17 +23,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "rows"):
-            await knot.process(rows=42, min_qual=10.0, max_af=0.5)  # type: ignore[arg-type]
+            await knot.process(rows=42, min_qual=10.0, max_af=0.5)
 
     async def test_rejects_non_mapping_row(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "row"):
-            await knot.process(rows=["x"], min_qual=10.0, max_af=0.5)  # type: ignore[list-item]
+            await knot.process(rows=["x"], min_qual=10.0, max_af=0.5)
 
     async def test_rejects_non_numeric_min_qual(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "min_qual"):
-            await knot.process(rows=[], min_qual="x", max_af=0.5)  # type: ignore[arg-type]
+            await knot.process(rows=[], min_qual="x", max_af=0.5)
 
     async def test_rejects_out_of_range_af(self) -> None:
         knot = self._make_knot()

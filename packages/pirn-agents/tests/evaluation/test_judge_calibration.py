@@ -25,7 +25,7 @@ class GoldLabelTests(unittest.TestCase):
 
     def test_non_criterion_raises(self) -> None:
         with self.assertRaises(TypeError):
-            GoldLabel(prompt="q", response="r", criteria=["x"], expected_score=0.5)  # type: ignore[list-item]
+            GoldLabel(prompt="q", response="r", criteria=["x"], expected_score=0.5)
 
 
 class JudgeCalibrationTests(unittest.IsolatedAsyncioTestCase):
@@ -75,7 +75,7 @@ class JudgeCalibrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_judge_raises(self) -> None:
         with self.assertRaises(TypeError):
-            JudgeCalibration(judge=object())  # type: ignore[arg-type]
+            JudgeCalibration(judge=object())
 
 
 if __name__ == "__main__":

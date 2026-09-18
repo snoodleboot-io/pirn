@@ -23,7 +23,7 @@ _GC_REPORT: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, normalize: bool = True) -> GasChromatographyAnalyzer:
         return GasChromatographyAnalyzer(
-            gc_report=None,  # type: ignore[arg-type]
+            gc_report=None,
             normalize_fractions=normalize,
             _config=KnotConfig(id="gc", validate_io=False),
         )
@@ -31,12 +31,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bool_normalize(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "normalize_fractions"):
-            await knot.process(gc_report=_GC_REPORT, normalize_fractions="yes")  # type: ignore[arg-type]
+            await knot.process(gc_report=_GC_REPORT, normalize_fractions="yes")
 
     async def test_rejects_non_dict_report(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "gc_report"):
-            await knot.process(gc_report=[], normalize_fractions=True)  # type: ignore[arg-type]
+            await knot.process(gc_report=[], normalize_fractions=True)
 
     async def test_rejects_missing_components(self) -> None:
         knot = self._make_knot()

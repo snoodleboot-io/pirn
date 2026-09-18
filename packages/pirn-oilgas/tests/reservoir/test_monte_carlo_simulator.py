@@ -12,7 +12,7 @@ from pirn_oilgas.reservoir.monte_carlo_simulator import MonteCarloSimulator
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, trial_count: int = 1000) -> MonteCarloSimulator:
         return MonteCarloSimulator(
-            deterministic_estimate=None,  # type: ignore[arg-type]
+            deterministic_estimate=None,
             trial_count=trial_count,
             _config=KnotConfig(id="mc", validate_io=False),
         )
@@ -25,7 +25,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_int_seed(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "seed"):
-            await knot.process(deterministic_estimate=100.0, trial_count=10, seed="x")  # type: ignore[arg-type]
+            await knot.process(deterministic_estimate=100.0, trial_count=10, seed="x")
 
     async def test_returns_percentiles(self) -> None:
         knot = self._make_knot()

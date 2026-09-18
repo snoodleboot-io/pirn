@@ -53,4 +53,4 @@ class TestNormalizeColumnRuleConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         r = NormalizeColumnRule()
         with self.assertRaises((AttributeError, TypeError)):
-            r.case = "lower"  # type: ignore[misc]
+            r.case = "lower"

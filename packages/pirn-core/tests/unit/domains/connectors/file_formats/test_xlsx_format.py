@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import openpyxl  # noqa: F401
+    import openpyxl  # noqa: F401  # imported only to skip when openpyxl is absent
 except ImportError as _e:
     raise unittest.SkipTest("openpyxl not installed") from _e
 try:
-    import xlsxwriter  # noqa: F401
+    import xlsxwriter  # noqa: F401  # imported only to skip when xlsxwriter is absent
 except ImportError as _e:
     raise unittest.SkipTest("xlsxwriter not installed") from _e
 
@@ -47,15 +47,15 @@ class TestXlsxFormatConstruction(unittest.TestCase):
 
     def test_non_string_sheet_name(self) -> None:
         with self.assertRaises(ValueError):
-            XlsxFormat(sheet_name=123)  # type: ignore[arg-type]
+            XlsxFormat(sheet_name=123)
 
     def test_non_bool_has_header(self) -> None:
         with self.assertRaises(TypeError):
-            XlsxFormat(has_header="yes")  # type: ignore[arg-type]
+            XlsxFormat(has_header="yes")
 
     def test_invalid_column_names_type(self) -> None:
         with self.assertRaises(TypeError):
-            XlsxFormat(column_names="ab")  # type: ignore[arg-type]
+            XlsxFormat(column_names="ab")
 
     def test_empty_column_name_rejected(self) -> None:
         with self.assertRaises(ValueError):

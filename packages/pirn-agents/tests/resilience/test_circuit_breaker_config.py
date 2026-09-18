@@ -26,14 +26,14 @@ class TestValidation:
     @pytest.mark.parametrize("bad", [0, -1, True, 1.5])
     def test_rejects_bad_failure_threshold(self, bad: object) -> None:
         with pytest.raises(ValueError, match="failure_threshold"):
-            CircuitBreakerConfig(failure_threshold=bad)  # type: ignore[arg-type]
+            CircuitBreakerConfig(failure_threshold=bad)
 
     @pytest.mark.parametrize("bad", [0, -1, True, 2.0])
     def test_rejects_bad_success_threshold(self, bad: object) -> None:
         with pytest.raises(ValueError, match="success_threshold"):
-            CircuitBreakerConfig(success_threshold=bad)  # type: ignore[arg-type]
+            CircuitBreakerConfig(success_threshold=bad)
 
     @pytest.mark.parametrize("bad", [0, -1.0, True, "x"])
     def test_rejects_bad_cooldown(self, bad: object) -> None:
         with pytest.raises(ValueError, match="cooldown_seconds"):
-            CircuitBreakerConfig(cooldown_seconds=bad)  # type: ignore[arg-type]
+            CircuitBreakerConfig(cooldown_seconds=bad)

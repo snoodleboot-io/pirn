@@ -42,4 +42,4 @@ class TestSalesforceConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = SalesforceConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.username = "mutated"  # type: ignore[misc]
+            cfg.username = "mutated"

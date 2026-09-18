@@ -17,7 +17,7 @@ _PVT = PVTTable(fluid_id="f")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> MaterialBalanceCalculator:
         return MaterialBalanceCalculator(
-            pvt=None,  # type: ignore[arg-type]
+            pvt=None,
             cumulative_oil_stb=10.0,
             cumulative_gas_mscf=20.0,
             cumulative_water_stb=5.0,

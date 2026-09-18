@@ -9,7 +9,7 @@ from pirn.connectors.message_broker import MessageBroker
 
 async def _aiter():
     return
-    yield  # pragma: no cover
+    yield  # pragma: no cover  # the yield only makes this an async generator
 
 
 class TestMessageBrokerInterface(unittest.IsolatedAsyncioTestCase):

@@ -9,7 +9,7 @@ import unittest
 import unittest.mock
 
 try:
-    import fhir  # noqa: F401
+    import fhir  # noqa: F401  # imported only to skip when fhir is absent
 except ImportError as _e:
     raise unittest.SkipTest("fhir not installed") from _e
 
@@ -193,7 +193,7 @@ class TestFhirJsonFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"not json at all {{{{"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

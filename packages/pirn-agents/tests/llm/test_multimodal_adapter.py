@@ -96,7 +96,7 @@ class TestAdapterBase(unittest.TestCase):
 
     def test_encode_rejects_non_block(self) -> None:
         with self.assertRaises(TypeError):
-            _ImageOnlyAdapter().encode_blocks(["nope"])  # type: ignore[list-item]
+            _ImageOnlyAdapter().encode_blocks(["nope"])
 
     def test_decode_bare_string_is_text_block(self) -> None:
         assert _ImageOnlyAdapter().decode_blocks("plain") == (TextBlock(text="plain"),)

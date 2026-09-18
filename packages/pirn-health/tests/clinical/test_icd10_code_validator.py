@@ -17,12 +17,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = ICD10CodeValidator(codes=[], _config=_CFG)
         with self.assertRaisesRegex(TypeError, "codes"):
-            await knot.process(codes=42)  # type: ignore[arg-type]
+            await knot.process(codes=42)
 
     async def test_rejects_non_string(self) -> None:
         knot = ICD10CodeValidator(codes=[], _config=_CFG)
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(codes=[1])  # type: ignore[list-item]
+            await knot.process(codes=[1])
 
     async def test_valid_codes_returns_true(self) -> None:
         knot = ICD10CodeValidator(codes=["E11.9", "I10"], _config=_CFG)

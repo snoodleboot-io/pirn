@@ -57,5 +57,5 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
                 query="SELECT 1",
                 text_column="text",
                 target_column="label",
-                embedding_provider="bad",  # type: ignore[arg-type]
+                embedding_provider="bad",
             )

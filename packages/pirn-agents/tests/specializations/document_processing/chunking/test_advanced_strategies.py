@@ -49,7 +49,7 @@ class TestSemanticChunkingStrategy(unittest.IsolatedAsyncioTestCase):
 
     def test_rejects_non_embedding_provider(self) -> None:
         with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
-            SemanticChunkingStrategy(embedder=object())  # type: ignore[arg-type]
+            SemanticChunkingStrategy(embedder=object())
 
     def test_rejects_out_of_range_distance(self) -> None:
         with self.assertRaisesRegex(ValueError, "breakpoint_distance"):

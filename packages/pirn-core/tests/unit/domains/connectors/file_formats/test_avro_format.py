@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 try:
-    import fastavro  # noqa: F401
+    import fastavro  # noqa: F401  # imported only to skip when fastavro is absent
 except ImportError as _e:
     raise unittest.SkipTest("fastavro not installed") from _e
 
@@ -46,7 +46,7 @@ class TestAvroFormatConstruction(unittest.TestCase):
 
     def test_invalid_schema_type(self) -> None:
         with self.assertRaises(TypeError):
-            AvroFormat(schema="not-a-dict")  # type: ignore[arg-type]
+            AvroFormat(schema="not-a-dict")
 
 
 class TestAvroFormatBasics(unittest.TestCase):

@@ -38,21 +38,21 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_oilgas.types.pvt_table import PVTTable
 
-# Industry-standard endpoint values for water-oil systems (Dake, 1983, Ch. 3).
-_swirr = 0.20  # irreducible water saturation
-_sorw = 0.25  # residual oil saturation to water
-_krw_max = 0.40  # max water relative permeability at Sor
-_kro_max = 0.90  # max oil relative permeability at Swirr
-
-# Corey exponents: nw=2/no=2 for Brooks-Corey, nw=4 for Corey (more curved water curve).
-_nw_brooks_corey = 2
-_no_brooks_corey = 2
-_nw_corey = 4
-_no_corey = 2
-
 
 class RelativePermeabilityModeler(Knot):
     """Fit a kr / Sw model and return the resulting parameter table."""
+
+    # Industry-standard endpoint values for water-oil systems (Dake, 1983, Ch. 3).
+    _swirr: ClassVar[float] = 0.20  # irreducible water saturation
+    _sorw: ClassVar[float] = 0.25  # residual oil saturation to water
+    _krw_max: ClassVar[float] = 0.40  # max water relative permeability at Sor
+    _kro_max: ClassVar[float] = 0.90  # max oil relative permeability at Swirr
+
+    # Corey exponents: nw=2/no=2 for Brooks-Corey, nw=4 for Corey (more curved water curve).
+    _nw_brooks_corey: ClassVar[int] = 2
+    _no_brooks_corey: ClassVar[int] = 2
+    _nw_corey: ClassVar[int] = 4
+    _no_corey: ClassVar[int] = 2
 
     valid_methods: ClassVar[frozenset[str]] = frozenset(
         {"corey", "brooks_corey", "lett", "stone1", "stone2"}
@@ -86,9 +86,12 @@ class RelativePermeabilityModeler(Knot):
             )
 
         if method == "brooks_corey":
-            nw, no = _nw_brooks_corey, _no_brooks_corey
+            nw, no = (
+                RelativePermeabilityModeler._nw_brooks_corey,
+                RelativePermeabilityModeler._no_brooks_corey,
+            )
         elif method == "corey":
-            nw, no = _nw_corey, _no_corey
+            nw, no = RelativePermeabilityModeler._nw_corey, RelativePermeabilityModeler._no_corey
         else:
             # lett / stone1 / stone2: linear endpoints; Corey exponents not returned
             nw, no = 1, 1
@@ -96,10 +99,10 @@ class RelativePermeabilityModeler(Knot):
         return {
             "fluid_id": pvt.fluid_id,
             "method": method,
-            "swirr": _swirr,
-            "sorw": _sorw,
-            "krw_max": _krw_max,
-            "kro_max": _kro_max,
+            "swirr": RelativePermeabilityModeler._swirr,
+            "sorw": RelativePermeabilityModeler._sorw,
+            "krw_max": RelativePermeabilityModeler._krw_max,
+            "kro_max": RelativePermeabilityModeler._kro_max,
             "nw": nw,
             "no": no,
         }

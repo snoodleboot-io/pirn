@@ -116,7 +116,7 @@ class TestHostileIdentifiersAreRejected:
 
     def test_non_string_is_rejected(self) -> None:
         with pytest.raises(TypeError, match="SqlIdentifier"):
-            SqlIdentifier(object())  # pyright: ignore[reportArgumentType]
+            SqlIdentifier(object())
 
     def test_rejection_message_does_not_echo_the_payload(self) -> None:
         # The raw value can be attacker-controlled and lands in logs; the error
@@ -191,7 +191,7 @@ class TestTheValueObjectIsImmutable:
     def test_a_new_attribute_cannot_be_attached(self) -> None:
         identifier = SqlIdentifier("users")
         with pytest.raises(AttributeError):
-            identifier.sql_override = "anything"  # pyright: ignore[reportAttributeAccessIssue]
+            identifier.sql_override = "anything"
 
     def test_the_rendered_sql_is_unchanged_by_an_attempted_mutation(self) -> None:
         identifier = SqlIdentifier("users")

@@ -107,7 +107,7 @@ def test_clean_output_has_no_quarantine() -> None:
 
 def test_sanitize_rejects_non_string() -> None:
     with pytest.raises(TypeError):
-        ToolOutputSanitizer().sanitize(123)  # type: ignore[arg-type]
+        ToolOutputSanitizer().sanitize(123)
 
 
 def test_zero_max_chars_rejected() -> None:

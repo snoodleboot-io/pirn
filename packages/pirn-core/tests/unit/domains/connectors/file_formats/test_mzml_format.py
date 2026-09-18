@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import pyteomics  # noqa: F401
+    import pyteomics  # noqa: F401  # imported only to skip when pyteomics is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyteomics not installed") from _e
 
@@ -171,7 +171,7 @@ class TestMzmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"<not valid mzml"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

@@ -42,4 +42,4 @@ class TestRayExecutionReceipt:
     def test_receipt_is_frozen(self) -> None:
         receipt = RayExecutionReceipt(backend_name="ray", target_path=None)
         with pytest.raises(FrozenInstanceError):
-            receipt.backend_name = "other"  # type: ignore[misc]
+            receipt.backend_name = "other"

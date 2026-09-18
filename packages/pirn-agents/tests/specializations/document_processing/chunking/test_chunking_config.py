@@ -28,12 +28,12 @@ class TestChunkingConfig:
     @pytest.mark.parametrize("bad", [0, -1, True, 10.5, "1000"])
     def test_bad_chunk_size_rejected(self, bad: object) -> None:
         with pytest.raises(ValueError, match="chunk_size"):
-            ChunkingConfig(chunk_size=bad)  # type: ignore[arg-type]
+            ChunkingConfig(chunk_size=bad)
 
     @pytest.mark.parametrize("bad", [-1, True, 10.5, "100"])
     def test_bad_chunk_overlap_rejected(self, bad: object) -> None:
         with pytest.raises(ValueError, match="chunk_overlap"):
-            ChunkingConfig(chunk_overlap=bad)  # type: ignore[arg-type]
+            ChunkingConfig(chunk_overlap=bad)
 
     @pytest.mark.parametrize("overlap", [100, 200])
     def test_overlap_must_be_smaller_than_window(self, overlap: int) -> None:
@@ -51,7 +51,7 @@ class TestChunkingConfig:
 
         assert isinstance(config, PirnOpaqueValue)
         with pytest.raises(dataclasses.FrozenInstanceError):
-            config.chunk_size = 1  # type: ignore[misc]
+            config.chunk_size = 1
 
     def test_value_equality(self) -> None:
         assert ChunkingConfig(chunk_size=50, chunk_overlap=5) == ChunkingConfig(

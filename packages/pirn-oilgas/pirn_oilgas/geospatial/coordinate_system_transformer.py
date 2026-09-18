@@ -22,20 +22,20 @@ References:
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-# Equirectangular scale factors (Snyder, 1987, §4).
-# 1° of latitude ≈ 110 540 m (semi-major axis x π / 180 for WGS-84 mean radius).
-_meters_per_deg_lat = 110_540.0
-# 1° of longitude ≈ 111 320 m at the equator; scaled by cos(lat) at the point.
-_meters_per_deg_lon_at_equator = 111_320.0
-
 
 class CoordinateSystemTransformer(Knot):
     """Transform a projected (x, y) location from a source to target CRS."""
+
+    # Equirectangular scale factors (Snyder, 1987, §4).
+    # 1° of latitude ≈ 110 540 m (semi-major axis x π / 180 for WGS-84 mean radius).
+    _meters_per_deg_lat: ClassVar[float] = 110_540.0
+    # 1° of longitude ≈ 111 320 m at the equator; scaled by cos(lat) at the point.
+    _meters_per_deg_lon_at_equator: ClassVar[float] = 111_320.0
 
     def __init__(
         self,
@@ -81,8 +81,12 @@ class CoordinateSystemTransformer(Knot):
             # Input is geographic (lat=x_coord, lon=y_coord); project to metres via equirectangular.
             lat_deg = x_coord
             lon_deg = y_coord
-            x_m = lon_deg * _meters_per_deg_lon_at_equator * math.cos(math.radians(lat_deg))
-            y_m = lat_deg * _meters_per_deg_lat
+            x_m = (
+                lon_deg
+                * CoordinateSystemTransformer._meters_per_deg_lon_at_equator
+                * math.cos(math.radians(lat_deg))
+            )
+            y_m = lat_deg * CoordinateSystemTransformer._meters_per_deg_lat
             x_coord, y_coord = x_m, y_m
 
         return {

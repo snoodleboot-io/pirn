@@ -24,7 +24,7 @@ class TestRouteTable(unittest.TestCase):
 
     def test_rejects_non_store(self) -> None:
         with self.assertRaisesRegex(TypeError, "must map to a MemoryStore"):
-            RouteTable({"bad": "nope"})  # type: ignore[dict-item]
+            RouteTable({"bad": "nope"})
 
     def test_unknown_route_raises(self) -> None:
         table = RouteTable({"docs": StubMemoryStore([])})

@@ -39,7 +39,7 @@ class TestConstruction(unittest.TestCase):
         with self.assertRaises(TypeError):
             with Tapestry():
                 ModelLineageTracker(
-                    dataset="bad",  # type: ignore[arg-type]
+                    dataset="bad",
                     split=_KnotStub(_config=KnotConfig(id="s")),
                     model=_KnotStub(_config=KnotConfig(id="m")),
                     report=_KnotStub(_config=KnotConfig(id="r")),
@@ -55,7 +55,7 @@ class TestConstruction(unittest.TestCase):
                     split=_KnotStub(_config=KnotConfig(id="s")),
                     model=_KnotStub(_config=KnotConfig(id="m")),
                     report=_KnotStub(_config=KnotConfig(id="r")),
-                    lineage="bad",  # type: ignore[arg-type]
+                    lineage="bad",
                     _config=KnotConfig(id="mlt"),
                 )
 

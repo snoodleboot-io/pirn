@@ -40,4 +40,4 @@ class TestMixpanelConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = MixpanelConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.project_token = "mutated"  # type: ignore[misc]
+            cfg.project_token = "mutated"

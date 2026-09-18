@@ -7,7 +7,7 @@ import unittest
 import pytest
 
 try:
-    import fiona  # noqa: F401
+    import fiona  # noqa: F401  # imported only to skip when fiona is absent
 except ImportError as _e:
     raise unittest.SkipTest("fiona not installed") from _e
 
@@ -59,7 +59,7 @@ class TestGeopackageFormatConstruction(unittest.TestCase):
 
     def test_layer_name_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            GeopackageFormat(layer_name=123)  # type: ignore[arg-type]
+            GeopackageFormat(layer_name=123)
 
     def test_layer_name_must_be_nonempty(self) -> None:
         with self.assertRaises(ValueError):

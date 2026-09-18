@@ -43,7 +43,7 @@ class TestStructuredContentValidator(unittest.TestCase):
 
     def test_rejects_non_basemodel_model_class(self) -> None:
         with self.assertRaisesRegex(TypeError, "model_class must be a BaseModel"):
-            StructuredContentValidator(model_class=int)  # type: ignore[type-var]
+            StructuredContentValidator(model_class=int)
 
 
 if __name__ == "__main__":

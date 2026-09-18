@@ -83,4 +83,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_message_element(self) -> None:
         k = _make_knot()
         with self.assertRaises(TypeError):
-            await k.process(messages=["not-a-message"], token_budget=1000)  # type: ignore[list-item]
+            await k.process(messages=["not-a-message"], token_budget=1000)

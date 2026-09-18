@@ -7,11 +7,11 @@ import unittest
 import unittest.mock
 
 try:
-    import defusedxml  # noqa: F401
+    import defusedxml  # noqa: F401  # imported only to skip when defusedxml is absent
 except ImportError as _e:
     raise unittest.SkipTest("defusedxml not installed") from _e
 try:
-    import lxml  # noqa: F401
+    import lxml  # noqa: F401  # imported only to skip when lxml is absent
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 
@@ -99,7 +99,7 @@ class TestWitsmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"not xml at all <<<"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass

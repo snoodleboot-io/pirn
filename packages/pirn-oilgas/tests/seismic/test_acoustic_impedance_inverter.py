@@ -19,9 +19,9 @@ _LF_MODEL: dict[str, Any] = {"impedance": [], "shape": [100, 100, 500]}
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> AcousticImpedanceInverter:
         return AcousticImpedanceInverter(
-            seismic_volume=None,  # type: ignore[arg-type]
-            wavelet=None,  # type: ignore[arg-type]
-            low_frequency_model=None,  # type: ignore[arg-type]
+            seismic_volume=None,
+            wavelet=None,
+            low_frequency_model=None,
             regularization=0.01,
             _config=KnotConfig(id="aii", validate_io=False),
         )

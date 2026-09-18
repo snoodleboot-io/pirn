@@ -9,7 +9,7 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 try:
-    import pyarrow.feather  # noqa: F401
+    import pyarrow.feather  # noqa: F401  # imported only to skip when pyarrow is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow.feather not installed") from _e
 
@@ -39,7 +39,7 @@ class TestFeatherFormatConstruction(unittest.TestCase):
 
     def test_invalid_compression_type(self) -> None:
         with self.assertRaises(TypeError):
-            FeatherFormat(compression=42)  # type: ignore[arg-type]
+            FeatherFormat(compression=42)
 
 
 class TestFeatherFormatBasics(unittest.TestCase):

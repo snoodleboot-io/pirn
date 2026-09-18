@@ -58,7 +58,7 @@ class TestMudLogAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="body must be bytes"):
-            await knot.process(body="not-bytes")  # type: ignore[arg-type]
+            await knot.process(body="not-bytes")
 
     async def test_rejects_invalid_json(self) -> None:
         knot = _make()

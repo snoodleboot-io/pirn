@@ -75,5 +75,5 @@ class TestProceduralMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 agent_response=AgentResponse(content="done", finish_reason="stop"),
                 task_description="task",
-                store="bad",  # type: ignore[arg-type]
+                store="bad",
             )

@@ -35,7 +35,7 @@ import sys
 import warnings
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
@@ -80,11 +80,11 @@ from pirn.managers.knot_state import KnotState
 from pirn.managers.rebindable_error import RebindableError
 from pirn.recording.replay_session import ReplaySession
 
-_log = logging.getLogger(__name__)
-
 
 class Engine:
     """Async shed walker.  Owns no state across runs."""
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(self, dispatcher: Dispatcher | None = None) -> None:
         self._dispatcher = dispatcher or LocalDispatcher()
@@ -690,7 +690,7 @@ class Engine:
         if not unused or inherited:
             return
         if extensible or has_container:
-            _log.debug(
+            Engine._log.debug(
                 "ConcurrencyLimits groups %s match no knot of the static graph; "
                 "mid-run knots or the inner runs of a container may still join them",
                 unused,

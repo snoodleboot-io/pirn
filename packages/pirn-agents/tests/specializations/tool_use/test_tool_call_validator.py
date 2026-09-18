@@ -121,7 +121,7 @@ class TestToolCallValidatorRejections(unittest.IsolatedAsyncioTestCase):
             with Tapestry():
                 ToolCallValidator(
                     tool_call=call,
-                    tools=["bad"],  # type: ignore[list-item]
+                    tools=["bad"],
                     _config=KnotConfig(id="val"),
                 )
 
@@ -133,7 +133,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             k = ToolCallValidator.__new__(ToolCallValidator)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises(TypeError):
-            await k.process(tool_call=call, tools=["not-a-tool"])  # type: ignore[list-item]
+            await k.process(tool_call=call, tools=["not-a-tool"])
 
     async def test_process_rejects_non_tool_call(self) -> None:
         valid_call = ToolCall(tool_name="t", arguments={}, call_id="c1")

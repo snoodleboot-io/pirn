@@ -27,7 +27,7 @@ class TestConstruction(unittest.TestCase):
         with self.assertRaises(TypeError):
             with Tapestry():
                 ClassificationEvalPipeline(
-                    model="not-a-knot",  # type: ignore[arg-type]
+                    model="not-a-knot",
                     split=_KnotStub(_config=KnotConfig(id="s")),
                     _config=KnotConfig(id="ep"),
                 )
@@ -37,7 +37,7 @@ class TestConstruction(unittest.TestCase):
             with Tapestry():
                 ClassificationEvalPipeline(
                     model=_KnotStub(_config=KnotConfig(id="m")),
-                    split="not-a-knot",  # type: ignore[arg-type]
+                    split="not-a-knot",
                     _config=KnotConfig(id="ep"),
                 )
 

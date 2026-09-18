@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import lasio  # noqa: F401
+    import lasio  # noqa: F401  # imported only to skip when lasio is absent
 except ImportError as _e:
     raise unittest.SkipTest("lasio not installed") from _e
 
@@ -33,7 +33,7 @@ def _fake_decode(body: bytes, well_id: str, curves: tuple, depth_unit: str) -> L
 class TestConstruction(unittest.TestCase):
     def test_requires_payload_kwarg(self) -> None:
         with self.assertRaisesRegex(TypeError, "payload"):
-            PetrophysicalEvaluator(_config=KnotConfig(id="pe"))  # type: ignore[call-arg]
+            PetrophysicalEvaluator(_config=KnotConfig(id="pe"))
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -22,19 +22,19 @@ class TestConstruction(unittest.TestCase):
 
     def test_requires_label(self) -> None:
         with pytest.raises(ValidationError):
-            ScadaSeriesSpec(rows=_ROWS, tag="oil-tag")  # type: ignore[call-arg]
+            ScadaSeriesSpec(rows=_ROWS, tag="oil-tag")
 
     def test_requires_rows(self) -> None:
         with pytest.raises(ValidationError):
-            ScadaSeriesSpec(label="oil", tag="oil-tag")  # type: ignore[call-arg]
+            ScadaSeriesSpec(label="oil", tag="oil-tag")
 
     def test_requires_tag(self) -> None:
         with pytest.raises(ValidationError):
-            ScadaSeriesSpec(label="oil", rows=_ROWS)  # type: ignore[call-arg]
+            ScadaSeriesSpec(label="oil", rows=_ROWS)
 
 
 class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         spec = ScadaSeriesSpec(label="oil", rows=_ROWS, tag="oil-tag")
         with pytest.raises(ValidationError):
-            spec.tag = "new-tag"  # type: ignore[misc]
+            spec.tag = "new-tag"

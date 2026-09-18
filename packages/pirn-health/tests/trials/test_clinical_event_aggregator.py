@@ -49,7 +49,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_event_codes(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(TypeError, "event_codes"):
-            await knot.process(records=_RECORDS, event_codes=42)  # type: ignore[arg-type]
+            await knot.process(records=_RECORDS, event_codes=42)
 
     async def test_rejects_empty_event_codes(self) -> None:
         knot = _make_knot()

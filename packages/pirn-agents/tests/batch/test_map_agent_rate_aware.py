@@ -53,7 +53,7 @@ class _AdvancingSleep:
 
 
 async def _drain(runner: MapAgent, inputs: object) -> list:
-    return [result async for result in runner.run(inputs)]  # type: ignore[arg-type]
+    return [result async for result in runner.run(inputs)]
 
 
 async def test_rate_limiter_paces_dispatch() -> None:
@@ -160,14 +160,14 @@ def test_rejects_wrong_rate_limiter_type() -> None:
     with pytest.raises(TypeError):
         MapAgent(
             run_item=StubAgent(), _config=KnotConfig(id="map-agent"), rate_limiter="not-a-limiter"
-        )  # type: ignore[arg-type]
+        )
 
 
 def test_rejects_wrong_controller_type() -> None:
     with pytest.raises(TypeError):
         MapAgent(
             run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency_controller="nope"
-        )  # type: ignore[arg-type]
+        )
 
 
 def test_rate_limit_signal_rejects_negative_retry_after() -> None:

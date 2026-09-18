@@ -29,11 +29,11 @@ _KNOT = TimeFrequencyDecomposer(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", frequencies_hz=[10.0], method="morlet")  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", frequencies_hz=[10.0], method="morlet")
 
     async def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "frequencies_hz"):
-            await _KNOT.process(signal=_SIGNAL, frequencies_hz=42, method="morlet")  # type: ignore[arg-type]
+            await _KNOT.process(signal=_SIGNAL, frequencies_hz=42, method="morlet")
 
     async def test_rejects_non_positive_freq(self) -> None:
         with self.assertRaisesRegex(ValueError, "positive"):

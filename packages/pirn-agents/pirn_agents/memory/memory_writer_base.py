@@ -40,7 +40,7 @@ class MemoryWriterBase(Writer):
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True
 
-    async def process(self, *args: Any, **kwargs: Any) -> Any:
+    async def process(self, *args: Any, **_: Any) -> Any:
         """Persist state into a ``MemoryStore`` and return a storage handle.
 
         Concrete subclasses override this with their own keyword parameters and

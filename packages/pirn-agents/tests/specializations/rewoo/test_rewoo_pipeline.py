@@ -76,4 +76,4 @@ class TestReWooPipeline(unittest.IsolatedAsyncioTestCase):
             knot = ReWooPipeline.__new__(ReWooPipeline)
             object.__setattr__(knot, "_config", KnotConfig(id="rewoo"))
         with self.assertRaises(TypeError):
-            await knot.process(goal="g", llm="bad", tools=())  # type: ignore[arg-type]
+            await knot.process(goal="g", llm="bad", tools=())

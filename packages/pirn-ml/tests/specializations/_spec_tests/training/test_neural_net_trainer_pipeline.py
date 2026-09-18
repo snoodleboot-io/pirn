@@ -70,7 +70,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=_split_fixture(),
-                lineage="not-a-store",  # type: ignore[arg-type]
+                lineage="not-a-store",
                 store=RecordingObjectStore(),
                 metrics=("accuracy",),
             )

@@ -12,7 +12,7 @@ from pirn_agents.resilience.circuit_state import CircuitState
 class TestConstruction:
     def test_rejects_non_config(self) -> None:
         with pytest.raises(TypeError, match="CircuitBreakerConfig"):
-            CircuitBreakerRegistry(object())  # type: ignore[arg-type]
+            CircuitBreakerRegistry(object())
 
 
 class TestScoping:

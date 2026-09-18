@@ -81,7 +81,7 @@ class TestPresetsProviderNeutral(unittest.TestCase):
         # default is silently substituted.
         with self.assertRaises(TypeError):
             with Tapestry():
-                AgentPresets.research(llm="not-a-provider", input="q")  # type: ignore[arg-type]
+                AgentPresets.research(llm="not-a-provider", input="q")
 
 
 class TestPresetShapeIsALoadedCorePipelineDocument(unittest.IsolatedAsyncioTestCase):

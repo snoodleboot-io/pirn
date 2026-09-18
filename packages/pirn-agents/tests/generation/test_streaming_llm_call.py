@@ -55,7 +55,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         """
 
         class GeneratorProvider(LLMProvider):
-            def stream_chat(  # type: ignore[override]
+            def stream_chat(
                 self,
                 messages: Sequence[Mapping[str, Any]],
                 *,

@@ -22,8 +22,8 @@ _LOG: list[dict[str, Any]] = [
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> CoreToLogDepthMatcher:
         return CoreToLogDepthMatcher(
-            core_data=None,  # type: ignore[arg-type]
-            log_data=None,  # type: ignore[arg-type]
+            core_data=None,
+            log_data=None,
             max_shift_ft=5.0,
             _config=KnotConfig(id="cdm", validate_io=False),
         )

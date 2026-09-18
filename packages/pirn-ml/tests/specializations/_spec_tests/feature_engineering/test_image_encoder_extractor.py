@@ -43,5 +43,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 split=_split_fixture(),
                 image_column="img",
-                image_encoder="not-a-provider",  # type: ignore[arg-type]
+                image_encoder="not-a-provider",
             )

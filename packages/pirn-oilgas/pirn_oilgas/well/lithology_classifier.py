@@ -28,7 +28,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -37,12 +37,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 
-_gr_clean = 20.0
-_gr_shale = 120.0
-
 
 class LithologyClassifier(Knot):
     """Classify lithology using a configured method and append the curve."""
+
+    _gr_clean: ClassVar[float] = 20.0
+    _gr_shale: ClassVar[float] = 120.0
 
     def __init__(
         self,
@@ -75,7 +75,12 @@ class LithologyClassifier(Knot):
             raise ValueError("LithologyClassifier: 'GR' curve required in curve_data")
 
         gr = curve_data["GR"]
-        vsh = np.clip((gr - _gr_clean) / (_gr_shale - _gr_clean), 0.0, 1.0)
+        vsh = np.clip(
+            (gr - LithologyClassifier._gr_clean)
+            / (LithologyClassifier._gr_shale - LithologyClassifier._gr_clean),
+            0.0,
+            1.0,
+        )
         lith = (vsh > 0.35).astype(np.float64)
 
         new_curve_data = {**curve_data, "LITH": lith}

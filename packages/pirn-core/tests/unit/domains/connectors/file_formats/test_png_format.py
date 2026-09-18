@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import PIL  # noqa: F401
+    import PIL  # noqa: F401  # imported only to skip when PIL is absent
 except ImportError as _e:
     raise unittest.SkipTest("PIL not installed") from _e
 

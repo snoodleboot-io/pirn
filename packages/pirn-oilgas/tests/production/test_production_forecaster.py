@@ -15,7 +15,7 @@ _PARAMS: dict[str, float] = {"qi": 1000.0, "di_per_year": 0.15, "b": 0.5}
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, forecast_months: int = 24) -> ProductionForecaster:
         return ProductionForecaster(
-            decline_parameters=None,  # type: ignore[arg-type]
+            decline_parameters=None,
             forecast_months=forecast_months,
             _config=KnotConfig(id="pf", validate_io=False),
         )

@@ -40,7 +40,7 @@ class TestRoundtrip(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         frame = SpectrumFrame(signal_id="x")
         try:
-            frame.signal_id = "y"  # type: ignore[misc]
+            frame.signal_id = "y"
         except Exception:
             return
         raise AssertionError("SpectrumFrame should be frozen")

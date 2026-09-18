@@ -111,7 +111,7 @@ class TestValidation(unittest.TestCase):
 
     def test_rejects_non_str_template(self) -> None:
         with self.assertRaisesRegex(TypeError, "template"):
-            PromptTemplate(name="x", version="1.0.0", template=123)  # type: ignore[arg-type]
+            PromptTemplate(name="x", version="1.0.0", template=123)
 
     def test_rejects_non_str_partial_body(self) -> None:
         with self.assertRaisesRegex(TypeError, "partials"):
@@ -119,7 +119,7 @@ class TestValidation(unittest.TestCase):
                 name="x",
                 version="1.0.0",
                 template="y",
-                partials={"h": 1},  # type: ignore[dict-item]
+                partials={"h": 1},
             )
 
 

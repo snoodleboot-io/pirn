@@ -31,7 +31,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -39,13 +39,13 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_oilgas.types.pvt_table import PVTTable
 
-# Typical gas FVF expansion factor (Mcf/scf at reservoir conditions) used
-# when a full pressure-dependent PVT table is unavailable.
-_default_gas_expansion_factor = 0.003
-
 
 class MaterialBalanceCalculator(Knot):
     """Solve a Havlena-Odeh-style material balance for OOIP / OGIP."""
+
+    # Typical gas FVF expansion factor (Mcf/scf at reservoir conditions) used
+    # when a full pressure-dependent PVT table is unavailable.
+    _default_gas_expansion_factor: ClassVar[float] = 0.003
 
     def __init__(
         self,
@@ -134,6 +134,6 @@ class MaterialBalanceCalculator(Knot):
 
         # Gas OGIP via volumetric expansion; _default_gas_expansion_factor
         # represents Bg - Bgi in Mcf/scf for a typical mid-pressure reservoir.
-        ogip = gp_mscf / (_default_gas_expansion_factor + 1e-9)
+        ogip = gp_mscf / (MaterialBalanceCalculator._default_gas_expansion_factor + 1e-9)
 
         return {"ooip_stb": float(np.float64(ooip)), "ogip_mscf": float(np.float64(ogip))}

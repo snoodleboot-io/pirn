@@ -80,10 +80,10 @@ async def test_malformed_resource_raises() -> None:
 
 async def test_constructor_rejects_non_client() -> None:
     with pytest.raises(TypeError):
-        McpResourceAdapter(client=object())  # type: ignore[arg-type]
+        McpResourceAdapter(client=object())
 
 
 async def test_inject_rejects_non_store() -> None:
     adapter = await _adapter()
     with pytest.raises(TypeError):
-        await adapter.inject_into_store(object())  # type: ignore[arg-type]
+        await adapter.inject_into_store(object())

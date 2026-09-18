@@ -7,15 +7,15 @@ import unittest
 import unittest.mock
 
 try:
-    import fhir  # noqa: F401
+    import fhir  # noqa: F401  # imported only to skip when fhir is absent
 except ImportError as _e:
     raise unittest.SkipTest("fhir not installed") from _e
 try:
-    import lxml  # noqa: F401
+    import lxml  # noqa: F401  # imported only to skip when lxml is absent
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 try:
-    import defusedxml  # noqa: F401
+    import defusedxml  # noqa: F401  # imported only to skip when defusedxml is absent
 except ImportError as _e:
     raise unittest.SkipTest("defusedxml not installed") from _e
 
@@ -185,7 +185,7 @@ class TestFhirXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"not xml <<<<"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

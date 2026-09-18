@@ -195,9 +195,9 @@ class TestNonSubTapestryRejection(unittest.TestCase):
     def test_agent_tool_rejects_a_non_sub_tapestry(self) -> None:
         # Arrange / Act / Assert
         with self.assertRaisesRegex(TypeError, "must be a SubTapestry"):
-            AgentTool(object())  # type: ignore[arg-type]
+            AgentTool(object())
 
     def test_free_function_rejects_a_non_sub_tapestry(self) -> None:
         # Arrange / Act / Assert
         with self.assertRaisesRegex(TypeError, "must be a SubTapestry"):
-            AsTool.wrap(object())  # type: ignore[arg-type]
+            AsTool.wrap(object())

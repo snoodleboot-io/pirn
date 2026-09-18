@@ -28,7 +28,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
             await _KNOT.process(
                 signal="not-a-signal", montage_name="standard_1020", reference="average"
-            )  # type: ignore[arg-type]
+            )
 
     async def test_rejects_empty_montage_name(self) -> None:
         with self.assertRaisesRegex(ValueError, "montage_name"):

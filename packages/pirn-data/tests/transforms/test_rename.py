@@ -127,7 +127,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "strings"):
             await k.process(
                 batch=_make_batch(),
-                mapping={1: "id"},  # type: ignore[arg-type]
+                mapping={1: "id"},
             )
 
     async def test_rejects_empty_value(self) -> None:

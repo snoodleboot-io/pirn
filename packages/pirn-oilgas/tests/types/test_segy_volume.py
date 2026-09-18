@@ -49,7 +49,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         vol = SegyVolume(volume_id="v")
         try:
-            vol.volume_id = "x"  # type: ignore[misc]
+            vol.volume_id = "x"
         except Exception:
             return
         raise AssertionError("SegyVolume must be frozen")

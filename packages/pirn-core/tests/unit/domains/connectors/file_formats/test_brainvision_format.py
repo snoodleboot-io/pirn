@@ -224,7 +224,7 @@ class TestBrainVisionFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is not a zip file at all"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

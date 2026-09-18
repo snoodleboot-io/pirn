@@ -47,7 +47,7 @@ class TestPirnOpaqueValue(unittest.TestCase):
         from pydantic import ValidationError
 
         with self.assertRaises(ValidationError):
-            _Container(value="not an opaque")  # type: ignore[arg-type]
+            _Container(value="not an opaque")
 
     def test_two_instances_have_different_tokens(self):
         a = _MyOpaque("a")

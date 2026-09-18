@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import lasio  # noqa: F401
+    import lasio  # noqa: F401  # imported only to skip when lasio is absent
 except ImportError as _e:
     raise unittest.SkipTest("lasio not installed") from _e
 
@@ -50,7 +50,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "body must be bytes"):
             await knot.process(
-                body="not-bytes",  # type: ignore[arg-type]
+                body="not-bytes",
                 well_id="W",
                 curves=("GR", "RHOB", "NPHI", "RT"),
                 required_curves=("GR",),

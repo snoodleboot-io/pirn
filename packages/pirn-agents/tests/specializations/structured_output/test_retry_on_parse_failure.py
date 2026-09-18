@@ -33,7 +33,7 @@ class TestRetryOnParseFailureProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "LLMProvider"):
             await knot.process(
                 prompt="p",
-                llm="bad",  # type: ignore[arg-type]
+                llm="bad",
                 parser=json.loads,
                 max_retries=3,
             )
@@ -45,7 +45,7 @@ class TestRetryOnParseFailureProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 prompt="p",
                 llm=llm,
-                parser="not-callable",  # type: ignore[arg-type]
+                parser="not-callable",
                 max_retries=3,
             )
 
@@ -65,7 +65,7 @@ class TestRetryOnParseFailureProcess(unittest.IsolatedAsyncioTestCase):
         knot = _make_knot(llm)
         with self.assertRaises(TypeError):
             await knot.process(
-                prompt=42,  # type: ignore[arg-type]
+                prompt=42,
                 llm=llm,
                 parser=json.loads,
                 max_retries=3,

@@ -31,4 +31,4 @@ class TestDocumentAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(TypeError, "must be bytes"):
-            await knot.process(body="not bytes")  # type: ignore[arg-type]
+            await knot.process(body="not bytes")

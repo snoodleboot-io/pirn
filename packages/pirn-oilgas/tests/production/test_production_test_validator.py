@@ -17,7 +17,7 @@ _SERIES = ScadaTimeSeries(sensor_id="series")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> ProductionTestValidator:
         return ProductionTestValidator(
-            series=None,  # type: ignore[arg-type]
+            series=None,
             max_oil_rate_bopd=10000.0,
             max_gas_rate_mscfd=20000.0,
             max_water_rate_bwpd=5000.0,

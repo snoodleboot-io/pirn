@@ -163,5 +163,5 @@ class SubTapestryRunIdTests(unittest.IsolatedAsyncioTestCase):
         )
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover  # only when the module is run directly
     unittest.main()

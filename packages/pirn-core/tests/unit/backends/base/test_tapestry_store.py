@@ -16,7 +16,7 @@ class TestTapestryStoreInterface(unittest.TestCase):
     def test_register_raises_not_implemented(self) -> None:
         store = self._make_store()
         with self.assertRaises(NotImplementedError) as ctx:
-            store.register(object())  # type: ignore[arg-type]
+            store.register(object())
         self.assertIn("register()", str(ctx.exception))
 
     def test_get_raises_not_implemented(self) -> None:

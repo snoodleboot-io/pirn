@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import polars  # noqa: F401
+    import polars  # noqa: F401  # imported only to skip when polars is absent
 except ImportError as _e:
     raise unittest.SkipTest("polars not installed") from _e
 from datetime import UTC
@@ -39,7 +39,7 @@ class TestPolarsDataBatch(unittest.TestCase):
     def test_dataclass_is_frozen(self) -> None:
         batch = PolarsDataBatch(frame=pl.DataFrame())
         try:
-            batch.frame = pl.DataFrame()  # type: ignore[misc]
+            batch.frame = pl.DataFrame()
         except Exception:
             return
         raise AssertionError("expected FrozenInstanceError")

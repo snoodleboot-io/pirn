@@ -328,7 +328,7 @@ def test_simulated_shared_address_would_expose_an_id_only_token(
     first, second = OpaqueTuple((1,)), OpaqueTuple((2,))
 
     # Act
-    ids = {pirn_identity_nonce_module.id(first), pirn_identity_nonce_module.id(second)}  # type: ignore[attr-defined]
+    ids = {pirn_identity_nonce_module.id(first), pirn_identity_nonce_module.id(second)}
 
     # Assert
     assert len(ids) == 1
@@ -374,7 +374,7 @@ def test_instance_without_a_dict_refuses_with_a_fresh_token_per_read() -> None:
     value = Slotted()
 
     # Act
-    tokens = {PirnOpaqueValue._pirn_instance_identity_token(value) for _ in range(5)}  # type: ignore[arg-type]
+    tokens = {PirnOpaqueValue._pirn_instance_identity_token(value) for _ in range(5)}
 
     # Assert — it never matches anything, itself included.
     assert len(tokens) == 5

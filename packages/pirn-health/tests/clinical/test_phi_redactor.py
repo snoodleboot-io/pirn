@@ -17,12 +17,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_record(self) -> None:
         knot = PHIRedactor(record=_RECORD, salt="s", _config=_CFG)
         with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
-            await knot.process(record="x", salt="s")  # type: ignore[arg-type]
+            await knot.process(record="x", salt="s")
 
     async def test_rejects_non_string_salt(self) -> None:
         knot = PHIRedactor(record=_RECORD, salt="s", _config=_CFG)
         with self.assertRaisesRegex(TypeError, "salt"):
-            await knot.process(record=_RECORD, salt=42)  # type: ignore[arg-type]
+            await knot.process(record=_RECORD, salt=42)
 
     async def test_rejects_empty_salt(self) -> None:
         knot = PHIRedactor(record=_RECORD, salt="s", _config=_CFG)

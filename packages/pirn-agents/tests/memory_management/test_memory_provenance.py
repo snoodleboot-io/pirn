@@ -15,7 +15,7 @@ class TestMemoryProvenanceValidation(unittest.TestCase):
 
     def test_rejects_non_datetime_timestamp(self) -> None:
         with self.assertRaises(TypeError):
-            MemoryProvenance(source="s", timestamp="2026")  # type: ignore[arg-type]
+            MemoryProvenance(source="s", timestamp="2026")
 
     def test_rejects_out_of_range_trust(self) -> None:
         with self.assertRaises(ValueError):

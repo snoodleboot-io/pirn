@@ -19,8 +19,8 @@ _WELL_VEL: list[dict[str, Any]] = [{"well_id": "W-1", "depth_m": 1000.0, "veloci
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, interpolation_method: str = "idw") -> VelocityModelBuilder:
         return VelocityModelBuilder(
-            semblance_picks=None,  # type: ignore[arg-type]
-            well_velocities=None,  # type: ignore[arg-type]
+            semblance_picks=None,
+            well_velocities=None,
             interpolation_method=interpolation_method,
             _config=KnotConfig(id="vmb", validate_io=False),
         )

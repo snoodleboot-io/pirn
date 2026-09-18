@@ -21,7 +21,7 @@ class TestCorrectiveRouterConstruction(unittest.TestCase):
                 CorrectiveRouter(
                     query="q",
                     relevant_docs=[],
-                    fallback_tool="not-a-tool",  # type: ignore[arg-type]
+                    fallback_tool="not-a-tool",
                     _config=KnotConfig(id="cr"),
                 )
 
@@ -62,7 +62,7 @@ class TestCorrectiveRouterProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             with self.assertRaises(TypeError):
                 CorrectiveRouter(
-                    query=42,  # type: ignore[arg-type]
+                    query=42,
                     relevant_docs=[],
                     fallback_tool=tool,
                     _config=KnotConfig(id="cr"),
@@ -75,7 +75,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             k = CorrectiveRouter.__new__(CorrectiveRouter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises(TypeError):
-            await k.process(query="q", relevant_docs=[], fallback_tool="not-a-tool")  # type: ignore[arg-type]
+            await k.process(query="q", relevant_docs=[], fallback_tool="not-a-tool")
 
     async def test_process_rejects_non_string_query(self) -> None:
         tool = StubTool(name="web_search")
@@ -83,4 +83,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             k = CorrectiveRouter.__new__(CorrectiveRouter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises(TypeError):
-            await k.process(query=99, relevant_docs=[], fallback_tool=tool)  # type: ignore[arg-type]
+            await k.process(query=99, relevant_docs=[], fallback_tool=tool)

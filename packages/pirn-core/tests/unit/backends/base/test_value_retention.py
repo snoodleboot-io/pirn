@@ -26,7 +26,7 @@ class TestValueRetention(unittest.TestCase):
     def test_frozen(self) -> None:
         retention = ValueRetention(max_values=5)
         with pytest.raises(ValidationError):
-            retention.max_values = 10  # type: ignore[misc]
+            retention.max_values = 10
 
     def test_rejects_a_non_positive_ceiling(self) -> None:
         with pytest.raises(ValidationError):

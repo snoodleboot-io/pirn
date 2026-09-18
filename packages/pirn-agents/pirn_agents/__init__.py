@@ -31,8 +31,6 @@ import warnings
 from sweet_tea.registry import Registry
 from sweet_tea.sweet_tea_warning import SweetTeaWarning
 
-from pirn_agents.capability_probe import CapabilityProbe
-
 
 class _RegistryVisibility:
     """Re-emit sweet_tea's swallowed skip-warnings through the package logger.
@@ -93,8 +91,6 @@ _RegistryVisibility.log_skips(
 # `callable: react` resolves exactly like any other Knot by name (ADR
 # agents-speaks-core WS6a) — one registry, not a builder-only second one.
 # Runs after `fill_registry` so every pattern module is already imported.
-from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry  # noqa: E402
+from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry  # noqa: E402  # must import after fill_registry has run, see above
 
 AgentPatternRegistry.register_with_core_registry()
-
-available_extras = CapabilityProbe().available_extras

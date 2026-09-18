@@ -93,11 +93,11 @@ class EvalRegressionCheckTests(unittest.TestCase):
 
     def test_non_report_raises(self) -> None:
         with self.assertRaises(TypeError):
-            EvalRegressionCheck(thresholds=_thresholds()).check("not-a-report")  # type: ignore[arg-type]
+            EvalRegressionCheck(thresholds=_thresholds()).check("not-a-report")
 
     def test_non_threshold_config_raises(self) -> None:
         with self.assertRaises(TypeError):
-            EvalRegressionCheck(thresholds=object())  # type: ignore[arg-type]
+            EvalRegressionCheck(thresholds=object())
 
 
 if __name__ == "__main__":

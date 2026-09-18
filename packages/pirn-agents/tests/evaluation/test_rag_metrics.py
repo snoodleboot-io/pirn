@@ -53,7 +53,7 @@ class FaithfulnessMetricTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_provider_judge_raises(self) -> None:
         with self.assertRaises(TypeError):
-            FaithfulnessMetric(judge=object())  # type: ignore[arg-type]
+            FaithfulnessMetric(judge=object())
 
 
 class ContextPrecisionMetricTests(unittest.IsolatedAsyncioTestCase):
@@ -132,7 +132,7 @@ class AnswerRelevanceMetricTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_embedding_provider_raises(self) -> None:
         with self.assertRaises(TypeError):
-            AnswerRelevanceMetric(embedder=object())  # type: ignore[arg-type]
+            AnswerRelevanceMetric(embedder=object())
 
 
 if __name__ == "__main__":

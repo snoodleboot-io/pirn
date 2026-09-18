@@ -20,7 +20,7 @@ _SERIES = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, method: str = "horner") -> WellTestAnalyzer:
         return WellTestAnalyzer(
-            pressure_series=None,  # type: ignore[arg-type]
+            pressure_series=None,
             method=method,
             _config=KnotConfig(id="wt", validate_io=False),
         )

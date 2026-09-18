@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -46,12 +46,12 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_wavelet(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(wavelet_frame=None, wavelet="", level=4)  # type: ignore[arg-type]
+            await k.process(wavelet_frame=None, wavelet="", level=4)
 
     async def test_rejects_non_positive_level(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(wavelet_frame=None, wavelet="db4", level=0)  # type: ignore[arg-type]
+            await k.process(wavelet_frame=None, wavelet="db4", level=0)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

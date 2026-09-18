@@ -50,7 +50,7 @@ class FakeCouchSession:
         self._db = db or FakeCouchDB_DB()
         self.closed = False
 
-    async def __getitem__(self, name: str) -> FakeCouchDB_DB:  # type: ignore[misc]
+    async def __getitem__(self, name: str) -> FakeCouchDB_DB:
         return self._db
 
     async def close(self) -> None:

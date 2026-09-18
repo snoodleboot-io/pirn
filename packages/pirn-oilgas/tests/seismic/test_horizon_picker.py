@@ -15,7 +15,7 @@ _VOLUME = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> HorizonPicker:
         return HorizonPicker(
-            volume=None,  # type: ignore[arg-type]
+            volume=None,
             horizon_name="niobrara",
             seed_inline=10,
             seed_xline=20,

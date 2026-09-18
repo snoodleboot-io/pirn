@@ -58,7 +58,7 @@ class TestOptionalDecoratorForm(unittest.TestCase):
 
     def test_non_knot_class_produces_stub(self) -> None:
         with Tapestry():
-            opt = Optional(int, _config=KnotConfig(id="opt"))  # type: ignore[arg-type]
+            opt = Optional(int, _config=KnotConfig(id="opt"))
         assert isinstance(opt, Optional)
 
 

@@ -7,11 +7,11 @@ import unittest
 import pytest
 
 try:
-    import cfgrib  # noqa: F401
+    import cfgrib  # noqa: F401  # imported only to skip when cfgrib is absent
 except ImportError as _e:
     raise unittest.SkipTest("cfgrib not installed") from _e
 try:
-    import eccodes  # noqa: F401
+    import eccodes  # noqa: F401  # imported only to skip when eccodes is absent
 except ImportError as _e:
     raise unittest.SkipTest("eccodes not installed") from _e
 
@@ -74,7 +74,7 @@ class TestGribFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 
     async def test_decode_structure(self) -> None:
         try:
-            import eccodes  # noqa: F401
+            import eccodes  # noqa: F401  # imported only to skip when eccodes is absent
         except ImportError as _e:
             self.skipTest("eccodes not installed")
         try:

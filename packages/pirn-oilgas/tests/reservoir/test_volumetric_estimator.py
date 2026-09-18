@@ -49,7 +49,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 area_acres=100.0,
                 net_thickness_ft=10.0,
                 porosity_fraction=0.2,
-                water_saturation_fraction="x",  # type: ignore[arg-type]
+                water_saturation_fraction="x",
                 formation_volume_factor=1.1,
             )
 

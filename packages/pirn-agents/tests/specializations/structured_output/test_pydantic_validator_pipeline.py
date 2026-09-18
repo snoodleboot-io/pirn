@@ -30,7 +30,7 @@ class TestPydanticValidatorPipelineValidation(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 prompt="extract",
                 llm=llm,
-                model_class=int,  # type: ignore[arg-type]
+                model_class=int,
                 max_retries=3,
             )
 

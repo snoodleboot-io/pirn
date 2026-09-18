@@ -47,7 +47,7 @@ class TestConstruction(unittest.TestCase):
                 ShadowDeploymentPipeline(
                     champion=champion,
                     challenger=challenger,
-                    lineage="not-a-store",  # type: ignore[arg-type]
+                    lineage="not-a-store",
                     _config=KnotConfig(id="bad"),
                 )
 

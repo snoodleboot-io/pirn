@@ -53,4 +53,4 @@ class TestDaskDataFrame(unittest.TestCase):
         frame = _make_dask_frame()
         ddf = DaskDataFrame(frame=frame)
         with self.assertRaises((AttributeError, TypeError)):
-            ddf.backend_name = "other"  # type: ignore[misc]
+            ddf.backend_name = "other"

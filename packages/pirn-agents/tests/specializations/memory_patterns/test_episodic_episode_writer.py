@@ -60,7 +60,7 @@ class TestEpisodicEpisodeWriterProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         store = _TrackingStore()
         with self.assertRaises(TypeError):
-            await k.process(messages=["not-a-message"], session_id="s", store=store)  # type: ignore[list-item]
+            await k.process(messages=["not-a-message"], session_id="s", store=store)
 
     async def test_rejects_non_memory_store(self) -> None:
         k = _make_knot()

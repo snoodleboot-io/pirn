@@ -78,6 +78,6 @@ def test_construct_rejects_non_string_predicate(_spark_session) -> None:
         with pytest.raises(TypeError, match="string"):
             SparkFilter(
                 frame=src,
-                predicate=lambda f: f.region == "EU",  # type: ignore[arg-type]
+                predicate=lambda f: f.region == "EU",
                 _config=KnotConfig(id="f"),
             )

@@ -16,7 +16,7 @@ _LOW_FOLD: dict[str, Any] = {"traces": [], "fold": 5}
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> SeismicQCCheck:
         return SeismicQCCheck(
-            data=None,  # type: ignore[arg-type]
+            data=None,
             max_null_pct=10.0,
             min_fold=10,
             max_amplitude=10000.0,

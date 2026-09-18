@@ -40,4 +40,4 @@ class TestContextualChunkEnricher(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_document_text(self) -> None:
         knot = _enricher()
         with self.assertRaisesRegex(TypeError, "document_text must be a string"):
-            await knot.process(documents=[], document_text=1, llm=StubLLMProvider(["x"]))  # type: ignore[arg-type]
+            await knot.process(documents=[], document_text=1, llm=StubLLMProvider(["x"]))

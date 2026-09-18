@@ -24,7 +24,7 @@ class TestMaxBytesValidation(unittest.TestCase):
 
     def test_rejects_non_int(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be an int"):
-            DocumentSourceReader(max_bytes="big")  # type: ignore[arg-type]
+            DocumentSourceReader(max_bytes="big")
 
     def test_rejects_bool(self) -> None:
         # bool is an int subclass; True would otherwise pass as max_bytes=1.

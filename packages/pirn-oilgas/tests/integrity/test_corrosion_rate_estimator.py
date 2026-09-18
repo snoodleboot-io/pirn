@@ -17,8 +17,8 @@ _RUN: dict[str, Any] = {"feature_count": 10}
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, years: float = 5.0) -> CorrosionRateEstimator:
         return CorrosionRateEstimator(
-            previous_run=None,  # type: ignore[arg-type]
-            current_run=None,  # type: ignore[arg-type]
+            previous_run=None,
+            current_run=None,
             years_between=years,
             _config=KnotConfig(id="cre", validate_io=False),
         )
@@ -26,7 +26,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_years(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "years_between"):
-            await knot.process(previous_run=_RUN, current_run=_RUN, years_between="x")  # type: ignore[arg-type]
+            await knot.process(previous_run=_RUN, current_run=_RUN, years_between="x")
 
     async def test_rejects_non_positive_years(self) -> None:
         knot = self._make_knot()

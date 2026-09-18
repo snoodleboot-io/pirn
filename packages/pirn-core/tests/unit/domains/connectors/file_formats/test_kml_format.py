@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import simplekml  # noqa: F401
+    import simplekml  # noqa: F401  # imported only to skip when simplekml is absent
 except ImportError as _e:
     raise unittest.SkipTest("simplekml not installed") from _e
 try:
-    import lxml  # noqa: F401
+    import lxml  # noqa: F401  # imported only to skip when lxml is absent
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 

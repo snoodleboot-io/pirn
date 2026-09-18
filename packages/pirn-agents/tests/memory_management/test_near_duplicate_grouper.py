@@ -18,7 +18,7 @@ class TestNearDuplicateGrouperValidation(unittest.TestCase):
     def test_rejects_non_record(self) -> None:
         grouper = NearDuplicateGrouper()
         with self.assertRaises(TypeError):
-            grouper.group(["bad"])  # type: ignore[list-item]
+            grouper.group(["bad"])
 
 
 class TestNearDuplicateGrouperGrouping(unittest.TestCase):

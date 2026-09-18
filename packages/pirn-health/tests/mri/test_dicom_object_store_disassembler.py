@@ -40,7 +40,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_payload(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "DICOMPayload"):
-            await knot.process(payload="not-a-payload")  # type: ignore[arg-type]
+            await knot.process(payload="not-a-payload")
 
     async def test_rejects_dataset_without_save_as(self) -> None:
         knot = self._make_knot()

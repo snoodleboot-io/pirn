@@ -20,7 +20,7 @@ _SERIES = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, lift_type: str = "esp") -> ArtificialLiftOptimizer:
         return ArtificialLiftOptimizer(
-            production=None,  # type: ignore[arg-type]
+            production=None,
             lift_type=lift_type,
             _config=KnotConfig(id="al", validate_io=False),
         )

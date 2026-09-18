@@ -20,11 +20,11 @@ class TrajectoryStepTests(unittest.TestCase):
 
     def test_non_str_tool_name_raises(self) -> None:
         with self.assertRaises(TypeError):
-            TrajectoryStep(tool_name=1)  # type: ignore[arg-type]
+            TrajectoryStep(tool_name=1)
 
     def test_non_mapping_arguments_raises(self) -> None:
         with self.assertRaises(TypeError):
-            TrajectoryStep(tool_name="t", arguments=[1, 2])  # type: ignore[arg-type]
+            TrajectoryStep(tool_name="t", arguments=[1, 2])
 
     def test_audit_dict_is_primitive(self) -> None:
         step = TrajectoryStep(tool_name="t", arguments={"a": 1}, result=5)
@@ -43,11 +43,11 @@ class TrajectoryTests(unittest.TestCase):
 
     def test_non_sequence_steps_raises(self) -> None:
         with self.assertRaises(TypeError):
-            Trajectory(steps=42)  # type: ignore[arg-type]
+            Trajectory(steps=42)
 
     def test_non_step_element_raises(self) -> None:
         with self.assertRaises(TypeError):
-            Trajectory(steps=["not-a-step"])  # type: ignore[list-item]
+            Trajectory(steps=["not-a-step"])
 
 
 if __name__ == "__main__":

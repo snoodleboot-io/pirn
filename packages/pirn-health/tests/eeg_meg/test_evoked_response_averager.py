@@ -26,7 +26,7 @@ _KNOT = EvokedResponseAverager(epochs=[_EPOCH], condition="target", _config=_CFG
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "epochs"):
-            await _KNOT.process(epochs=42, condition="target")  # type: ignore[arg-type]
+            await _KNOT.process(epochs=42, condition="target")
 
     async def test_rejects_empty(self) -> None:
         with self.assertRaisesRegex(ValueError, "non-empty"):
@@ -34,7 +34,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(epochs=["x"], condition="target")  # type: ignore[list-item]
+            await _KNOT.process(epochs=["x"], condition="target")
 
     async def test_rejects_empty_condition(self) -> None:
         with self.assertRaisesRegex(ValueError, "non-empty"):

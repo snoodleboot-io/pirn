@@ -26,11 +26,11 @@ _KNOT = EpochExtractor(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", event_times_sec=[1.0], tmin_sec=-0.2, tmax_sec=0.5)  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", event_times_sec=[1.0], tmin_sec=-0.2, tmax_sec=0.5)
 
     async def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "event_times_sec"):
-            await _KNOT.process(signal=_SIGNAL, event_times_sec=42, tmin_sec=-0.2, tmax_sec=0.5)  # type: ignore[arg-type]
+            await _KNOT.process(signal=_SIGNAL, event_times_sec=42, tmin_sec=-0.2, tmax_sec=0.5)
 
     async def test_rejects_tmin_ge_tmax(self) -> None:
         with self.assertRaisesRegex(ValueError, "<"):

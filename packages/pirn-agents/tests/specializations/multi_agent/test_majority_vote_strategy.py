@@ -47,7 +47,7 @@ class TestMajorityVoteStrategy(unittest.TestCase):
 
     def test_combine_rejects_non_agent_response_items(self) -> None:
         with self.assertRaises(TypeError):
-            MajorityVoteStrategy._combine(["not-a-response"])  # type: ignore[list-item]
+            MajorityVoteStrategy._combine(["not-a-response"])
 
 
 if __name__ == "__main__":

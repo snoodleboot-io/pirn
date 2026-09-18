@@ -18,11 +18,11 @@ class EvalItemTests(unittest.TestCase):
 
     def test_non_str_id_raises(self) -> None:
         with self.assertRaises(TypeError):
-            EvalItem(item_id=1, input={})  # type: ignore[arg-type]
+            EvalItem(item_id=1, input={})
 
     def test_non_mapping_input_raises(self) -> None:
         with self.assertRaises(TypeError):
-            EvalItem(item_id="a", input=[1])  # type: ignore[arg-type]
+            EvalItem(item_id="a", input=[1])
 
 
 class EvalDatasetTests(unittest.TestCase):
@@ -37,7 +37,7 @@ class EvalDatasetTests(unittest.TestCase):
 
     def test_non_item_element_raises(self) -> None:
         with self.assertRaises(TypeError):
-            EvalDataset(items=["nope"])  # type: ignore[list-item]
+            EvalDataset(items=["nope"])
 
     def test_json_roundtrip(self) -> None:
         ds = EvalDataset(

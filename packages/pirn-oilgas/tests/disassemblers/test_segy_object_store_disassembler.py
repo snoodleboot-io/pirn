@@ -71,9 +71,9 @@ class _FakeTraceSortingFormat:
 
 def _install_fake_segyio(monkeypatch: pytest.MonkeyPatch, create: Any) -> None:
     fake = types.ModuleType("segyio")
-    fake.spec = _FakeSpec  # type: ignore[attr-defined]
-    fake.TraceSortingFormat = _FakeTraceSortingFormat  # type: ignore[attr-defined]
-    fake.create = create  # type: ignore[attr-defined]
+    fake.spec = _FakeSpec
+    fake.TraceSortingFormat = _FakeTraceSortingFormat
+    fake.create = create
     monkeypatch.setitem(sys.modules, "segyio", fake)
 
 
@@ -123,7 +123,7 @@ class TestSegyObjectStoreDisassemblerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_segy_payload(self) -> None:
         knot = _make()
         with self.assertRaisesRegex(TypeError, "SegyPayload"):
-            await knot.process(payload="not-a-payload")  # type: ignore[arg-type]
+            await knot.process(payload="not-a-payload")
 
     async def test_rejects_empty_traces(self) -> None:
         knot = _make()

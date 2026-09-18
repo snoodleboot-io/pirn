@@ -10,11 +10,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import PIL  # noqa: F401
+    import PIL  # noqa: F401  # imported only to skip when PIL is absent
 except ImportError as _e:
     raise unittest.SkipTest("PIL not installed") from _e
 try:
-    import pillow_heif  # noqa: F401
+    import pillow_heif  # noqa: F401  # imported only to skip when pillow_heif is absent
 except ImportError as _e:
     raise unittest.SkipTest("pillow_heif not installed") from _e
 
@@ -58,7 +58,7 @@ class TestHeicFormatConstruction(unittest.TestCase):
 
     def test_quality_wrong_type(self) -> None:
         with self.assertRaises(TypeError):
-            HeicFormat(quality="high")  # type: ignore[arg-type]
+            HeicFormat(quality="high")
 
 
 class TestHeicFormatBasics(unittest.TestCase):

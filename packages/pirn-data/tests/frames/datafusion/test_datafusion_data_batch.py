@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import datafusion  # noqa: F401
+    import datafusion  # noqa: F401  # imported only to skip when datafusion is absent
 except ImportError as _e:
     raise unittest.SkipTest("datafusion not installed") from _e
 from datetime import UTC
@@ -45,7 +45,7 @@ class TestDatafusionDataBatch(unittest.TestCase):
         frame = ctx.from_pylist([{"x": 1}])
         batch = DatafusionDataBatch(frame=frame, context=ctx)
         try:
-            batch.frame = frame  # type: ignore[misc]
+            batch.frame = frame
         except Exception:
             return
         raise AssertionError("expected FrozenInstanceError")

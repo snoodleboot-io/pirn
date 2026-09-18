@@ -52,7 +52,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 split=self._make_split(),
                 columns=["hour"],
-                periods=[24.0],  # type: ignore[list-item]
+                periods=[24.0],
             )
 
     async def test_appends_sin_cos_features(self) -> None:

@@ -279,14 +279,14 @@ def test_rejects_a_non_bool_shared_checkpoint() -> None:
                 run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1
             ),
             inputs_fn=lambda ordinal: ["a"],
-            shared_checkpoint="yes",  # type: ignore[arg-type]
+            shared_checkpoint="yes",
         )
 
 
 async def test_rejects_a_non_str_checkpoint_scope() -> None:
     runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1)
     with pytest.raises(TypeError):
-        _ = [result async for result in runner.run(["a"], checkpoint_scope=7)]  # type: ignore[arg-type]
+        _ = [result async for result in runner.run(["a"], checkpoint_scope=7)]
 
 
 # --------------------------------------------------------------------------
@@ -419,7 +419,7 @@ def test_scope_fn_must_be_callable() -> None:
                 key_fn=_by_customer,
             ),
             inputs_fn=lambda ordinal: [],
-            scope_fn="not-callable",  # type: ignore[arg-type]
+            scope_fn="not-callable",
         )
 
 

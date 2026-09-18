@@ -17,8 +17,8 @@ class TestRecallCandidate(unittest.TestCase):
 
     def test_rejects_non_record(self) -> None:
         with self.assertRaises(TypeError):
-            RecallCandidate(record="bad", relevance=0.1)  # type: ignore[arg-type]
+            RecallCandidate(record="bad", relevance=0.1)
 
     def test_rejects_bool_relevance(self) -> None:
         with self.assertRaises(TypeError):
-            RecallCandidate(record=make_record(id="r1"), relevance=True)  # type: ignore[arg-type]
+            RecallCandidate(record=make_record(id="r1"), relevance=True)

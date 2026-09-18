@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import pyreadstat  # noqa: F401
+    import pyreadstat  # noqa: F401  # imported only to skip when pyreadstat is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyreadstat not installed") from _e
 
@@ -144,7 +144,7 @@ class TestSdtmXptFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is not an xpt file"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

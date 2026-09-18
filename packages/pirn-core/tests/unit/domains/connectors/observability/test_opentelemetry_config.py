@@ -30,7 +30,7 @@ class TestOpenTelemetryConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = OpenTelemetryConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.service_name = "mutated"  # type: ignore[misc]
+            cfg.service_name = "mutated"
 
     def test_audit_dict_class_marker(self) -> None:
         cfg = OpenTelemetryConfig(service_name="svc")

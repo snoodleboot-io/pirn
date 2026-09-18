@@ -96,7 +96,7 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
             return {}
 
         with self.assertRaises(TypeError):
-            await RunEval.run(dataset=[], target=target, metrics={})  # type: ignore[arg-type]
+            await RunEval.run(dataset=[], target=target, metrics={})
 
 
 if __name__ == "__main__":

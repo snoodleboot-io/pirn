@@ -109,12 +109,12 @@ async def test_call_tool_validates_arguments() -> None:
     await client.open()
 
     with pytest.raises(TypeError):
-        await client.call_tool("echo", "not-a-mapping")  # type: ignore[arg-type]
+        await client.call_tool("echo", "not-a-mapping")
 
 
 async def test_constructor_rejects_non_transport() -> None:
     with pytest.raises(TypeError):
-        McpClient("not-a-transport")  # type: ignore[arg-type]
+        McpClient("not-a-transport")
 
 
 async def test_is_open_false_when_transport_closed_after_open() -> None:

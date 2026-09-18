@@ -15,7 +15,7 @@ _GATHER = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> StackProcessor:
         return StackProcessor(
-            gather=None,  # type: ignore[arg-type]
+            gather=None,
             _config=KnotConfig(id="st", validate_io=False),
         )
 

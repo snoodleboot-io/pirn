@@ -20,14 +20,14 @@ _EVENTS: list[dict[str, Any]] = [
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> Scope1EmissionsReporter:
         return Scope1EmissionsReporter(
-            events=None,  # type: ignore[arg-type]
+            events=None,
             _config=KnotConfig(id="s1", validate_io=False),
         )
 
     async def test_rejects_non_dict_factors(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "co2_eq_factors"):
-            await knot.process(events=_EVENTS, co2_eq_factors="not_a_dict")  # type: ignore[arg-type]
+            await knot.process(events=_EVENTS, co2_eq_factors="not_a_dict")
 
     async def test_returns_emissions_report(self) -> None:
         knot = self._make_knot()

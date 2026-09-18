@@ -9,7 +9,7 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 try:
-    import pyarrow.orc  # noqa: F401
+    import pyarrow.orc  # noqa: F401  # imported only to skip when pyarrow is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow.orc not installed") from _e
 
@@ -39,7 +39,7 @@ class TestOrcFormatConstruction(unittest.TestCase):
 
     def test_invalid_compression_type(self) -> None:
         with self.assertRaises(TypeError):
-            OrcFormat(compression=123)  # type: ignore[arg-type]
+            OrcFormat(compression=123)
 
 
 class TestOrcFormatBasics(unittest.TestCase):

@@ -61,4 +61,4 @@ class _StandaloneTests(unittest.TestCase):
     def test_parameter_immutable(self):
         p = Parameter("x", int)
         with self.assertRaises(AttributeError):
-            p.foo = 1  # type: ignore[attr-defined]
+            p.foo = 1

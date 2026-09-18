@@ -219,7 +219,7 @@ class TestCronTriggerValidation(unittest.TestCase):
         for bad in (1.5, "3", True):
             with self.subTest(max_runs=bad):
                 with self.assertRaisesRegex(ValueError, "max_runs"):
-                    CronTrigger(every_seconds=1.0, max_runs=bad)  # type: ignore[arg-type]
+                    CronTrigger(every_seconds=1.0, max_runs=bad)
 
     def test_accepts_positive_max_runs_and_none(self) -> None:
         CronTrigger(every_seconds=1.0, max_runs=1)

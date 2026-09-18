@@ -20,7 +20,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "rr_intervals_ms"):
             await HeartRateVariabilityAnalyzer.process(
                 inst,
-                rr_intervals_ms=42,  # type: ignore[arg-type]
+                rr_intervals_ms=42,
             )
 
     async def test_rejects_non_numeric(self) -> None:
@@ -28,7 +28,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "numeric"):
             await HeartRateVariabilityAnalyzer.process(
                 inst,
-                rr_intervals_ms=["x"],  # type: ignore[list-item]
+                rr_intervals_ms=["x"],
             )
 
 

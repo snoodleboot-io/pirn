@@ -65,12 +65,12 @@ class TestScadaDatabaseAssembler(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(TypeError, match="rows must be list"):
             await knot.process(
                 rows="not-a-list", tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
-            )  # type: ignore[arg-type]
+            )
 
     async def test_rejects_non_str_tag(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="tag must be str"):
-            await knot.process(rows=_ROWS, tag=123, since=_SINCE, sample_interval_sec=1.0)  # type: ignore[arg-type]
+            await knot.process(rows=_ROWS, tag=123, since=_SINCE, sample_interval_sec=1.0)
 
     async def test_rejects_empty_tag(self) -> None:
         knot = _make()
@@ -82,7 +82,7 @@ class TestScadaDatabaseAssembler(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(TypeError, match="since must be datetime"):
             await knot.process(
                 rows=_ROWS, tag="PUMP-01", since="2024-01-01", sample_interval_sec=1.0
-            )  # type: ignore[arg-type]
+            )
 
     async def test_rejects_non_positive_interval(self) -> None:
         knot = _make()

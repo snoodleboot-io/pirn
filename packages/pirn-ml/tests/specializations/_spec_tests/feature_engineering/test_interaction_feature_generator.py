@@ -57,7 +57,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=self._make_split(),
-                column_pairs=[("age",)],  # type: ignore[list-item]
+                column_pairs=[("age",)],
             )
 
 

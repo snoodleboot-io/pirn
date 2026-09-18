@@ -171,7 +171,7 @@ def test_agent_result_requires_metadata_and_data_to_construct() -> None:
     # Arrange / Act / Assert: the base is a plain generic Payload -- it takes
     # no zero-arg construction.
     with pytest.raises(TypeError):
-        AgentResult()  # type: ignore[call-arg]
+        AgentResult()
 
 
 # --- concrete result LSP / field-preservation ----------------------------

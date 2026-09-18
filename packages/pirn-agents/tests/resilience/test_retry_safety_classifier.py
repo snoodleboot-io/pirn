@@ -54,4 +54,4 @@ class TestConfiguration:
 
     def test_rejects_non_exception_type(self) -> None:
         with pytest.raises(TypeError, match="exception types"):
-            RetrySafetyClassifier(safe_exceptions=(int,))  # type: ignore[arg-type]
+            RetrySafetyClassifier(safe_exceptions=(int,))

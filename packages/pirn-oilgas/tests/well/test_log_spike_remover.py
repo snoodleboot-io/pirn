@@ -18,7 +18,7 @@ _CLEAN: list[dict[str, Any]] = [{"depth_ft": float(d), "value": 1.0} for d in ra
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> LogSpikeRemover:
         return LogSpikeRemover(
-            log_curve=None,  # type: ignore[arg-type]
+            log_curve=None,
             window_size=5,
             mad_threshold=2.0,
             _config=KnotConfig(id="lsr", validate_io=False),

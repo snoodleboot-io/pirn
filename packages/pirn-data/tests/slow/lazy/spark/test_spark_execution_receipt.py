@@ -45,7 +45,7 @@ class TestSparkExecutionReceipt:
             output_path=None,
         )
         with pytest.raises(FrozenInstanceError):
-            receipt.succeeded = False  # type: ignore[misc]
+            receipt.succeeded = False
 
     def test_pydantic_serialises_to_primitive_dict(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)

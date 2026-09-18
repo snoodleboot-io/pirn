@@ -49,7 +49,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_derivation_value(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(ValueError, "derivation values"):
-            await knot.process(records=_RECORDS, target_dataset="ADSL", derivations={"AVISITN": 42})  # type: ignore[dict-item]
+            await knot.process(records=_RECORDS, target_dataset="ADSL", derivations={"AVISITN": 42})
 
     async def test_emits_rows_with_derivations(self) -> None:
         knot = _make_knot()

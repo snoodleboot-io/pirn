@@ -108,7 +108,7 @@ class _StandaloneTests(unittest.TestCase):
 
     def test_rejects_non_config(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be RabbitMQConfig"):
-            RabbitMQBroker("nope", connection=StubConnection())  # type: ignore[arg-type]
+            RabbitMQBroker("nope", connection=StubConnection())
 
 
 # ─────────────────────────────────────────────────────────────── publish
@@ -138,12 +138,12 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_value(self) -> None:
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
         with self.assertRaisesRegex(TypeError, "value must be bytes"):
-            await broker.publish("t", "string")  # type: ignore[arg-type]
+            await broker.publish("t", "string")
 
     async def test_rejects_non_bytes_key(self) -> None:
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
         with self.assertRaisesRegex(TypeError, "key must be bytes"):
-            await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
+            await broker.publish("t", b"v", key="not-bytes")
 
 
 # ─────────────────────────────────────────────────────────────── consume

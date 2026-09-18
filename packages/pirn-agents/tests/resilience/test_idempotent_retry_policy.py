@@ -34,11 +34,11 @@ def _policy(*, sleep: _RecordingSleep, max_attempts: int = 3) -> IdempotentRetry
 class TestConstruction:
     def test_rejects_bad_classifier(self) -> None:
         with pytest.raises(TypeError, match="RetrySafetyClassifier"):
-            IdempotentRetryPolicy(classifier=object())  # type: ignore[arg-type]
+            IdempotentRetryPolicy(classifier=object())
 
     def test_rejects_bad_backoff(self) -> None:
         with pytest.raises(TypeError, match="KnotRetryPolicy"):
-            IdempotentRetryPolicy(backoff=object())  # type: ignore[arg-type]
+            IdempotentRetryPolicy(backoff=object())
 
 
 class TestSafeRetry:

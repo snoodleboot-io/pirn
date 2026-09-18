@@ -22,7 +22,7 @@ _DATA: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> SphericalDivergenceGain:
         return SphericalDivergenceGain(
-            data=None,  # type: ignore[arg-type]
+            data=None,
             velocity_m_s=2000.0,
             t_power=2.0,
             _config=KnotConfig(id="sdg", validate_io=False),

@@ -51,5 +51,5 @@ class TestFeatureStoreProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "FeatureStoreProvider"):
             await store.process(
                 split=split,
-                provider="not a provider",  # type: ignore[arg-type]
+                provider="not a provider",
             )

@@ -41,4 +41,4 @@ class TestSkipped(unittest.TestCase):
     def test_frozen(self):
         s = Skipped()
         with self.assertRaises(ValidationError):
-            s.reason = "other"  # type: ignore[misc]
+            s.reason = "other"

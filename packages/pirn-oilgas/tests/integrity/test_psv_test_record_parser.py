@@ -23,7 +23,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         self, required_fields: tuple = ("tag", "set_pressure_psi", "test_date", "pass_fail")
     ) -> PSVTestRecordParser:
         return PSVTestRecordParser(
-            raw_record=None,  # type: ignore[arg-type]
+            raw_record=None,
             required_fields=required_fields,
             _config=KnotConfig(id="psv", validate_io=False),
         )

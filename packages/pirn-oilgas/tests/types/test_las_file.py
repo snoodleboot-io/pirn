@@ -45,7 +45,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         las = LASFile(well_id="A")
         try:
-            las.well_id = "B"  # type: ignore[misc]
+            las.well_id = "B"
         except Exception:
             return
         raise AssertionError("LASFile must be frozen")

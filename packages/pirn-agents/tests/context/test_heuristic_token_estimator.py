@@ -39,7 +39,7 @@ class TestValidation(unittest.TestCase):
 
     def test_rejects_non_str_text(self) -> None:
         with self.assertRaisesRegex(TypeError, "text"):
-            HeuristicTokenEstimator().estimate(123)  # type: ignore[arg-type]
+            HeuristicTokenEstimator().estimate(123)
 
 
 if __name__ == "__main__":

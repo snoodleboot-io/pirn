@@ -54,4 +54,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             k = HyDERAGPipeline.__new__(HyDERAGPipeline)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, AttributeError)):
-            await k.process(query=99, memory=memory, llm=llm, top_k=5)  # type: ignore[arg-type]
+            await k.process(query=99, memory=memory, llm=llm, top_k=5)

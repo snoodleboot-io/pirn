@@ -38,25 +38,30 @@ helpers::
 
 from __future__ import annotations
 
+import webbrowser
 from pathlib import Path
+from typing import ClassVar
 
 from pirn.viz.explorer_html_generator import ExplorerHtmlGenerator
 
-EXAMPLES_DIR = Path(__file__).parent
-OUTPUT = EXAMPLES_DIR / "pirn_explorer.html"
 
+class ExplorePipelines:
+    """Generates the self-contained HTML explorer for every example pipeline."""
 
-def main() -> None:
-    print(f"Scanning: {EXAMPLES_DIR}")
-    html = ExplorerHtmlGenerator.generate(EXAMPLES_DIR)
-    OUTPUT.write_text(html, encoding="utf-8")
-    print(f"Written:  {OUTPUT}")
+    _examples_dir: ClassVar[Path] = Path(__file__).parent
+    _output: ClassVar[Path] = _examples_dir / "pirn_explorer.html"
 
-    import webbrowser
+    @classmethod
+    def main(cls) -> None:
+        """Scan ``examples/``, write the explorer and open it in a browser."""
+        print(f"Scanning: {cls._examples_dir}")
+        html = ExplorerHtmlGenerator.generate(cls._examples_dir)
+        cls._output.write_text(html, encoding="utf-8")
+        print(f"Written:  {cls._output}")
 
-    webbrowser.open(OUTPUT.as_uri())
-    print("Opened in browser.")
+        webbrowser.open(cls._output.as_uri())
+        print("Opened in browser.")
 
 
 if __name__ == "__main__":
-    main()
+    ExplorePipelines.main()

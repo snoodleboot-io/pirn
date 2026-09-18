@@ -88,7 +88,7 @@ class TestFusionRetriever(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_store(self) -> None:
         knot = _retriever()
         with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
-            await knot.process(queries=["a"], store="nope", top_k=5)  # type: ignore[arg-type]
+            await knot.process(queries=["a"], store="nope", top_k=5)
 
     async def test_rejects_non_positive_top_k(self) -> None:
         knot = _retriever()

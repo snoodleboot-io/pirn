@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 try:
-    import pywt  # noqa: F401
+    import pywt  # noqa: F401  # imported only to skip when pywt is absent
 except ImportError as _e:
     raise unittest.SkipTest("pywt not installed") from _e
 
@@ -33,12 +33,12 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_wavelet_name(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, wavelet_name="", scale_count=8)  # type: ignore[arg-type]
+            await k.process(signal=None, wavelet_name="", scale_count=8)
 
     async def test_rejects_non_positive_scale_count(self) -> None:
         k = self._make_bare_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=None, wavelet_name="morl", scale_count=0)  # type: ignore[arg-type]
+            await k.process(signal=None, wavelet_name="morl", scale_count=0)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

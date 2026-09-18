@@ -25,8 +25,8 @@ class TestGraphNeighbor(unittest.TestCase):
 
     def test_rejects_non_edge(self) -> None:
         with self.assertRaises(TypeError):
-            GraphNeighbor(edge="not-an-edge", node=self._node())  # type: ignore[arg-type]
+            GraphNeighbor(edge="not-an-edge", node=self._node())
 
     def test_rejects_non_node(self) -> None:
         with self.assertRaises(TypeError):
-            GraphNeighbor(edge=self._edge(), node="not-a-node")  # type: ignore[arg-type]
+            GraphNeighbor(edge=self._edge(), node="not-a-node")

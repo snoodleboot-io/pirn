@@ -10,11 +10,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import rasterio  # noqa: F401
+    import rasterio  # noqa: F401  # imported only to skip when rasterio is absent
 except ImportError as _e:
     raise unittest.SkipTest("rasterio not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

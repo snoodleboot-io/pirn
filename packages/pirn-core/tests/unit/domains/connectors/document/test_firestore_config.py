@@ -44,4 +44,4 @@ class TestFirestoreConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = FirestoreConfig(project_id="proj")
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.project_id = "mutated"  # type: ignore[misc]
+            cfg.project_id = "mutated"

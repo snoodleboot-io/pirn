@@ -32,7 +32,7 @@ class TestRegistration(unittest.TestCase):
     def test_non_tool_rejected(self) -> None:
         reg = _registry()
         with self.assertRaisesRegex(TypeError, "Tool"):
-            reg.register("not-a-tool")  # type: ignore[arg-type]
+            reg.register("not-a-tool")
 
     def test_duplicate_key_rejected(self) -> None:
         reg = _registry()

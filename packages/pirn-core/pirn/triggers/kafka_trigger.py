@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import AsyncIterator, Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.run_request import RunRequest
@@ -29,8 +29,6 @@ from pirn.triggers.trigger import Trigger
 if TYPE_CHECKING:
     from aiokafka import AIOKafkaConsumer, ConsumerRecord
 
-_logger = logging.getLogger(__name__)
-
 
 class KafkaTrigger(Trigger):
     """Trigger backed by an ``aiokafka`` consumer.
@@ -39,6 +37,8 @@ class KafkaTrigger(Trigger):
     ``RunRequest`` by the ``request_builder`` callable.  The default
     builder treats the message value as a JSON-encoded parameter dict.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -127,7 +127,9 @@ class KafkaTrigger(Trigger):
             try:
                 await self._consumer.stop()
             except Exception:
-                _logger.warning("KafkaTrigger: consumer.stop() raised during close", exc_info=True)
+                KafkaTrigger._logger.warning(
+                    "KafkaTrigger: consumer.stop() raised during close", exc_info=True
+                )
 
     @staticmethod
     def __default_request_builder(msg: ConsumerRecord) -> RunRequest:

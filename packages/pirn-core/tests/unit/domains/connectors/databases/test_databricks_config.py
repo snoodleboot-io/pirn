@@ -37,7 +37,7 @@ class TestDatabricksConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = DatabricksConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.server_hostname = "mutated"  # type: ignore[misc]
+            cfg.server_hostname = "mutated"
 
     def test_audit_dict_redacts_token(self) -> None:
         cfg = DatabricksConfig(access_token="tok")

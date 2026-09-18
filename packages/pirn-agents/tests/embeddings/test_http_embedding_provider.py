@@ -63,7 +63,7 @@ class TestHttpEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
             HttpEmbeddingProvider(
                 base_url="http://x",
                 model="m",
-                credential="raw-secret",  # type: ignore[arg-type]
+                credential="raw-secret",
             )
 
     async def test_embeds_and_preserves_input_order(self) -> None:

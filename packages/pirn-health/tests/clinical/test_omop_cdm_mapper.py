@@ -17,7 +17,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_record(self) -> None:
         knot = OMOPCDMMapper(record=_RECORD, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
-            await knot.process(record="x")  # type: ignore[arg-type]
+            await knot.process(record="x")
 
     async def test_returns_tuple_of_rows(self) -> None:
         knot = OMOPCDMMapper(record=_RECORD, _config=_CFG)

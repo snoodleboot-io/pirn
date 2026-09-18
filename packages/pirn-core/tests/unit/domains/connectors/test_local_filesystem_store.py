@@ -113,7 +113,7 @@ class TestPutGet(unittest.IsolatedAsyncioTestCase):
 
         async def bad_iter() -> AsyncIterator[bytes]:
             yield b"ok"
-            yield "not bytes"  # type: ignore[misc]
+            yield "not bytes"
 
         with self.assertRaisesRegex(TypeError, "must yield bytes"):
             await store.put("k", bad_iter())

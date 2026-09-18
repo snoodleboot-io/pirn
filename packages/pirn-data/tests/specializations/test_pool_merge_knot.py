@@ -60,7 +60,7 @@ class TestValidateIdentifier(unittest.TestCase):
 
     def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "primary_keys: must be a sequence of column names"):
-            PoolMergeKnot._validate_identifier("primary_keys", 123)  # type: ignore[arg-type]
+            PoolMergeKnot._validate_identifier("primary_keys", 123)
 
 
 class TestIndexRowsByKey(unittest.TestCase):

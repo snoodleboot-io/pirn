@@ -71,7 +71,7 @@ class TestOutcomeSimulatorProcess(unittest.IsolatedAsyncioTestCase):
             with Tapestry():
                 OutcomeSimulator(
                     action="action",
-                    llm=0,  # type: ignore[arg-type]
+                    llm=0,
                     _config=KnotConfig(id="sim"),
                 )
 

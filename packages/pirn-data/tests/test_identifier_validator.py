@@ -20,7 +20,7 @@ class TestIdentifierValidatorValidateColumn(unittest.TestCase):
 
     def test_non_string_raises_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            IdentifierValidator.validate_column("col", 42)  # type: ignore[arg-type]
+            IdentifierValidator.validate_column("col", 42)
 
     def test_leading_digit_raises_value_error(self) -> None:
         with self.assertRaises(ValueError):

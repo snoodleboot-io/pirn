@@ -26,7 +26,7 @@ _EMPTY_DATA: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> PressureTransientAnalyzer:
         return PressureTransientAnalyzer(
-            test_data=None,  # type: ignore[arg-type]
+            test_data=None,
             wellbore_radius_ft=0.328,
             formation_thickness_ft=30.0,
             fluid_viscosity_cp=2.0,

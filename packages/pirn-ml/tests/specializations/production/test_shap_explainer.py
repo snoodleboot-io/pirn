@@ -36,7 +36,7 @@ class TestConstruction(unittest.TestCase):
                 model = emit_model(_config=KnotConfig(id="model"))
                 SHAPExplainer(
                     model=model,
-                    split="bad",  # type: ignore[arg-type]
+                    split="bad",
                     _config=KnotConfig(id="bad"),
                 )
 

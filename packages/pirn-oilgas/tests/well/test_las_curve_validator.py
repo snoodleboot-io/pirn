@@ -20,7 +20,7 @@ _LAS = LASPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> LasCurveValidator:
         return LasCurveValidator(
-            payload=None,  # type: ignore[arg-type]
+            payload=None,
             required_curves=("GR",),
             _config=KnotConfig(id="v", validate_io=False),
         )

@@ -36,4 +36,4 @@ class TestDataProfileConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         dp = DataProfile(row_count=0, column_count=0)
         with self.assertRaises((AttributeError, TypeError)):
-            dp.row_count = 1  # type: ignore[misc]
+            dp.row_count = 1

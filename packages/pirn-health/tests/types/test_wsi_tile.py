@@ -59,7 +59,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         t = WSITile()
         try:
-            t.slide_id = "X"  # type: ignore[misc]
+            t.slide_id = "X"
         except Exception:
             return
         raise AssertionError("WSITile must be frozen")

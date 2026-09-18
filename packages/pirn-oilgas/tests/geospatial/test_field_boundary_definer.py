@@ -47,7 +47,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "vertex"):
             await knot.process(
                 field_id="F1",
-                vertices=((0.0, 0.0), (1.0,), (0.5, 1.0)),  # type: ignore[arg-type]
+                vertices=((0.0, 0.0), (1.0,), (0.5, 1.0)),
                 crs="EPSG:4326",
             )
 

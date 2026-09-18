@@ -46,7 +46,7 @@ class TestExceptionRecord(unittest.TestCase):
     def test_frozen(self):
         rec = self._make()
         with self.assertRaises(ValidationError):
-            rec.run_id = "other"  # type: ignore[misc]
+            rec.run_id = "other"
 
     def test_for_knot_sets_unbound_run_id(self):
         exc = ValueError("oops")

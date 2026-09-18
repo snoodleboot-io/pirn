@@ -6,7 +6,7 @@ import sys
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -35,7 +35,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
             await SleepStager.process(
                 inst,
-                signal="x",  # type: ignore[arg-type]
+                signal="x",
                 epoch_length_sec=30.0,
             )
 
@@ -45,7 +45,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             await SleepStager.process(
                 inst,
                 signal=_SLEEP_SIGNAL,
-                epoch_length_sec="x",  # type: ignore[arg-type]
+                epoch_length_sec="x",
             )
 
     async def test_rejects_non_positive(self) -> None:

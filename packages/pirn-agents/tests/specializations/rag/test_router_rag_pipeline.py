@@ -40,7 +40,7 @@ class TestRouterRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             RouterRagPipeline(
                 query="q",
-                routes="nope",  # type: ignore[arg-type]
+                routes="nope",
                 llm=StubLLMProvider(["docs", "a"]),
                 _config=KnotConfig(id="router"),
             )

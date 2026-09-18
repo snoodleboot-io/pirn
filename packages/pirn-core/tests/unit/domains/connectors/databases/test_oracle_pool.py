@@ -214,7 +214,7 @@ class _StandaloneTests(unittest.TestCase):
 
     def test_construction_rejects_bogus_config_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "OracleConfig"):
-            OraclePool(config="not-a-config")  # type: ignore[arg-type]
+            OraclePool(config="not-a-config")
 
 
 # ────────────────────────────────────────────────────────── delegation

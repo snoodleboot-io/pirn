@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import segyio  # noqa: F401
+    import segyio  # noqa: F401  # imported only to skip when segyio is absent
 except ImportError as _e:
     raise unittest.SkipTest("segyio not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

@@ -74,7 +74,7 @@ class TestWavFormatErrors(unittest.IsolatedAsyncioTestCase):
 
         async def _no_records():
             return
-            yield  # pragma: no cover
+            yield  # pragma: no cover  # the yield only makes this an async generator
 
         with self.assertRaisesRegex(ValueError, "empty"):
             chunk_iter = await fmt.write(_no_records())

@@ -23,7 +23,7 @@ _TEST_DATA: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, separator_stages: int = 2) -> SeparatorTestProcessor:
         return SeparatorTestProcessor(
-            test_data=None,  # type: ignore[arg-type]
+            test_data=None,
             separator_stages=separator_stages,
             _config=KnotConfig(id="stp", validate_io=False),
         )
@@ -36,7 +36,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_int_stages(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "separator_stages"):
-            await knot.process(test_data=_TEST_DATA, separator_stages=2.0)  # type: ignore[arg-type]
+            await knot.process(test_data=_TEST_DATA, separator_stages=2.0)
 
     async def test_rejects_missing_oil_rate(self) -> None:
         knot = self._make_knot()

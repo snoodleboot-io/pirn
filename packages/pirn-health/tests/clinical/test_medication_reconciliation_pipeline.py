@@ -19,12 +19,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence_drug_names(self) -> None:
         knot = MedicationReconciliationPipeline(drug_names=[], mapping={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "drug_names"):
-            await knot.process(drug_names=42, mapping={})  # type: ignore[arg-type]
+            await knot.process(drug_names=42, mapping={})
 
     async def test_rejects_non_mapping(self) -> None:
         knot = MedicationReconciliationPipeline(drug_names=[], mapping={}, _config=_CFG)
         with self.assertRaisesRegex(TypeError, "mapping"):
-            await knot.process(drug_names=[], mapping=42)  # type: ignore[arg-type]
+            await knot.process(drug_names=[], mapping=42)
 
     async def test_runs_inner_pipeline(self) -> None:
         with Tapestry() as t:

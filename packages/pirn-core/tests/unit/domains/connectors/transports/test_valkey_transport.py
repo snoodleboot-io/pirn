@@ -12,8 +12,8 @@ from pirn.core.transport.transport_handle import TransportHandle
 
 def _make_transport(**kwargs: object) -> ValkeyTransport:
     defaults = {"host": "localhost", "port": 6379}
-    defaults.update(kwargs)  # type: ignore[arg-type]
-    return ValkeyTransport(**defaults)  # type: ignore[arg-type]
+    defaults.update(kwargs)
+    return ValkeyTransport(**defaults)
 
 
 def _mock_client() -> AsyncMock:

@@ -49,4 +49,4 @@ class TestTimescaleDBConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = TimescaleDBConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.host = "mutated"  # type: ignore[misc]
+            cfg.host = "mutated"

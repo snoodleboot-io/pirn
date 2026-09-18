@@ -14,11 +14,11 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 try:
-    import scipy.io  # noqa: F401
+    import scipy.io  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy.io not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -49,11 +49,11 @@ class TestMatlabMatFormatConstruction(unittest.TestCase):
 
     def test_non_string_variable_name_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            MatlabMatFormat(variable_name=42)  # type: ignore[arg-type]
+            MatlabMatFormat(variable_name=42)
 
     def test_invalid_field_names_type(self) -> None:
         with self.assertRaises(TypeError):
-            MatlabMatFormat(field_names="ab")  # type: ignore[arg-type]
+            MatlabMatFormat(field_names="ab")
 
     def test_empty_field_name_rejected(self) -> None:
         with self.assertRaises(ValueError):

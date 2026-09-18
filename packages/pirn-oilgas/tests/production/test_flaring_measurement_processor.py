@@ -29,7 +29,7 @@ _COMPOSITION: dict[str, float] = {"co2": 0.05, "ch4": 0.85}
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> FlaringMeasurementProcessor:
         return FlaringMeasurementProcessor(
-            measurements=None,  # type: ignore[arg-type]
+            measurements=None,
             gas_composition=_COMPOSITION,
             efficiency_factor=0.98,
             _config=KnotConfig(id="fp", validate_io=False),
@@ -49,7 +49,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "gas_composition"):
             await knot.process(
                 measurements=_MEASUREMENTS,
-                gas_composition="not_a_dict",  # type: ignore[arg-type]
+                gas_composition="not_a_dict",
                 efficiency_factor=0.98,
             )
 

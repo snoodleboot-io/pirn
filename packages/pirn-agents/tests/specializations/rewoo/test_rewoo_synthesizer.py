@@ -83,4 +83,4 @@ class TestReWooSynthesizerProcess(unittest.IsolatedAsyncioTestCase):
             knot = ReWooSynthesizer.__new__(ReWooSynthesizer)
             object.__setattr__(knot, "_config", KnotConfig(id="synth"))
         with self.assertRaises(TypeError):
-            await knot.process(goal="g", plan=("bad",), results=(), llm=llm)  # type: ignore[arg-type]
+            await knot.process(goal="g", plan=("bad",), results=(), llm=llm)

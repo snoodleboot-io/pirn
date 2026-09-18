@@ -70,13 +70,13 @@ class _CoroutineStepLoop(LoopSubTapestry[int]):
         self._target = target
         super().__init__(**kwargs)
 
-    async def step(self, state: int) -> tuple[Tapestry, int] | None:  # type: ignore[override]
+    async def step(self, state: int) -> tuple[Tapestry, int] | None:
         await asyncio.sleep(0)
         if state >= self._target:
             return None
         return _iteration(state), state + 1
 
-    async def fold(self, state: int, result: RunResult) -> int:  # type: ignore[override]
+    async def fold(self, state: int, result: RunResult) -> int:
         await asyncio.sleep(0)
         return result.outputs["incr"]
 

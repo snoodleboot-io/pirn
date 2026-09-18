@@ -22,7 +22,7 @@ class TestPirnError(unittest.TestCase):
         # PirnError is catchable via the builtin Exception base. Narrowing to
         # PirnError would duplicate test_raise_and_catch and drop that coverage;
         # the raise is inline, so there is no wrong-exception false-green risk.
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # catchability via the Exception base is the assertion
             raise PirnError("caught as base")
 
     def test_empty_message(self):

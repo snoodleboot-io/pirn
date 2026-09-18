@@ -43,4 +43,4 @@ class TestKinesisConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = KinesisConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.region = "mutated"  # type: ignore[misc]
+            cfg.region = "mutated"

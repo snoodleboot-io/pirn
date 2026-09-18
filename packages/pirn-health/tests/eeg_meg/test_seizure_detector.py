@@ -24,11 +24,11 @@ _KNOT = SeizureDetector(signal=_SIGNAL, threshold=0.5, _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", threshold=0.5)  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", threshold=0.5)
 
     async def test_rejects_non_numeric_threshold(self) -> None:
         with self.assertRaisesRegex(TypeError, "threshold"):
-            await _KNOT.process(signal=_SIGNAL, threshold="x")  # type: ignore[arg-type]
+            await _KNOT.process(signal=_SIGNAL, threshold="x")
 
     async def test_rejects_negative_threshold(self) -> None:
         with self.assertRaisesRegex(ValueError, "non-negative"):

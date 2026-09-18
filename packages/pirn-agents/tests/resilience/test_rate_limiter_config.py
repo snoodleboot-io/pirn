@@ -15,9 +15,9 @@ class TestValidation:
     @pytest.mark.parametrize("bad", [0, -1.0, True])
     def test_rejects_bad_refill_rate(self, bad: object) -> None:
         with pytest.raises(ValueError, match="refill_rate"):
-            RateLimiterConfig(refill_rate=bad, capacity=1.0)  # type: ignore[arg-type]
+            RateLimiterConfig(refill_rate=bad, capacity=1.0)
 
     @pytest.mark.parametrize("bad", [0, -5.0, True])
     def test_rejects_bad_capacity(self, bad: object) -> None:
         with pytest.raises(ValueError, match="capacity"):
-            RateLimiterConfig(refill_rate=1.0, capacity=bad)  # type: ignore[arg-type]
+            RateLimiterConfig(refill_rate=1.0, capacity=bad)

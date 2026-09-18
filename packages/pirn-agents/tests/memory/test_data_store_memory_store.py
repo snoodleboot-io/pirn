@@ -46,7 +46,7 @@ class TestConstruction:
 
     def test_rejects_non_data_store(self) -> None:
         with pytest.raises(TypeError):
-            DataStoreMemoryStore(data_store="bad")  # type: ignore[arg-type]
+            DataStoreMemoryStore(data_store="bad")
 
     def test_rejects_empty_namespace(self, backend: InMemoryDataStore) -> None:
         with pytest.raises(ValueError):
@@ -107,7 +107,7 @@ class TestKeyedSurface:
 
     async def test_rejects_non_mapping_value(self, store: DataStoreMemoryStore) -> None:
         with pytest.raises(TypeError):
-            await store.store("k1", ["not", "a", "mapping"])  # type: ignore[arg-type]
+            await store.store("k1", ["not", "a", "mapping"])
 
     async def test_accepts_the_plain_mappings_a_vector_store_rejects(
         self, store: DataStoreMemoryStore

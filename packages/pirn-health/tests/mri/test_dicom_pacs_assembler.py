@@ -41,12 +41,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_body(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "body"):
-            await knot.process(body="not-bytes", series_id="s1")  # type: ignore[arg-type]
+            await knot.process(body="not-bytes", series_id="s1")
 
     async def test_rejects_non_string_series_id(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "series_id"):
-            await knot.process(body=b"x", series_id=42)  # type: ignore[arg-type]
+            await knot.process(body=b"x", series_id=42)
 
     async def test_rejects_empty_series_id(self) -> None:
         knot = self._make_knot()

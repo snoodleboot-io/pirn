@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 try:
-    import h5py  # noqa: F401
+    import h5py  # noqa: F401  # imported only to skip when h5py is absent
 except ImportError as _e:
     raise unittest.SkipTest("h5py not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -44,7 +44,7 @@ class TestHdf5FormatConstruction(unittest.TestCase):
 
     def test_non_string_dataset_path_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            Hdf5Format(dataset_path=42)  # type: ignore[arg-type]
+            Hdf5Format(dataset_path=42)
 
     def test_invalid_compression_value(self) -> None:
         with self.assertRaises(ValueError):
@@ -52,7 +52,7 @@ class TestHdf5FormatConstruction(unittest.TestCase):
 
     def test_invalid_compression_type(self) -> None:
         with self.assertRaises(TypeError):
-            Hdf5Format(compression=123)  # type: ignore[arg-type]
+            Hdf5Format(compression=123)
 
     def test_valid_compression(self) -> None:
         fmt = Hdf5Format(compression="gzip")

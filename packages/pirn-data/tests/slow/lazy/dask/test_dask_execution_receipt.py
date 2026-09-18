@@ -46,4 +46,4 @@ class TestDaskExecutionReceipt:
             partitions_executed=1,
         )
         with pytest.raises(FrozenInstanceError):
-            receipt.backend_name = "other"  # type: ignore[misc]
+            receipt.backend_name = "other"

@@ -20,7 +20,7 @@ _CARD: dict[str, Any] = {
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> RodPumpOptimizer:
         return RodPumpOptimizer(
-            dynagraph_card=None,  # type: ignore[arg-type]
+            dynagraph_card=None,
             target_fillage_pct=80.0,
             max_spm=10.0,
             _config=KnotConfig(id="rpo", validate_io=False),

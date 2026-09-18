@@ -15,7 +15,7 @@ _GATHER = SegyVolume(volume_id="vol")
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> NmoCorrection:
         return NmoCorrection(
-            gather=None,  # type: ignore[arg-type]
+            gather=None,
             stacking_velocity_m_s=2500.0,
             _config=KnotConfig(id="nmo", validate_io=False),
         )
@@ -23,7 +23,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_velocity(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "stacking_velocity_m_s"):
-            await knot.process(gather=_GATHER, stacking_velocity_m_s="fast")  # type: ignore[arg-type]
+            await knot.process(gather=_GATHER, stacking_velocity_m_s="fast")
 
     async def test_rejects_non_positive_velocity(self) -> None:
         knot = self._make_knot()

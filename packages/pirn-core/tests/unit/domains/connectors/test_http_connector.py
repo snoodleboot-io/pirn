@@ -296,7 +296,7 @@ class TestHttpConnectorLifecycleAndErrors:
 
     def test_rejects_unknown_auth_scheme(self) -> None:
         with pytest.raises(ValueError, match="auth_scheme"):
-            HttpConnector(auth_scheme="oauth")  # type: ignore[arg-type]
+            HttpConnector(auth_scheme="oauth")
 
     def test_rejects_negative_max_retries(self) -> None:
         with pytest.raises(ValueError, match="max_retries"):

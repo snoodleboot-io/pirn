@@ -173,12 +173,12 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_rejects_non_timedelta_max_age(self) -> None:
-        k = self._make_knot(max_age=3600)  # type: ignore[arg-type]
+        k = self._make_knot(max_age=3600)
         with self.assertRaisesRegex(TypeError, "timedelta"):
             await k.process(
                 batch=DataBatch(),
                 column="t",
-                max_age=3600,  # type: ignore[arg-type]
+                max_age=3600,
             )
 
     async def test_rejects_zero_or_negative_max_age(self) -> None:

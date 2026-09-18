@@ -22,8 +22,8 @@ _SERIES = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> EnergyEfficiencyKpiCalculator:
         return EnergyEfficiencyKpiCalculator(
-            energy_consumption=None,  # type: ignore[arg-type]
-            production=None,  # type: ignore[arg-type]
+            energy_consumption=None,
+            production=None,
             _config=KnotConfig(id="ek", validate_io=False),
         )
 

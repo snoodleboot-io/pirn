@@ -26,7 +26,7 @@ class TestArchiveFileFormatConstruction(unittest.TestCase):
 
     def test_rejects_non_file_format_inner(self) -> None:
         with self.assertRaises(TypeError):
-            ArchiveFileFormat(inner="not-a-format", archive_type="tar")  # type: ignore[arg-type]
+            ArchiveFileFormat(inner="not-a-format", archive_type="tar")
 
     def test_rejects_unknown_archive_type(self) -> None:
         with self.assertRaises(ValueError):

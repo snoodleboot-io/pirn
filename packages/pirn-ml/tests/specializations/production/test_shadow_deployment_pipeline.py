@@ -39,7 +39,7 @@ class TestConstruction(unittest.TestCase):
         with self.assertRaises(TypeError):
             with Tapestry():
                 ShadowDeploymentPipeline(
-                    champion="bad",  # type: ignore[arg-type]
+                    champion="bad",
                     challenger=_KnotStub(_config=KnotConfig(id="c")),
                     lineage=_StubLineage(),
                     _config=KnotConfig(id="sdp"),
@@ -51,7 +51,7 @@ class TestConstruction(unittest.TestCase):
                 ShadowDeploymentPipeline(
                     champion=_KnotStub(_config=KnotConfig(id="ch")),
                     challenger=_KnotStub(_config=KnotConfig(id="c")),
-                    lineage="bad",  # type: ignore[arg-type]
+                    lineage="bad",
                     _config=KnotConfig(id="sdp"),
                 )
 

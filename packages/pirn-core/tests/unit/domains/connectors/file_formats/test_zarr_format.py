@@ -9,11 +9,11 @@ import unittest
 import pytest
 
 try:
-    import zarr  # noqa: F401
+    import zarr  # noqa: F401  # imported only to skip when zarr is absent
 except ImportError as _e:
     raise unittest.SkipTest("zarr not installed") from _e
 try:
-    import numpy  # noqa: F401
+    import numpy  # noqa: F401  # imported only to skip when numpy is absent
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -52,11 +52,11 @@ class TestZarrFormatConstruction(unittest.TestCase):
 
     def test_non_string_dataset_path_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            ZarrFormat(dataset_path=42)  # type: ignore[arg-type]
+            ZarrFormat(dataset_path=42)
 
     def test_invalid_chunks_type(self) -> None:
         with self.assertRaises(TypeError):
-            ZarrFormat(chunks=[10])  # type: ignore[arg-type]
+            ZarrFormat(chunks=[10])
 
     def test_negative_chunk_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -64,11 +64,11 @@ class TestZarrFormatConstruction(unittest.TestCase):
 
     def test_non_int_chunk_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            ZarrFormat(chunks=(1.5,))  # type: ignore[arg-type]
+            ZarrFormat(chunks=(1.5,))
 
     def test_invalid_field_names_type(self) -> None:
         with self.assertRaises(TypeError):
-            ZarrFormat(field_names="ab")  # type: ignore[arg-type]
+            ZarrFormat(field_names="ab")
 
     def test_empty_field_name_rejected(self) -> None:
         with self.assertRaises(ValueError):

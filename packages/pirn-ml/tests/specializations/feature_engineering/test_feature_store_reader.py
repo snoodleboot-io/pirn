@@ -84,7 +84,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split=self._make_split(),
-                feature_store="bad",  # type: ignore[arg-type]
+                feature_store="bad",
                 entity_keys=["id"],
                 feature_names=["f1"],
             )

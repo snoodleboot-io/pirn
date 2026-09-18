@@ -23,17 +23,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "tiles"):
-            await knot.process(tiles=42, confidence_threshold=0.5)  # type: ignore[arg-type]
+            await knot.process(tiles=42, confidence_threshold=0.5)
 
     async def test_rejects_non_payload(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "WSITilePayload"):
-            await knot.process(tiles=[_TILE], confidence_threshold=0.5)  # type: ignore[list-item]
+            await knot.process(tiles=[_TILE], confidence_threshold=0.5)
 
     async def test_rejects_non_numeric_threshold(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "numeric"):
-            await knot.process(tiles=(_PAYLOAD,), confidence_threshold="x")  # type: ignore[arg-type]
+            await knot.process(tiles=(_PAYLOAD,), confidence_threshold="x")
 
     async def test_rejects_out_of_range_threshold(self) -> None:
         knot = self._make_knot()

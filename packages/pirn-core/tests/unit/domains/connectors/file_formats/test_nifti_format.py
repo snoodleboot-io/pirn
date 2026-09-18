@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import nibabel  # noqa: F401
+    import nibabel  # noqa: F401  # imported only to skip when nibabel is absent
 except ImportError as _e:
     raise unittest.SkipTest("nibabel not installed") from _e
 

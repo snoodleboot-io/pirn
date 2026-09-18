@@ -31,6 +31,6 @@ class TestApiClientInterface(unittest.IsolatedAsyncioTestCase):
 
     def test_clear_credentials_nulls_config(self) -> None:
         client = ApiClient()
-        client._config = "secret"  # type: ignore[attr-defined]
+        client._config = "secret"
         client._clear_credentials()
-        self.assertIsNone(client._config)  # type: ignore[attr-defined]
+        self.assertIsNone(client._config)

@@ -48,7 +48,7 @@ def _make_pipeline() -> RankingEvalPipeline:
     return pipeline
 
 
-def _fixtures():  # type: ignore[return]
+def _fixtures():
     train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
     test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
     split = SplitManifest(train=train, test=test)

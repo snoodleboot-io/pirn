@@ -40,7 +40,7 @@ class TestSpeculativeRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             SpeculativeRagPipeline(
                 query="q",
-                memory="nope",  # type: ignore[arg-type]
+                memory="nope",
                 llm=StubLLMProvider(["a", "b"]),
                 _config=KnotConfig(id="spec"),
             )

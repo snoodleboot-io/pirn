@@ -121,9 +121,9 @@ class TestIncrementalUpserter(unittest.IsolatedAsyncioTestCase):
 
     def test_rejects_wrong_types(self) -> None:
         with self.assertRaisesRegex(TypeError, "MemoryStore"):
-            IncrementalUpserter(store=object(), embedder=_CountingEmbedder())  # type: ignore[arg-type]
+            IncrementalUpserter(store=object(), embedder=_CountingEmbedder())
         with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
-            IncrementalUpserter(store=_DictMemoryStore(), embedder=object())  # type: ignore[arg-type]
+            IncrementalUpserter(store=_DictMemoryStore(), embedder=object())
 
 
 class TestFreshnessPolicy(unittest.TestCase):

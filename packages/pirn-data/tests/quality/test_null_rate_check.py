@@ -148,6 +148,6 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(batch=DataBatch(), thresholds={"a": 1.5})
 
     async def test_rejects_non_numeric_threshold(self) -> None:
-        k = self._make_knot(thresholds={"a": "0.5"})  # type: ignore[dict-item]
+        k = self._make_knot(thresholds={"a": "0.5"})
         with self.assertRaisesRegex(TypeError, "must be a number"):
             await k.process(batch=DataBatch(), thresholds={"a": "0.5"})

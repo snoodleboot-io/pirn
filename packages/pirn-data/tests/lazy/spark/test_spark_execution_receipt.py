@@ -42,4 +42,4 @@ class TestSparkExecutionReceipt(unittest.TestCase):
     def test_frozen(self) -> None:
         receipt = SparkExecutionReceipt(succeeded=True, row_count=None, output_path=None)
         with self.assertRaises((AttributeError, TypeError)):
-            receipt.succeeded = False  # type: ignore[misc]
+            receipt.succeeded = False

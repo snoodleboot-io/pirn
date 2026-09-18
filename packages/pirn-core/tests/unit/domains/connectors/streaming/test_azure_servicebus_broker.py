@@ -101,7 +101,7 @@ class _StandaloneTests(unittest.TestCase):
 
     def test_rejects_non_config(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be AzureServiceBusConfig"):
-            AzureServiceBusBroker("nope", client=StubServiceBusClient())  # type: ignore[arg-type]
+            AzureServiceBusBroker("nope", client=StubServiceBusClient())
 
     def test_requires_connection_or_injected_client(self) -> None:
         with self.assertRaisesRegex(ValueError, "connection_string"):
@@ -151,7 +151,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
             client=StubServiceBusClient(),
         )
         with self.assertRaisesRegex(TypeError, "value must be bytes"):
-            await broker.publish("t", "string")  # type: ignore[arg-type]
+            await broker.publish("t", "string")
 
     async def test_rejects_non_bytes_key(self) -> None:
         broker = AzureServiceBusBroker(
@@ -159,7 +159,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
             client=StubServiceBusClient(),
         )
         with self.assertRaisesRegex(TypeError, "key must be bytes"):
-            await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
+            await broker.publish("t", b"v", key="not-bytes")
 
 
 # ─────────────────────────────────────────────────────────────── consume

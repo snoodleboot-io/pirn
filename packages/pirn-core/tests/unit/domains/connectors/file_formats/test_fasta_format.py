@@ -28,7 +28,7 @@ class TestFastaFormatConstruction(unittest.TestCase):
 
     def test_encoding_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            FastaFormat(encoding=1)  # type: ignore[arg-type]
+            FastaFormat(encoding=1)
 
     def test_encoding_must_be_nonempty(self) -> None:
         with self.assertRaises(ValueError):
@@ -36,7 +36,7 @@ class TestFastaFormatConstruction(unittest.TestCase):
 
     def test_line_width_must_be_int(self) -> None:
         with self.assertRaises(TypeError):
-            FastaFormat(line_width="80")  # type: ignore[arg-type]
+            FastaFormat(line_width="80")
 
     def test_line_width_must_be_positive(self) -> None:
         with self.assertRaises(ValueError):

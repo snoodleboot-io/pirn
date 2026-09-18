@@ -114,7 +114,7 @@ class TestMemoryLineageRecall:
         data_store = InMemoryDataStore()
         with Tapestry(data_store=data_store) as t:
             MemoryLineageRecall(
-                history="nope",  # type: ignore[arg-type]
+                history="nope",
                 data_store=data_store,
                 writer_knot_id="writer",
                 _config=KnotConfig(id="recall"),

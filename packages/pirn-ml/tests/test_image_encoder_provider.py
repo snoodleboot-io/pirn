@@ -28,7 +28,7 @@ class TestImageEncoderProviderInterface(unittest.IsolatedAsyncioTestCase):
 
     def test_clear_credentials_nullifies_config(self) -> None:
         encoder = ImageEncoderProvider()
-        encoder._config = {"api_key": "key"}  # type: ignore[assignment]
+        encoder._config = {"api_key": "key"}
         encoder._clear_credentials()
         self.assertIsNone(encoder._config)
 

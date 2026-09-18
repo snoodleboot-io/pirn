@@ -32,7 +32,7 @@ def _bootstrap() -> str:
     if not url:
         pytest.skip("PIRN_TEST_KAFKA_URL not set")
     try:
-        import aiokafka  # noqa: F401
+        import aiokafka  # noqa: F401  # imported only to skip when aiokafka is absent
     except ImportError:
         pytest.skip("aiokafka not installed")
     return url

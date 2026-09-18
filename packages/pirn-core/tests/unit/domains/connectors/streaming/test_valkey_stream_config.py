@@ -46,4 +46,4 @@ class TestValkeyStreamConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = ValkeyStreamConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.host = "mutated"  # type: ignore[misc]
+            cfg.host = "mutated"

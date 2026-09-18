@@ -47,7 +47,7 @@ class StubConsumer:
     async def stop(self) -> None:
         self.stopped = True
 
-    def __aiter__(self):  # type: ignore[no-untyped-def]
+    def __aiter__(self):
         return self._iter()
 
     async def _iter(self):
@@ -95,12 +95,12 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_value(self) -> None:
         broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
         with self.assertRaisesRegex(TypeError, "value must be bytes"):
-            await broker.publish("t", "string")  # type: ignore[arg-type]
+            await broker.publish("t", "string")
 
     async def test_rejects_non_bytes_key(self) -> None:
         broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
         with self.assertRaisesRegex(TypeError, "key must be bytes"):
-            await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
+            await broker.publish("t", b"v", key="not-bytes")
 
 
 # ─────────────────────────────────────────────────────────────── consume

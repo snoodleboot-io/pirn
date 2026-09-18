@@ -69,7 +69,7 @@ class _Capped(SubTapestry):
     async def process(self, remaining: int, cap: int, **_: Any) -> Knot:
         return _Descend(remaining=remaining, _config=KnotConfig(id="inner"))
 
-    async def _run_inner(self, tapestry: Tapestry, **kwargs: Any) -> RunResult:  # type: ignore[override]
+    async def _run_inner(self, tapestry: Tapestry, **kwargs: Any) -> RunResult:
         tapestry._max_nesting_depth = self.config_values["cap"]
         return await super()._run_inner(tapestry, **kwargs)
 
@@ -298,6 +298,6 @@ def test_max_nesting_depth_is_validated() -> None:
     with pytest.raises(ValueError, match="max_nesting_depth"):
         Tapestry(max_nesting_depth=-1)
     with pytest.raises(ValueError, match="max_nesting_depth"):
-        Tapestry(max_nesting_depth=True)  # type: ignore[arg-type]
+        Tapestry(max_nesting_depth=True)
     assert Tapestry(max_nesting_depth=4).max_nesting_depth == 4
     assert Tapestry().max_nesting_depth is None

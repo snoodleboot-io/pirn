@@ -38,11 +38,11 @@ class TestRaptorTree(unittest.TestCase):
 
     def test_rejects_bool_node_count(self) -> None:
         with self.assertRaises(TypeError):
-            RaptorTree(content_hash="abc", node_count=True, level_count=1, reused=False)  # type: ignore[arg-type]
+            RaptorTree(content_hash="abc", node_count=True, level_count=1, reused=False)
 
     def test_rejects_non_bool_reused(self) -> None:
         with self.assertRaises(TypeError):
-            RaptorTree(content_hash="abc", node_count=1, level_count=1, reused=1)  # type: ignore[arg-type]
+            RaptorTree(content_hash="abc", node_count=1, level_count=1, reused=1)
 
     def test_rejects_non_node_root(self) -> None:
         with self.assertRaises(TypeError):
@@ -51,5 +51,5 @@ class TestRaptorTree(unittest.TestCase):
                 node_count=1,
                 level_count=1,
                 reused=False,
-                root="not-a-node",  # type: ignore[arg-type]
+                root="not-a-node",
             )

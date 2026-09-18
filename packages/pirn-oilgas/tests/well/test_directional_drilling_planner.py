@@ -15,7 +15,7 @@ _PATH = WellPath3D(well_id="W", point_count=20)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> DirectionalDrillingPlanner:
         return DirectionalDrillingPlanner(
-            current_path=None,  # type: ignore[arg-type]
+            current_path=None,
             target_x=100.0,
             target_y=200.0,
             target_z=2500.0,
@@ -28,7 +28,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "target_x"):
             await knot.process(
                 current_path=_PATH,
-                target_x="x",  # type: ignore[arg-type]
+                target_x="x",
                 target_y=0.0,
                 target_z=0.0,
                 max_dogleg_deg_per_30m=2.0,

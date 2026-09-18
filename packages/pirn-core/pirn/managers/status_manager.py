@@ -3,18 +3,18 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Mapping
 from threading import Lock
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.managers.knot_state import KnotState
 from pirn.managers.status_event import StatusEvent
 
 Subscriber = Callable[[StatusEvent], None]
 
-_logger = logging.getLogger(__name__)
-
 
 class StatusManager:
     """Tracks per-knot state and broadcasts transitions to subscribers."""
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(self, run_id: str) -> None:
         self._run_id = run_id
@@ -58,7 +58,7 @@ class StatusManager:
             try:
                 sub(event)
             except Exception:
-                _logger.warning(
+                StatusManager._logger.warning(
                     "StatusManager: subscriber raised for knot %r transition to %r",
                     knot_id,
                     state,

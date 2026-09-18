@@ -125,7 +125,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_type(self) -> None:
         k = await self._make_knot()
         with self.assertRaisesRegex(TypeError, "type-name string"):
-            await k.process(batch=_make_batch(), casts={"id": int})  # type: ignore[dict-item]
+            await k.process(batch=_make_batch(), casts={"id": int})
 
     async def test_rejects_injection_token_in_type(self) -> None:
         k = await self._make_knot()

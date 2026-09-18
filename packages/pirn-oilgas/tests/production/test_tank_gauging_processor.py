@@ -21,7 +21,7 @@ _TANK_TABLE: dict[str, float] = {"100": 500.0, "200": 1000.0}
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> TankGaugingProcessor:
         return TankGaugingProcessor(
-            gauge_readings=None,  # type: ignore[arg-type]
+            gauge_readings=None,
             tank_table=_TANK_TABLE,
             bsw_correction_factor=0.0,
             _config=KnotConfig(id="tgp", validate_io=False),
@@ -32,7 +32,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "tank_table"):
             await knot.process(
                 gauge_readings=_GAUGE,
-                tank_table="not_a_dict",  # type: ignore[arg-type]
+                tank_table="not_a_dict",
                 bsw_correction_factor=0.5,
             )
 

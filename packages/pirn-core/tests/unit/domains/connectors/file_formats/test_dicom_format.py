@@ -10,7 +10,7 @@ from typing import Any
 from unittest.mock import patch
 
 try:
-    import pydicom  # noqa: F401
+    import pydicom  # noqa: F401  # imported only to skip when pydicom is absent
 except ImportError as _e:
     raise unittest.SkipTest("pydicom not installed") from _e
 
@@ -259,7 +259,7 @@ class TestDicomDecodeErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is not a dicom file at all"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

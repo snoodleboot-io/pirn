@@ -25,7 +25,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bool_eddy_correct(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(TypeError, "eddy_correct"):
-            await knot.process(dwi_data={}, bvec_file={}, bval_file={}, eddy_correct="yes")  # type: ignore[arg-type]
+            await knot.process(dwi_data={}, bvec_file={}, bval_file={}, eddy_correct="yes")
 
     async def test_returns_dict(self) -> None:
         knot = _make_knot()

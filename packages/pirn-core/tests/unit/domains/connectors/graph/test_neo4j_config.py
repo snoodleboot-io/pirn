@@ -41,4 +41,4 @@ class TestNeo4jConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = Neo4jConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.uri = "mutated"  # type: ignore[misc]
+            cfg.uri = "mutated"

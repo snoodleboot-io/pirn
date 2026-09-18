@@ -93,7 +93,7 @@ class TestLimitedGateGroupLimits(unittest.TestCase):
         gate = LimitedAdmission(ConcurrencyLimits(groups={"api": 1}))
         for bad in (0, -1, True):
             with self.subTest(limit=bad), self.assertRaises(AdmissionLimitError):
-                gate.set_limit("api", bad)  # type: ignore[arg-type]
+                gate.set_limit("api", bad)
         self.assertEqual(gate.current_limit("api"), 1)
 
 

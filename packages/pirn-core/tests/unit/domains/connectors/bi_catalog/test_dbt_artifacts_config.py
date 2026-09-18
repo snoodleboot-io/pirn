@@ -26,7 +26,7 @@ class TestDbtArtifactsConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = DbtArtifactsConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.target_path = "mutated"  # type: ignore[misc]
+            cfg.target_path = "mutated"
 
     def test_audit_dict_class_marker(self) -> None:
         cfg = DbtArtifactsConfig()

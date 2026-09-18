@@ -118,7 +118,7 @@ class _StandaloneTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "failed validation"):
             StringFilter(
                 items=p,
-                pattern=123,  # type: ignore[arg-type]
+                pattern=123,
                 _config=KnotConfig(id="bad"),
             )
 
@@ -168,7 +168,7 @@ async def double(x: int) -> int:
         q = Parameter("y", int, _config=KnotConfig(id="y"))
         a = Add(a=p, b=q, _config=KnotConfig(id="a"))
         with self.assertRaisesRegex(AttributeError, "immutable"):
-            a.some_new_attr = 123  # type: ignore[attr-defined]
+            a.some_new_attr = 123
 
     # ------------------------------------------------------- tapestry registration
 

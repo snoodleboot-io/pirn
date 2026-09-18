@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -23,7 +23,7 @@ _TRACE: dict[str, Any] = {"samples": [0.0, 1.0, -1.0, 0.5], "sample_interval_ms"
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> InstantaneousAttributeExtractor:
         return InstantaneousAttributeExtractor(
-            trace=None,  # type: ignore[arg-type]
+            trace=None,
             attributes=("amplitude", "phase"),
             _config=KnotConfig(id="iae", validate_io=False),
         )

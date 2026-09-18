@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import polars  # noqa: F401
+    import polars  # noqa: F401  # imported only to skip when polars is absent
 except ImportError as _e:
     raise unittest.SkipTest("polars not installed") from _e
 

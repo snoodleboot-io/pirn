@@ -23,12 +23,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "regions"):
-            await knot.process(labelled_nifti_path="x", regions=42)  # type: ignore[arg-type]
+            await knot.process(labelled_nifti_path="x", regions=42)
 
     async def test_rejects_non_string_region(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(labelled_nifti_path="x", regions=[1])  # type: ignore[list-item]
+            await knot.process(labelled_nifti_path="x", regions=[1])
 
     async def test_raises_not_implemented_for_valid_input(self) -> None:
         knot = self._make_knot()

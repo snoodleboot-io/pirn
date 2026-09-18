@@ -136,7 +136,7 @@ class TestWebSearch:
 
     def test_rejects_non_backend(self) -> None:
         with pytest.raises(TypeError):
-            WebSearchTool.bind(backend=object())  # type: ignore[arg-type]
+            WebSearchTool.bind(backend=object())
 
 
 class TestHttpRequest:

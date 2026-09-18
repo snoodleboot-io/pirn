@@ -12,7 +12,7 @@ from pirn.core.knot_factory import KnotFactory
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 try:
-    import pyspark.sql  # noqa: F401
+    import pyspark.sql  # noqa: F401  # imported only to skip when pyspark is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyspark not installed") from _e
 
@@ -86,7 +86,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_predicate(self) -> None:
         k = await self._make_knot()
         with self.assertRaises(TypeError):
-            await k.process(frame=_mock_sdf(), predicate=123)  # type: ignore[arg-type]
+            await k.process(frame=_mock_sdf(), predicate=123)
 
     async def test_rejects_empty_predicate(self) -> None:
         k = await self._make_knot()

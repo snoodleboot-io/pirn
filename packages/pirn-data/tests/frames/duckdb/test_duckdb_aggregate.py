@@ -169,7 +169,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 batch=_make_batch(),
                 by=("region",),
-                aggs={"total": 123},  # type: ignore[dict-item]
+                aggs={"total": 123},
             )
 
     async def test_rejects_unsafe_output_name(self) -> None:

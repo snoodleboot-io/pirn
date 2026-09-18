@@ -78,7 +78,7 @@ class TestSafeEvaluator:
 
     def test_non_string_rejected(self) -> None:
         with pytest.raises(TypeError):
-            SafeEvaluator.evaluate(123)  # type: ignore[arg-type]
+            SafeEvaluator.evaluate(123)
 
     def test_empty_rejected(self) -> None:
         with pytest.raises(ValueError):
@@ -133,9 +133,9 @@ class TestCalculatorTool:
     async def test_as_tool_result_rejects_non_toolcall(self) -> None:
         tool = CalculatorTool.factory()
         with pytest.raises(TypeError):
-            await ToolRunner.view(tool, {"arguments": {}})  # type: ignore[arg-type]
+            await ToolRunner.view(tool, {"arguments": {}})
 
     async def test_invoke_rejects_non_mapping(self) -> None:
         tool = CalculatorTool.factory()
         with pytest.raises(TypeError):
-            await ToolRunner.value(tool, "2 + 2")  # type: ignore[arg-type]
+            await ToolRunner.value(tool, "2 + 2")

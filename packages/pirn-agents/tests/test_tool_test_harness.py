@@ -90,7 +90,7 @@ class TestInvocationDrivers(unittest.IsolatedAsyncioTestCase):
 class TestToolTestHarness(unittest.IsolatedAsyncioTestCase):
     def test_rejects_non_tool(self) -> None:
         with self.assertRaisesRegex(TypeError, "Tool"):
-            ToolTestHarness("not-a-tool")  # type: ignore[arg-type]
+            ToolTestHarness("not-a-tool")
 
     def test_exposes_wrapped_tool(self) -> None:
         stub = StubTool(name="s")

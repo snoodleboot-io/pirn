@@ -81,12 +81,12 @@ class TestTrainedModelObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="body must be bytes"):
-            await knot.process(body="not-bytes", algorithm="rf")  # type: ignore[arg-type]
+            await knot.process(body="not-bytes", algorithm="rf")
 
     async def test_rejects_non_str_algorithm(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="algorithm must be str"):
-            await knot.process(body=b"x", algorithm=123)  # type: ignore[arg-type]
+            await knot.process(body=b"x", algorithm=123)
 
     async def test_rejects_empty_body(self) -> None:
         knot = _make()

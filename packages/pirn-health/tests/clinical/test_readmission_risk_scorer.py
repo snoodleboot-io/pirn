@@ -19,11 +19,11 @@ _KNOT = ReadmissionRiskScorer(records=[], _config=_CFG)
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         with self.assertRaisesRegex(TypeError, "records"):
-            await _KNOT.process(records=42)  # type: ignore[arg-type]
+            await _KNOT.process(records=42)
 
     async def test_rejects_non_record(self) -> None:
         with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
-            await _KNOT.process(records=["x"])  # type: ignore[list-item]
+            await _KNOT.process(records=["x"])
 
     async def test_returns_per_patient_score_mapping(self) -> None:
         records = (ClinicalRecord(patient_id="P1", observation_codes=("A", "B", "C")),)

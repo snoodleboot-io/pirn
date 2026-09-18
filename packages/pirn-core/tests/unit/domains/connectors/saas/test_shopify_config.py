@@ -35,4 +35,4 @@ class TestShopifyConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = ShopifyConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.shop_url = "mutated"  # type: ignore[misc]
+            cfg.shop_url = "mutated"

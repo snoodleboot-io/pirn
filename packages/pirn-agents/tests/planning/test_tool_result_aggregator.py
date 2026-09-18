@@ -48,4 +48,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool_result_entries(self) -> None:
         k = _make_knot()
         with self.assertRaises(TypeError):
-            await k.process(results=("not-a-result",))  # type: ignore[arg-type]
+            await k.process(results=("not-a-result",))

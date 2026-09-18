@@ -80,7 +80,7 @@ class TestCountMessages(unittest.TestCase):
 class TestValidation(unittest.TestCase):
     def test_rejects_non_estimator(self) -> None:
         with self.assertRaisesRegex(TypeError, "estimator"):
-            TokenCounter(estimator=object())  # type: ignore[arg-type]
+            TokenCounter(estimator=object())
 
     def test_rejects_negative_overhead(self) -> None:
         with self.assertRaisesRegex(ValueError, "per_message_overhead"):
@@ -89,17 +89,17 @@ class TestValidation(unittest.TestCase):
     def test_rejects_non_str_text(self) -> None:
         counter = TokenCounter(estimator=StubWordTokenEstimator())
         with self.assertRaisesRegex(TypeError, "text"):
-            counter.count(5)  # type: ignore[arg-type]
+            counter.count(5)
 
     def test_rejects_non_message(self) -> None:
         counter = TokenCounter(estimator=StubWordTokenEstimator())
         with self.assertRaisesRegex(TypeError, "message"):
-            counter.count_message("nope")  # type: ignore[arg-type]
+            counter.count_message("nope")
 
     def test_rejects_non_sequence_messages(self) -> None:
         counter = TokenCounter(estimator=StubWordTokenEstimator())
         with self.assertRaisesRegex(TypeError, "messages"):
-            counter.count_messages(42)  # type: ignore[arg-type]
+            counter.count_messages(42)
 
 
 if __name__ == "__main__":

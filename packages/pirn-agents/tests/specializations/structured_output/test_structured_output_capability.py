@@ -31,7 +31,7 @@ class TestStructuredOutputCapability(unittest.TestCase):
         capability = StructuredOutputCapability()
 
         with self.assertRaises(FrozenInstanceError):
-            capability.native_schema = True  # type: ignore[misc]
+            capability.native_schema = True
 
     def test_value_equality(self) -> None:
         assert StructuredOutputCapability(native_schema=True) == StructuredOutputCapability(

@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -35,19 +35,19 @@ _KNOT = CoherenceAnalyzer(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
-            await _KNOT.process(signal="x", channel_pairs=[], band_low_hz=1.0, band_high_hz=10.0)  # type: ignore[arg-type]
+            await _KNOT.process(signal="x", channel_pairs=[], band_low_hz=1.0, band_high_hz=10.0)
 
     async def test_rejects_non_sequence_pairs(self) -> None:
         with self.assertRaisesRegex(TypeError, "channel_pairs"):
             await _KNOT.process(
                 signal=_SIGNAL, channel_pairs=42, band_low_hz=1.0, band_high_hz=10.0
-            )  # type: ignore[arg-type]
+            )
 
     async def test_rejects_invalid_pair(self) -> None:
         with self.assertRaisesRegex(TypeError, r"\(str, str\)"):
             await _KNOT.process(
                 signal=_SIGNAL, channel_pairs=[(1, 2)], band_low_hz=1.0, band_high_hz=10.0
-            )  # type: ignore[list-item]
+            )
 
     async def test_rejects_low_ge_high(self) -> None:
         with self.assertRaisesRegex(ValueError, "<"):

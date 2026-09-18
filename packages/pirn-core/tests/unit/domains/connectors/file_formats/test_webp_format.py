@@ -9,7 +9,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import PIL  # noqa: F401
+    import PIL  # noqa: F401  # imported only to skip when PIL is absent
 except ImportError as _e:
     raise unittest.SkipTest("PIL not installed") from _e
 
@@ -56,11 +56,11 @@ class TestWebpFormatConstruction(unittest.TestCase):
 
     def test_quality_wrong_type(self) -> None:
         with self.assertRaises(TypeError):
-            WebpFormat(quality="high")  # type: ignore[arg-type]
+            WebpFormat(quality="high")
 
     def test_lossless_wrong_type(self) -> None:
         with self.assertRaises(TypeError):
-            WebpFormat(lossless="yes")  # type: ignore[arg-type]
+            WebpFormat(lossless="yes")
 
 
 class TestWebpFormatBasics(unittest.TestCase):

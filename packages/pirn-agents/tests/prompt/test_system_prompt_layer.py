@@ -14,11 +14,11 @@ class TestValidation(unittest.TestCase):
 
     def test_rejects_non_str_content(self) -> None:
         with self.assertRaisesRegex(TypeError, "content"):
-            SystemPromptLayer(kind="persona", content=1)  # type: ignore[arg-type]
+            SystemPromptLayer(kind="persona", content=1)
 
     def test_rejects_non_str_title(self) -> None:
         with self.assertRaisesRegex(TypeError, "title"):
-            SystemPromptLayer(kind="persona", content="x", title=2)  # type: ignore[arg-type]
+            SystemPromptLayer(kind="persona", content="x", title=2)
 
 
 class TestIsEmpty(unittest.TestCase):

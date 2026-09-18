@@ -75,7 +75,7 @@ class TestSpecialistInvocationError(unittest.TestCase):
 
     def test_a_non_sub_tapestry_is_refused(self) -> None:
         with self.assertRaises(TypeError):
-            SpecialistHandle(object())  # type: ignore[arg-type]
+            SpecialistHandle(object())
 
 
 class TestSpecialistRegistryByName(unittest.TestCase):

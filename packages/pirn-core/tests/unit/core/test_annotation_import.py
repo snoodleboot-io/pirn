@@ -161,7 +161,7 @@ class TestAnnotationImport:
         override = AnnotationImport("pirn_no_such_engine_zz", extra="other", package="pirn-core")
 
         class Overriding(lazy.LazyRows):
-            _annotation_imports = {"Frame": override}  # noqa: RUF012
+            _annotation_imports = {"Frame": override}  # noqa: RUF012  # mirrors the framework attribute this subclass overrides
 
         # Act / Assert
         with pytest.raises(ImportError, match=r'pip install "pirn-core\[other\]"'):
@@ -209,7 +209,7 @@ class TestAnnotationImportValue:
             field: 1,
         }
         with pytest.raises(TypeError, match=field):
-            AnnotationImport(**kwargs)  # type: ignore[arg-type]  # deliberately wrong type
+            AnnotationImport(**kwargs)  # deliberately wrong type
 
     @pytest.mark.parametrize("field", ["module", "extra", "package", "attribute"])
     def test_empty_field_is_a_value_error(self, field: str) -> None:
@@ -220,7 +220,7 @@ class TestAnnotationImportValue:
             field: "",
         }
         with pytest.raises(ValueError, match=field):
-            AnnotationImport(**kwargs)  # type: ignore[arg-type]  # values are str; kwargs typed object
+            AnnotationImport(**kwargs)  # values are str; kwargs typed object
 
 
 def test_knot_base_has_an_empty_namespace() -> None:

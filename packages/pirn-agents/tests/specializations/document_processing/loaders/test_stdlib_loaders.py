@@ -115,7 +115,7 @@ class TestJsonLoader(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_bytes_raises_typeerror(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be bytes"):
-            await JsonLoader().load("nope")  # type: ignore[arg-type]
+            await JsonLoader().load("nope")
 
 
 if __name__ == "__main__":

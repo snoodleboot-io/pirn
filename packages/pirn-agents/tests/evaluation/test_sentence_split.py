@@ -24,7 +24,7 @@ class SplitSentencesTests(unittest.TestCase):
 
     def test_non_str_raises(self) -> None:
         with self.assertRaises(TypeError):
-            SentenceSplitter().split(None)  # type: ignore[arg-type]
+            SentenceSplitter().split(None)
 
 
 class ParseBinaryVerdictTests(unittest.TestCase):
@@ -48,7 +48,7 @@ class ParseBinaryVerdictTests(unittest.TestCase):
 
     def test_non_str_raises(self) -> None:
         with self.assertRaises(TypeError):
-            BinaryVerdictParser().parse(1)  # type: ignore[arg-type]
+            BinaryVerdictParser().parse(1)
 
 
 if __name__ == "__main__":

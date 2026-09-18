@@ -37,4 +37,4 @@ class TestGitHubConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = GitHubConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.token = "mutated"  # type: ignore[misc]
+            cfg.token = "mutated"

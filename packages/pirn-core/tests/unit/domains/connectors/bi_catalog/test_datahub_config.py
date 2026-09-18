@@ -30,7 +30,7 @@ class TestDataHubConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = DataHubConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.gms_url = "mutated"  # type: ignore[misc]
+            cfg.gms_url = "mutated"
 
     def test_audit_dict(self) -> None:
         cfg = DataHubConfig(gms_url="http://host", token="tok")

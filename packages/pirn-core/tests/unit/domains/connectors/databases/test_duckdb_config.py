@@ -30,7 +30,7 @@ class TestDuckdbConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = DuckdbConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.database = "mutated"  # type: ignore[misc]
+            cfg.database = "mutated"
 
     def test_config_defaults_to_empty_tuple(self) -> None:
         cfg1 = DuckdbConfig()

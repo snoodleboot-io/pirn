@@ -80,7 +80,7 @@ class TestParallelToolCallerProcess(unittest.IsolatedAsyncioTestCase):
         assert "nonexistent" in results[0].error
 
     async def test_returns_error_on_tool_exception(self) -> None:
-        def raise_error(args):  # type: ignore[no-untyped-def]
+        def raise_error(args):
             raise RuntimeError("tool failed")
 
         bad_tool = StubTool(name="bad", handler=raise_error)
@@ -118,7 +118,7 @@ class TestParallelToolCallerProcess(unittest.IsolatedAsyncioTestCase):
             with Tapestry():
                 ParallelToolCaller(
                     tool_calls=calls,
-                    tools=["bad"],  # type: ignore[list-item]
+                    tools=["bad"],
                     _config=KnotConfig(id="par"),
                 )
 
@@ -131,7 +131,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
             k = ParallelToolCaller.__new__(ParallelToolCaller)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
-            await k.process(tool_calls=[], tools=["not-a-tool"])  # type: ignore[list-item]
+            await k.process(tool_calls=[], tools=["not-a-tool"])
 
     async def test_process_rejects_non_tool_call(self) -> None:
         tool = StubTool(name="adder")
@@ -139,7 +139,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
             k = ParallelToolCaller.__new__(ParallelToolCaller)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(TypeError, r"tool_calls\[0\] must be a ToolCall"):
-            await k.process(tool_calls=["not-a-call"], tools=[tool])  # type: ignore[list-item]
+            await k.process(tool_calls=["not-a-call"], tools=[tool])
 
 
 class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):

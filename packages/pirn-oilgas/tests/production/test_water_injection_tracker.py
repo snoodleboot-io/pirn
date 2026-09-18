@@ -20,7 +20,7 @@ _SERIES = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> WaterInjectionTracker:
         return WaterInjectionTracker(
-            injection_rate=None,  # type: ignore[arg-type]
+            injection_rate=None,
             _config=KnotConfig(id="wi", validate_io=False),
         )
 

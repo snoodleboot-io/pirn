@@ -115,7 +115,7 @@ async def test_undeclared_arguments_are_refused_by_the_declaration() -> None:
 
 async def test_constructor_rejects_non_client() -> None:
     with pytest.raises(TypeError):
-        McpTool(client="nope", name="echo")  # type: ignore[arg-type]
+        McpTool(client="nope", name="echo")
 
 
 async def test_default_schema_when_missing() -> None:

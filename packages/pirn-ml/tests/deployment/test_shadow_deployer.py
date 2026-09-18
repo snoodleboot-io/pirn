@@ -66,6 +66,6 @@ class TestShadowDeployerProcess(unittest.IsolatedAsyncioTestCase):
         lineage = RecordingLineageStore()
         with self.assertRaises((TypeError, ValueError)):
             await sd.process(
-                model="not a model",  # type: ignore[arg-type]
+                model="not a model",
                 registry=lineage,
             )

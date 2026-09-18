@@ -71,7 +71,7 @@ class TestConcurrencyLimitsValidation(unittest.TestCase):
 
     def test_rejects_a_float_global_cap(self) -> None:
         with self.assertRaises(ValidationError):
-            ConcurrencyLimits(max_in_flight=2.5)  # type: ignore[arg-type]
+            ConcurrencyLimits(max_in_flight=2.5)
 
     def test_rejects_a_zero_group_cap(self) -> None:
         with self.assertRaises(ValidationError):
@@ -97,7 +97,7 @@ class TestConcurrencyLimitsValidation(unittest.TestCase):
 
     def test_rejects_unknown_fields(self) -> None:
         with self.assertRaises(ValidationError):
-            ConcurrencyLimits(max_inflight=3)  # type: ignore[call-arg]
+            ConcurrencyLimits(max_inflight=3)
 
 
 class TestConcurrencyLimitsImmutability(unittest.TestCase):
@@ -115,7 +115,7 @@ class TestConcurrencyLimitsImmutability(unittest.TestCase):
 
         # Act / Assert
         with self.assertRaises(TypeError):
-            limits.groups["api"] = 99  # type: ignore[index]
+            limits.groups["api"] = 99
 
     def test_mutating_the_source_mapping_does_not_change_the_limits(self) -> None:
         # Arrange
@@ -194,7 +194,7 @@ class TestConcurrencyLimitsSerialization(unittest.TestCase):
 
         # Act / Assert
         with self.assertRaises(TypeError):
-            restored.groups["api"] = 9  # type: ignore[index]
+            restored.groups["api"] = 9
         self.assertEqual(hash(restored.groups), hash(ConcurrencyLimits(groups={"api": 2}).groups))
 
     def test_equal_limits_compare_equal(self) -> None:

@@ -20,12 +20,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = EncounterTimelineAssembler(records=[], _config=_CFG)
         with self.assertRaisesRegex(TypeError, "records"):
-            await knot.process(records=42)  # type: ignore[arg-type]
+            await knot.process(records=42)
 
     async def test_rejects_non_record(self) -> None:
         knot = EncounterTimelineAssembler(records=[], _config=_CFG)
         with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
-            await knot.process(records=["x"])  # type: ignore[list-item]
+            await knot.process(records=["x"])
 
     async def test_groups_and_sorts_by_time(self) -> None:
         early = datetime(2026, 1, 1, tzinfo=UTC)

@@ -39,7 +39,7 @@ class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         trace = SegyTrace(trace_id="t-1")
         try:
-            trace.trace_id = "x"  # type: ignore[misc]
+            trace.trace_id = "x"
         except Exception:
             return
         raise AssertionError("SegyTrace must be frozen")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import hl7  # noqa: F401
+    import hl7  # noqa: F401  # imported only to skip when hl7 is absent
 except ImportError as _e:
     raise unittest.SkipTest("hl7 not installed") from _e
 
@@ -136,7 +136,7 @@ class TestHl7v2FormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"NOT|A|VALID|HL7|MESSAGE\r"
 
-        with self.assertRaises(Exception):  # noqa: B017
+        with self.assertRaises(Exception):  # noqa: B017  # the parser library chooses its own error type
             async for _ in await fmt.read(_iter()):
                 pass
 

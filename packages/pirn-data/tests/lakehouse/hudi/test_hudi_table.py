@@ -52,7 +52,7 @@ class TestConstruction(unittest.TestCase):
 
     def test_rejects_wrong_config_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "HudiTableConfig"):
-            HudiTable("not-a-config")  # type: ignore[arg-type]
+            HudiTable("not-a-config")
 
     def test_rejects_empty_table_path(self) -> None:
         with self.assertRaisesRegex(ValueError, "table_path"):

@@ -33,7 +33,7 @@ class TestHudiTableConfigConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = HudiTableConfig(table_path="/data/tbl")
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.table_path = "/other"  # type: ignore[misc]
+            cfg.table_path = "/other"
 
     def test_sensitive_fields_empty(self) -> None:
         self.assertEqual(HudiTableConfig.sensitive_fields, ())

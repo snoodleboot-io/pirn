@@ -29,7 +29,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_dict_bam(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(TypeError, "bam"):
-            await knot.process(bam="not_a_dict", genome="hg38")  # type: ignore[arg-type]
+            await knot.process(bam="not_a_dict", genome="hg38")
 
     async def test_returns_dict(self) -> None:
         knot = _make_knot()

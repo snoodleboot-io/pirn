@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import striprtf  # noqa: F401
+    import striprtf  # noqa: F401  # imported only to skip when striprtf is absent
 except ImportError as _e:
     raise unittest.SkipTest("striprtf not installed") from _e
 
@@ -25,7 +25,7 @@ class TestRtfFormatConstruction(unittest.TestCase):
 
     def test_encoding_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            RtfFormat(encoding=1)  # type: ignore[arg-type]
+            RtfFormat(encoding=1)
 
     def test_encoding_must_be_nonempty(self) -> None:
         with self.assertRaises(ValueError):

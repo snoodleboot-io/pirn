@@ -24,7 +24,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "fastq_path"):
-            await knot.process(fastq_path=42, genome_dir="g", output_bam_path="out")  # type: ignore[arg-type]
+            await knot.process(fastq_path=42, genome_dir="g", output_bam_path="out")
 
     async def test_rejects_empty(self) -> None:
         knot = self._make_knot()

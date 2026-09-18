@@ -29,7 +29,7 @@ class ParseJudgeScoreTests(unittest.TestCase):
 
     def test_non_str_raises(self) -> None:
         with self.assertRaises(TypeError):
-            JudgeScoreParser().parse(1)  # type: ignore[arg-type]
+            JudgeScoreParser().parse(1)
 
 
 class ParsePairwiseChoiceTests(unittest.TestCase):
@@ -50,7 +50,7 @@ class ParsePairwiseChoiceTests(unittest.TestCase):
 
     def test_non_str_raises(self) -> None:
         with self.assertRaises(TypeError):
-            PairwiseChoiceParser().parse(1)  # type: ignore[arg-type]
+            PairwiseChoiceParser().parse(1)
 
 
 if __name__ == "__main__":

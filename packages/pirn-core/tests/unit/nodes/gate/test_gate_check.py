@@ -65,7 +65,7 @@ class TestGateCheckConstruction(unittest.TestCase):
         with Tapestry():
             src = _ValSource(value=1, _config=KnotConfig(id="src"))
             with self.assertRaisesRegex(TypeError, "must be a Check"):
-                Gate(input=src, check=src, _config=KnotConfig(id="g"))  # type: ignore[arg-type]
+                Gate(input=src, check=src, _config=KnotConfig(id="g"))
 
     def test_the_check_is_a_parent_and_the_predicate_is_absent(self) -> None:
         with Tapestry():

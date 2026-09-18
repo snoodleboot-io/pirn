@@ -41,4 +41,4 @@ class TestSnowflakeConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = SnowflakeConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.account = "mutated"  # type: ignore[misc]
+            cfg.account = "mutated"

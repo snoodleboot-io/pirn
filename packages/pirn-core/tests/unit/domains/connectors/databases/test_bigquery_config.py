@@ -39,7 +39,7 @@ class TestBigqueryConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = BigqueryConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.project_id = "mutated"  # type: ignore[misc]
+            cfg.project_id = "mutated"
 
     def test_audit_dict(self) -> None:
         cfg = BigqueryConfig(project_id="proj", credentials_path="/k.json")

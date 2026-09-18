@@ -31,7 +31,7 @@ class BenchmarkRecorder:
         self._samples.append(BenchmarkSample(name=name, metrics=dict(metrics)))
 
     @staticmethod
-    def time_block() -> Callable[[], float]:  # pragma: no cover - trivial helper
+    def time_block() -> Callable[[], float]:  # pragma: no cover  # no benchmark case calls it yet
         """Return a stopwatch closure; call it to read elapsed seconds."""
         start = time.perf_counter()
         return lambda: time.perf_counter() - start

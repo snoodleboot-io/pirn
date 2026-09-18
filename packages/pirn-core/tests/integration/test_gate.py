@@ -66,4 +66,4 @@ async def test_gate_closed_lineage_records_skip():
 def test_gate_requires_callable_predicate():
     p = Parameter("x", int)
     with pytest.raises(TypeError):
-        Gate(input=p, predicate="not callable", _config=KnotConfig(id="g"))  # type: ignore[arg-type]
+        Gate(input=p, predicate="not callable", _config=KnotConfig(id="g"))

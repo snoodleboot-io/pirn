@@ -102,7 +102,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bytes_value(self) -> None:
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=StubValkey())
         with self.assertRaisesRegex(TypeError, "value must be bytes"):
-            await broker.publish("t", "string")  # type: ignore[arg-type]
+            await broker.publish("t", "string")
 
 
 # ────────────────────────────────────────────────────────────── consume

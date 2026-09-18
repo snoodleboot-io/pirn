@@ -21,7 +21,7 @@ from pirn.tapestry import Tapestry
 try:
     from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
 except ImportError:
-    KafkaStreamingSource = None  # type: ignore[assignment]
+    KafkaStreamingSource = None
 
 # ============================================================ IterableSource
 

@@ -39,7 +39,7 @@ class TestTelegramConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = TelegramConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.parse_mode = "Markdown"  # type: ignore[misc]
+            cfg.parse_mode = "Markdown"
 
     def test_numeric_chat_id(self) -> None:
         cfg = TelegramConfig(default_chat_id=-1001234567890)

@@ -72,5 +72,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(
                 split=self._make_split(),
                 image_column="img",
-                image_encoder="bad",  # type: ignore[arg-type]
+                image_encoder="bad",
             )

@@ -36,7 +36,7 @@ class TestAlationConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = AlationConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.base_url = "mutated"  # type: ignore[misc]
+            cfg.base_url = "mutated"
 
     def test_audit_dict_redacts_refresh_token(self) -> None:
         cfg = AlationConfig(refresh_token="rt-secret")

@@ -42,7 +42,7 @@ class TestKnotHelpers(unittest.TestCase):
         # _extract_coercible_type's `origin is Union` branch specifically, which
         # is distinct from its PEP-604 types.UnionType branch. Mirrors the
         # UP007 suppression the source itself carries where Union is required.
-        result = Knot._extract_coercible_type(Union[Knot, int])  # noqa: UP007
+        result = Knot._extract_coercible_type(Union[Knot, int])  # noqa: UP007  # the typing.Union spelling is the branch under test
         self.assertIsNotNone(result)
         coerce_type, _adapter_type = result
         self.assertIs(coerce_type, int)
@@ -114,7 +114,7 @@ class TestKnotConstruction(unittest.TestCase):
     def test_immutability_after_construction(self) -> None:
         node = Add(a=self._p("a"), b=self._p("b"), _config=KnotConfig(id="add"))
         with self.assertRaisesRegex(AttributeError, "immutable"):
-            node.new_attr = 42  # type: ignore[attr-defined]
+            node.new_attr = 42
 
     def test_repr(self) -> None:
         node = Add(a=self._p("a"), b=self._p("b"), _config=KnotConfig(id="add"))
@@ -303,7 +303,7 @@ class TestGetTypeHintsFailureWarns(unittest.TestCase):
         # Hints resolve on first need, never at class creation (PIR-872): a class
         # whose annotations name a TYPE_CHECKING-only type must still import.
         class _BadHint(Knot):
-            async def process(self, x: _DoesNotExist, **_: Any) -> int:  # noqa: F821
+            async def process(self, x: _DoesNotExist, **_: Any) -> int:  # noqa: F821  # the unresolvable annotation is what this test exercises
                 return 1
 
         with self.assertWarnsRegex(UserWarning, "get_type_hints\\(\\) failed"):

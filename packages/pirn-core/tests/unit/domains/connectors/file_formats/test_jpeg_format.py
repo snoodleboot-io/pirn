@@ -10,7 +10,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import PIL  # noqa: F401
+    import PIL  # noqa: F401  # imported only to skip when PIL is absent
 except ImportError as _e:
     raise unittest.SkipTest("PIL not installed") from _e
 
@@ -56,7 +56,7 @@ class TestJpegFormatConstruction(unittest.TestCase):
 
     def test_quality_wrong_type(self) -> None:
         with self.assertRaises(TypeError):
-            JpegFormat(quality="high")  # type: ignore[arg-type]
+            JpegFormat(quality="high")
 
 
 class TestJpegFormatBasics(unittest.TestCase):

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import librosa  # noqa: F401
+    import librosa  # noqa: F401  # imported only to skip when librosa is absent
 except ImportError as _e:
     raise unittest.SkipTest("librosa not installed") from _e
 

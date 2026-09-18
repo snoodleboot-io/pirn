@@ -64,4 +64,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_mapping(self) -> None:
         k = _make_knot()
         with self.assertRaises(TypeError):
-            await k.process(response="not a mapping")  # type: ignore[arg-type]
+            await k.process(response="not a mapping")

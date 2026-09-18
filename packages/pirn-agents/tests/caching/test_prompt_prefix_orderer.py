@@ -24,11 +24,11 @@ def _segments(user_text: str) -> list[PromptSegment]:
 class TestValidation:
     def test_bad_separator_rejected(self) -> None:
         with pytest.raises(TypeError, match="separator"):
-            PromptPrefixOrderer(separator=123)  # type: ignore[arg-type]
+            PromptPrefixOrderer(separator=123)
 
     def test_non_segment_rejected(self) -> None:
         with pytest.raises(TypeError, match="PromptSegment"):
-            PromptPrefixOrderer().order(["nope"])  # type: ignore[list-item]
+            PromptPrefixOrderer().order(["nope"])
 
 
 class TestOrdering:

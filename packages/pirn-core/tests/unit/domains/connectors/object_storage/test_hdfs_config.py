@@ -37,4 +37,4 @@ class TestHDFSConfig(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = HDFSConfig()
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.namenode_host = "mutated"  # type: ignore[misc]
+            cfg.namenode_host = "mutated"

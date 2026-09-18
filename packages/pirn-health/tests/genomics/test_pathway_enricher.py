@@ -19,12 +19,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_sequence(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "ranked_genes"):
-            await knot.process(ranked_genes=42, gene_set_db="kegg")  # type: ignore[arg-type]
+            await knot.process(ranked_genes=42, gene_set_db="kegg")
 
     async def test_rejects_non_string_gene(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "string"):
-            await knot.process(ranked_genes=[1], gene_set_db="kegg")  # type: ignore[list-item]
+            await knot.process(ranked_genes=[1], gene_set_db="kegg")
 
     async def test_rejects_empty_db(self) -> None:
         knot = self._make_knot()

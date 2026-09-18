@@ -78,7 +78,7 @@ class TestChunkEmbedderStoreProcess(unittest.IsolatedAsyncioTestCase):
             stored_keys.append(key)
             return await original_store(key, value)
 
-        store.store = _capture  # type: ignore[assignment]
+        store.store = _capture
         t = _run(embedder, store, ["hello"], "my_doc")
         result = await t.run(RunRequest())
         assert result.succeeded, result.exceptions
@@ -94,7 +94,7 @@ class TestChunkEmbedderStoreProcess(unittest.IsolatedAsyncioTestCase):
             stored_payloads.append(dict(value))
             return await original_store(key, value)
 
-        store.store = _capture  # type: ignore[assignment]
+        store.store = _capture
         t = _run(embedder, store, ["chunk_text"], "doc")
         result = await t.run(RunRequest())
         assert result.succeeded, result.exceptions

@@ -10,7 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 try:
-    import pyspark.sql  # noqa: F401
+    import pyspark.sql  # noqa: F401  # imported only to skip when pyspark is absent
 except ImportError as _e:
     raise unittest.SkipTest("pyspark not installed") from _e
 

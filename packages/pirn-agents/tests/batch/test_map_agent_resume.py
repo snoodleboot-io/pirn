@@ -17,7 +17,7 @@ from tests.batch.batch_doubles import StubAgent
 
 
 async def _drain(runner: MapAgent, inputs: object) -> list:
-    return [result async for result in runner.run(inputs)]  # type: ignore[arg-type]
+    return [result async for result in runner.run(inputs)]
 
 
 async def test_completed_items_get_an_ok_lineage_row() -> None:

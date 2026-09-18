@@ -306,7 +306,7 @@ async def test_rejects_non_tool_call() -> None:
         )
     with pytest.raises(TypeError):
         await executor.process(
-            tool_calls=["not-a-call"],  # type: ignore[list-item]
+            tool_calls=["not-a-call"],
             toolset=Toolset(),
             max_concurrency=8,
         )
@@ -322,7 +322,7 @@ async def test_rejects_non_toolset() -> None:
     with pytest.raises(TypeError):
         await executor.process(
             tool_calls=[],
-            toolset=["not-a-toolset"],  # type: ignore[arg-type]
+            toolset=["not-a-toolset"],
             max_concurrency=8,
         )
 

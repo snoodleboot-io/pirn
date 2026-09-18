@@ -38,7 +38,7 @@ class TestIcebergTableConfigConstruction(unittest.TestCase):
     def test_frozen(self) -> None:
         cfg = IcebergTableConfig(catalog_name="rest")
         with self.assertRaises((AttributeError, TypeError)):
-            cfg.catalog_name = "glue"  # type: ignore[misc]
+            cfg.catalog_name = "glue"
 
     def test_sensitive_fields_empty(self) -> None:
         self.assertEqual(IcebergTableConfig.sensitive_fields, ())

@@ -51,11 +51,11 @@ class SemanticMatchTests(unittest.TestCase):
 
     def test_non_callable_embedder_raises(self) -> None:
         with self.assertRaises(TypeError):
-            SemanticMatch(embedder="not-callable")  # type: ignore[arg-type]
+            SemanticMatch(embedder="not-callable")
 
     def test_non_str_prediction_raises(self) -> None:
         with self.assertRaises(TypeError):
-            SemanticMatch(embedder=self.embed).score(1, "b")  # type: ignore[arg-type]
+            SemanticMatch(embedder=self.embed).score(1, "b")
 
 
 if __name__ == "__main__":

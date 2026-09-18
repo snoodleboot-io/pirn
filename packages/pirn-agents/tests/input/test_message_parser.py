@@ -54,4 +54,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_unknown_type(self) -> None:
         k = _make_knot()
         with self.assertRaises(TypeError):
-            await k.process(raw_input=42)  # type: ignore[arg-type]
+            await k.process(raw_input=42)

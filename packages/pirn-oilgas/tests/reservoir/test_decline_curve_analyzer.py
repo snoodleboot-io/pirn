@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import scipy  # noqa: F401
+    import scipy  # noqa: F401  # imported only to skip when scipy is absent
 except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
@@ -25,7 +25,7 @@ _SERIES = ScadaPayload(
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, method: str = "hyperbolic") -> DeclineCurveAnalyzer:
         return DeclineCurveAnalyzer(
-            rate_series=None,  # type: ignore[arg-type]
+            rate_series=None,
             method=method,
             _config=KnotConfig(id="dca", validate_io=False),
         )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 try:
-    import starlette  # noqa: F401
+    import starlette  # noqa: F401  # imported only to skip when starlette is absent
 except ImportError as _e:
     raise unittest.SkipTest("starlette not installed") from _e
 

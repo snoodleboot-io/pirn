@@ -128,4 +128,4 @@ class _StandaloneTests(unittest.TestCase):
 
     def test_non_callable_raises(self):
         with self.assertRaisesRegex(TypeError, "callable"):
-            ToolDecorator.decorate("not a function")  # type: ignore[arg-type]
+            ToolDecorator.decorate("not a function")

@@ -41,7 +41,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 min_cell_diameter_um=5.0,
                 max_cell_diameter_um=30.0,
                 stain_type="hematoxylin",
-            )  # type: ignore[arg-type]
+            )
 
     async def test_rejects_non_positive_min_diameter(self) -> None:
         knot = _make_knot()

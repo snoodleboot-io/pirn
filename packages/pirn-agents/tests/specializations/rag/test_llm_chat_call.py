@@ -62,7 +62,7 @@ class TestLLMChatCallProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             with self.assertRaises(TypeError):
                 LLMChatCall(
-                    prompt=42,  # type: ignore[arg-type]
+                    prompt=42,
                     llm=llm,
                     _config=KnotConfig(id="lcc"),
                 )

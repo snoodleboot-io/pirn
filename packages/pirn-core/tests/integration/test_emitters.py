@@ -195,7 +195,7 @@ async def test_kafka_emitter_skipped_when_topic_is_none():
     # Patch the default for status to None.  The constructor logic
     # currently uses topic= as fallback, so we override topic_status
     # directly through the public attribute pattern: re-construct.
-    emitter._topic_status = None  # type: ignore[attr-defined]
+    emitter._topic_status = None
     await emitter.on_status(_status_event())
     assert producer.sent == []
 

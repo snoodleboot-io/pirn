@@ -76,7 +76,7 @@ class TestObserverInterface(unittest.TestCase):
         self.assertEqual(a, b)
         self.assertNotIn("gate", repr(a))
         with self.assertRaises(AttributeError):
-            a.kind = "release"  # type: ignore[misc]
+            a.kind = "release"
 
 
 class TestAdmissionFeedback(unittest.TestCase):

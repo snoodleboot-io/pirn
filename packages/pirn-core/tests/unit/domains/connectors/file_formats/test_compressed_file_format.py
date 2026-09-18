@@ -21,7 +21,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 class TestCompressedFileFormatConstruction(unittest.TestCase):
     def test_inner_must_be_file_format(self) -> None:
         with self.assertRaises(TypeError):
-            CompressedFileFormat("not-a-format", codec="gzip")  # type: ignore[arg-type]
+            CompressedFileFormat("not-a-format", codec="gzip")
 
     def test_invalid_codec_raises(self) -> None:
         with self.assertRaises(ValueError):
@@ -69,7 +69,7 @@ class TestCompressedFileFormatBzip2(unittest.IsolatedAsyncioTestCase):
 class TestCompressedFileFormatZstd(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_zstd(self) -> None:
         try:
-            import zstandard  # noqa: F401
+            import zstandard  # noqa: F401  # imported only to skip when zstandard is absent
         except ImportError as _e:
             self.skipTest("zstandard not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="zstd")
@@ -83,7 +83,7 @@ class TestCompressedFileFormatZstd(unittest.IsolatedAsyncioTestCase):
 class TestCompressedFileFormatSnappy(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_snappy(self) -> None:
         try:
-            import snappy  # noqa: F401
+            import snappy  # noqa: F401  # imported only to skip when snappy is absent
         except ImportError as _e:
             self.skipTest("snappy not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="snappy")
@@ -98,7 +98,7 @@ class TestCompressedFileFormatSnappy(unittest.IsolatedAsyncioTestCase):
 class TestCompressedFileFormatLz4(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_lz4(self) -> None:
         try:
-            import lz4  # noqa: F401
+            import lz4  # noqa: F401  # imported only to skip when lz4 is absent
         except ImportError as _e:
             self.skipTest("lz4 not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="lz4")

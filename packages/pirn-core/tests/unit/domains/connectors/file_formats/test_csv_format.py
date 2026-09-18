@@ -26,7 +26,7 @@ class TestCsvFormatConstruction(unittest.TestCase):
 
     def test_delimiter_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            CsvFormat(delimiter=1)  # type: ignore[arg-type]
+            CsvFormat(delimiter=1)
 
     def test_delimiter_must_be_single_char(self) -> None:
         with self.assertRaises(ValueError):
@@ -36,7 +36,7 @@ class TestCsvFormatConstruction(unittest.TestCase):
 
     def test_quotechar_must_be_str(self) -> None:
         with self.assertRaises(TypeError):
-            CsvFormat(quotechar=1)  # type: ignore[arg-type]
+            CsvFormat(quotechar=1)
 
     def test_quotechar_must_be_single_char(self) -> None:
         with self.assertRaises(ValueError):
@@ -44,7 +44,7 @@ class TestCsvFormatConstruction(unittest.TestCase):
 
     def test_has_header_must_be_bool(self) -> None:
         with self.assertRaises(TypeError):
-            CsvFormat(has_header="yes")  # type: ignore[arg-type]
+            CsvFormat(has_header="yes")
 
     def test_column_names_required_when_no_header(self) -> None:
         with self.assertRaises(ValueError):
@@ -52,13 +52,13 @@ class TestCsvFormatConstruction(unittest.TestCase):
 
     def test_column_names_must_be_sequence_of_str(self) -> None:
         with self.assertRaises(TypeError):
-            CsvFormat(column_names="abc")  # type: ignore[arg-type]
+            CsvFormat(column_names="abc")
         with self.assertRaises(TypeError):
-            CsvFormat(column_names=[1, 2])  # type: ignore[list-item]
+            CsvFormat(column_names=[1, 2])
 
     def test_encoding_must_be_nonempty_str(self) -> None:
         with self.assertRaises(TypeError):
-            CsvFormat(encoding=123)  # type: ignore[arg-type]
+            CsvFormat(encoding=123)
         with self.assertRaises(ValueError):
             CsvFormat(encoding="")
 

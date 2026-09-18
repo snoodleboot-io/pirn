@@ -78,7 +78,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, AttributeError)):
             await k.process(
-                query=42,  # type: ignore[arg-type]
+                query=42,
                 memory=memory,
                 llm=llm,
                 fallback_tool=tool,

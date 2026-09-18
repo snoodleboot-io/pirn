@@ -43,7 +43,7 @@ class TestToolSelectorValidation(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["search"])
         sel = _make_selector("msg", tools, llm)
         with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
-            await sel.process(message="msg", tools=["not-a-tool"], llm=llm)  # type: ignore[list-item]
+            await sel.process(message="msg", tools=["not-a-tool"], llm=llm)
 
     async def test_rejects_empty_tools(self) -> None:
         tools = [StubTool(name="search")]

@@ -26,7 +26,7 @@ class TestAgentToolConstruction(unittest.TestCase):
 
     def test_rejects_non_subtapestry(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a SubTapestry"):
-            AgentTool(object())  # type: ignore[arg-type]
+            AgentTool(object())
 
     def test_rejects_non_positive_max_depth(self) -> None:
         with self.assertRaisesRegex(TypeError, "max_depth must be a positive int"):
@@ -64,7 +64,7 @@ class TestAgentToolConstruction(unittest.TestCase):
         self.assertIn("topic", properties)
 
     def test_clear_credentials_drops_provider(self) -> None:
-        tool = AgentTool(self._agent(), provider=object())  # type: ignore[arg-type]
+        tool = AgentTool(self._agent(), provider=object())
 
         tool._clear_credentials()
 

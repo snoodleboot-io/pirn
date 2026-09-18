@@ -49,12 +49,12 @@ class TestVectorMatch(unittest.TestCase):
 
     def test_rejects_bool_score(self) -> None:
         with self.assertRaises(TypeError):
-            VectorMatch(id="a", score=True)  # type: ignore[arg-type]
+            VectorMatch(id="a", score=True)
 
     def test_rejects_non_mapping_metadata(self) -> None:
         with self.assertRaises(TypeError):
-            VectorMatch(id="a", score=0.5, metadata=["nope"])  # type: ignore[arg-type]
+            VectorMatch(id="a", score=0.5, metadata=["nope"])
 
     def test_rejects_non_str_document(self) -> None:
         with self.assertRaises(TypeError):
-            VectorMatch(id="a", score=0.5, document=123)  # type: ignore[arg-type]
+            VectorMatch(id="a", score=0.5, document=123)

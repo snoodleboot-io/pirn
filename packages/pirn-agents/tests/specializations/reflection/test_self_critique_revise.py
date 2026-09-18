@@ -62,7 +62,7 @@ class TestSelfCritiqueReviseProcess(unittest.IsolatedAsyncioTestCase):
             with Tapestry():
                 SelfCritiqueRevise(
                     prompt="q",
-                    llm="not-llm",  # type: ignore[arg-type]
+                    llm="not-llm",
                     _config=KnotConfig(id="scr"),
                 )
 

@@ -72,7 +72,7 @@ class TestOrchestratorAgentProcess(unittest.IsolatedAsyncioTestCase):
         spec = _make_spec("x", "s")
         k = _make_knot(StubLLMProvider(["s"]), {"s": spec})
         with self.assertRaises(TypeError):
-            await k.process(task="ask", llm="bad", specialists={"s": spec})  # type: ignore[arg-type]
+            await k.process(task="ask", llm="bad", specialists={"s": spec})
 
     async def test_rejects_empty_specialists(self) -> None:
         llm = StubLLMProvider(["s"])

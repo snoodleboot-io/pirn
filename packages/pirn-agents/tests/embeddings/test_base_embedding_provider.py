@@ -46,12 +46,12 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
 
     def test_rejects_non_retrypolicy(self) -> None:
         with self.assertRaises(TypeError):
-            RecordingProvider(retry_policy=object())  # type: ignore[arg-type]
+            RecordingProvider(retry_policy=object())
 
     async def test_rejects_bare_str_input(self) -> None:
         provider = RecordingProvider(batch_size=2)
         with self.assertRaises(TypeError):
-            await provider.embed("not-a-sequence")  # type: ignore[arg-type]
+            await provider.embed("not-a-sequence")
 
     async def test_splits_into_fixed_size_batches_in_order(self) -> None:
         provider = RecordingProvider(batch_size=2)

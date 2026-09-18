@@ -217,7 +217,7 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
                 )
             return _FakeJson({"data": [{"name": "t2"}], "paging": {}})
 
-        fake.request = request_request  # type: ignore[assignment]
+        fake.request = request_request
         client = OpenMetadataClient(cfg, client=fake)
 
         results = []

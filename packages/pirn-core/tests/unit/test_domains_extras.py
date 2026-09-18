@@ -30,17 +30,17 @@ class TestDomainImportGuards(unittest.TestCase):
 
     def test_agents_imports_without_any_extras(self) -> None:
         sys.modules.pop("pirn_agents", None)
-        import pirn_agents  # noqa: F401
+        import pirn_agents  # noqa: F401  # the bare import is the behaviour asserted here
 
     def test_connectors_namespace_imports_without_extras(self) -> None:
         sys.modules.pop("pirn.connectors", None)
-        import pirn.connectors  # noqa: F401
+        import pirn.connectors  # noqa: F401  # the bare import is the behaviour asserted here
 
     def test_data_namespace_imports_without_extras(self) -> None:
         # The data domain defers its heavy imports to pandas-bound
         # submodules, so the package import itself stays clean.
         sys.modules.pop("pirn_data", None)
-        import pirn_data  # noqa: F401
+        import pirn_data  # noqa: F401  # the bare import is the behaviour asserted here
 
     def test_ml_namespace_imports_without_extras(self) -> None:
         # The ml domain defers its heavy imports to dependency-bound
@@ -49,17 +49,17 @@ class TestDomainImportGuards(unittest.TestCase):
         # features, training, evaluation, deployment) is usable
         # without numpy / pandas / scikit-learn installed.
         sys.modules.pop("pirn_ml", None)
-        import pirn_ml  # noqa: F401
+        import pirn_ml  # noqa: F401  # the bare import is the behaviour asserted here
 
     def test_health_namespace_imports_without_extras(self) -> None:
         sys.modules.pop("pirn_health", None)
-        import pirn_health  # noqa: F401
+        import pirn_health  # noqa: F401  # the bare import is the behaviour asserted here
 
     def test_signal_namespace_imports_without_extras(self) -> None:
         # Signal extracted to the standalone pirn_signal package (SCD-11).
         sys.modules.pop("pirn_signal", None)
-        import pirn_signal  # noqa: F401
+        import pirn_signal  # noqa: F401  # the bare import is the behaviour asserted here
 
     def test_oilgas_namespace_imports_without_extras(self) -> None:
         sys.modules.pop("pirn_oilgas", None)
-        import pirn_oilgas  # noqa: F401
+        import pirn_oilgas  # noqa: F401  # the bare import is the behaviour asserted here

@@ -25,7 +25,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_bam(self) -> None:
         knot = self._make_knot()
         with self.assertRaisesRegex(TypeError, "bam_path"):
-            await knot.process(bam_path=42, reference_path="ref", output_vcf_path="out")  # type: ignore[arg-type]
+            await knot.process(bam_path=42, reference_path="ref", output_vcf_path="out")
 
     async def test_rejects_empty_bam(self) -> None:
         knot = self._make_knot()

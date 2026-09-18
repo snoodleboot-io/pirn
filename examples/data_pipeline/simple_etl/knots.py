@@ -79,6 +79,4 @@ async def load(enriched: EnrichedDataset, db_path: str, table_name: str) -> Load
         )
     conn.commit()
     conn.close()
-    return LoadResult(
-        table=table_name, rows_written=len(enriched.rows), db_path=db_path
-    )
+    return LoadResult(table=table_name, rows_written=len(enriched.rows), db_path=db_path)

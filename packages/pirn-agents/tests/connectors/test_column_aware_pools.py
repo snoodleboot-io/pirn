@@ -82,7 +82,7 @@ class _ExplodingConnection(_FakeAiosqliteConnection):
 
 def _sqlite_pool(columns: Sequence[str], rows: Sequence[Sequence[Any]]) -> ColumnAwareSqlitePool:
     conn = _FakeAiosqliteConnection(columns, rows)
-    return ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+    return ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)
 
 
 class TestColumnAwareSqlitePool:
@@ -94,7 +94,7 @@ class TestColumnAwareSqlitePool:
 
     async def test_parameters_are_bound_not_interpolated(self) -> None:
         conn = _FakeAiosqliteConnection(["id"], [[1]])
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)
         await pool.fetch_columns("SELECT id FROM t WHERE id = ?", [42])
         assert conn.calls[0] == ("SELECT id FROM t WHERE id = ?", (42,))
 
@@ -103,7 +103,7 @@ class TestColumnAwareSqlitePool:
         # % and {} — common in LLM-authored reads — so it is deliberately not
         # applied. LIKE '%term%' and JSON braces must pass through as data.
         conn = _FakeAiosqliteConnection(["n"], [["x"]])
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)
         await pool.fetch_columns("SELECT n FROM t WHERE n LIKE '%smith%'")
         await pool.fetch_columns("SELECT n FROM t WHERE j = '{\"k\": 1}'")
         assert [c[0] for c in conn.calls] == [
@@ -124,13 +124,13 @@ class TestSqlitePoolDurability:
 
     async def test_fetch_columns_commits(self) -> None:
         conn = _FakeAiosqliteConnection(["id"], [[1]])
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)
         await pool.fetch_columns("INSERT INTO t (id) VALUES (?)", [1])
         assert conn.commits == 1
 
     async def test_a_failed_statement_is_not_committed(self) -> None:
         conn = _ExplodingConnection(["id"], [[1]])
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)
         with pytest.raises(RuntimeError, match="blew up"):
             await pool.fetch_columns("INSERT INTO t (id) VALUES (?)", [1])
         assert conn.commits == 0
@@ -141,13 +141,13 @@ class TestSqlitePoolDurability:
 
     async def test_a_read_neither_commits_nor_rolls_back(self) -> None:
         conn = _FakeAiosqliteConnection(["id"], [[1]])
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)
         await pool.fetch_columns("SELECT id FROM t")
         assert (conn.commits, conn.rollbacks) == (0, 0)
 
     async def test_ddl_neither_commits_nor_rolls_back(self) -> None:
         conn = _FakeAiosqliteConnection([], [])
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)
         await pool.fetch_columns("CREATE TABLE t (id INTEGER)")
         assert (conn.commits, conn.rollbacks) == (0, 0)
 
@@ -155,12 +155,12 @@ class TestSqlitePoolDurability:
         pytest.importorskip("aiosqlite")
         database = str(tmp_path / "durable.db")
 
-        writer = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        writer = ColumnAwareSqlitePool(SqliteConfig(database=database))
         await writer.fetch_columns("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
         await writer.fetch_columns("INSERT INTO widget (id, name) VALUES (?, ?)", [1, "sprocket"])
         await writer.close()
 
-        reader = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        reader = ColumnAwareSqlitePool(SqliteConfig(database=database))
         try:
             columns, rows = await reader.fetch_columns("SELECT id, name FROM widget")
         finally:
@@ -183,7 +183,7 @@ class TestSqlitePoolTransactionOwnership:
     @staticmethod
     async def _seed(database: str) -> None:
         """Create ``widget`` with a UNIQUE name and three committed rows."""
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))
         try:
             await pool.fetch_columns(
                 "CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT UNIQUE)"
@@ -206,7 +206,7 @@ class TestSqlitePoolTransactionOwnership:
         database = str(tmp_path / "residue.db")
         await self._seed(database)
 
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))
         try:
             # ``UPDATE OR FAIL`` renames row 1, then hits the UNIQUE constraint on
             # row 2 and aborts — keeping row 1's change and leaving the transaction
@@ -228,7 +228,7 @@ class TestSqlitePoolTransactionOwnership:
         database = str(tmp_path / "caller_txn.db")
         await self._seed(database)
 
-        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))
         try:
             # The caller drives the pool directly and opens a transaction.
             connection = await pool.acquire()
@@ -252,7 +252,7 @@ class TestSqlitePoolTransactionOwnership:
 
         # ``timeout`` only bounds how long the lock wait takes; the outcome —
         # rows versus OperationalError — does not depend on machine speed.
-        pool = ColumnAwareSqlitePool(  # pyright: ignore[reportCallIssue]
+        pool = ColumnAwareSqlitePool(
             SqliteConfig(database=database, journal_mode="DELETE", timeout=0.1)
         )
         reader = sqlite3.connect(database, timeout=0.1)
