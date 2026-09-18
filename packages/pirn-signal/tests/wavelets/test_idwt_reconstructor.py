@@ -63,3 +63,37 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         out = result.outputs["i"]
         assert isinstance(out, SignalPayload)
         assert out.metadata.signal_id == "wt:idwt"
+
+
+class TestLevelMustMatchTheCoefficients(unittest.IsolatedAsyncioTestCase):
+    """``level`` was validated and then ignored; waverec used the list's own depth."""
+
+    @staticmethod
+    def _payload(level: int) -> WaveletPayload:
+        data = np.sin(np.linspace(0.0, 8.0, 256))
+        coefficients = pywt.wavedec(data, "db4", level=level)
+        return WaveletPayload(
+            metadata=WaveletFrame(
+                signal_id="test", wavelet_name="db4", scale_count=len(coefficients)
+            ),
+            data=coefficients,
+        )
+
+    @staticmethod
+    def _knot() -> IDWTReconstructor:
+        with Tapestry():
+            knot = IDWTReconstructor.__new__(IDWTReconstructor)
+            object.__setattr__(knot, "_config", KnotConfig(id="idwt"))
+        return knot
+
+    async def test_reconstructs_when_the_level_matches(self) -> None:
+        out = await self._knot().process(wavelet_frame=self._payload(3), wavelet="db4", level=3)
+
+        assert isinstance(out, SignalPayload)
+        np.testing.assert_allclose(
+            np.asarray(out.data)[:256], np.sin(np.linspace(0.0, 8.0, 256)), atol=1e-8
+        )
+
+    async def test_rejects_a_level_that_disagrees_with_the_payload(self) -> None:
+        with self.assertRaisesRegex(ValueError, "detail band"):
+            await self._knot().process(wavelet_frame=self._payload(3), wavelet="db4", level=5)

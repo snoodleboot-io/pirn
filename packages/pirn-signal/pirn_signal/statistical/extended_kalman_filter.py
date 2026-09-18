@@ -1,8 +1,10 @@
 """``ExtendedKalmanFilter`` — Kalman filter for nonlinear systems via local linearisation.
 
 Algorithm:
-    1. Receive the input signal frame, state_dim, and observation_dim.
-    2. Validate state_dim and observation_dim (positive integers).
+    1. Receive the input signal frame and state_dim.
+    2. Validate state_dim (positive integer). Each channel is filtered on its own
+       as a scalar observation stream, so the observation dimension is fixed at one
+       and is not an input the caller can set or contradict.
     3. Initialise the state estimate and error covariance matrix.
     4. For each observation y(k):
        a. Predict: compute x̂(k|k-1) via the nonlinear state function f(x).
@@ -46,14 +48,12 @@ class ExtendedKalmanFilter(Knot):
         *,
         signal: Knot,
         state_dim: Knot | int,
-        observation_dim: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             signal=signal,
             state_dim=state_dim,
-            observation_dim=observation_dim,
             _config=_config,
             **kwargs,
         )
@@ -62,7 +62,6 @@ class ExtendedKalmanFilter(Knot):
         self,
         signal: SignalPayload,
         state_dim: int,
-        observation_dim: int,
         **_: Any,
     ) -> SignalPayload:
         """Filter the signal through the extended Kalman filter via local linearisation.
@@ -70,18 +69,15 @@ class ExtendedKalmanFilter(Knot):
         Args:
             signal: Observed signal payload to filter through the nonlinear state estimator.
             state_dim: Dimension of the hidden state vector (positive integer).
-            observation_dim: Dimension of the observation vector (positive integer).
 
         Returns:
             SignalPayload of EKF-filtered state estimates.
 
         Raises:
-            ValueError: If state_dim or observation_dim are not positive integers.
+            ValueError: If state_dim is not a positive integer.
         """
         if not isinstance(state_dim, int) or state_dim <= 0:
             raise ValueError("ExtendedKalmanFilter: state_dim must be a positive integer")
-        if not isinstance(observation_dim, int) or observation_dim <= 0:
-            raise ValueError("ExtendedKalmanFilter: observation_dim must be a positive integer")
         process_noise = 1e-3
         measurement_noise = 1e-1
         channels = np.atleast_2d(signal.data).astype(float)

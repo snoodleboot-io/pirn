@@ -62,7 +62,9 @@ class CepstrumAnalyzer(Knot):
 
         Args:
             signal: Signal payload to compute the cepstrum from.
-            cepstrum_kind: One of ``real``, ``complex``, or ``power``.
+            cepstrum_kind: ``real`` (inverse transform of the log magnitude),
+                ``power`` (of the log power spectrum) or ``complex`` (of the complex
+                logarithm, magnitude and unwrapped phase).
 
         Returns:
             SpectrumPayload with cepstral data and frequency_bins = cepstrum.shape[-1].
@@ -75,7 +77,9 @@ class CepstrumAnalyzer(Knot):
                 "CepstrumAnalyzer: cepstrum_kind must be 'real', 'complex', or 'power'"
             )
 
-        cepstrum = await asyncio.to_thread(CepstrumAnalyzer._compute_cepstrum, signal.data)
+        cepstrum = await asyncio.to_thread(
+            CepstrumAnalyzer._compute_cepstrum, signal.data, cepstrum_kind
+        )
         freq_bins = cepstrum.shape[-1]
 
         return SpectrumPayload(
@@ -88,7 +92,34 @@ class CepstrumAnalyzer(Knot):
         )
 
     @staticmethod
-    def _compute_cepstrum(data: np.ndarray) -> np.ndarray:
+    def _compute_cepstrum(data: np.ndarray, cepstrum_kind: str) -> np.ndarray:
+        """Compute the requested cepstrum along the last axis.
+
+        * ``real`` — inverse transform of the log magnitude spectrum,
+          :math:`c_r = \\mathcal{F}^{-1}\\{\\log|X|\\}` (Bogert 1963).
+        * ``power`` — inverse transform of the log power spectrum,
+          :math:`c_p = \\mathcal{F}^{-1}\\{\\log|X|^2\\}` (Childers 1977): the
+          cepstrum of the power spectrum, twice the real cepstrum for a real signal
+          but the quantity the power-cepstrum literature quotes.
+        * ``complex`` — inverse transform of the complex logarithm, log magnitude plus
+          the unwrapped phase, :math:`c_c = \\mathcal{F}^{-1}\\{\\log|X| + j\\arg X\\}`
+          (Oppenheim & Schafer 1975, ch. 10). Unlike the real cepstrum it is
+          invertible, so it separates a non-minimum-phase excitation from its filter.
+
+        Args:
+            data: Samples, ``(..., n)``.
+            cepstrum_kind: ``real``, ``power`` or ``complex``.
+
+        Returns:
+            The cepstrum, real-valued, shaped like ``data`` along the last axis.
+        """
+        if cepstrum_kind == "complex":
+            spectrum = np.fft.fft(data, axis=-1)
+            log_spectrum = np.log(np.abs(spectrum) + 1e-10) + 1j * np.unwrap(
+                np.angle(spectrum), axis=-1
+            )
+            return np.real(np.fft.ifft(log_spectrum, axis=-1))
         spectrum = np.fft.rfft(data, axis=-1)
-        log_spectrum = np.log(np.abs(spectrum) + 1e-10)
+        magnitude = np.abs(spectrum) + 1e-10
+        log_spectrum = 2.0 * np.log(magnitude) if cepstrum_kind == "power" else np.log(magnitude)
         return np.fft.irfft(log_spectrum, axis=-1)

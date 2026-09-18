@@ -29,30 +29,28 @@ class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
     def _make(self) -> AudioFeatureExtractor:
         return AudioFeatureExtractor(
             signal=_up(),
-            n_mfcc=13,
             n_fft=512,
             hop_length=256,
             _config=KnotConfig(id="fe"),
         )
 
-    async def test_rejects_non_positive_n_mfcc(self) -> None:
-        knot = self._make()
-        with pytest.raises(ValueError, match="n_mfcc"):
-            await knot.process(_SIGNAL, n_mfcc=0, n_fft=512, hop_length=256)
+    def test_declares_no_n_mfcc_input(self) -> None:
+        """This knot computes no MFCCs — MFCCExtractor does; the input is gone."""
+        assert self._make().input_names == ("signal", "n_fft", "hop_length")
 
     async def test_rejects_non_positive_n_fft(self) -> None:
         knot = self._make()
         with pytest.raises(ValueError, match="n_fft"):
-            await knot.process(_SIGNAL, n_mfcc=13, n_fft=0, hop_length=256)
+            await knot.process(_SIGNAL, n_fft=0, hop_length=256)
 
     async def test_rejects_non_positive_hop_length(self) -> None:
         knot = self._make()
         with pytest.raises(ValueError, match="hop_length"):
-            await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=0)
+            await knot.process(_SIGNAL, n_fft=512, hop_length=0)
 
     async def test_emits_feature_payload(self) -> None:
         knot = self._make()
-        out = await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=256)
+        out = await knot.process(_SIGNAL, n_fft=512, hop_length=256)
         assert isinstance(out, FeaturePayload)
         assert out.metadata.feature_names == (
             "rms_energy",
@@ -67,7 +65,7 @@ class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
     async def test_multichannel_computes_per_channel(self) -> None:
         knot = self._make()
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
-        out = await knot.process(multichannel, n_mfcc=13, n_fft=512, hop_length=256)
+        out = await knot.process(multichannel, n_fft=512, hop_length=256)
         assert isinstance(out, FeaturePayload)
         assert out.metadata.channel_count == 2
         assert out.data.shape[0] == 2

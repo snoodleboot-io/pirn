@@ -75,7 +75,9 @@ class PolyphaseResampler(Knot):
             signal: Signal to resample using the polyphase filter bank.
             upsample_factor: Integer upsampling factor L (positive integer).
             downsample_factor: Integer downsampling factor M (positive integer).
-            filter_length: Number of FIR anti-alias taps (positive integer).
+            filter_length: Number of FIR anti-alias taps to design (positive integer);
+                the taps are a Hamming-windowed sinc cut off at
+                ``min(1/L, 1/M)`` of the upsampled Nyquist frequency.
 
         Returns:
             SignalPayload at the new sample rate computed as ``fs * upsample_factor / downsample_factor``.
@@ -91,7 +93,11 @@ class PolyphaseResampler(Knot):
             raise ValueError("PolyphaseResampler: filter_length must be a positive integer")
 
         result = await asyncio.to_thread(
-            PolyResampling.resample_poly, signal.data, upsample_factor, downsample_factor
+            PolyResampling.resample_poly,
+            signal.data,
+            upsample_factor,
+            downsample_factor,
+            filter_length,
         )
         new_rate = (signal.metadata.sample_rate_hz * upsample_factor) / downsample_factor
 

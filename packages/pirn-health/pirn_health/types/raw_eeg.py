@@ -1,4 +1,13 @@
-"""``RawEEG`` — raw multi-channel EEG recording snapshot."""
+"""``RawEEG`` — raw multi-channel EEG recording snapshot.
+
+PHI safety:
+    ``subject_id`` never appears in :meth:`_pirn_audit_dict` — see
+    :mod:`pirn_health.types.genomics_record` for the rule. The audit dict
+    carries ``subject_id_hash``, a stable
+    :class:`~pirn.core.content_hasher.ContentHasher` digest that keeps two
+    subjects' recordings distinct in lineage without persisting the
+    identifier itself.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
@@ -21,7 +31,7 @@ class RawEEG(PirnOpaqueValue):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "subject_id": self.subject_id,
+            "subject_id_hash": ContentHasher.hash(self.subject_id),
             "channel_count": self.channel_count,
             "sample_rate_hz": self.sample_rate_hz,
             "duration_sec": self.duration_sec,

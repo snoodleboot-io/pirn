@@ -32,7 +32,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -41,17 +41,27 @@ from pirn.core.knot_config import KnotConfig
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 
-_porosity_curve_priority = ("PHI_density", "PHI_neutron", "PHI_density_neutron", "NPHI")
-_sw_curve_priority = ("SW_archie", "SW_simandoux", "SW_indonesia", "SW_waxman_smits")
-_eps = 1e-9
-
 
 class PermeabilityEstimator(Knot):
     """Estimate a permeability curve using a configured correlation."""
 
+    _porosity_curve_priority: ClassVar[tuple[str, ...]] = (
+        "PHI_density",
+        "PHI_neutron",
+        "PHI_density_neutron",
+        "NPHI",
+    )
+    _sw_curve_priority: ClassVar[tuple[str, ...]] = (
+        "SW_archie",
+        "SW_simandoux",
+        "SW_indonesia",
+        "SW_waxman_smits",
+    )
+    _eps: ClassVar[float] = 1e-9
+
     @staticmethod
     def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
-        for name in _porosity_curve_priority:
+        for name in PermeabilityEstimator._porosity_curve_priority:
             if name in curve_data:
                 return curve_data[name]
         raise ValueError(
@@ -61,7 +71,7 @@ class PermeabilityEstimator(Knot):
 
     @staticmethod
     def _find_swi(curve_data: dict[str, np.ndarray], depth_count: int) -> np.ndarray:
-        for name in _sw_curve_priority:
+        for name in PermeabilityEstimator._sw_curve_priority:
             if name in curve_data:
                 return curve_data[name]
         return np.full(depth_count, 0.25, dtype=np.float64)
@@ -98,14 +108,20 @@ class PermeabilityEstimator(Knot):
         swi = PermeabilityEstimator._find_swi(curve_data, len(phi))
 
         if method == "timur":
-            permeability_curve = np.maximum(0.136 * phi**4.4 / (swi**2 + _eps), 0.0)
+            permeability_curve = np.maximum(
+                0.136 * phi**4.4 / (swi**2 + PermeabilityEstimator._eps), 0.0
+            )
         elif method == "coates":
             coates_constant = 0.0314
             permeability_curve = np.maximum(
-                (phi**2 / coates_constant) ** 2 * ((phi - swi) / (swi + _eps)) ** 2, 0.0
+                (phi**2 / coates_constant) ** 2
+                * ((phi - swi) / (swi + PermeabilityEstimator._eps)) ** 2,
+                0.0,
             )
         else:
-            permeability_curve = np.maximum(250.0 * phi**3 / (swi + _eps) ** 2, 0.0)
+            permeability_curve = np.maximum(
+                250.0 * phi**3 / (swi + PermeabilityEstimator._eps) ** 2, 0.0
+            )
 
         mnemonic = f"K_{method}"
         new_curve_data = {**curve_data, mnemonic: permeability_curve}

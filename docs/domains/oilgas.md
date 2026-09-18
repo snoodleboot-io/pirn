@@ -322,7 +322,7 @@ All domain payload ingestion uses assembler knots — the ingestor pattern is ab
 | `LasObjectStoreAssembler` | `bytes` from object store | `LASPayload` |
 | `SegyObjectStoreAssembler` | `bytes` from object store | `SegyVolume` |
 | `ScadaDatabaseAssembler` | `list[tuple]` from database | `ScadaPayload` |
-| `MudLogAssembler` | `bytes` | `dict[str, Any]` |
+| `MudLogAssembler` | `bytes` | `MudLogPayload` |
 | `WellCompletionObjectStoreAssembler` | `bytes` | `DrillingParameters` |
 | `LasObjectStoreDisassembler` | `LASPayload` | `bytes` |
 | `SegyObjectStoreDisassembler` | `SegyVolume` | `bytes` |

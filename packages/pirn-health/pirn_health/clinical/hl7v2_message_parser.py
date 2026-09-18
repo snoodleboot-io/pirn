@@ -6,11 +6,22 @@ non-empty and returns a deterministic :class:`ClinicalRecord` derived
 from a few easily-recovered fields.
 
 Algorithm:
-    1. Receive a message string.
-    2. Validate that message is a non-empty string.
-    3. Parse the MSH/PID/OBX segments.
-    4. Construct and return a ClinicalRecord from the parsed fields.
+    1. Receive a message string and a hashing salt.
+    2. Validate that message and salt are non-empty strings.
+    3. Parse the MSH/PID/PV1/OBX segments.
+    4. Hash PID-3 (the patient identifier) and the encounter identifier with
+       :class:`~pirn_health.clinical.phi_hasher.PhiHasher`, the same salted scheme
+       :class:`~pirn_health.assemblers.fhir_patient_assembler.FhirPatientAssembler`
+       uses, so no raw identifier ever reaches a :class:`ClinicalRecord`.
+    5. Parse MSH-7 into ``observed_at``, raising when it is absent or malformed —
+       an unreadable message timestamp is an error, not a reason to stamp the
+       record with the current time.
+    6. Construct and return a ClinicalRecord from the parsed fields.
 
+PHI safety:
+    The raw PID-3 value exists only inside :meth:`process`; what leaves the knot
+    is the salted token. A message with no patient identifier cannot produce a
+    patient record and is rejected.
 
 References:
     - HL7 v2.x: https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
@@ -26,12 +37,13 @@ Note:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.clinical.phi_hasher import PhiHasher
 from pirn_health.types.clinical_record import ClinicalRecord
 
 
@@ -44,32 +56,42 @@ class HL7v2MessageParser(Knot):
         self,
         *,
         message: Knot | str,
+        salt: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(message=message, _config=_config, **kwargs)
+        super().__init__(message=message, salt=salt, _config=_config, **kwargs)
 
     async def process(
         self,
         message: str,
+        salt: str,
         **_: Any,
     ) -> ClinicalRecord:
         """Parse the HL7v2 message segments and return a ClinicalRecord.
 
         Args:
             message: Non-empty HL7v2 message string to parse.
+            salt: Non-empty string used to hash the patient and encounter identifiers,
+                the same salt :class:`PHIRedactor` is configured with.
 
         Returns:
-            A ClinicalRecord derived from the parsed HL7v2 message.
+            A ClinicalRecord whose identifiers are salted tokens, never the raw
+            PID-3 value.
 
         Raises:
-            TypeError: If message is not a string.
-            ValueError: If message is empty.
+            TypeError: If message or salt is not a string.
+            ValueError: If message or salt is empty, the message carries no patient
+                identifier, or MSH-7 is missing or unparseable.
         """
         if not isinstance(message, str):
             raise TypeError("HL7v2MessageParser: message must be a string")
         if not message:
             raise ValueError("HL7v2MessageParser: message must be non-empty")
+        if not isinstance(salt, str):
+            raise TypeError("HL7v2MessageParser: salt must be a string")
+        if not salt:
+            raise ValueError("HL7v2MessageParser: salt must be non-empty")
 
         segments: dict[str, list[list[str]]] = {}
         for line in message.splitlines():
@@ -80,10 +102,16 @@ class HL7v2MessageParser(Knot):
             seg_name = fields[0].upper()
             segments.setdefault(seg_name, []).append(fields)
 
-        # PID-3: patient identifier list; PID-2 fallback
-        patient_id = self._field(segments, "PID", 3) or self._field(segments, "PID", 2) or ""
+        # PID-3: patient identifier list; PID-2 fallback. The raw value is PHI and
+        # never leaves this method — only its salted token does.
+        raw_patient_id = self._field(segments, "PID", 3) or self._field(segments, "PID", 2)
+        if not raw_patient_id:
+            raise ValueError(
+                "HL7v2MessageParser: message carries no patient identifier (PID-3/PID-2) — "
+                "it cannot be parsed into a ClinicalRecord"
+            )
         # PV1-19: visit number as encounter ID; MSH-10 (message control ID) as fallback
-        encounter_id = self._field(segments, "PV1", 19) or self._field(segments, "MSH", 10) or ""
+        raw_encounter_id = self._field(segments, "PV1", 19) or self._field(segments, "MSH", 10)
 
         # OBX-3: observation identifier (component 0 = code, component 2 = display)
         observation_codes = tuple(
@@ -92,25 +120,59 @@ class HL7v2MessageParser(Knot):
             if self._field(segments, "OBX", 3, component=0, occurrence=i)
         )
 
-        # MSH-7: message date/time (format YYYYMMDDHHMMSS or YYYYMMDD)
-        dt_raw = self._field(segments, "MSH", 7)
-        observed_at = datetime.now(UTC)
-        if len(dt_raw) >= 8:
-            try:
-                fmt = "%Y%m%d%H%M%S" if len(dt_raw) >= 14 else "%Y%m%d"
-                observed_at = datetime.strptime(
-                    dt_raw[: 14 if len(dt_raw) >= 14 else 8], fmt
-                ).replace(tzinfo=UTC)
-            except ValueError:
-                pass
+        observed_at = self._message_datetime(self._field(segments, "MSH", 7))
 
         return ClinicalRecord(
-            patient_id=patient_id,
-            encounter_id=encounter_id,
+            patient_id=PhiHasher.hash_identifier(salt, raw_patient_id),
+            encounter_id=PhiHasher.hash_identifier(salt, raw_encounter_id),
             observation_codes=observation_codes,
             observed_at=observed_at,
             source_system="hl7v2",
         )
+
+    @staticmethod
+    def _message_datetime(dt_raw: str) -> datetime:
+        """Parse an HL7 DTM (MSH-7) into an aware datetime.
+
+        The DTM is ``YYYY[MM[DD[HH[MM[SS]]]]][.S[S[S[S]]]][+/-ZZZZ]``. A message
+        with no MSH-7, or one whose MSH-7 does not parse, raises: substituting
+        ``datetime.now()`` would stamp every malformed message with the moment
+        it happened to be ingested and make that fabrication indistinguishable
+        from a real timestamp.
+
+        Args:
+            dt_raw: The raw MSH-7 field value.
+
+        Returns:
+            The timezone-aware message timestamp (UTC when the DTM carries no offset).
+
+        Raises:
+            ValueError: If ``dt_raw`` is empty or not a valid HL7 DTM.
+        """
+        if not dt_raw:
+            raise ValueError("HL7v2MessageParser: MSH-7 (message date/time) is missing")
+        stamp = dt_raw
+        tzinfo: timezone = UTC
+        if len(stamp) > 5 and stamp[-5] in "+-":
+            sign = 1 if stamp[-5] == "+" else -1
+            offset, stamp = stamp[-4:], stamp[:-5]
+            try:
+                tzinfo = timezone(sign * timedelta(hours=int(offset[:2]), minutes=int(offset[2:])))
+            except ValueError as exc:
+                raise ValueError(
+                    f"HL7v2MessageParser: MSH-7 has a malformed UTC offset: {dt_raw!r}"
+                ) from exc
+        stamp = stamp.split(".", 1)[0]
+        formats = {14: "%Y%m%d%H%M%S", 12: "%Y%m%d%H%M", 10: "%Y%m%d%H", 8: "%Y%m%d"}
+        fmt = formats.get(len(stamp))
+        if fmt is None:
+            raise ValueError(f"HL7v2MessageParser: MSH-7 is not a valid HL7 date/time: {dt_raw!r}")
+        try:
+            return datetime.strptime(stamp, fmt).replace(tzinfo=tzinfo)
+        except ValueError as exc:
+            raise ValueError(
+                f"HL7v2MessageParser: MSH-7 is not a valid HL7 date/time: {dt_raw!r}"
+            ) from exc
 
     @staticmethod
     def _field(
@@ -120,11 +182,20 @@ class HL7v2MessageParser(Knot):
         component: int = 0,
         occurrence: int = 0,
     ) -> str:
+        """Return one component of one field of one segment occurrence, or ``""``.
+
+        ``field_idx`` is the HL7 field number (PID-3 is ``3``). MSH is the one
+        segment whose numbering is offset: MSH-1 *is* the field separator, so
+        splitting the line on it leaves MSH-n at list index ``n - 1`` — reading
+        MSH-7 at index 7 returns MSH-8 (the security field), which is empty in
+        every real message.
+        """
         rows = segments.get(seg, [])
         if occurrence >= len(rows):
             return ""
         fields = rows[occurrence]
-        if field_idx >= len(fields):
+        index = field_idx - 1 if seg == "MSH" else field_idx
+        if index >= len(fields):
             return ""
-        components = fields[field_idx].split("^")
+        components = fields[index].split("^")
         return components[component].strip() if component < len(components) else ""

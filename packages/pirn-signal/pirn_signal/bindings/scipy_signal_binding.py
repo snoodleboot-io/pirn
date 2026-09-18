@@ -190,10 +190,35 @@ class ScipySignalBinding:
         return decimated
 
     def resample_poly(
-        self, data: ArrayLike, up: int, down: int, axis: int = -1
+        self,
+        data: ArrayLike,
+        up: int,
+        down: int,
+        axis: int = -1,
+        window: NDArray[np.float64] | None = None,
     ) -> NDArray[np.floating[Any]]:
-        """Resample ``data`` by the rational factor ``up / down`` with a polyphase filter."""
-        resampled: NDArray[np.floating[Any]] = self._module.resample_poly(data, up, down, axis=axis)
+        """Resample ``data`` by the rational factor ``up / down`` with a polyphase filter.
+
+        Args:
+            data: Samples to resample.
+            up: Upsampling factor.
+            down: Downsampling factor.
+            axis: Axis along which to resample.
+            window: FIR anti-alias coefficients to use, already scaled for the
+                upsampling gain. ``None`` leaves scipy's default Kaiser design,
+                whose length scipy derives from ``up``/``down``.
+
+        Returns:
+            The resampled array.
+        """
+        if window is None:
+            default: NDArray[np.floating[Any]] = self._module.resample_poly(
+                data, up, down, axis=axis
+            )
+            return default
+        resampled: NDArray[np.floating[Any]] = self._module.resample_poly(
+            data, up, down, axis=axis, window=window
+        )
         return resampled
 
     def correlate(

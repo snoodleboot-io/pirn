@@ -2,12 +2,17 @@
 
 Algorithm:
     1. Receive the WaveletPayload, wavelet, and level.
-    2. Validate wavelet (non-empty string) and level (positive integer).
+    2. Validate wavelet (non-empty string) and level (positive integer), and require
+       level to match the payload's own decomposition depth: the coefficient list is
+       ``[approximation, detail_level, ..., detail_1]``, so a payload decomposed to a
+       different depth than the caller declares cannot be the one they meant to
+       invert.
     3. Apply the synthesis filter bank at each level, upsampling and filtering
        the approximation and detail subbands.
     4. Sum the approximation and detail outputs at each scale to reconstruct
        the signal at the next coarser level.
-    5. Return a SignalPayload with samples_per_channel = scale_count * 2^level.
+    5. Return a SignalPayload whose samples_per_channel is the reconstructed
+       length, carrying the source payload's sample rate.
 
 Math:
     Two-channel synthesis at level $j$:
@@ -70,18 +75,27 @@ class IDWTReconstructor(Knot):
         Args:
             wavelet_frame: The wavelet-domain payload to invert.
             wavelet: Synthesis wavelet name (non-empty string).
-            level: Number of reconstruction levels (positive integer).
+            level: Decomposition depth of the payload (positive integer); must equal
+                the number of detail bands it carries.
 
         Returns:
             SignalPayload containing the reconstructed signal data.
 
         Raises:
-            ValueError: If wavelet or level are invalid.
+            ValueError: If wavelet or level are invalid, or level disagrees with the
+                payload's decomposition depth.
         """
         if not isinstance(wavelet, str) or not wavelet:
             raise ValueError("IDWTReconstructor: wavelet must be a non-empty string")
         if not isinstance(level, int) or level <= 0:
             raise ValueError("IDWTReconstructor: level must be a positive integer")
+        coefficient_levels = len(wavelet_frame.data) - 1
+        if coefficient_levels != level:
+            raise ValueError(
+                f"IDWTReconstructor: level is {level}, but the payload carries "
+                f"{coefficient_levels} detail band(s) — the coefficients were decomposed "
+                f"to a different depth than the one requested"
+            )
         reconstructed = await asyncio.to_thread(
             IDWTReconstructor._run_idwt, wavelet_frame.data, wavelet
         )

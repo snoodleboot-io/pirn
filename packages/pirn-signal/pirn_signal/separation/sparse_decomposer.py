@@ -27,7 +27,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -41,12 +41,13 @@ from pirn_signal.types.source_payload import SourcePayload
 
 
 class SparseDecomposer(Knot):
-    """Decompose signal as a sparse linear combination of atoms.
+    """Decompose a signal as a sparse linear combination of learned dictionary atoms."""
 
-    Production needs an OMP / Lasso solver (``sklearn.linear_model``).
-    """
-
-    _valid_algorithms = frozenset({"omp", "lasso", "lars"})
+    _valid_algorithms: ClassVar[frozenset[str]] = frozenset({"omp", "lasso", "lars"})
+    #: Pursuit name -> scikit-learn ``transform_algorithm``.
+    _pursuits: ClassVar[dict[str, str]] = {"omp": "omp", "lars": "lars", "lasso": "lasso_cd"}
+    #: Dictionary-learning iteration cap.
+    _max_iterations: ClassVar[int] = 200
 
     def __init__(
         self,
@@ -80,10 +81,11 @@ class SparseDecomposer(Knot):
         Args:
             signal: Multichannel signal to represent sparsely over the configured atom dictionary.
             atom_count: Total number of dictionary atoms / sparse components (positive integer).
-            sparsity_target: Maximum non-zeros per sparse code, used as L1 regularisation alpha
-                (positive integer).
-            algorithm: Pursuit algorithm — ``omp``, ``lasso``, or ``lars`` (retained for API
-                compatibility; SparsePCA uses coordinate descent internally).
+            sparsity_target: Maximum non-zeros per sparse code (positive integer).
+            algorithm: Pursuit that codes each sample over the learned dictionary —
+                ``omp`` and ``lars`` honour ``sparsity_target`` as a hard cap on the
+                number of non-zeros per code, ``lasso`` (coordinate descent) instead
+                penalises the L1 norm with ``1 / sparsity_target``.
 
         Returns:
             SourcePayload with ``source_count`` equal to ``atom_count`` and the mixing matrix shape.
@@ -97,9 +99,8 @@ class SparseDecomposer(Knot):
             raise ValueError("SparseDecomposer: sparsity_target must be a positive integer")
         if algorithm not in self._valid_algorithms:
             raise ValueError("SparseDecomposer: algorithm must be 'omp', 'lasso', or 'lars'")
-        alpha = float(sparsity_target)
         components = await asyncio.to_thread(
-            SparseDecomposer._run_sparse_pca, signal.data, atom_count, alpha
+            SparseDecomposer._decompose, signal.data, atom_count, sparsity_target, algorithm
         )
         return SourcePayload(
             metadata=SourceFrame(
@@ -111,8 +112,34 @@ class SparseDecomposer(Knot):
         )
 
     @staticmethod
-    def _run_sparse_pca(
-        data: NDArray[np.floating[Any]], atom_count: int, alpha: float
+    def _decompose(
+        data: NDArray[np.floating[Any]],
+        atom_count: int,
+        sparsity_target: int,
+        algorithm: str,
     ) -> NDArray[np.float64]:
+        """Learn a dictionary and code every time sample with the requested pursuit.
+
+        ``sparsity_target`` is a cap on the non-zeros per code for the greedy pursuits
+        (``omp``, ``lars``); ``lasso`` has no such cap, so it reaches scikit-learn as
+        the L1 penalty ``1 / sparsity_target`` — a larger target is a weaker penalty.
+
+        Args:
+            data: Signal samples shaped ``(channels, samples)``.
+            atom_count: Number of dictionary atoms.
+            sparsity_target: Maximum non-zeros per code.
+            algorithm: ``omp``, ``lars`` or ``lasso``.
+
+        Returns:
+            The sparse codes shaped ``(atom_count, samples)``.
+        """
         decomposition = SklearnDecompositionBinding.load()
-        return decomposition.sparse_pca(data.T, atom_count, alpha).T
+        pursuit = SparseDecomposer._pursuits[algorithm]
+        return decomposition.pursuit_codes(
+            data.T,
+            atom_count,
+            alpha=1.0 / float(sparsity_target),
+            max_iterations=SparseDecomposer._max_iterations,
+            transform_algorithm=pursuit,
+            transform_nonzero_coefficients=None if pursuit == "lasso_cd" else sparsity_target,
+        ).T

@@ -6,7 +6,9 @@ Algorithm:
     3. Fit Arps decline parameters (``qi``, ``Di``, ``b``) to the normalised
        series using non-linear least squares.
     4. Integrate the fitted decline to economic limit to obtain EUR.
-    5. Return the fitted parameters and EUR as a dict.
+    5. Return the fitted parameters and EUR as a dict — or raise, when the fit
+       does not converge. There is no exponential fallback: an unfitted curve
+       must not be reported as a fitted one.
 
 Math:
     Hyperbolic decline rate (Arps):
@@ -27,7 +29,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -36,16 +38,15 @@ from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
-# Typical economic abandonment rate for a single well (BOPD).
-_q_aban = 1.0
-
-# Nominal decline / exponent initial guesses (Fetkovich, 1980).
-_di_init_day = 0.15 / 365.0
-_b_init = 0.5
-
 
 class TypeCurveFitter(Knot):
     """Fit a single type curve to a representative rate series."""
+
+    # Typical economic abandonment rate for a single well (BOPD).
+    _q_aban: ClassVar[float] = 1.0
+    # Nominal decline / exponent initial guesses (Fetkovich, 1980).
+    _di_init_day: ClassVar[float] = 0.15 / 365.0
+    _b_init: ClassVar[float] = 0.5
 
     def __init__(
         self,
@@ -64,6 +65,10 @@ class TypeCurveFitter(Knot):
 
         Returns:
             Dict with keys ``qi``, ``di_per_year``, ``b``, and ``eur_stb``.
+
+        Raises:
+            TypeError: If ``rate_series`` is not a :class:`ScadaPayload`.
+            ValueError: If the hyperbolic Arps fit does not converge.
         """
         if not isinstance(rate_series, ScadaPayload):
             raise TypeError("TypeCurveFitter: rate_series must be a ScadaPayload")
@@ -104,20 +109,21 @@ class TypeCurveFitter(Knot):
                     TypeCurveFitter._hyperbolic_model,
                     time_days,
                     rate_array,
-                    p0=[qi0, _di_init_day, _b_init],
+                    p0=[qi0, TypeCurveFitter._di_init_day, TypeCurveFitter._b_init],
                     bounds=([0.0, 1e-9, 1e-6], [np.inf, np.inf, 0.9999]),
                     maxfev=5000,
                 )[0],
                 dtype=np.float64,
             )
-            qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
-        except Exception:
-            # Exponential fallback
-            log_q = np.log(rate_array + 1e-9)
-            slope, intercept = np.polyfit(time_days, log_q, 1)
-            qi = float(np.exp(intercept))
-            di_day = float(-slope)
-            arps_b = 0.0
+        except (RuntimeError, ValueError) as exc:
+            # Falling back to an exponential fit here returned b = 0 and an EUR
+            # computed from the wrong curve, with nothing in the result to say the
+            # hyperbolic fit had failed — a reserves number nobody could audit.
+            raise ValueError(
+                "TypeCurveFitter: the hyperbolic Arps fit did not converge for this rate "
+                f"series ({exc}) — the type curve and its EUR cannot be reported"
+            ) from exc
+        qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
 
         di_annual = di_day * 365.0
 
@@ -126,13 +132,20 @@ class TypeCurveFitter(Knot):
             eur = (
                 qi
                 / max(di_day, 1e-9)
-                * (1.0 - np.exp(-di_day * np.log(qi / max(_q_aban, 1e-9)) / max(di_day, 1e-9)))
+                * (
+                    1.0
+                    - np.exp(
+                        -di_day
+                        * np.log(qi / max(TypeCurveFitter._q_aban, 1e-9))
+                        / max(di_day, 1e-9)
+                    )
+                )
             )
         else:
             # Hyperbolic EUR: qi^arps_b / (di*(1-arps_b)) * (qi^(1-arps_b) - q_aban^(1-arps_b))
             # Robertson (1988) integrated Arps formula.
             eur = (qi**arps_b / (di_day * (1.0 - arps_b))) * (
-                qi ** (1.0 - arps_b) - _q_aban ** (1.0 - arps_b)
+                qi ** (1.0 - arps_b) - TypeCurveFitter._q_aban ** (1.0 - arps_b)
             )
 
         eur = max(float(eur), 0.0)

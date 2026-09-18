@@ -5,8 +5,9 @@ Algorithm:
     2. Validate hop_length, tempo_min_bpm, and tempo_max_bpm.
     3. Compute a novelty function (onset strength envelope) using STFT with
        the given hop_length.
-    4. Estimate tempo by autocorrelating the novelty function and finding
-       the dominant periodicity in [tempo_min_bpm, tempo_max_bpm].
+    4. Estimate tempo from the novelty function with the search capped at
+       tempo_max_bpm, then fold the estimate by octaves into
+       [tempo_min_bpm, tempo_max_bpm] and track the beats at that tempo.
     5. Locate beat times by dynamic programming over the novelty function.
     6. Repeat independently for each channel and return a FeaturePayload with
        the tempo and beat frame indices per channel (NaN-padded to the largest
@@ -31,6 +32,7 @@ References:
 from __future__ import annotations
 
 import asyncio
+import math
 from typing import Any
 
 import numpy as np
@@ -99,7 +101,14 @@ class BeatTracker(Knot):
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
-                asyncio.to_thread(BeatTracker._track_beats, channel, sr, hop_length)
+                asyncio.to_thread(
+                    BeatTracker._track_beats,
+                    channel,
+                    sr,
+                    hop_length,
+                    float(tempo_min_bpm),
+                    float(tempo_max_bpm),
+                )
                 for channel in channels
             )
         )
@@ -118,7 +127,69 @@ class BeatTracker(Knot):
         )
 
     @staticmethod
-    def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:
+    def _track_beats(
+        mono: np.ndarray,
+        sr: int,
+        hop_length: int,
+        tempo_min_bpm: float,
+        tempo_max_bpm: float,
+    ) -> tuple[float, np.ndarray]:
+        """Track beats for one channel at a tempo inside ``[tempo_min_bpm, tempo_max_bpm]``.
+
+        ``librosa.beat.beat_track`` searches around ``start_bpm`` and reports whatever
+        tempo octave wins, which is why the requested band has to be applied here:
+        the tempo is estimated with ``max_tempo`` capped at the band's top, folded
+        into the band (tempo octave ambiguity — Ellis 2007, §2), and the beats are
+        then tracked at that tempo.
+        """
         librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
-        tempo, beat_frames = librosa.beat.beat_track(y=mono, sr=sr, hop_length=hop_length)
+        onset_envelope = librosa.onset.onset_strength(y=mono, sr=sr, hop_length=hop_length)
+        # The estimator needs a prior centre; librosa's documented prior is 120 BPM,
+        # clamped here into the requested band.
+        band_centre = min(max(120.0, tempo_min_bpm), tempo_max_bpm)
+        estimate = float(
+            np.atleast_1d(
+                librosa.feature.tempo(
+                    onset_envelope=onset_envelope,
+                    sr=sr,
+                    hop_length=hop_length,
+                    start_bpm=band_centre,
+                    max_tempo=tempo_max_bpm,
+                )
+            )[0]
+        )
+        bpm = BeatTracker._fold_into_band(estimate, tempo_min_bpm, tempo_max_bpm)
+        tempo, beat_frames = librosa.beat.beat_track(
+            onset_envelope=onset_envelope, sr=sr, hop_length=hop_length, bpm=bpm
+        )
         return float(np.atleast_1d(tempo)[0]), beat_frames
+
+    @staticmethod
+    def _fold_into_band(bpm: float, tempo_min_bpm: float, tempo_max_bpm: float) -> float:
+        """Halve or double ``bpm`` into ``[tempo_min_bpm, tempo_max_bpm]``.
+
+        A tempo estimate is only defined up to a power of two (a bar counted in
+        half or double time scores almost identically), so the requested band is
+        honoured by choosing the octave that falls inside it. When no octave does
+        — a band narrower than a factor of two — the nearest edge is used.
+
+        Args:
+            bpm: The unconstrained tempo estimate.
+            tempo_min_bpm: Bottom of the requested band.
+            tempo_max_bpm: Top of the requested band.
+
+        Returns:
+            A tempo inside the band.
+        """
+        if not math.isfinite(bpm) or bpm <= 0.0:
+            return min(max(120.0, tempo_min_bpm), tempo_max_bpm)
+        octaves = [bpm * 2.0**power for power in range(-6, 7)]
+        inside = [candidate for candidate in octaves if tempo_min_bpm <= candidate <= tempo_max_bpm]
+        if inside:
+            return min(inside, key=lambda candidate: abs(math.log(candidate / bpm)))
+        return min(
+            octaves,
+            key=lambda candidate: min(
+                abs(candidate - tempo_min_bpm), abs(candidate - tempo_max_bpm)
+            ),
+        )
