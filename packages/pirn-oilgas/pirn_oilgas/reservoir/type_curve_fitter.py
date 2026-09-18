@@ -6,7 +6,9 @@ Algorithm:
     3. Fit Arps decline parameters (``qi``, ``Di``, ``b``) to the normalised
        series using non-linear least squares.
     4. Integrate the fitted decline to economic limit to obtain EUR.
-    5. Return the fitted parameters and EUR as a dict.
+    5. Return the fitted parameters and EUR as a dict — or raise, when the fit
+       does not converge. There is no exponential fallback: an unfitted curve
+       must not be reported as a fitted one.
 
 Math:
     Hyperbolic decline rate (Arps):
@@ -63,6 +65,10 @@ class TypeCurveFitter(Knot):
 
         Returns:
             Dict with keys ``qi``, ``di_per_year``, ``b``, and ``eur_stb``.
+
+        Raises:
+            TypeError: If ``rate_series`` is not a :class:`ScadaPayload`.
+            ValueError: If the hyperbolic Arps fit does not converge.
         """
         if not isinstance(rate_series, ScadaPayload):
             raise TypeError("TypeCurveFitter: rate_series must be a ScadaPayload")
@@ -109,14 +115,15 @@ class TypeCurveFitter(Knot):
                 )[0],
                 dtype=np.float64,
             )
-            qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
-        except Exception:
-            # Exponential fallback
-            log_q = np.log(rate_array + 1e-9)
-            slope, intercept = np.polyfit(time_days, log_q, 1)
-            qi = float(np.exp(intercept))
-            di_day = float(-slope)
-            arps_b = 0.0
+        except (RuntimeError, ValueError) as exc:
+            # Falling back to an exponential fit here returned b = 0 and an EUR
+            # computed from the wrong curve, with nothing in the result to say the
+            # hyperbolic fit had failed — a reserves number nobody could audit.
+            raise ValueError(
+                "TypeCurveFitter: the hyperbolic Arps fit did not converge for this rate "
+                f"series ({exc}) — the type curve and its EUR cannot be reported"
+            ) from exc
+        qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
 
         di_annual = di_day * 365.0
 

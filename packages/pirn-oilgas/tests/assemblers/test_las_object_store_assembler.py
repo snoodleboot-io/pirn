@@ -105,3 +105,49 @@ class TestLasObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
         knot = _make()
         with pytest.raises(ValueError, match="depth_unit must be"):
             await knot.process(body=b"x", well_id="W-01", curves=("GR",), depth_unit="km")
+
+
+_LAS_2_0 = """~VERSION INFORMATION
+ VERS.                 2.0 : CWLS LOG ASCII STANDARD - VERSION 2.0
+ WRAP.                  NO : ONE LINE PER DEPTH STEP
+~WELL INFORMATION
+ STRT.M             1000.0 : START DEPTH
+ STOP.M             1002.0 : STOP DEPTH
+ STEP.M                0.5 : STEP
+ NULL.             -999.25 : NULL VALUE
+ WELL.               W-01  : WELL
+~CURVE INFORMATION
+ DEPT.M                    : DEPTH
+ GR  .GAPI                 : GAMMA RAY
+~ASCII
+ 1000.0   45.5
+ 1000.5   52.25
+ 1001.0   61.0
+ 1001.5   38.75
+ 1002.0   44.0
+"""
+
+
+class TestDecodesRealLasBytes(unittest.IsolatedAsyncioTestCase):
+    """The decode path itself, not a patched stand-in."""
+
+    async def test_requested_curve_carries_the_logged_values(self) -> None:
+        knot = _make("W-01")
+
+        result = await knot.process(
+            body=_LAS_2_0.encode("utf-8"), well_id="W-01", curves=("GR",), depth_unit="m"
+        )
+
+        np.testing.assert_allclose(result.data["GR"], [45.5, 52.25, 61.0, 38.75, 44.0])
+
+    async def test_curve_absent_from_the_file_raises_instead_of_zeros(self) -> None:
+        """A zero RHOB curve would read downstream as a real, valid measurement."""
+        knot = _make("W-01")
+
+        with pytest.raises(ValueError, match="no curve"):
+            await knot.process(
+                body=_LAS_2_0.encode("utf-8"),
+                well_id="W-01",
+                curves=("GR", "RHOB"),
+                depth_unit="m",
+            )

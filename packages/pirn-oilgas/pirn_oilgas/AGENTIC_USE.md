@@ -122,7 +122,7 @@ pirn_oilgas/
 │   ├── las_object_store_assembler.py         — bytes → LASPayload via lasio
 │   ├── segy_object_store_assembler.py        — bytes → SegyVolume via segyio
 │   ├── scada_database_assembler.py           — list[tuple] → ScadaPayload
-│   ├── mud_log_assembler.py                  — bytes → dict[str, Any]
+│   ├── mud_log_assembler.py                  — bytes → MudLogPayload
 │   └── well_completion_object_store_assembler.py — bytes → DrillingParameters
 ├── disassemblers/
 │   ├── __init__.py
@@ -166,7 +166,7 @@ Raw bytes and database rows cross the domain boundary through assembler knots. N
 | `LasObjectStoreAssembler` | `bytes` + `well_id` | `LASPayload` | lasio |
 | `SegyObjectStoreAssembler` | `bytes` + `volume_id` | `SegyVolume` | segyio |
 | `ScadaDatabaseAssembler` | `list[tuple]` + tag/interval metadata | `ScadaPayload` | stdlib |
-| `MudLogAssembler` | `bytes` | `dict[str, Any]` | stdlib |
+| `MudLogAssembler` | `bytes` | `MudLogPayload` | stdlib |
 | `WellCompletionObjectStoreAssembler` | `bytes` + `well_id` | `DrillingParameters` | stdlib |
 
 ### Disassemblers

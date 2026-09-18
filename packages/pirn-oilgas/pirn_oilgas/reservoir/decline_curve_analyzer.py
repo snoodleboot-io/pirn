@@ -7,7 +7,9 @@ Algorithm:
     3. Fit the selected Arps model to the historical rate data via non-linear
        least squares.
     4. Return the fitted parameters: initial rate, nominal decline, and
-       hyperbolic exponent.
+       hyperbolic exponent — or raise, when the requested model does not
+       converge. The hyperbolic fit has no exponential fallback: a ``b`` the
+       caller never fitted is indistinguishable from one that was.
 
 Math:
     Exponential decline (:math:`b = 0`):
@@ -81,6 +83,11 @@ class DeclineCurveAnalyzer(Knot):
         Returns:
             Dict with keys ``qi`` (initial rate), ``di_per_year`` (nominal
             decline), and ``b`` (hyperbolic exponent).
+
+        Raises:
+            TypeError: If ``rate_series`` is not a :class:`ScadaPayload`.
+            ValueError: If ``method`` is not one of the three Arps models, or the
+                hyperbolic fit does not converge.
         """
         if not isinstance(rate_series, ScadaPayload):
             raise TypeError("DeclineCurveAnalyzer: rate_series must be a ScadaPayload")
@@ -112,7 +119,6 @@ class DeclineCurveAnalyzer(Knot):
             return DeclineCurveAnalyzer._fit_exponential(rate_array, time_days)
         if method == "harmonic":
             return DeclineCurveAnalyzer._fit_harmonic(rate_array, time_days)
-        # hyperbolic: attempt curve_fit, fall back to exponential on failure
         return DeclineCurveAnalyzer._fit_hyperbolic(rate_array, time_days)
 
     @staticmethod
@@ -159,8 +165,15 @@ class DeclineCurveAnalyzer(Knot):
                 )[0],
                 dtype=np.float64,
             )
-            qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
-            return {"qi": qi, "di_per_year": di_day * 365.0, "b": arps_b}
-        except Exception:
-            # Degrade gracefully to exponential when scipy cannot converge
-            return DeclineCurveAnalyzer._fit_exponential(rate_array, time_days)
+        except (RuntimeError, ValueError) as exc:
+            # An exponential fit returned under method="hyperbolic" is indistinguishable
+            # from a converged hyperbolic fit with b ~ 0: the caller would read a real
+            # b-factor off a curve that was never fitted, and every reserves number
+            # derived from it (EUR, type curve, booking) would inherit the fiction.
+            raise ValueError(
+                "DeclineCurveAnalyzer: the hyperbolic Arps fit did not converge for this "
+                f"rate series ({exc}) — refit with method='exponential' or "
+                "method='harmonic', or clean the series"
+            ) from exc
+        qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
+        return {"qi": qi, "di_per_year": di_day * 365.0, "b": arps_b}

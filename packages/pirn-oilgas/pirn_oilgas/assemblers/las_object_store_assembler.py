@@ -9,7 +9,12 @@ Algorithm:
        ``depth_unit``.
     2. Validate types and values.
     3. Decode bytes via ``lasio.read`` on a thread to avoid blocking the event loop.
-    4. Return a :class:`LASPayload` carrying the curve arrays and a
+    4. Require every requested mnemonic to be present in the file: a curve the well
+       was never logged for is an error, not an array of zeros. A zero GR, RHOB or
+       NPHI curve reads as a valid measurement to every downstream petrophysics
+       knot (``PetrophysicalEvaluator``, ``WaterSaturationCalculator``), which would
+       report 100 % porosity or zero shale for an interval that was never measured.
+    5. Return a :class:`LASPayload` carrying the curve arrays and a
        :class:`LASFile` built from the decoded metadata.
 
 References:
@@ -49,14 +54,15 @@ class LasObjectStoreAssembler(Assembler):
 
         las = lasio.read(io.StringIO(body.decode("utf-8", errors="replace")))
         available: set[str] = {str(curve_entry.mnemonic) for curve_entry in las.curves}
-        curve_data: dict[str, np.ndarray] = {}
-        for mnemonic in curves:
-            if mnemonic in available:
-                curve_data[mnemonic] = np.asarray(las[mnemonic], dtype=np.float64)
-            else:
-                index_len = len(np.asarray(las.index, dtype=np.float64))
-                depth_len = index_len if index_len > 0 else 100
-                curve_data[mnemonic] = np.zeros(depth_len, dtype=np.float64)
+        missing = [mnemonic for mnemonic in curves if mnemonic not in available]
+        if missing:
+            raise ValueError(
+                f"LasObjectStoreAssembler: LAS file for well {well_id!r} has no curve(s) "
+                f"{missing} — it carries {sorted(available)}"
+            )
+        curve_data: dict[str, np.ndarray] = {
+            mnemonic: np.asarray(las[mnemonic], dtype=np.float64) for mnemonic in curves
+        }
         return LASPayload(
             metadata=LASFile(
                 well_id=well_id,
@@ -110,7 +116,8 @@ class LasObjectStoreAssembler(Assembler):
             TypeError: If ``body`` is not ``bytes``, ``well_id`` is not a ``str``,
                 or ``curves`` is not a sequence.
             ValueError: If ``well_id`` is empty, ``curves`` is empty, any curve
-                name is empty, or ``depth_unit`` is not ``'m'`` or ``'ft'``.
+                name is empty, ``depth_unit`` is not ``'m'`` or ``'ft'``, or the LAS
+                file does not carry every requested curve.
         """
         if not isinstance(body, bytes):
             raise TypeError(
