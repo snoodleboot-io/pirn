@@ -23,54 +23,56 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import ClassVar
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_PYRIGHT = _REPO_ROOT / ".venv" / "bin" / "pyright"
-
-
-def package_root(path: Path) -> Path | None:
-    """The ``packages/<dist>/`` directory *path* lives under, or ``None``."""
-    parts = path.resolve().parts
-    for index, part in enumerate(parts):
-        if part == "packages" and index + 1 < len(parts):
-            return Path(*parts[: index + 2])
-    return None
+from gatekit.package_root_locator import PackageRootLocator
 
 
-def unique_package_roots(files: list[str]) -> tuple[list[Path], list[str]]:
-    """Every distinct package root among *files*, plus any files outside one."""
-    roots: list[Path] = []
-    unmatched: list[str] = []
-    seen: set[Path] = set()
-    for f in files:
-        root = package_root(Path(f))
-        if root is None:
-            unmatched.append(f)
-        elif root not in seen:
-            seen.add(root)
-            roots.append(root)
-    return roots, unmatched
+class PrecommitPyright:
+    """Run ``pyright`` from inside every workspace package the staged files touch."""
 
+    _pyright_path: ClassVar[Path] = (
+        Path(__file__).resolve().parents[1] / ".venv" / "bin" / "pyright"
+    )
 
-def main(argv: list[str]) -> int:
-    if not argv:
-        print("usage: precommit_pyright.py <file>...", file=sys.stderr)
-        return 2
+    @staticmethod
+    def unique_package_roots(files: list[str]) -> tuple[list[Path], list[str]]:
+        """Every distinct package root among *files*, plus any files outside one."""
+        roots: list[Path] = []
+        unmatched: list[str] = []
+        seen: set[Path] = set()
+        for name in files:
+            root = PackageRootLocator.locate(Path(name))
+            if root is None:
+                unmatched.append(name)
+            elif root not in seen:
+                seen.add(root)
+                roots.append(root)
+        return roots, unmatched
 
-    roots, unmatched = unique_package_roots(argv)
-    for f in unmatched:
-        print(
-            f"precommit_pyright.py: {f} is not under packages/<dist>/ — skipping", file=sys.stderr
-        )
+    @staticmethod
+    def main(argv: list[str]) -> int:
+        """Run pyright per package root in *argv*; return the worst exit code."""
+        if not argv:
+            print("usage: precommit_pyright.py <file>...", file=sys.stderr)
+            return 2
 
-    pyright = str(_PYRIGHT) if _PYRIGHT.exists() else "pyright"
-    exit_code = 0
-    for root in sorted(roots):
-        result = subprocess.run([pyright], cwd=root)
-        exit_code = exit_code or result.returncode
+        roots, unmatched = PrecommitPyright.unique_package_roots(argv)
+        for name in unmatched:
+            print(
+                f"precommit_pyright.py: {name} is not under packages/<dist>/ — skipping",
+                file=sys.stderr,
+            )
 
-    return exit_code
+        executable = PrecommitPyright._pyright_path
+        pyright = str(executable) if executable.exists() else "pyright"
+        exit_code = 0
+        for root in sorted(roots):
+            result = subprocess.run([pyright], cwd=root)
+            exit_code = exit_code or result.returncode
+
+        return exit_code
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(PrecommitPyright.main(sys.argv[1:]))
