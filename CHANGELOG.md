@@ -254,6 +254,24 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ### Removed
 
+#### `HttpConnector`'s own retry loop (PIR-873)
+
+| Removed name | Replacement |
+|---|---|
+| `HttpConnector(max_retries=)` | `HttpConnector(retry=KnotRetryPolicy(max_attempts=))` |
+| `HttpConnector(backoff_base=)`, `HttpConnector(backoff_cap=)` | `KnotRetryPolicy(base_delay=, max_delay=, multiplier=, jitter=)` |
+| `HttpConnector._delay_for` | `KnotRetryPolicy.delay_before_retry` |
+| `HttpConnector._always_retry` (retried every exception) | `HttpConnector._is_transient` (a retryable status or an `httpx.TransportError`) |
+| `HttpConnector._default_sleep` | `KnotRetryPolicy.run`'s own `asyncio.sleep` default |
+
+`HttpConnector.request` now performs exactly one attempt and lets
+`KnotRetryPolicy.run` schedule the rest, so an HTTP call backs off on the same
+jittered, capped, `Retry-After`-aware schedule as a knot dispatch. Two new
+narrowings come with it: only a method in `idempotent_methods` (new argument,
+RFC 9110 §9.2.2 by default) is ever retried — a `POST` that times out is no
+longer re-sent — and only a transient failure is. A retryable status that
+outlives the budget is returned, not raised.
+
 #### pirn-agents specializations: second names and stale seams (PIR-873)
 
 | Removed name | Replacement |
