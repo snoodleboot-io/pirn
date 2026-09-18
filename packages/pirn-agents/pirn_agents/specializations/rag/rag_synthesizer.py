@@ -33,6 +33,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -99,7 +100,7 @@ class RAGSynthesizer(Knot):
         context = "\n\n".join(doc_blocks) if doc_blocks else "(no documents retrieved)"
         prompt = type(self)._synthesis_prompt.render({"query": query, "context": context})
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        content = self._extract_text(raw)
+        content = LlmResponseText().extract(raw)
         return AgentResponse(content=content, finish_reason="stop")
 
     @staticmethod
@@ -111,13 +112,3 @@ class RAGSynthesizer(Knot):
             else:
                 parts.append(str(value))
         return " ".join(parts)
-
-    @staticmethod
-    def _extract_text(raw: Mapping[str, Any] | str) -> str:
-        match raw:
-            case str():
-                return raw
-            case {"content": str() as content}:
-                return content
-            case _:
-                return str(raw)
