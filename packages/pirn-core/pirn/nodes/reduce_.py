@@ -84,7 +84,7 @@ class Reduce(Knot):
         of: Knot,
         combine: Callable[..., Any],
         initial: Any = ...,
-        _config: KnotConfig | None = None,
+        _config: KnotConfig,
         tapestry: Any = None,
     ) -> None:
         if initial is ...:
@@ -93,8 +93,6 @@ class Reduce(Knot):
             raise TypeError("Reduce: 'of' must be a Knot producing a list")
         if not callable(combine):
             raise TypeError("Reduce: 'combine' must be callable")
-        if _config is None:
-            raise TypeError("Reduce requires _config=KnotConfig(id=...)")
 
         # Inspect combine to pick the form.  Count REQUIRED parameters
         # (those without defaults).  Builtins like ``sum`` have signature
@@ -120,14 +118,18 @@ class Reduce(Knot):
         else:
             raise TypeError(f"Reduce: 'combine' must take 1 or 2 required args, got {n_required}")
 
-        self._bootstrap(
-            config=_config,
-            parents={"of": of},
-            config_values={"combine": combine, "form": form, "initial": initial},
+        # Every input is declared on ``process()``, so the standard constructor
+        # wires them and builds the adapters: the resolved ``of`` is validated
+        # against ``list[Any]`` at run time, which a hand-rolled ``_bootstrap``
+        # never checked at all (PIR-873).
+        super().__init__(
+            of=of,
+            combine=combine,
+            form=form,
+            initial=initial,
+            _config=_config,
             tapestry=tapestry,
         )
-
-        self._frozen = True
 
     async def process(
         self,

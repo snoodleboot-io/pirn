@@ -7,6 +7,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+from pirn.exceptions.unresolved_annotation_error import UnresolvedAnnotationError
 from pirn.tapestry import Tapestry
 
 
@@ -293,23 +294,25 @@ class TestKnotInitSteps(unittest.TestCase):
         self.assertEqual(result, {"a": 1, "b": 2})
 
 
-class TestGetTypeHintsFailureWarns(unittest.TestCase):
-    """core/knot.py:179,561 — an unresolvable annotation must warn, not silently
+class TestGetTypeHintsFailureRaises(unittest.TestCase):
+    """An unresolvable annotation is a broken knot, refused at first need.
 
-    disable coercion/validation for the whole class.
+    It used to warn and return no hints, which left ``validate_io`` reading as
+    on while nothing was checked and ``Knot | T`` coercion silently off
+    (PIR-873).
     """
 
-    def test_unresolvable_process_annotation_warns_when_coercion_is_first_needed(self) -> None:
+    def test_unresolvable_process_annotation_raises_when_coercion_is_first_needed(self) -> None:
         # Hints resolve on first need, never at class creation (PIR-872): a class
         # whose annotations name a TYPE_CHECKING-only type must still import.
         class _BadHint(Knot):
             async def process(self, x: _DoesNotExist, **_: Any) -> int:  # noqa: F821
                 return 1
 
-        with self.assertWarnsRegex(UserWarning, "get_type_hints\\(\\) failed"):
+        with self.assertRaises(UnresolvedAnnotationError):
             _BadHint._coercible_params()
 
-    def test_unresolvable_process_annotation_warns_when_adapters_are_built(self) -> None:
+    def test_unresolvable_process_annotation_raises_when_adapters_are_built(self) -> None:
         class _BadHintForAdapters(Knot):
             async def process(self, x: int, **_: Any) -> int:
                 return x
@@ -318,7 +321,7 @@ class TestGetTypeHintsFailureWarns(unittest.TestCase):
         # the failure at construction time.
         _BadHintForAdapters.process.__annotations__["x"] = "_StillDoesNotExist"
 
-        with self.assertWarnsRegex(UserWarning, "get_type_hints\\(\\) failed"):
+        with self.assertRaises(UnresolvedAnnotationError):
             _BadHintForAdapters(
                 x=Parameter("x", int, _config=KnotConfig(id="p")),
                 _config=KnotConfig(id="bad"),

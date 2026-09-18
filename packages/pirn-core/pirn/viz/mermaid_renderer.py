@@ -22,6 +22,12 @@ class MermaidRenderer:
 
     # Mermaid class definitions for outcome-colored nodes.  Picked to be
     # legible in both light and dark themes.
+    # The ``Knot.knot_kind()`` a renderer draws as a container rather than a
+    # leaf.  Compared against the kind on the class (or on the lineage row),
+    # so a new container node type gets the container shape by declaring its
+    # kind -- this module never names a concrete node class.
+    _container_kind: ClassVar[str] = "sub_tapestry"
+
     _class_defs: ClassVar[str] = (
         "classDef ok fill:#d1f4d4,stroke:#2d8a39,color:#1b3d1f;\n"
         "    classDef err fill:#fbd5d5,stroke:#a52a2a,color:#3d1010;\n"
@@ -38,14 +44,12 @@ class MermaidRenderer:
         subroutine shape (double brackets) to signal they contain an inner
         pipeline.
         """
-        from pirn.nodes.sub_tapestry import SubTapestry
-
         knots = tapestry.store.all()
         lines = ["graph TD"]
         for knot in knots:
             node_id = cls._safe_node_id(knot.knot_id)
             label = cls._node_label(knot.knot_id, type(knot).__name__)
-            if isinstance(knot, SubTapestry):
+            if type(knot).knot_kind() == cls._container_kind:
                 lines.append(f'    {node_id}[["{label}"]]')
             else:
                 lines.append(f'    {node_id}["{label}"]')

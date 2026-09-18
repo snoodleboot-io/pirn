@@ -14,12 +14,28 @@ def _make_tapestry(*knots):
     return t
 
 
+class _FakeKnot:
+    """The three things a renderer asks a knot for: its id, parents and kind."""
+
+    _knot_kind = "knot"
+
+    def __init__(self, knot_id: str, parents=None):
+        self.knot_id = knot_id
+        self.parents = parents or {}
+
+    @classmethod
+    def knot_kind(cls) -> str:
+        return cls._knot_kind
+
+
+class _FakeContainerKnot(_FakeKnot):
+    """A knot that declares itself a container, as ``SubTapestry`` does."""
+
+    _knot_kind = "sub_tapestry"
+
+
 def _make_knot(knot_id: str, parents=None, klass=None):
-    k = MagicMock()
-    k.knot_id = knot_id
-    k.parents = parents or {}
-    k.__class__ = klass or type("MockKnot", (), {})
-    return k
+    return (klass or _FakeKnot)(knot_id, parents)
 
 
 class TestMermaidRendererSafeNodeId(unittest.TestCase):
@@ -87,3 +103,16 @@ class TestMermaidForTapestry(unittest.TestCase):
         tapestry = _make_tapestry()
         result = MermaidRenderer.for_tapestry(tapestry)
         self.assertIn("graph TD", result)
+
+
+class TestMermaidContainerShape(unittest.TestCase):
+    def test_a_container_kind_gets_the_subroutine_shape(self) -> None:
+        tapestry = _make_tapestry(_make_knot("inner", klass=_FakeContainerKnot))
+        result = MermaidRenderer.for_tapestry(tapestry)
+        self.assertIn("inner[[", result)
+
+    def test_a_leaf_kind_gets_the_plain_shape(self) -> None:
+        tapestry = _make_tapestry(_make_knot("leaf"))
+        result = MermaidRenderer.for_tapestry(tapestry)
+        self.assertNotIn("leaf[[", result)
+        self.assertIn('leaf["', result)

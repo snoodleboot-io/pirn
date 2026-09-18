@@ -62,6 +62,9 @@ class KnotLineage(BaseModel):
         extra: Free-form metadata added by the framework or the knot itself,
             e.g. element index for knots inside a ``Map`` body, or the branch
             arm chosen by a ``Branch`` knot.
+        knot_kind: The knot's visual role (``Knot.knot_kind()``) -- ``'knot'``
+            for a leaf, ``'sub_tapestry'`` for a container whose body is an
+            inner pipeline.  Read by the renderers, which have only rows.
         config_values_hash: Content hash of the knot's *literal* constructor
             arguments — every non-``Knot`` value passed at construction, which
             ``Knot.__call__`` merges into the ``process()`` kwargs.  ``None``
@@ -152,6 +155,15 @@ class KnotLineage(BaseModel):
     # must treat an `unhashable` marker as "not comparable" rather than as a
     # match. See `InvocationIdentity`.
     config_values_hash: str | None = None
+
+    # The knot's visual role (``Knot.knot_kind()``): ``"knot"`` for a leaf,
+    # ``"sub_tapestry"`` for a container whose body is an inner pipeline.
+    # Recorded on the row because ``TapestryHtmlRenderer.for_run`` renders from
+    # rows alone -- there are no live knots to ask -- and inferring it from the
+    # recorded output shape stopped working when ``SubTapestry.process()``
+    # began returning the sink ``Knot`` rather than a ``RunResult`` (PIR-873).
+    # Defaulted so a row written before the field existed still loads.
+    knot_kind: str = "knot"
 
     # Content-addressed reference to the knot's source code snapshot.
     # None when source was unavailable at capture time (compiled extensions,

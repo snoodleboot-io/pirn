@@ -48,12 +48,44 @@ class KnotFactory:
         return f"<KnotFactory for {self.fn.__qualname__}>"
 
     @staticmethod
+    def __resolvable_annotations(process: Callable[..., Any], fn: Callable[..., Any]) -> None:
+        """Make *process*'s annotations resolvable without ``fn``'s ``__globals__``.
+
+        ``functools.wraps`` copies ``fn.__annotations__`` onto the generated
+        ``process`` and points ``__wrapped__`` at ``fn``.  ``get_type_hints``
+        resolves a wrapped callable's string annotations against the globals of
+        the *end* of the ``__wrapped__`` chain, so when ``fn`` carries no
+        annotations of its own the generated method keeps this module's
+        ``self: Knot, **kwargs: Any -> Any`` — written as strings, because this
+        module uses ``from __future__ import annotations`` — and they are then
+        resolved against whatever ``fn`` is.  A callable object rather than a
+        function (an already-bound value adapted into the ``callable:``
+        position of a YAML pipeline) has no ``__globals__`` at all, so ``Knot``
+        and ``Any`` came back unresolvable and validation and ``Knot | T``
+        coercion were silently off for the generated class (PIR-873).
+
+        Replacing the inherited strings with the objects themselves removes the
+        dependency: a hint that is already a type needs no namespace to
+        resolve.  ``fn``'s own annotations, when it has any, are left exactly as
+        they are -- they are the knot's declared input contract and they resolve
+        in ``fn``'s own module.
+
+        Args:
+            process: The generated ``process`` method, already wrapped.
+            fn: The callable it delegates to.
+        """
+        if getattr(fn, "__annotations__", None):
+            return
+        process.__annotations__ = {"self": Knot, "kwargs": Any, "return": Any}
+
+    @staticmethod
     def __make_async_process(fn: Callable[..., Any]) -> Callable[..., Any]:
         # design-decision-override: closure over fn, used as the process() of the dynamic Knot subclass
         @functools.wraps(fn)
         async def process(self: Knot, **kwargs: Any) -> Any:
             return await fn(**kwargs)
 
+        KnotFactory.__resolvable_annotations(process, fn)
         return process
 
     @staticmethod
@@ -63,6 +95,7 @@ class KnotFactory:
         async def process(self: Knot, **kwargs: Any) -> Any:
             return await asyncio.to_thread(fn, **kwargs)
 
+        KnotFactory.__resolvable_annotations(process, fn)
         return process
 
     @classmethod

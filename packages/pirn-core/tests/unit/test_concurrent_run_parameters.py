@@ -22,14 +22,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.core.sentinels.unset import Unset
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.tapestry import Tapestry
 
 # run_id -> the x value that knot actually computed with.
 _seen: dict[str | None, int] = {}
-
-# Values passed to Parameter.bind_value during a run; must stay empty.
-_bind_value_calls: list[Any] = []
 
 
 @KnotFactory.knot
@@ -134,53 +132,39 @@ class ConcurrentRunParameterTests(unittest.IsolatedAsyncioTestCase):
         assert _seen == expected
 
 
-class _BindValueSpy(Parameter):
-    """A ``Parameter`` that records every ``bind_value`` call made on it."""
+class EngineNeverWritesOntoTheSharedParameterTests(unittest.IsolatedAsyncioTestCase):
+    """A run binds onto its own copy, never onto the graph's ``Parameter``.
 
-    def bind_value(self, value: Any) -> None:
-        _bind_value_calls.append(value)
-        super().bind_value(value)
-
-
-class EngineDoesNotUseBindValueTests(unittest.IsolatedAsyncioTestCase):
-    """``bind_value`` writes to shared graph state; the engine must not call it.
-
-    PIR-802 deliberately kept ``bind_value`` for direct, single-owner use of a
-    standalone ``Parameter`` -- but it is now the one
-    call that would reintroduce that defect.  A refactor that "simplified"
-    ``bound_copy`` back into it would restore silent cross-run contamination
-    and pass every other test in this file, because those assert on observable
-    values and a single sequential run looks identical either way.  This one
-    watches the call itself.
+    PIR-802: writing the value onto the shared instance let concurrent runs
+    overwrite one another, so every run computed with whichever request bound
+    last while still reporting its own run id.  A refactor that "simplified"
+    ``bound_copy`` into a write on ``self`` would restore that and pass every
+    other test in this file, because those assert on observable values and a
+    single sequential run looks identical either way.  This one watches the
+    slot on the shared knot, so it holds however the binding is spelled.
     """
 
-    def setUp(self) -> None:
-        _bind_value_calls.clear()
-
-    def tearDown(self) -> None:
-        _bind_value_calls.clear()
-
-    async def test_a_run_never_calls_bind_value_on_the_shared_parameter(self):
+    async def test_a_bound_run_leaves_the_shared_parameter_unbound(self):
         with Tapestry() as t:
-            p = _BindValueSpy("x", int)
+            p = Parameter("x", int)
             a = _double(x=p, _config=KnotConfig(id="a"))
 
         result = await t.run(RunRequest(parameters={"x": 21}), terminals=a)
 
         assert result.outputs["a"] == 42
-        assert _bind_value_calls == [], (
-            f"engine called bind_value on the shared Parameter: {_bind_value_calls}"
+        assert p._mutable_value is Unset, (
+            f"the engine wrote onto the shared Parameter: {p._mutable_value!r}"
         )
 
-    async def test_a_defaulted_run_never_calls_bind_value_either(self):
+    async def test_a_defaulted_run_leaves_the_shared_parameter_unbound(self):
         """The no-binding-supplied path must not write the default onto the graph."""
         with Tapestry() as t:
-            p = _BindValueSpy("x", int, default=5)
+            p = Parameter("x", int, default=5)
             a = _double(x=p, _config=KnotConfig(id="a"))
 
         await t.run(RunRequest(), terminals=a)
 
-        assert _bind_value_calls == []
+        assert p._mutable_value is Unset
 
 
 class BoundCopyTests(unittest.TestCase):

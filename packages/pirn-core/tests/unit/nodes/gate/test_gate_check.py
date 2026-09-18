@@ -73,7 +73,10 @@ class TestGateCheckConstruction(unittest.TestCase):
             verdict = _Under(value=src, limit=2, _config=KnotConfig(id="under"))
             gate = Gate(input=src, check=verdict, _config=KnotConfig(id="g"))
         self.assertEqual(set(gate.parents), {"input", "check"})
-        self.assertEqual(gate.config_values, {})
+        # The check form declares "no predicate" and "no named reason"
+        # explicitly: every input a gate has is wired, so every one of them is
+        # validated against its declared type (PIR-873).
+        self.assertEqual(gate.config_values, {"predicate": None, "closed_reason": None})
 
     def test_a_predicate_gate_has_no_check_parent(self) -> None:
         with Tapestry():

@@ -10,6 +10,11 @@ Algorithm:
     For a knot with ``timeout = t`` (or ``None``) and ``retry = p`` (or
     ``None``):
 
+    0. A knot that fans out (``Knot.fans_out()`` -- a ``Map``/``ZipMap``/
+       ``DictMap`` marker on one of its inputs) applies ``t`` and ``p`` to each
+       element itself, so this class applies neither: it dispatches once,
+       untimed and unretried, and the fan-out bounds, times and retries the
+       elements (PIR-873).
     1. Dispatch one attempt on the dispatcher this knot should run on: the
        wrapped dispatcher itself for a leaf, or
        ``dispatcher.dispatcher_for_container(knot)`` for a container
@@ -142,11 +147,17 @@ class GovernedDispatch:
             The final attempt's result and how many attempts were made.
         """
         config = knot.config
-        policy = config.retry
+        # A fan-out knot meters, times and retries each element itself
+        # (``Knot._fan_out``), so neither belongs around the batch: a
+        # batch-level timeout fails every sibling of one slow element, and a
+        # batch-level retry re-runs elements that already succeeded (PIR-873).
+        fans_out = knot.fans_out()
+        policy = None if fans_out else config.retry
+        timeout = None if fans_out else config.timeout
         attempts = 0
         while True:
             attempts += 1
-            result = await self._attempt(knot, inputs, config.timeout)
+            result = await self._attempt(knot, inputs, timeout)
             if policy is None or not isinstance(result, Err):
                 return result, attempts
             if not policy.should_retry(attempts, result.record):

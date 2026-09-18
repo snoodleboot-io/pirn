@@ -21,7 +21,10 @@ class BranchOutput(Knot):
            ``chosen`` (the owning ``Branch``, whose output is the selected
            branch name) and ``passthrough`` (the ``Branch``'s own ``input``
            parent, so the original value reaches here without going through
-           ``Branch.process()``, which only returns the selected name).
+           ``Branch.process()``, which only returns the selected name), plus
+           its own ``branch_name`` as a constant.  Wiring goes through the
+           standard ``Knot`` constructor, so ``chosen`` and ``branch_name``
+           are validated as ``str`` like any other declared input.
         2. Resolution — the engine resolves both parents and passes them to
            ``process()``.
         3. Match — if ``chosen`` equals this output's own ``branch_name``,
@@ -40,31 +43,29 @@ class BranchOutput(Knot):
         _config: KnotConfig,
         tapestry: Any = None,
     ) -> None:
-        self._mutable_branch_name = branch_name
-
-        original_input = source.parents["input"]
-        self._bootstrap(
-            config=_config,
-            parents={"chosen": source, "passthrough": original_input},
+        super().__init__(
+            chosen=source,
+            passthrough=source.parents["input"],
+            branch_name=branch_name,
+            _config=_config,
             tapestry=tapestry,
         )
 
-        self._frozen = True
-
-    async def process(self, chosen: str, passthrough: Any, **_: Any) -> Any:
+    async def process(self, chosen: str, passthrough: Any, branch_name: str, **_: Any) -> Any:
         """Return the passthrough value if this branch was selected, else declare the skip.
 
         Args:
             chosen: Branch name selected by the upstream Branch knot.
             passthrough: Original input value forwarded from the Branch's input knot.
+            branch_name: This output's own branch name, fixed at construction.
 
         Returns:
             The passthrough value when this branch's name matches the chosen
             branch, otherwise ``Skipped(reason="branch_not_selected")``.
         """
-        if chosen == self._mutable_branch_name:
+        if chosen == branch_name:
             return passthrough
         return Skipped(
             reason="branch_not_selected",
-            detail={"branch_name": self._mutable_branch_name},
+            detail={"branch_name": branch_name},
         )

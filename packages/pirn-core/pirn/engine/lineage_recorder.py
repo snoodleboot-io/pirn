@@ -133,6 +133,7 @@ class LineageRecorder:
             run_id=ctx.run_id,
             knot_id=knot.knot_id,
             knot_class=f"{type(knot).__module__}.{type(knot).__qualname__}",
+            knot_kind=type(knot).knot_kind(),
             knot_config_hash=cfg_hash,
             config_values_hash=config_values_hash,
             parent_input_hashes=parent_hashes,
