@@ -22,15 +22,16 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="ukf"))
         signal = make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal, state_dim=0, observation_dim=1)
+            await k.process(signal=signal, state_dim=0)
 
-    async def test_rejects_non_positive_observation_dim(self) -> None:
+    async def test_declares_no_observation_dim_input(self) -> None:
+        """Each channel is a scalar observation stream: the input is gone."""
         with Tapestry():
-            k = UnscentedKalmanFilter.__new__(UnscentedKalmanFilter)
-            object.__setattr__(k, "_config", KnotConfig(id="ukf"))
-        signal = make_signal_payload()
-        with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal, state_dim=2, observation_dim=0)
+            sig = emit_signal_payload(_config=KnotConfig(id="sig-inputs"))
+            knot = UnscentedKalmanFilter(
+                signal=sig, state_dim=2, _config=KnotConfig(id="ukf-inputs")
+            )
+        assert knot.input_names == ("signal", "state_dim", "alpha", "beta", "kappa")
 
     async def test_rejects_non_positive_alpha(self) -> None:
         with Tapestry():
@@ -38,7 +39,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="ukf"))
         signal = make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal, state_dim=2, observation_dim=1, alpha=0)
+            await k.process(signal=signal, state_dim=2, alpha=0)
 
     async def test_rejects_non_numeric_beta(self) -> None:
         with Tapestry():
@@ -46,7 +47,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="ukf"))
         signal = make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal, state_dim=2, observation_dim=1, beta="bad")  # type: ignore[arg-type]
+            await k.process(signal=signal, state_dim=2, beta="bad")  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -56,7 +57,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             UnscentedKalmanFilter(
                 signal=sig,
                 state_dim=2,
-                observation_dim=1,
                 _config=KnotConfig(id="ukf"),
             )
         result = await t.run(RunRequest())
@@ -69,7 +69,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             k = UnscentedKalmanFilter.__new__(UnscentedKalmanFilter)
             object.__setattr__(k, "_config", KnotConfig(id="ukf"))
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=32)
-        out = await k.process(signal=multichannel, state_dim=2, observation_dim=1)
+        out = await k.process(signal=multichannel, state_dim=2)
         assert isinstance(out, SignalPayload)
         assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 32)

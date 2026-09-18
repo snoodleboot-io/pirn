@@ -1,9 +1,11 @@
 """``UnscentedKalmanFilter`` — derivative-free nonlinear Kalman estimator.
 
 Algorithm:
-    1. Receive the input signal frame, state_dim, observation_dim, alpha, beta, and kappa.
-    2. Validate state_dim and observation_dim (positive integers), alpha (positive float),
-       beta and kappa (real numbers).
+    1. Receive the input signal frame, state_dim, alpha, beta, and kappa.
+    2. Validate state_dim (positive integer), alpha (positive float), beta and kappa
+       (real numbers). Each channel is filtered on its own as a scalar observation
+       stream, so the observation dimension is fixed at one and is not an input the
+       caller can set or contradict.
     3. Compute 2 * state_dim + 1 sigma points around the current state estimate.
     4. Propagate sigma points through the nonlinear state transition function f(x).
     5. Compute the predicted mean and covariance from the propagated sigma points.
@@ -46,7 +48,6 @@ class UnscentedKalmanFilter(Knot):
         *,
         signal: Knot,
         state_dim: Knot | int,
-        observation_dim: Knot | int,
         alpha: Knot | float = 1e-3,
         beta: Knot | float = 2.0,
         kappa: Knot | float = 0.0,
@@ -56,7 +57,6 @@ class UnscentedKalmanFilter(Knot):
         super().__init__(
             signal=signal,
             state_dim=state_dim,
-            observation_dim=observation_dim,
             alpha=alpha,
             beta=beta,
             kappa=kappa,
@@ -68,7 +68,6 @@ class UnscentedKalmanFilter(Knot):
         self,
         signal: SignalPayload,
         state_dim: int,
-        observation_dim: int,
         alpha: float = 1e-3,
         beta: float = 2.0,
         kappa: float = 0.0,
@@ -79,7 +78,6 @@ class UnscentedKalmanFilter(Knot):
         Args:
             signal: Observed signal payload to filter through the derivative-free nonlinear state estimator.
             state_dim: Dimension of the hidden state vector (positive integer).
-            observation_dim: Dimension of the observation vector (positive integer).
             alpha: Sigma-point spread parameter (positive float, typically 1e-3).
             beta: Distribution parameter for prior knowledge (real number, 2.0 for Gaussian).
             kappa: Secondary scaling parameter (real number).
@@ -88,13 +86,11 @@ class UnscentedKalmanFilter(Knot):
             SignalPayload of UKF-filtered state estimates.
 
         Raises:
-            ValueError: If state_dim, observation_dim, or alpha are invalid.
+            ValueError: If state_dim or alpha are invalid.
             TypeError: If beta or kappa are not real numbers.
         """
         if not isinstance(state_dim, int) or state_dim <= 0:
             raise ValueError("UnscentedKalmanFilter: state_dim must be a positive integer")
-        if not isinstance(observation_dim, int) or observation_dim <= 0:
-            raise ValueError("UnscentedKalmanFilter: observation_dim must be a positive integer")
         if not isinstance(alpha, (int, float)) or alpha <= 0:
             raise ValueError("UnscentedKalmanFilter: alpha must be positive")
         if not isinstance(beta, (int, float)):
