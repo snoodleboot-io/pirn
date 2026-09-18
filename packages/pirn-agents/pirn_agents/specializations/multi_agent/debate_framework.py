@@ -14,12 +14,22 @@ responses. The next round's framer takes the prior aggregators as parents, so
 the engine schedules each round's debaters concurrently while keeping the rounds
 sequential — matching the old gather exactly. See PIR-714.
 
-Failure mode is UNCHANGED. Any debater failure makes the inner ``tapestry.run``
-raise :class:`SubTapestryError` for the whole knot, exactly as the old
-per-round ``asyncio.gather`` surfaced the first failure. No per-debater error
-isolation is gained (that needs a core change — out of scope). Per-debater
-lineage lives in the inner ``RunResult`` reachable via
-``lineage[].extra['inner_run_id']`` + history, not in the outer ``run.outputs``.
+Failure mode is all-or-nothing by design: any debater failure makes the inner
+run fail and this knot raise :class:`SubTapestryError`. A debate judged on a
+round with a debater missing is a different debate, and substituting a
+synthesized error response would hand :class:`DebateJudge` a fabricated
+argument to weigh — so a failed debater ends the debate rather than skewing it.
+
+Isolation needs no core change; the shape is the one
+:class:`~pirn_agents.specializations.document_processing.ingestion_runner.IngestionRunner`
+uses (``_inner_failures_reach_sink`` plus a ``RECEIVE_ERRORS`` fold per
+invocation). This docstring used to blame core for the absence, which was never
+true (PIR-873).
+
+Per-debater lineage lives in the inner ``RunResult``, reachable via
+``lineage[].extra['inner_run_id']`` + history — present on the failure path too,
+since ``_run_inner`` records the inner run either way — not in the outer
+``run.outputs``.
 
 Algorithm:
     1. Validate debaters (≥ 2, all :class:`SubTapestry`) and ``rounds`` (> 0).

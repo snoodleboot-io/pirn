@@ -82,7 +82,7 @@ class CoreSeamShadowInventory:
         # is still caught by ``USES_ASYNCIO_GATHER`` in test_no_engine_bypass.
         "async_loop_step": (
             (r"^ParallelToolExecutor$",),
-            frozenset({"LoopSubTapestry", "AgentLoopPipeline", "SubTapestry"}),
+            frozenset({"LoopSubTapestry", "AgentLoopPipeline", "SubTapestry", "NestedRunKnot"}),
         ),
     }
 

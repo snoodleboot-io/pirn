@@ -7,11 +7,12 @@ Loaders take bytes (not a path) so they compose directly with the streaming
 source connectors (F25-S3) and stay trivially testable with in-memory fixtures —
 no real files or services.
 
-Multimodal seam (F15, deferred). This interface is the extension point for the
-deferred F15 (Phase 5, not merged) multimodal loaders: an image/audio/PDF-image
-loader is simply another ``Loader`` implementation emitting a
-:class:`LoadedDocument`. Only the text loaders are implemented here; multimodal
-ones are intentionally out of scope until F15 merges.
+Multimodal loaders are ``Loader`` implementations like any other: they emit the
+same :class:`LoadedDocument`, populating its ``blocks`` sequence instead of its
+``text``. :class:`~pirn_agents.specializations.document_processing.loaders.media_loader.MediaLoader`
+is the one in this package — it frames image/audio/binary bytes into typed
+content blocks. The text loaders below extract text only; binary payloads go to
+``MediaLoader``, not to a PDF or docx parser.
 """
 
 from __future__ import annotations

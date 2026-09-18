@@ -10,17 +10,27 @@ The engine then runs them concurrently — the scheduler starts every sibling
 as its own task as soon as it is ready (PIR-841) — so the specialists run
 *through* the engine rather than outside it. See PIR-714.
 
-Failure mode is UNCHANGED by this rewrite. If any invocation fails, the inner
-``tapestry.run`` records an exception and :class:`SubTapestryError` is raised
-for the whole knot (``sub_tapestry.py``), exactly as the old ``asyncio.gather``
-surfaced the first failure. No per-specialist error isolation is gained — that
-would need a core change and is out of scope.
+Failure mode is all-or-nothing by design: one failed invocation makes the inner
+run fail and this knot raise :class:`SubTapestryError`. The caller asked for
+*every* specialist's answer, so the two isolating alternatives are both worse —
+a partial ``{name: response}`` mapping silently drops a specialist that was
+asked for, and a synthesized error response is a fabricated answer a downstream
+judge or consumer cannot tell from a real one.
 
-Per-specialist lineage is NOT in the outer ``run.outputs`` (the inner knots run
-in a separate inner ``RunResult``). To reach it, read
-``lineage[].extra['inner_run_id']`` and look that run up in history — and note
-that on the failure path ``inner_run_id`` may be absent, so a sibling's ``Ok``
-record has no retrieval path there.
+Isolation needs no core change, and a caller that genuinely wants it composes
+the same shape
+:class:`~pirn_agents.specializations.document_processing.ingestion_runner.IngestionRunner`
+does: ``_inner_failures_reach_sink = True`` plus one ``RECEIVE_ERRORS`` fold
+knot per invocation, which turns each ``Ok``/``Err`` into a typed per-item
+outcome the aggregator reports. This docstring used to blame core for the
+absence, which was never true (PIR-873).
+
+Per-specialist lineage is not in the outer ``run.outputs``: the inner knots run
+in their own ``RunResult``. Read ``lineage[].extra['inner_run_id']`` and look
+that run up in history. ``_run_inner`` records the inner run on this knot
+whether it succeeded or failed, so ``inner_run_id`` is present on the failure
+path too and a sibling's ``Ok`` record stays retrievable (this docstring used to
+claim the opposite — PIR-873).
 
 Algorithm:
     1. Validate ``specialists`` (non-empty mapping) and ``task`` (str).

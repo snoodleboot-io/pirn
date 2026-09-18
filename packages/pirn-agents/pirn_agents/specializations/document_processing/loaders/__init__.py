@@ -9,8 +9,10 @@ interface. Backend-backed loaders (PDF, HTML, docx) lazily import their parser
 through the ``pdf`` / ``html`` / ``docx`` extras, so importing this package pulls
 no backend. Markdown, code, CSV, and JSON loaders use only the stdlib.
 
-Multimodal loaders (image/audio) are deferred to F15 (Phase 5, not merged); the
-``Loader`` interface is the seam they will implement.
+Multimodal sources go through
+:class:`~pirn_agents.specializations.document_processing.loaders.media_loader.MediaLoader`,
+which implements the same ``Loader`` interface and emits typed content blocks
+instead of text. It needs no backend — it only frames bytes.
 """
 
 from __future__ import annotations
