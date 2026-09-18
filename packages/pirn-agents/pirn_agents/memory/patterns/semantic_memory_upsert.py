@@ -46,6 +46,7 @@ from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.memory.management.memory_record import MemoryRecord
@@ -111,7 +112,11 @@ class SemanticMemoryUpsert(Knot):
             )
         instruction = type(self)._fact_extraction_prompt.resolve(fact_extraction_prompt)
         prompt = f"{instruction}\n\nText: {response.data}\n\nReturn one fact per line."
-        raw = await llm.chat([{"role": "user", "content": prompt}])
+        raw = await RecordedLlmCall.chat(
+            knot_id=self.knot_id,
+            llm=llm,
+            messages=({"role": "user", "content": prompt},),
+        )
         text = LlmResponseText().extract(raw)
         facts: list[str] = []
         for raw_line in text.splitlines():

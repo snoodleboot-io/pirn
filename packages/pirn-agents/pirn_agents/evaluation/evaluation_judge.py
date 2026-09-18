@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import ClassVar
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.evaluation.judge_score_parser import JudgeScoreParser
 from pirn_agents.evaluation.pairwise_choice_parser import PairwiseChoiceParser
 from pirn_agents.evaluation.pairwise_outcome import PairwiseOutcome
@@ -41,10 +43,18 @@ class EvaluationJudge:
     prompt is provider-agnostic plain text.
     """
 
+    #: Identity this helper's provider calls are reported under when the
+    #: caller does not name the knot it runs inside.  A helper is not a knot,
+    #: so there is no ``self.knot_id`` to read, and core has no ambient
+    #: accessor by design — but a provider call still has to be observable on
+    #: the run's emitters (ADR WS4a, PIR-873).
+    _default_call_id: ClassVar[str] = "evaluation_judge"
+
     def __init__(
         self,
         *,
         judge: LLMProvider,
+        knot_id: str | None = None,
         self_consistency: int = 1,
         position_swap: bool = False,
         rubric_prompt_builder: RubricPromptBuilder | None = None,
@@ -57,6 +67,8 @@ class EvaluationJudge:
 
         Args:
             judge: The provider that returns a textual verdict for each prompt.
+            knot_id: The enclosing knot's id, reported with every judge call;
+                defaults to :attr:`_default_call_id`.
             self_consistency: Number of samples drawn per judgement (>= 1).
             position_swap: Run pairwise judging in both orders and require
                 agreement.
@@ -88,6 +100,7 @@ class EvaluationJudge:
                 f"EvaluationJudge: position_swap must be a bool, got {type(position_swap).__name__}"
             )
         self._judge = judge
+        self._knot_id = knot_id or type(self)._default_call_id
         self._self_consistency = self_consistency
         self._position_swap = position_swap
         self._rubric_prompt_builder = rubric_prompt_builder or RubricPromptBuilder()
@@ -127,10 +140,12 @@ class EvaluationJudge:
         for criterion in criteria_list:
             samples: list[float] = []
             for _ in range(self._self_consistency):
-                reply = await self._judge.chat(
-                    self._rubric_prompt_builder.build(
+                reply = await RecordedLlmCall.chat(
+                    knot_id=self._knot_id,
+                    llm=self._judge,
+                    messages=self._rubric_prompt_builder.build(
                         prompt=prompt, response=response, criterion=criterion
-                    )
+                    ),
                 )
                 samples.append(self._score_parser.parse(str(reply.get("content", ""))))
             per_criterion[criterion.name] = self._aggregator.mean(samples)
@@ -171,10 +186,12 @@ class EvaluationJudge:
             order_a = 0
             order_b = 0
             for _ in range(self._self_consistency):
-                reply = await self._judge.chat(
-                    self._pairwise_prompt_builder.build(
+                reply = await RecordedLlmCall.chat(
+                    knot_id=self._knot_id,
+                    llm=self._judge,
+                    messages=self._pairwise_prompt_builder.build(
                         prompt=prompt, first_text=first_text, second_text=second_text
-                    )
+                    ),
                 )
                 presented = self._choice_parser.parse(str(reply.get("content", "")))
                 if presented == "tie":

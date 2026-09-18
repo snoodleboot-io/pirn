@@ -20,6 +20,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
@@ -73,4 +74,6 @@ class LLMCall(Knot):
         wire_messages = tuple(
             {"role": message.role, "content": message.content} for message in context.data
         )
-        return await llm.chat(messages=wire_messages, model=model)
+        return await RecordedLlmCall.chat(
+            knot_id=self.knot_id, llm=llm, messages=wire_messages, model=model
+        )
