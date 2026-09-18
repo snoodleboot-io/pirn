@@ -116,9 +116,12 @@ class TestConcreteRoundTrips(unittest.IsolatedAsyncioTestCase):
         assert await store.retrieve(key) is not None
 
     async def test_semantic_fact_writer_persists_and_returns_count(self) -> None:
-        # Arrange
-        writer = _bare(SemanticFactWriter)
+        # Arrange — fully constructed, not ``_bare``: this writer is a
+        # ``NestedRunKnot`` (one knot per fact, PIR-873) and a container needs
+        # the state ``__init__`` captures to start an inner run.
         store = StubMemoryStore()
+        with Tapestry():
+            writer = SemanticFactWriter(facts=[], store=store, _config=KnotConfig(id="x"))
         # Act
         count = await writer.process(facts=["the sky is blue", "water is wet"], store=store)
         # Assert

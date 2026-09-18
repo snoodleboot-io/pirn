@@ -26,26 +26,46 @@ Pipeline
      given.
 
 Returns the list of newly created semantic records (empty when nothing merged).
+
+One knot per group (PIR-873). The groups are independent of one another, and so
+are the store writes, so both are a fan-out and not a sequence: this is a
+:class:`~pirn.nodes.nested_run_knot.NestedRunKnot` whose ``process()`` builds one
+:class:`~pirn_agents.memory.management.consolidated_memory_group.ConsolidatedMemoryGroup`
+per group — followed, when a store is given, by a
+:class:`~pirn_agents.memory.management.stored_memory_record.StoredMemoryRecord`
+downstream of it — under an :class:`~pirn.nodes.aggregator.Aggregator`, and runs
+them through ``_run_inner``. Every summariser call and every write then has its
+own lineage row, ``Result``, timeout, retry and admission slot, and the groups
+are summarised concurrently under the enclosing run's caps, where the previous
+``for group in ...: await summarizer.summarize(...)`` loop serialised every model
+call and reported one outcome for the whole batch. As a container this knot holds
+no admission slot of its own, so it may not declare a ``concurrency_group``.
+Clean input (no group of two or more) starts no inner run.
 """
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
+from pirn.nodes.nested_run_knot import NestedRunKnot
+from pirn.tapestry import Tapestry
 
 from pirn_agents.context.summarizer import Summarizer
 from pirn_agents.memory.management.conflict_resolution_policy import ConflictResolutionPolicy
+from pirn_agents.memory.management.consolidated_memory_group import ConsolidatedMemoryGroup
 from pirn_agents.memory.management.memory_record import MemoryRecord
 from pirn_agents.memory.management.near_duplicate_grouper import NearDuplicateGrouper
 from pirn_agents.memory.management.recency_trust_conflict_policy import RecencyTrustConflictPolicy
+from pirn_agents.memory.management.stored_memory_record import StoredMemoryRecord
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class MemoryConsolidator(Knot):
+class MemoryConsolidator(NestedRunKnot):
     """Consolidates episodic near-duplicates into deduplicated semantic records."""
 
     def __init__(
@@ -98,6 +118,7 @@ class MemoryConsolidator(Knot):
             TypeError: If ``summarizer``/``grouper``/``conflict_policy``/``store``
                 are the wrong type, or any element of ``records`` is not a
                 :class:`MemoryRecord`.
+            SubTapestryError: If any group's summary or write failed.
         """
         grouper = grouper if grouper is not None else NearDuplicateGrouper()
         conflict_policy = (
@@ -111,15 +132,10 @@ class MemoryConsolidator(Knot):
         episodic = [
             self._require_record(record) for record in records if record.data.kind == "episodic"
         ]
-        consolidated: list[MemoryRecord] = []
-        for group in grouper.group(episodic):
-            if len(group) < 2:
-                continue
-            consolidated.append(await self._consolidate_group(group, summarizer, conflict_policy))
-        if store is not None:
-            for record in consolidated:
-                await store.store(record.data.id, record.to_payload())
-        return consolidated
+        groups = [tuple(group) for group in grouper.group(episodic) if len(group) >= 2]
+        if not groups:
+            return []
+        return await self._consolidate(groups, summarizer, conflict_policy, store)
 
     @staticmethod
     def _require_record(record: MemoryRecord) -> MemoryRecord:
@@ -131,23 +147,69 @@ class MemoryConsolidator(Knot):
             )
         return record
 
-    async def _consolidate_group(
+    async def _consolidate(
         self,
-        group: Sequence[MemoryRecord],
+        groups: Sequence[tuple[MemoryRecord, ...]],
         summarizer: Summarizer,
         conflict_policy: ConflictResolutionPolicy,
-    ) -> MemoryRecord:
-        """Reduce one near-duplicate ``group`` to a single semantic record."""
-        winner = conflict_policy.resolve(group)
-        summary = await summarizer.summarize([record.data.content for record in group])
-        source_ids = tuple(sorted(record.data.id for record in group))
-        digest = hashlib.sha1(":".join(source_ids).encode("utf-8")).hexdigest()
-        return winner.derive(
-            id=f"semantic:consolidated:{digest}",
-            kind="semantic",
-            content=summary,
-            source="consolidator",
-            derivation=f"consolidated-from:{','.join(source_ids)}",
-            importance=max(record.metadata.importance for record in group),
-            metadata={"source_ids": list(source_ids), "merged_count": len(source_ids)},
-        )
+        store: MemoryStore | None,
+    ) -> list[MemoryRecord]:
+        """Merge every group as a nested run, one knot per group (plus its write).
+
+        Args:
+            groups: The near-duplicate groups, each of two or more records.
+            summarizer: The summariser compressing each group.
+            conflict_policy: Selects each group's winner.
+            store: When given, each consolidated record is written by its own
+                knot downstream of the group that produced it.
+
+        Returns:
+            The consolidated records, in group order.
+
+        Raises:
+            SubTapestryError: If any group's summary or write failed.
+        """
+        with Tapestry() as inner:
+            summarizer_node = Parameter(
+                "summarizer", Summarizer, default=summarizer, _config=KnotConfig(id="summarizer")
+            )
+            policy_node = Parameter(
+                "conflict_policy",
+                ConflictResolutionPolicy,
+                default=conflict_policy,
+                _config=KnotConfig(id="conflict_policy"),
+            )
+            store_node = (
+                None
+                if store is None
+                else Parameter("store", MemoryStore, default=store, _config=KnotConfig(id="store"))
+            )
+            per_group: dict[str, Knot] = {}
+            for index, group in enumerate(groups):
+                merged: Knot = ConsolidatedMemoryGroup(
+                    group=group,
+                    summarizer=summarizer_node,
+                    conflict_policy=policy_node,
+                    _config=KnotConfig(id=f"group_{index}"),
+                )
+                per_group[f"group_{index}"] = (
+                    merged
+                    if store_node is None
+                    else StoredMemoryRecord(
+                        record=merged,
+                        store=store_node,
+                        _config=KnotConfig(id=f"stored_{index}"),
+                    )
+                )
+            Aggregator(
+                combine=MemoryConsolidator._in_group_order,
+                _config=KnotConfig(id="consolidated"),
+                **per_group,
+            )
+        run = await self._run_inner(inner)
+        return run.outputs["consolidated"]
+
+    @staticmethod
+    def _in_group_order(**merged: MemoryRecord) -> list[MemoryRecord]:
+        """Order the consolidated records by their ``group_<index>`` key."""
+        return [merged[f"group_{index}"] for index in range(len(merged))]

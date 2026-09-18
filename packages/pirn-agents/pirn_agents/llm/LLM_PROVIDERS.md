@@ -39,8 +39,9 @@ pip install "pirn-agents[web]"
 Discover availability at runtime without importing the backend:
 
 ```python
-from pirn_agents import available_extras
-available_extras()["web"]   # True once httpx is installed
+from pirn_agents.capability_probe import CapabilityProbe
+
+CapabilityProbe().available_extras()["web"]   # True once httpx is installed
 ```
 
 ## Minimal usage

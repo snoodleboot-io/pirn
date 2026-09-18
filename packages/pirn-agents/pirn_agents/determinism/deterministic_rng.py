@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
 import random
 from collections.abc import Sequence
 from typing import TypeVar
+
+from pirn.core.content_hasher import ContentHasher
 
 _T = TypeVar("_T")
 
@@ -57,9 +58,15 @@ class DeterministicRng:
     def fork(self, label: str) -> DeterministicRng:
         """Return a child RNG whose seed is derived from this seed and ``label``.
 
-        The derivation is a stable hash of ``(seed, label)``, so sub-components
-        get independent but reproducible streams without sharing this one's state.
+        The derivation is :class:`~pirn.core.content_hasher.ContentHasher` over
+        the pair ``(seed, label)`` — the workspace's one content-addressing
+        seam, whose canonical serialisation is stable across processes and
+        machines — so sub-components get independent but reproducible streams
+        without sharing this one's state. It was a bare ``hashlib.sha256`` over
+        an interpolated ``f"{seed}:{label}"``; routing it through the one
+        content-addressing seam means the derivation of a child seed and every
+        other hash in the workspace are the same function of the same canonical
+        form (PIR-873). The derived width is unchanged (64 bits).
         """
-        digest = hashlib.sha256(f"{self._seed}:{label}".encode()).digest()
-        child_seed = int.from_bytes(digest[:8], "big")
-        return DeterministicRng(seed=child_seed)
+        digest = ContentHasher.hash((self._seed, label)).removeprefix("sha256:")
+        return DeterministicRng(seed=int(digest[:16], 16))
