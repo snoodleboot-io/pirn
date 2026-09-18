@@ -109,15 +109,15 @@ Each span carries these attributes:
 
 | Attribute | Present on | Value |
 |-----------|-----------|-------|
-| `pirn.run_id` | run + knot | UUID identifying the run |
-| `pirn.knot_id` | knot | The `id=` from `KnotConfig` |
-| `pirn.knot_class` | knot | Fully qualified class name |
-| `pirn.outcome` | knot | `"ok"`, `"err"`, or `"skipped"` |
-| `pirn.dispatcher` | run + knot | Which engine dispatched this |
-| `pirn.output_hash` | knot (ok only) | Content hash of the knot's output |
-| `pirn.error_record_id` | knot (err only) | ID of the error record |
-| `pirn.skip_reason` | knot (skipped only) | Why the knot was skipped |
-| `pirn.succeeded` | run | Whether all required knots succeeded |
+| `"pirn.run_id"` | run + knot | UUID identifying the run |
+| `"pirn.knot_id"` | knot | The `id=` from `KnotConfig` |
+| `"pirn.knot_class"` | knot | Fully qualified class name |
+| `"pirn.outcome"` | knot | `"ok"`, `"err"`, or `"skipped"` |
+| `"pirn.dispatcher"` | run + knot | Which engine dispatched this |
+| `"pirn.output_hash"` | knot (ok only) | Content hash of the knot's output |
+| `"pirn.error_record_id"` | knot (err only) | ID of the error record |
+| `"pirn.skip_reason"` | knot (skipped only) | Why the knot was skipped |
+| `"pirn.succeeded"` | run | Whether all required knots succeeded |
 
 ### Filtering in Jaeger / Tempo / Grafana
 
@@ -143,7 +143,7 @@ histogram_quantile(0.99,
 ### Nested spans (parent-child linking)
 
 The `OpenTelemetryEmitter` emits each knot as an independent span with a
-shared `pirn.run_id` attribute. This is enough for grouping in most UIs.
+shared `"pirn.run_id"` attribute. This is enough for grouping in most UIs.
 
 For true parent-child nesting (so knot spans appear visually nested under
 the run span in a waterfall), pass a `tracer` that has already started a

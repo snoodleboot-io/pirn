@@ -134,10 +134,13 @@ from pirn_data.transforms.aggregate_spec import AggregateSpec
 from pirn_data.sinks.file_sink import FileSink
 from pirn.connectors.file_formats.csv_format import CsvFormat
 from pirn.connectors.file_formats.parquet_format import ParquetFormat
-from pirn.connectors.object_stores.local_object_store import LocalObjectStore
+from pirn.connectors.object_storage.local_filesystem_config import (
+    LocalFilesystemConfig,
+)
+from pirn.connectors.object_storage.local_filesystem_store import LocalFilesystemStore
 
 with Tapestry() as t:
-    store = LocalObjectStore(root="/data")
+    store = LocalFilesystemStore(config=LocalFilesystemConfig(root="/data"))
     source = FileSource(
         store=store,
         format=CsvFormat(),

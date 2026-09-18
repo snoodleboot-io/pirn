@@ -23,7 +23,17 @@ class DocImportAuditor:
 
     An inline span that is itself an import statement (``from pirn.x import Y``) is
     held to ``doc_unresolved_import``; a span naming a file (``pirn_explorer.html``)
-    is not a dotted path and is not checked.
+    is not a dotted path and is not checked. A span that is a quoted string literal
+    (``"pirn.run_id"``) is prose about a *string value* — an OpenTelemetry attribute
+    key, a filter expression, a YAML value — never a Python path, so it is not
+    checked either; only a *bare* dotted token is held to ``doc_unresolved_path``.
+
+    A class a document defines itself, in one of its own earlier fenced blocks, is
+    "self-taught": a worked example that shows a reader how to build something is not
+    lying about the repository's current contents, so importing that class later in
+    the same document (e.g. from the test snippet that follows a "create this file"
+    walkthrough) is not held to ``doc_unresolved_import`` either. A class the document
+    only ever imports — never defines — gets no such pass.
     """
 
     _python_tags: ClassVar[frozenset[str]] = frozenset(
@@ -60,14 +70,43 @@ class DocImportAuditor:
 
     def audit(self, display: str, text: str) -> list[DocFinding]:
         """Every finding in ``text``, reported against the path ``display``."""
+        blocks = MarkdownCodeBlocks.blocks(text)
+        known_names = self._self_taught_classes(blocks)
         findings: list[DocFinding] = []
-        for block in MarkdownCodeBlocks.blocks(text):
-            findings.extend(self._audit_block(display, block))
+        for block in blocks:
+            findings.extend(self._audit_block(display, block, known_names))
         for span in MarkdownCodeBlocks.inline_spans(text):
-            findings.extend(self._audit_span(display, span))
+            findings.extend(self._audit_span(display, span, known_names))
         return findings
 
-    def _audit_span(self, display: str, span: InlineCodeSpan) -> list[DocFinding]:
+    def _self_taught_classes(self, blocks: list[FencedCodeBlock]) -> frozenset[str]:
+        """Class names this document defines itself, in any of its own blocks.
+
+        A tutorial that walks a reader through creating ``class Widget(Base): ...``
+        is not asserting that ``Widget`` already ships in the repository — it is
+        teaching the reader to write it. Importing that class later in the same
+        document (a "recommended test structure", a "consumers import it like this")
+        is reporting on the document's own worked example, not on repository state.
+        """
+        names: set[str] = set()
+        for block in blocks:
+            if block.tag and block.tag not in self._python_tags:
+                continue
+            source = block.source
+            if block.tag == "pycon" or MarkdownCodeBlocks.is_transcript(source):
+                source = MarkdownCodeBlocks.strip_prompts(source)
+            try:
+                tree = ast.parse(source)
+            except SyntaxError:
+                continue
+            names.update(
+                node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
+            )
+        return frozenset(names)
+
+    def _audit_span(
+        self, display: str, span: InlineCodeSpan, known_names: frozenset[str]
+    ) -> list[DocFinding]:
         if self._inline_import.match(span.text):
             try:
                 tree = ast.parse(span.text)
@@ -76,8 +115,10 @@ class DocImportAuditor:
             return [
                 DocFinding(display, span.line, "doc_unresolved_import", detail)
                 for node in self._pirn_imports(tree)
-                for detail in self._unresolved(node)
+                for detail in self._unresolved(node, known_names)
             ]
+        if self._is_quoted_string_literal(span.text):
+            return []
         if not self._dotted.match(span.text):
             return []
         if span.text.rsplit(".", 1)[1] in self._file_suffixes:
@@ -87,7 +128,26 @@ class DocImportAuditor:
         detail = f"`{span.text}` does not resolve to a module, attribute or member"
         return [DocFinding(display, span.line, "doc_unresolved_path", detail)]
 
-    def _audit_block(self, display: str, block: FencedCodeBlock) -> list[DocFinding]:
+    @staticmethod
+    def _is_quoted_string_literal(text: str) -> bool:
+        """Whether ``text`` parses as a single Python string literal.
+
+        ``"pirn.run_id"`` is a span quoting a *string value* — an OpenTelemetry
+        attribute key, a filter expression, a config value — never a Python dotted
+        path, however much it looks like one once the quotes are stripped. A bare
+        ``pirn.run_id`` (no quotes) is still held to ``doc_unresolved_path``: quoting
+        is exactly the signal that distinguishes "this is a string" from "this is
+        code that names a real module".
+        """
+        try:
+            node = ast.parse(text, mode="eval")
+        except (SyntaxError, ValueError):
+            return False
+        return isinstance(node.body, ast.Constant) and isinstance(node.body.value, str)
+
+    def _audit_block(
+        self, display: str, block: FencedCodeBlock, known_names: frozenset[str]
+    ) -> list[DocFinding]:
         tagged = block.tag in self._python_tags
         if block.tag and not tagged:
             return []
@@ -107,7 +167,7 @@ class DocImportAuditor:
             line = block.first_line + node.lineno - 1
             findings.extend(
                 DocFinding(display, line, "doc_unresolved_import", detail)
-                for detail in self._unresolved(node)
+                for detail in self._unresolved(node, known_names)
             )
         return findings
 
@@ -126,7 +186,9 @@ class DocImportAuditor:
                     found.append(node)
         return sorted(found, key=attrgetter("lineno"))
 
-    def _unresolved(self, node: ast.Import | ast.ImportFrom) -> list[str]:
+    def _unresolved(
+        self, node: ast.Import | ast.ImportFrom, known_names: frozenset[str]
+    ) -> list[str]:
         if isinstance(node, ast.Import):
             return [
                 f"module `{alias.name}` not found"
@@ -135,10 +197,13 @@ class DocImportAuditor:
                 and self._resolver.module_file(alias.name) is None
             ]
         module = node.module or ""
+        names = [alias.name for alias in node.names if alias.name != "*"]
         if self._resolver.module_file(module) is None:
+            if names and all(name in known_names for name in names):
+                return []
             return [f"module `{module}` not found"]
         return [
-            f"`{alias.name}` not found in `{module}`"
-            for alias in node.names
-            if alias.name != "*" and not self._resolver.has_name(module, alias.name)
+            f"`{name}` not found in `{module}`"
+            for name in names
+            if name not in known_names and not self._resolver.has_name(module, name)
         ]

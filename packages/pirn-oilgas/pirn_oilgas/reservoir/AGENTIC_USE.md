@@ -29,14 +29,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_oilgas.reservoir import (
-    EclipseSmspecParser,
-    PvtTableProcessor,
-    DeclineCurveAnalyzer,
+from pirn_oilgas.reservoir.eclipse_smspec_parser import EclipseSmspecParser
+from pirn_oilgas.reservoir.pvt_table_processor import PvtTableProcessor
+from pirn_oilgas.reservoir.decline_curve_analyzer import DeclineCurveAnalyzer
+from pirn_oilgas.reservoir.material_balance_calculator import (
     MaterialBalanceCalculator,
-    UncertaintyQuantifier,
-    MonteCarloSimulator,
 )
+from pirn_oilgas.reservoir.monte_carlo_simulator import MonteCarloSimulator
 
 with Tapestry() as t:
     smspec_bytes = Parameter("smspec_bytes", bytes)   # raw SMSPEC from FileSource
@@ -68,11 +67,6 @@ with Tapestry() as t:
         _config=KnotConfig(id="mc_sim", params={"n_samples": 1000}),
     )
 
-    reserves = UncertaintyQuantifier(
-        samples=mc,
-        _config=KnotConfig(id="p10_p90"),
-    )
-
 result = await t.run(RunRequest(parameters={"smspec_bytes": raw_bytes, "pvt_table": pvt_df}))
 ```
 
@@ -81,8 +75,6 @@ result = await t.run(RunRequest(parameters={"smspec_bytes": raw_bytes, "pvt_tabl
 **Passing production time-series directly to MaterialBalanceCalculator without PvtTableProcessor** — raw PVT tables with unvalidated pressure ranges cause silent extrapolation errors in Bo/Rs lookup; always pre-process PVT first.
 
 **Running MonteCarloSimulator with n_samples below 500** — P10/P90 estimates from small ensembles have high variance; the default of 1 000 samples is the recommended minimum for reserve reporting.
-
-**Using DeclineCurveAnalyzer output as direct input to UncertaintyQuantifier without MonteCarloSimulator** — UncertaintyQuantifier expects a sample ensemble; passing a single deterministic result raises `EnsembleSizeError`.
 
 ## Constraints and gotchas
 
@@ -103,7 +95,6 @@ result = await t.run(RunRequest(parameters={"smspec_bytes": raw_bytes, "pvt_tabl
 | Apply Havlena-Odeh material balance | `MaterialBalanceCalculator(production=prod, pvt=pvt)` |
 | Calculate STOIIP / GIIP | `StoiipCalculator(volumes=vol_param, pvt=pvt)` |
 | Propagate uncertainty (Monte Carlo) | `MonteCarloSimulator(target_knot=calc_knot)` |
-| Aggregate P10/P50/P90 reserves | `UncertaintyQuantifier(samples=mc_output)` |
 | Compare two simulation scenarios | `SimulationResultComparator(base=run_a, compare=run_b)` |
 | Compute RQI and FZI | `ReservoirQualityIndexer(core_data=core_param)` |
 

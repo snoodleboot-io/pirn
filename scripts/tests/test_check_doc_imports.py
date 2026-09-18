@@ -151,6 +151,70 @@ def test_inline_filename_and_spans_inside_fences_are_ignored(tmp_path: Path) -> 
     assert _audit(tmp_path, text) == []
 
 
+def test_quoted_telemetry_key_is_not_a_path(tmp_path: Path) -> None:
+    """A quoted string that merely looks like a dotted path (a span attribute
+    key, a filter expression) is prose about a string value, not a claim that
+    a Python module named ``pirn.run_id`` exists."""
+    text = 'Each span carries `"pirn.run_id"` as an attribute.\n'
+    assert _audit(tmp_path, text) == []
+
+
+def test_unquoted_bare_path_is_still_reported(tmp_path: Path) -> None:
+    """Dropping the quotes turns the same text back into a bare dotted-path
+    claim, which must still resolve against real source — quoting, not mere
+    resemblance to a telemetry key, is what the rule keys off."""
+    findings = _audit(tmp_path, "Each span carries `pirn.run_id` as an attribute.\n")
+    assert [f.rule for f in findings] == ["doc_unresolved_path"]
+
+
+def test_self_taught_class_import_is_not_reported(tmp_path: Path) -> None:
+    """A tutorial that defines ``class Widget`` in a worked example, then shows
+    a later test snippet importing it from the file the reader is instructed
+    to create, is not lying about repository contents — it is teaching the
+    reader to write the file. The import must not be flagged."""
+    text = (
+        "Create `pirn_widgets/widget.py`:\n\n"
+        "```python\n"
+        "class Widget:\n"
+        "    ...\n"
+        "```\n\n"
+        "Then in your test:\n\n"
+        "```python\n"
+        "from pirn_widgets.widget import Widget\n"
+        "```\n"
+    )
+    assert _audit(tmp_path, text) == []
+
+
+def test_import_of_undefined_class_is_still_reported(tmp_path: Path) -> None:
+    """The self-taught exemption is narrow: a document that imports a class it
+    never defines anywhere in its own text is making a bare claim about
+    repository contents, and that claim must still resolve."""
+    findings = _audit(
+        tmp_path, _python_block("from pirn_widgets.widget import Widget\n")
+    )
+    assert [f.rule for f in findings] == ["doc_unresolved_import"]
+    assert "pirn_widgets.widget" in findings[0].detail
+
+
+def test_self_taught_pass_does_not_cover_other_missing_names(tmp_path: Path) -> None:
+    """A self-taught class in the mix does not give the rest of the same
+    import statement a free pass — only names the document actually defines
+    are exempted."""
+    text = (
+        "```python\n"
+        "class Widget:\n"
+        "    ...\n"
+        "```\n\n"
+        "```python\n"
+        "from pirn.core.factory import Factory, Widget as _W, knot\n"
+        "```\n"
+    )
+    findings = _audit(tmp_path, text)
+    assert [f.rule for f in findings] == ["doc_unresolved_import"]
+    assert "`knot` not found in `pirn.core.factory`" in findings[0].detail
+
+
 def test_changelog_is_skipped_when_walking(tmp_path: Path) -> None:
     (tmp_path / "CHANGELOG.md").write_text("x")
     (tmp_path / "guide.md").write_text("x")
