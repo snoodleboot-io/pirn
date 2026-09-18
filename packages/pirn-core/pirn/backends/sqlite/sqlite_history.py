@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.sqlite.sqlite_migrations import SqliteMigrations
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
+
+if TYPE_CHECKING:
+    from pirn.core.run_result import RunResult
 
 
 class SQLiteHistory(RunHistory):
@@ -200,7 +203,7 @@ class SQLiteHistory(RunHistory):
         self._conn.commit()
         self._initialized = True
 
-    async def record_run(self, result: Any) -> None:
+    async def record_run(self, result: RunResult) -> None:
         """Persist a run result and all associated lineage records.
 
         Inserts or replaces the run row, then bulk-inserts lineage rows and
@@ -223,7 +226,7 @@ class SQLiteHistory(RunHistory):
         if self._opened_transaction(self._conn, in_transaction_on_entry):
             self._conn.commit()
 
-    def _write_run(self, result: Any) -> None:
+    def _write_run(self, result: RunResult) -> None:
         """Issue the run, lineage, and lineage-input statements.
 
         Args:
@@ -287,7 +290,7 @@ class SQLiteHistory(RunHistory):
                     input_rows,
                 )
 
-    async def get_run(self, run_id: str) -> Any:
+    async def get_run(self, run_id: str) -> RunResult | None:
         """Fetch a single run by id.
 
         Args:
@@ -380,7 +383,7 @@ class SQLiteHistory(RunHistory):
         row = cursor.fetchone()
         return KnotLineage.model_validate_json(row[0]) if row is not None else None
 
-    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+    async def query_runs_by_actor(self, actor: str) -> list[RunResult]:
         """Return all runs triggered by ``actor``.
 
         Args:
@@ -395,7 +398,7 @@ class SQLiteHistory(RunHistory):
         cursor = self._conn.execute("SELECT payload_json FROM runs WHERE actor = ?", (actor,))
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
-    async def children_of(self, run_id: str) -> list[Any]:
+    async def children_of(self, run_id: str) -> list[RunResult]:
         """Return all runs whose ``parent_run_id`` matches ``run_id``.
 
         Args:

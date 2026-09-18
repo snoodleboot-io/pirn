@@ -6,9 +6,15 @@ import asyncio
 import unittest
 from typing import Any
 
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.core.skipped import Skipped
+from pirn.emitters.emitter import Emitter
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine.emitter_fanout import EmitterFanout
 from pirn.engine.emitter_subscriber import EmitterSubscriber
+from pirn.tapestry import Tapestry
 
 
 class _FailingEmitter:
@@ -112,6 +118,77 @@ class TestEmitterSubscriberErrorRouting(unittest.IsolatedAsyncioTestCase):
         # Assert
         self.assertEqual(calls, [])
         self.assertIsNone(tasks[0].exception())
+
+
+class _RaisingOnStatus(Emitter):
+    async def on_status(self, event: Any) -> None:
+        raise RuntimeError("on_status exploded")
+
+
+class _SlowRecordingOnStatus(Emitter):
+    def __init__(self) -> None:
+        self.delivered: list[Any] = []
+
+    async def on_status(self, event: Any) -> None:
+        await asyncio.sleep(0.01)
+        self.delivered.append(event)
+
+
+class _One(Knot):
+    async def process(self, **_: Any) -> int:
+        return 1
+
+
+class TestOnStatusDeliveriesAreAwaitedByTheRun(unittest.IsolatedAsyncioTestCase):
+    async def test_raise_policy_on_status_failure_fails_the_run(self) -> None:
+        # Arrange
+        with Tapestry(
+            emitters=[_RaisingOnStatus()], emitter_error_policy=EmitterErrorPolicy.RAISE
+        ) as t:
+            _One(_config=KnotConfig(id="one"))
+
+        # Act / Assert
+        with self.assertRaisesRegex(RuntimeError, "on_status exploded"):
+            await t.run(RunRequest())
+
+    async def test_warn_policy_on_status_failure_does_not_fail_the_run(self) -> None:
+        # Arrange
+        with Tapestry(
+            emitters=[_RaisingOnStatus()], emitter_error_policy=EmitterErrorPolicy.WARN
+        ) as t:
+            _One(_config=KnotConfig(id="one"))
+
+        # Act
+        with self.assertLogs("pirn.engine.emitter_fanout", level="WARNING"):
+            result = await t.run(RunRequest())
+
+        # Assert
+        self.assertTrue(result.succeeded)
+
+    async def test_every_on_status_delivery_has_finished_when_run_returns(self) -> None:
+        # Arrange
+        emitter = _SlowRecordingOnStatus()
+        with Tapestry(emitters=[emitter]) as t:
+            _One(_config=KnotConfig(id="one"))
+
+        # Act
+        result = await t.run(RunRequest())
+
+        # Assert: nothing was still pending on the loop when run() returned.
+        self.assertEqual(len(emitter.delivered), len(result.status_events))
+
+
+class TestEmitKnotResultCallsTheEmitterHookDirectly(unittest.IsolatedAsyncioTestCase):
+    async def test_an_object_that_is_not_an_emitter_is_not_silently_skipped(self) -> None:
+        # Arrange: no ``on_knot_result`` -- the engine no longer probes for it.
+        not_an_emitter: Any = object()
+        lineage: Any = None
+
+        # Act / Assert
+        with self.assertRaises(AttributeError):
+            await EmitterFanout.emit_knot_result(
+                [not_an_emitter], EmitterErrorPolicy.RAISE, "k", Skipped(), lineage
+            )
 
 
 if __name__ == "__main__":

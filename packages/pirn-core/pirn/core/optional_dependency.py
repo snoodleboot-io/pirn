@@ -33,9 +33,13 @@ class OptionalDependency:
         Raises:
             TypeError: If ``module``, ``extra`` or ``package`` is not a ``str``.
             ValueError: If ``module``, ``extra`` or ``package`` is empty.
-            ImportError: If ``module`` cannot be imported. The message names
-                ``pip install "<package>[<extra>]"`` and chains the original
-                error.
+            ImportError: If ``module`` (or a package it lives in) is not
+                installed. The message names ``pip install "<package>[<extra>]"``
+                and chains the original error. An ``ImportError`` raised from
+                *inside* an installed ``module`` -- a broken install, or a
+                dependency of its own that is missing -- names a different
+                module and propagates unchanged: relabelling it "install the
+                extra" would send the reader to fix the wrong thing.
         """
         for name, value in (("module", module), ("extra", extra), ("package", package)):
             if not isinstance(value, str):
@@ -45,7 +49,31 @@ class OptionalDependency:
         try:
             return importlib.import_module(module)
         except ImportError as exc:
+            if not OptionalDependency._names_requested_module(exc, module):
+                raise
             raise ImportError(
                 f"{module!r} is required for this feature; install it with: "
                 f'pip install "{package}[{extra}]"'
             ) from exc
+
+    @staticmethod
+    def _names_requested_module(exc: ImportError, module: str) -> bool:
+        """Whether *exc* reports *module* itself, or a package it lives in, as missing.
+
+        ``ImportError.name`` is the module the import system could not load.
+        For ``"google.cloud.bigquery"`` that is the requested module or one of
+        ``"google"``, ``"google.cloud"``; anything else was raised while an
+        installed module was executing.
+
+        Args:
+            exc: The error ``importlib.import_module`` raised.
+            module: The dotted module that was requested.
+
+        Returns:
+            ``True`` when the requested distribution is what is missing.
+        """
+        missing = exc.name
+        if missing is None:
+            return False
+        parts = module.split(".")
+        return missing in {".".join(parts[: i + 1]) for i in range(len(parts))}

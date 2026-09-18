@@ -13,6 +13,7 @@ from typing import Any
 
 from pirn.backends.gcs_data_store import GCSDataStore
 from pirn.backends.signer import Signer
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 
 class _DownloadStream:
@@ -36,7 +37,7 @@ class _StubStorage:
 
     async def download_stream(self, *, bucket: str, object_name: str) -> _DownloadStream:
         if (bucket, object_name) not in self.objects:
-            raise Exception("404 Not Found")
+            raise SdkErrors.gcs(404, "Not Found")
         return _DownloadStream(self.objects[(bucket, object_name)])
 
     async def upload(self, *, bucket: str, object_name: str, file_data: bytes) -> dict[str, Any]:
@@ -45,7 +46,7 @@ class _StubStorage:
 
     async def download_metadata(self, bucket: str, object_name: str) -> dict[str, Any]:
         if (bucket, object_name) not in self.objects:
-            raise Exception("404 Not Found")
+            raise SdkErrors.gcs(404, "Not Found")
         return {}
 
     async def delete(self, *, bucket: str, object_name: str) -> None:
@@ -84,6 +85,7 @@ class TestGCSDataStoreObjectKey(unittest.TestCase):
 
 class TestGCSDataStoreCRUD(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        self.enterContext(SdkErrors.installed())
         self.storage = _StubStorage()
         self.store = GCSDataStore(bucket="test-bucket", client=self.storage, allow_unsigned=True)
 

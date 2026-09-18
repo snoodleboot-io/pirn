@@ -68,7 +68,19 @@ class ColumnAwareSqlitePool(SqlitePool, ColumnAwarePool):
 
         A caller driving this pool directly can therefore hold a multi-statement
         transaction across these calls and remains the only one who may end it.
+
+        Like core's statement methods, the read waits for an open
+        :meth:`~pirn.connectors.databases.sqlite_pool.SqlitePool.transaction`
+        scope to end, so it never runs inside — and is never rolled back with —
+        a transaction it did not open.
         """
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            return await self._fetch_columns_unlocked(query, parameters)
+
+    async def _fetch_columns_unlocked(
+        self, query: str, parameters: Sequence[Any] | None
+    ) -> tuple[list[str], list[list[Any]]]:
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:

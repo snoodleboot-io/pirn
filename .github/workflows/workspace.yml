@@ -117,9 +117,11 @@ jobs:
           retention-days: 3
 
   # ===========================================================================
-  # Lint + type-check the affected packages. Ruff is static; pyright runs with
-  # reportMissingImports="none" per package, so neither needs heavy extras — just
-  # the package installed from the wheelhouse (for pyright's own-symbol resolution).
+  # Lint + type-check the affected packages. Ruff is static; pyright runs strict with
+  # every import-resolution rule on (no reportMissingImports / reportMissingModuleSource /
+  # reportAttributeAccessIssue overrides), against the per-package image that bakes the
+  # package with all its non-heavy extras — so an optional backend a module imports under
+  # TYPE_CHECKING resolves to real source, and an unresolvable import is an error.
   # ===========================================================================
   lint:
     name: Lint & Type Check (${{ matrix.package }})

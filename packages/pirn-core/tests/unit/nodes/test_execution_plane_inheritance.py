@@ -800,6 +800,27 @@ class TestInnerRunsInheritReplayPosture(unittest.IsolatedAsyncioTestCase):
         (row,) = replayed.lineage
         self.assertEqual(row.extra.get("replayed_from_run_id"), recorded_inner_run_id)
 
+    async def test_the_inner_run_inherits_allow_new_knots_from_the_outer_session(self) -> None:
+        # Arrange: the continuation adds a knot the recorded inner run never had.
+        outer, history, store, calls = await self._record()
+        outer_session = ReplaySession(source_run=outer, allow_new_knots=True)
+        with Tapestry(history=history, data_store=store) as inner:
+            recorded = _Counting(calls=calls, _config=KnotConfig(id="inner"))
+            _Counting(calls=calls, _after=recorded, _config=KnotConfig(id="added_later"))
+
+        # Act
+        token_plane = RunContextVars.execution_plane.set(self._plane(outer_session))
+        token_run = RunContextVars.run_id.set(outer.run_id)
+        try:
+            continued = await inner.run(RunRequest(), _parent_knot_id="sub")
+        finally:
+            RunContextVars.run_id.reset(token_run)
+            RunContextVars.execution_plane.reset(token_plane)
+
+        # Assert: the recorded knot is served, the new one runs live.
+        self.assertTrue(continued.succeeded, continued.exceptions)
+        self.assertEqual(calls, ["inner", "added_later"])
+
     async def test_a_container_without_a_recorded_row_runs_its_inner_pipeline_live(self) -> None:
         outer, history, store, calls = await self._record()
         outer_session = ReplaySession(source_run=outer)

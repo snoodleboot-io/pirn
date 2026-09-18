@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends.s3_data_store import S3DataStore
 from pirn.backends.signer import Signer
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 
 def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
@@ -22,15 +23,10 @@ def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
     async def fake_put_object(**kwargs: Any) -> None:
         stored[kwargs["Key"]] = kwargs["Body"]
 
-    class _NoSuchKey(Exception):
-        pass
-
-    _NoSuchKey.__name__ = "NoSuchKey"
-
     async def fake_get_object(**kwargs: Any) -> dict[str, Any]:
         key = kwargs["Key"]
         if key not in stored:
-            raise _NoSuchKey("NoSuchKey: key not found")
+            raise SdkErrors.s3("NoSuchKey")
         body_mock = AsyncMock()
         remaining = [stored[key]]
 
@@ -43,7 +39,7 @@ def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
 
     async def fake_head_object(**kwargs: Any) -> None:
         if kwargs["Key"] not in stored:
-            raise Exception("NoSuchKey")
+            raise SdkErrors.s3("404")
 
     async def fake_delete_object(**kwargs: Any) -> None:
         stored.pop(kwargs["Key"], None)
@@ -91,6 +87,7 @@ class TestS3DataStoreObjectKey(unittest.TestCase):
 
 class TestS3DataStoreCRUD(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        self.enterContext(SdkErrors.installed())
         self.stored: dict[str, bytes] = {}
         self.session, _ = _make_s3_mock(self.stored)
         self.store = S3DataStore(

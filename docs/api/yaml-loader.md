@@ -9,7 +9,6 @@ from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
 tapestry = PipelineLoader.load_yaml(
     yaml_text,
-    *,
     tapestry=None,
     known_callables=None,
     allowed_module_prefixes=None,

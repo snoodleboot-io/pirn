@@ -118,8 +118,8 @@ response = run.outputs["loop"]        # AgentResponse
 ```
 
 Under F1 schema-based tool calling, a batch of `ToolCall`s is dispatched through
-`ParallelToolExecutor` — a `SubTapestry` that constructs one tool knot per call
-under the `"tools"` concurrency group, with per-knot `timeout` and
+`ParallelToolExecutor` — a `NestedRunKnot` that runs one tool knot per call
+under the `"tools"` concurrency group (capped at the resolved `max_concurrency`), with per-knot `timeout` and
 `retry=KnotRetryPolicy(...)` — and `ToolCallCodec` turns the run's `Result`s
 back into the model's tool-result messages. A single call is a `ToolInvocation`
 knot. The text ReAct loop supplies each action input as `{"input": ...}`;

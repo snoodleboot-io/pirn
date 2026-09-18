@@ -21,7 +21,7 @@ from typing import Any
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class VcfFormat(StreamingFileFormat):
@@ -210,7 +210,7 @@ class VcfFormat(StreamingFileFormat):
         info = record.get("info")
         if info is None:
             info_text = "."
-        elif PayloadShape.is_mapping(info):
+        elif ShapeGuard.is_mapping(info):
             info_text = VcfFormat._serialize_info_field(info)
         else:
             raise TypeError("VcfFormat: 'info' must be a mapping (dict-like)")

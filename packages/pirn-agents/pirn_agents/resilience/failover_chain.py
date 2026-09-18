@@ -13,29 +13,22 @@ one reroutes on *error / timeout / open circuit* over provider candidates. The
 run's trace is returned as a :class:`FailoverResult` so callers see which
 candidates were attempted and why each earlier one fell through.
 
-The chain is expressed as a graph rather than a hand-rolled
-``for candidate in candidates`` loop: ``candidates`` is a resolved value known
-in full by the time ``process()`` runs, so its length is not data-dependent —
-unlike an agentic loop — but the chain is still driven by a
-:class:`~pirn_agents.resilience.failover_loop.FailoverLoop`
-(``LoopSubTapestry``, ADR agents-speaks-core WS5b) rather than a static
-unroll: once a candidate succeeds, the loop stops, so a candidate past that
-point is never even scheduled. Each attempted
-:class:`~pirn_agents.resilience.attempt_candidate.AttemptCandidate` still
-gets its own engine ``Result``, history record, and lineage (where the
-original hid all of them behind one knot's hand-rolled loop).
+The chain is a :class:`~pirn_agents.resilience.failover_loop.FailoverLoop`
+(``LoopSubTapestry``): once a candidate succeeds the loop stops, so a
+candidate past that point is never scheduled. Each attempted candidate's call
+is its own :class:`~pirn_agents.resilience.candidate_call.CandidateCall` knot
+with its own ``Result``, lineage row and ``KnotConfig.timeout``.
 
 Algorithm:
     1. Validate ``candidates`` (non-empty, all :class:`FailoverCandidate`) and
        ``breakers`` (a :class:`CircuitBreakerRegistry` or ``None``).
-    2. Build the initial (unattempted, unsucceeded) :class:`FailoverResult`.
-    3. Drive one ``AttemptCandidate`` per attempted candidate: each checks
-       whether the accumulated result already succeeded (stops the loop),
-       else consults the candidate's circuit breaker (skip on open), runs the
-       operation under its optional timeout, records the outcome into the
-       breaker, and appends a :class:`FailoverAttempt` to the trace.
-    4. The loop's final accumulated :class:`FailoverResult` is the chain's
-       output.
+    2. Seed a :class:`FailoverLoopState` with the candidates, the breakers and
+       an empty :class:`FailoverResult`.
+    3. Per attempted candidate: a :class:`CircuitClosedCheck` gate (skip on
+       open), the call under the candidate's timeout (the engine records an
+       overrun as ``Err(KnotTimeoutError)``), and an :class:`AttemptCandidate`
+       fold that records the outcome into the breaker and the trace.
+    4. :class:`FailoverTrace` surfaces the final trace as the chain's output.
 
 References:
     pirn-native — no external references.
@@ -54,7 +47,9 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_agents.resilience.circuit_breaker_registry import CircuitBreakerRegistry
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
 from pirn_agents.resilience.failover_loop import FailoverLoop
+from pirn_agents.resilience.failover_loop_state import FailoverLoopState
 from pirn_agents.resilience.failover_result import FailoverResult
+from pirn_agents.resilience.failover_trace import FailoverTrace
 
 
 class FailoverChain(SubTapestry):
@@ -81,16 +76,10 @@ class FailoverChain(SubTapestry):
     async def process(
         self,
         candidates: Sequence[FailoverCandidate],
-        # `breakers` is typed `Any` here (not `CircuitBreakerRegistry | None`):
-        # CircuitBreakerRegistry is a plain class, not a PirnOpaqueValue, and
-        # pydantic has no schema for it. `Knot.__init__` builds a `TypeAdapter`
-        # for every declared `process()` input eagerly, so a concrete
-        # annotation raises `PydanticSchemaGenerationError` at construction
-        # time, before this method ever runs its own isinstance check below.
-        breakers: Any = None,
+        breakers: CircuitBreakerRegistry | None = None,
         **_: Any,
     ) -> Knot:
-        """Build the candidate chain and return its accumulating sink knot.
+        """Build the candidate loop and return it as the sink.
 
         Args:
             candidates: Ordered candidates, tried front-to-back until one wins.
@@ -101,7 +90,8 @@ class FailoverChain(SubTapestry):
                 no circuit logic is applied.
 
         Returns:
-            The sink knot whose output is the :class:`FailoverResult` trace.
+            The :class:`FailoverLoop` whose output is the final
+            :class:`FailoverLoopState`; this chain surfaces its trace.
 
         Raises:
             ValueError: If ``candidates`` is empty.
@@ -125,12 +115,12 @@ class FailoverChain(SubTapestry):
 
         initial = Parameter(
             "initial",
-            FailoverResult,
-            default=FailoverResult(succeeded=False, chosen=None, value=None, attempts=()),
+            FailoverLoopState,
+            default=FailoverLoopState(
+                candidates=ordered,
+                breakers=breakers,
+                result=FailoverResult(succeeded=False, chosen=None, value=None, attempts=()),
+            ),
         )
-        return FailoverLoop(
-            candidates=ordered,
-            breakers=breakers,
-            state=initial,
-            _config=KnotConfig(id="failover_loop"),
-        )
+        loop = FailoverLoop(state=initial, _config=KnotConfig(id="failover_loop"))
+        return FailoverTrace(state=loop, _config=KnotConfig(id="failover_trace"))

@@ -18,7 +18,8 @@ class FailoverAttempt(PirnOpaqueValue):
 
     ``result`` is a core :class:`~pirn.core.result.Result` (ADR
     agents-speaks-core WS5a): ``Ok(value)`` on success, ``Err(record)`` on a raised exception
-    or timeout (a timeout is the ``Err`` whose error type is ``TimeoutError``),
+    or timeout (a timeout is the ``Err`` whose error type is ``KnotTimeoutError``,
+    recorded by the engine for a call that outlived ``KnotConfig.timeout``),
     ``Skipped(reason=circuit_open_reason)`` when the circuit breaker was open
     and no call was attempted at all — which is exactly the distinction
     ``Skipped`` exists to make (``pirn/core/skipped.py``: "distinct from Err so

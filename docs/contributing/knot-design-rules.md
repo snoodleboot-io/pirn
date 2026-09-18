@@ -23,7 +23,7 @@ analysis to catch mismatches.
 def __init__(
     self,
     *,
-    batch: DatafusionDataBatchKnot,
+    batch: DataBatchToDatafusion,
     _config: KnotConfig,
     **kwargs: Any,
 ) -> None:
@@ -39,7 +39,7 @@ with full lineage.
 def __init__(
     self,
     *,
-    batch: DatafusionDataBatchKnot,
+    batch: DataBatchToDatafusion,
     how: Knot | str,
     _config: KnotConfig,
     **kwargs: Any,
@@ -76,7 +76,7 @@ The type hints on `process()` therefore differ from those on `__init__`:
 
 | `__init__` hint | `process()` hint |
 |-----------------|-----------------|
-| `DatafusionDataBatchKnot` | `DatafusionDataBatch` |
+| `DataBatchToDatafusion` | `DatafusionDataBatch` |
 | `DatafusionSessionContextKnot` | `df.SessionContext` |
 | `Knot \| str` | `str` |
 | `Knot \| timedelta` | `timedelta` |
@@ -85,8 +85,8 @@ The type hints on `process()` therefore differ from those on `__init__`:
 def __init__(
     self,
     *,
-    left: DatafusionDataBatchKnot,
-    right: DatafusionDataBatchKnot,
+    left: DataBatchToDatafusion,
+    right: DataBatchToDatafusion,
     how: Knot | str,
     _config: KnotConfig,
     **kwargs: Any,
@@ -135,7 +135,7 @@ async def process(
     ...
 
 # Wrong — validation in __init__()
-def __init__(self, *, batch: Knot, column: str, max_age: timedelta, ...) -> None:
+def __init__(self, *, batch: Knot, column: str, max_age: timedelta, **kwargs: Any) -> None:
     if not column:
         raise ValueError(...)
     self._column = column          # also wrong: storing input as state
@@ -156,7 +156,7 @@ arguments; they do not need to live on the instance.
 
 ```python
 # Wrong
-def __init__(self, *, batch: Knot, column: Knot | str, ...) -> None:
+def __init__(self, *, batch: Knot, column: Knot | str, **kwargs: Any) -> None:
     self._column = column          # storing input as state — wrong
     super().__init__(...)
 
@@ -291,7 +291,7 @@ Describe what the Knot does step by step in enough detail that a reader can veri
 implementation without running it. Use numbered steps in plain language. Where the logic
 benefits from pseudocode, use a fenced `text` block.
 
-```python
+````python
 """``NullRateCheck`` — per-column null rate assessment.
 
 Measures the fraction of null values in each configured column and
@@ -314,7 +314,7 @@ Algorithm:
         emit QualityCheck(passed=(rate <= threshold), actual=rate)
     ```
 """
-```
+````
 
 ### Math section
 
@@ -371,7 +371,7 @@ References:
 
 ### Full example
 
-```python
+````python
 """``NullRateCheck`` — per-column null rate assessment.
 
 Measures the fraction of null values in each configured column and
@@ -415,7 +415,7 @@ References:
     [2] dbt — generic tests (not_null):
         https://docs.getdbt.com/docs/build/data-tests
 """
-```
+````
 
 ---
 

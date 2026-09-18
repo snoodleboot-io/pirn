@@ -1,12 +1,12 @@
-`pirn.connectors.streaming` provides `MessageBroker` implementations for Kafka, Kinesis, RabbitMQ, Google Pub/Sub, ValKey streams, and Azure Service Bus — it does not handle continuous tapestry ticking; use `pirn.streaming` with `KafkaStreamingSource` for that.
+`pirn.connectors.streaming` provides `MessageBroker` implementations for Kafka, Kinesis, RabbitMQ, Google Pub/Sub, ValKey streams, and Azure Service Bus — it does not handle continuous tapestry ticking; use `pirn.streaming.kafka_streaming_source.KafkaStreamingSource` for that.
 
 ---
 
 ## Mental model
 
-Each broker has a `*Config` (connection details, topic/queue name) and a `*Broker` (`MessageBroker` subclass with `publish()`, `consume()`, `close()`). Create the config, pass it to the broker constructor, then pass the broker to `MessageBrokerPublishSink` or `MessageBrokerConsumeSource` knots. Brokers are `PirnOpaqueValue` — create once, reuse across tapestries.
+Each broker has a `*Config` (connection details and credentials) and a `*Broker` (`MessageBroker` subclass with `publish(topic, value, *, key=, headers=)`, `consume(topic, *, group=)`, `close()`). The topic/queue/stream name is an argument to `publish()`/`consume()`, not a config field. Create the config, pass it to the broker constructor, vend the broker into the graph with `MessageBrokerKnot`, and wire that knot into `MessageBrokerPublishSink`. Brokers are `PirnOpaqueValue` — create once, reuse across tapestries.
 
-The key distinction from `pirn.streaming`: these brokers are used for discrete message passing inside a tapestry (publish a result, consume a trigger message). Use `pirn.streaming` when the broker is the *continuous* clock driving tapestry ticks.
+The key distinction from `pirn.streaming`: these brokers are used for discrete message passing inside a tapestry (publish a result). Use `pirn.streaming` when the broker is the *continuous* clock driving tapestry ticks.
 
 ---
 
@@ -14,18 +14,19 @@ The key distinction from `pirn.streaming`: these brokers are used for discrete m
 
 ```
 pirn/connectors/streaming/
-├── kafka_config.py              KafkaConfig              — bootstrap_servers, topic, group_id, security
+├── kafka_config.py              KafkaConfig              — bootstrap_servers, client_id, group_id, SASL/SSL
 ├── kafka_broker.py              KafkaBroker              — Kafka via aiokafka
-├── kinesis_config.py            KinesisConfig            — stream_name, region, credentials
-├── kinesis_broker.py            KinesisBroker            — AWS Kinesis via aiobotocore
-├── rabbitmq_config.py           RabbitMQConfig           — host, port, vhost, user, password, queue
+├── kinesis_config.py            KinesisConfig            — region, endpoint_url, credentials, stream_arn
+├── kinesis_broker.py            KinesisBroker            — AWS Kinesis via aioboto3
+├── rabbitmq_config.py           RabbitMQConfig           — host, port, vhost, user, password, ssl
 ├── rabbitmq_broker.py           RabbitMQBroker           — RabbitMQ via aio-pika
 ├── rabbitmq_plain_message.py    RabbitMQPlainMessage     — simple message wrapper for RabbitMQ
-├── pubsub_config.py             PubSubConfig             — project, topic, subscription, credentials_json
-├── pubsub_broker.py             PubSubBroker             — Google Pub/Sub via gcloud-aio-pubsub
-├── valkey_stream_config.py      ValkeyStreamConfig       — host, port, stream_key, group
-├── valkey_stream_broker.py      ValkeyStreamBroker       — ValKey/Redis streams via redis-py async
-├── azure_servicebus_config.py   AzureServiceBusConfig    — connection_string, queue_name or topic_name
+├── pubsub_config.py             PubSubConfig             — project, service_account_json
+├── pubsub_broker.py             PubSubBroker             — Google Pub/Sub via google-cloud-pubsub
+├── valkey_stream_config.py      ValkeyStreamConfig       — host, port, password, use_tls, consumer_group
+├── valkey_stream_broker.py      ValkeyStreamBroker       — ValKey streams via valkey-py async
+├── valkey_record.py             ValkeyRecord             — record yielded by ValkeyStreamBroker.consume()
+├── azure_servicebus_config.py   AzureServiceBusConfig    — connection_string or namespace
 ├── azure_servicebus_broker.py   AzureServiceBusBroker    — Azure Service Bus via azure-servicebus async
 └── azure_servicebus_stub_message.py  AzureServiceBusStubMessage — message wrapper for Service Bus
 ```
@@ -37,41 +38,39 @@ pirn/connectors/streaming/
 ### Publish a result to Kafka
 
 ```python
-from pirn.connectors.streaming.kafka_config import KafkaConfig
-from pirn.connectors.streaming.kafka_broker import KafkaBroker
+from pirn.connectors.knots.message_broker_knot import MessageBrokerKnot
 from pirn.connectors.knots.message_broker_publish_sink import MessageBrokerPublishSink
+from pirn.connectors.streaming.kafka_broker import KafkaBroker
+from pirn.connectors.streaming.kafka_config import KafkaConfig
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-broker = KafkaBroker(config=KafkaConfig(
-    bootstrap_servers="broker:9092",
-    topic="pipeline-results",
-))
+broker = KafkaBroker(KafkaConfig(bootstrap_servers="broker:9092"))
 
 with Tapestry() as t:
-    result  = ProcessKnot(_config=KnotConfig(id="process"))
-    MessageBrokerPublishSink(broker=broker, message=result, _config=KnotConfig(id="publish"))
+    vend = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="broker"))
+    payload = ProcessKnot(_config=KnotConfig(id="process"))  # must produce bytes
+    MessageBrokerPublishSink(
+        broker=vend,
+        topic="pipeline-results",
+        value=payload,
+        _config=KnotConfig(id="publish"),
+    )
 
 result = await t.run(RunRequest())
 await broker.close()
 ```
 
-### Consume a single message as tapestry input
+### Consuming messages
 
-```python
-from pirn.connectors.knots.message_broker_consume_source import MessageBrokerConsumeSource
-
-with Tapestry() as t:
-    msg = MessageBrokerConsumeSource(broker=broker, _config=KnotConfig(id="consume"))
-    ProcessKnot(message=msg, _config=KnotConfig(id="process"))
-```
+There is no consume knot. `MessageBroker.consume(topic, *, group=)` is an async iterator for code that owns its own loop. To start one run per message, use a trigger (`pirn.triggers.kafka_trigger.KafkaTrigger`) with `Trigger.run_forever`; to feed a long-running pipeline continuously, use `pirn.streaming.kafka_streaming_source.KafkaStreamingSource` with `StreamingSource.run_stream()`.
 
 ---
 
 ## Anti-patterns
 
-**Using `MessageBrokerConsumeSource` as a continuous driver** — this knot consumes one message per tapestry run. For continuous consumption, use `pirn.streaming.KafkaStreamingSource` with `StreamingSource.run_stream()`.
+**Hand-rolling a consume loop around `tapestry.run`** — `async for msg in broker.consume(topic): await t.run(...)` re-implements the trigger loop. Use `KafkaTrigger` + `Trigger.run_forever` (one run per message) or `KafkaStreamingSource` + `StreamingSource.run_stream()` (continuous).
 
 **Creating a new broker per run** — brokers hold open connections and consumer group state. Creating inside the `with Tapestry()` block reconnects on every run and loses consumer offset tracking.
 
@@ -80,9 +79,9 @@ with Tapestry() as t:
 ## Constraints and gotchas
 
 - **Each broker requires its own extra:** `pip install "pirn-core[kafka]"`, `"pirn-core[kinesis]"`, `"pirn-core[rabbitmq]"`, `"pirn-core[pubsub]"`, `"pirn-core[valkey]"`, `"pirn-core[azure-servicebus]"`.
-- **`KafkaBroker` with `group_id` enables consumer group offset tracking.** Without it, consume starts at the latest offset.
-- **`ValkeyStreamBroker` uses Redis Streams XADD/XREAD semantics.** The `group` field enables consumer group mode; omit it for simple XREAD without acknowledgement.
-- **`RabbitMQBroker.consume()` returns a single message and acks it.** For batched consumption, call in a loop or use `pirn.streaming`.
+- **`KafkaBroker.consume()` uses `group=` or, when omitted, `KafkaConfig.group_id`** for consumer-group offset tracking.
+- **`ValkeyStreamBroker.consume()` reads with XREADGROUP.** A group is required: pass `group=` or set `ValkeyStreamConfig.consumer_group`.
+- **`RabbitMQBroker.consume()` ignores `group`** — RabbitMQ fans out by queue, so use distinct queue names for independent consumers. Each yielded message is acked as it is processed.
 
 ---
 
@@ -90,12 +89,10 @@ with Tapestry() as t:
 
 | Task | How |
 |------|-----|
-| Publish result to Kafka | `MessageBrokerPublishSink(broker=KafkaBroker(...), message=...)` |
-| Consume from Kafka | `MessageBrokerConsumeSource(broker=KafkaBroker(...))` |
-| Publish to RabbitMQ | `MessageBrokerPublishSink(broker=RabbitMQBroker(...), message=...)` |
-| Publish to Kinesis | `MessageBrokerPublishSink(broker=KinesisBroker(...), message=...)` |
-| Publish to Pub/Sub | `MessageBrokerPublishSink(broker=PubSubBroker(...), message=...)` |
-| Stream continuously from Kafka | use `pirn.streaming.KafkaStreamingSource` |
+| Publish result to Kafka | `MessageBrokerPublishSink(broker=MessageBrokerKnot(broker=KafkaBroker(...)), topic=..., value=...)` |
+| Publish to RabbitMQ / Kinesis / Pub/Sub | the same sink over `RabbitMQBroker(...)` / `KinesisBroker(...)` / `PubSubBroker(...)` |
+| One run per Kafka message | `KafkaTrigger(topic=..., bootstrap_servers=...)` + `run_forever` |
+| Stream continuously from Kafka | `KafkaStreamingSource(topic=..., bootstrap_servers=..., parameter_name=...)` + `run_stream` |
 
 ---
 

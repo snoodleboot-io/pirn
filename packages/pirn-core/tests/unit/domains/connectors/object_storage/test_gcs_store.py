@@ -14,6 +14,7 @@ from typing import Any
 from pirn.connectors.object_storage.gcs_config import GCSConfig
 from pirn.connectors.object_storage.gcs_store import GCSStore
 from pirn.connectors.object_store import ObjectStore
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 # ─────────────────────────────────────────────────────────── stub client
 
@@ -272,11 +273,20 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 class _MetadataStubGCSClient(StubGCSClient):
     async def download_metadata(self, bucket: str, object_name: str) -> dict[str, Any]:
         if (bucket, object_name) not in self.objects:
-            raise Exception("404 Not Found")
+            raise SdkErrors.gcs(404, "Not Found")
         return {"name": object_name}
+
+    async def delete(self, *, bucket: str, object_name: str) -> None:
+        # The real client answers a delete of a missing object with a 404.
+        if (bucket, object_name) not in self.objects:
+            raise SdkErrors.gcs(404, "Not Found")
+        await super().delete(bucket=bucket, object_name=object_name)
 
 
 class TestExists(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.enterContext(SdkErrors.installed())
+
     async def test_true_after_put_false_after_delete(self) -> None:
         store = GCSStore(GCSConfig(bucket="b"), client=_MetadataStubGCSClient())
         self.assertFalse(await store.exists("k"))
@@ -287,5 +297,25 @@ class TestExists(unittest.IsolatedAsyncioTestCase):
 
     def test_is_not_found_classifies_404_only(self) -> None:
         store = GCSStore(GCSConfig(bucket="b"), client=StubGCSClient())
-        self.assertTrue(store.is_not_found(Exception("404 Not Found")))
-        self.assertFalse(store.is_not_found(Exception("403 Forbidden")))
+        self.assertTrue(store.is_not_found(SdkErrors.gcs(404, "Not Found")))
+        self.assertFalse(store.is_not_found(SdkErrors.gcs(403, "Forbidden")))
+
+    def test_is_not_found_ignores_message_text(self) -> None:
+        # A content-hash object name contains "404" about 1.5% of the time.
+        store = GCSStore(GCSConfig(bucket="b"), client=StubGCSClient())
+        self.assertFalse(store.is_not_found(Exception("503 on pirn/data/9f404e")))
+        self.assertFalse(store.is_not_found(Exception("Not Found")))
+        self.assertFalse(store.is_not_found(SdkErrors.gcs(500, "pirn/data/ab404")))
+
+    async def test_delete_of_missing_object_does_not_raise(self) -> None:
+        store = GCSStore(GCSConfig(bucket="b"), client=_MetadataStubGCSClient())
+        await store.delete("never-written")
+
+    async def test_delete_propagates_other_errors(self) -> None:
+        class _Forbidden(_MetadataStubGCSClient):
+            async def delete(self, *, bucket: str, object_name: str) -> None:
+                raise SdkErrors.gcs(403, "Forbidden")
+
+        store = GCSStore(GCSConfig(bucket="b"), client=_Forbidden())
+        with self.assertRaisesRegex(Exception, "403"):
+            await store.delete("k")

@@ -139,7 +139,9 @@ Knots for preparing datasets before training.
 | `DatasetLoader` | Loads a dataset from a `FeatureStoreProvider` or a plain `MLDataset`. |
 | `TrainTestSplit` | Splits a dataset into training and test `DataSplit`s. Supports stratification. |
 | `Sampler` | Over- or under-samples a dataset split (random, stratified, or weighted). |
-| `CrossValidator` | Produces `k` train/validation fold pairs from a dataset. |
+| `CrossValidator` | Produces `k` seeded, shuffled train/test folds (exact `row_indices`) from a dataset. |
+| `StratifiedCrossValidator` | Produces `k` folds whose test partitions preserve the class proportions of a label column. |
+| `GroupCrossValidator` | Produces `k` folds in which every group of a column lies wholly in one test partition. |
 
 ### `features/`
 
@@ -151,7 +153,7 @@ Knots for feature engineering.
 | `Encoder` | One-hot or ordinal encoding for categorical columns. |
 | `Imputer` | Missing-value imputation (mean, median, most-frequent, constant). |
 | `PolynomialFeatures` | Generates interaction and polynomial features. |
-| `FeatureSelector` | Selects features by variance threshold or univariate test. |
+| `FeatureSelector` | Keeps the `k` best features of a `DataSplitPayload`, scored on the training partition by variance, mutual information, or recursive feature elimination. |
 | `EmbeddingExtractor` | Calls an `EmbeddingProvider` to embed text columns; appends vectors to the dataset. |
 | `ImageEmbeddingExtractor` | Calls an `ImageEncoderProvider` to embed image bytes; appends vectors to the dataset. |
 | `FeatureStore` | Reads from or writes to a `FeatureStoreProvider`. |

@@ -14,6 +14,7 @@ from typing import Any
 from pirn.connectors.object_storage.s3_config import S3Config
 from pirn.connectors.object_storage.s3_store import S3Store
 from pirn.connectors.object_store import ObjectStore
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 # ─────────────────────────────────────────────────────────── stub client
 
@@ -240,14 +241,6 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 # ──────────────────────────────────────────────────────── exists (PIR-869)
 
 
-class _NoSuchKey(Exception):
-    pass
-
-
-class _AccessDenied(Exception):
-    pass
-
-
 class _HeadStubS3Client(StubS3Client):
     """Adds ``head_object`` so ``exists`` can be exercised."""
 
@@ -257,13 +250,16 @@ class _HeadStubS3Client(StubS3Client):
 
     async def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         if self._deny:
-            raise _AccessDenied("AccessDenied")
+            raise SdkErrors.s3("AccessDenied")
         if (Bucket, Key) not in self.objects:
-            raise _NoSuchKey("NoSuchKey")
+            raise SdkErrors.s3("404")
         return {"ContentLength": len(self.objects[(Bucket, Key)])}
 
 
 class TestExists(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.enterContext(SdkErrors.installed())
+
     async def test_true_after_put_false_after_delete(self) -> None:
         store = S3Store(S3Config(bucket="b"), client=_HeadStubS3Client())
         self.assertFalse(await store.exists("k"))
@@ -274,14 +270,22 @@ class TestExists(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_not_found_errors_propagate(self) -> None:
         store = S3Store(S3Config(bucket="b"), client=_HeadStubS3Client(deny=True))
-        with self.assertRaises(_AccessDenied):
+        with self.assertRaisesRegex(Exception, "AccessDenied"):
             await store.exists("k")
 
-    def test_is_not_found_classifies_sdk_shapes(self) -> None:
+    def test_is_not_found_classifies_sdk_error_codes(self) -> None:
         store = S3Store(S3Config(bucket="b"), client=StubS3Client())
-        self.assertTrue(store.is_not_found(_NoSuchKey("x")))
-        self.assertTrue(store.is_not_found(Exception("An error occurred (404)")))
-        self.assertFalse(store.is_not_found(_AccessDenied("AccessDenied")))
+        for code in ("NoSuchKey", "404", "NotFound"):
+            with self.subTest(code=code):
+                self.assertTrue(store.is_not_found(SdkErrors.s3(code)))
+        self.assertFalse(store.is_not_found(SdkErrors.s3("AccessDenied")))
+
+    def test_is_not_found_ignores_message_text(self) -> None:
+        # A hash-named key routinely contains "404"; that is not a missing object.
+        store = S3Store(S3Config(bucket="b"), client=StubS3Client())
+        self.assertFalse(store.is_not_found(Exception("timeout reading pirn/data/ab404cd")))
+        self.assertFalse(store.is_not_found(Exception("NoSuchKey")))
+        self.assertFalse(store.is_not_found(SdkErrors.s3("SlowDown")))
 
 
 class TestInjectedSession(unittest.IsolatedAsyncioTestCase):

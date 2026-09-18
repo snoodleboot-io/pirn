@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -109,7 +110,14 @@ class AzureBlobStore(ObjectStore):
         self._validate_key(key)
         client = await self._ensure_client()
         blob_client = client.get_blob_client(container=self._config.container, blob=key)
-        await blob_client.delete_blob()
+        try:
+            # A blob with snapshots cannot be deleted on its own: Azure refuses with
+            # SnapshotsPresent, and a scrub must remove every copy of the value.
+            await blob_client.delete_blob(delete_snapshots="include")
+        except Exception as exc:
+            if not self.is_not_found(exc):
+                raise
+            # delete() is idempotent: the key is already gone.
         self._logger.debug(
             "azure.delete",
             extra={"container": self._config.container, "key": key},
@@ -123,7 +131,18 @@ class AzureBlobStore(ObjectStore):
         return bool(await blob_client.exists())
 
     def is_not_found(self, exc: BaseException) -> bool:
-        return "BlobNotFound" in type(exc).__name__ or "404" in str(exc)
+        """``True`` only for the SDK's typed ``azure.core.exceptions.ResourceNotFoundError``.
+
+        Message text is never inspected: a key or a hash containing ``404``
+        is not a missing blob. The SDK module is looked up rather than
+        imported — an exception of its type cannot exist unless the SDK that
+        raised it is already loaded.
+        """
+        exceptions_module = sys.modules.get("azure.core.exceptions")
+        if exceptions_module is None:
+            return False
+        not_found_type: type[BaseException] = exceptions_module.ResourceNotFoundError
+        return isinstance(exc, not_found_type)
 
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         client = await self._ensure_client()

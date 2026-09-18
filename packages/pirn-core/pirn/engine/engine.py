@@ -40,9 +40,6 @@ from typing import Any
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
-from pirn.core.concurrency.undefined_concurrency_group_error import (
-    UndefinedConcurrencyGroupError,
-)
 from pirn.core.concurrency.unused_concurrency_group_warning import UnusedConcurrencyGroupWarning
 from pirn.core.content_hasher import ContentHasher
 from pirn.core.err import Err
@@ -60,6 +57,7 @@ from pirn.core.skipped import Skipped
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
+from pirn.emitters.emitter import Emitter
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_observer import AdmissionObserver
@@ -101,7 +99,7 @@ class Engine:
         request: RunRequest,
         history: RunHistory,
         data_store: DataStore,
-        emitters: list[Any] | None = None,
+        emitters: list[Emitter] | None = None,
         extensible_store: Any = None,
         traceback_filter: Callable[[str], str] | None = None,
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
@@ -127,9 +125,11 @@ class Engine:
         ``gate`` is ``None`` the engine builds one from *concurrency*.
         """
         shed = Shed.from_terminals(terminals)
+        active_gate = gate if gate is not None else self.gate_for(concurrency)
         self._check_groups(
             shed,
             concurrency,
+            active_gate,
             extensible=extensible_store is not None,
             inherited=limits_inherited,
         )
@@ -191,7 +191,7 @@ class Engine:
                 transport=active_transport,
                 replay=replay,
                 registrars=registrars,
-                gate=gate if gate is not None else self.gate_for(concurrency),
+                gate=active_gate,
                 admission_observers=admission_observers,
             )
         finally:
@@ -204,7 +204,7 @@ class Engine:
         ctx: RunContext,
         history: RunHistory,
         data_store: DataStore,
-        emitters: list[Any],
+        emitters: list[Emitter],
         pending_new: list[Knot],
         request: RunRequest,
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
@@ -496,7 +496,17 @@ class Engine:
                     if unplaced.held:
                         gate.release(unplaced)
                     feedback.released(unplaced, "aborted", 0)
+                # The status deliveries already scheduled still finish, so none
+                # is left pending on the loop; the abort's error is the one
+                # that propagates.
+                await EmitterFanout.drain_status_deliveries(ctx, raise_failures=False)
             raise
+
+        # Every knot has settled, so every ``on_status`` delivery of this run
+        # has been scheduled.  Await them all: under ``EmitterErrorPolicy.RAISE``
+        # a hook that raised fails the run here, before it is persisted, as a
+        # raising ``on_knot_result`` does.
+        await EmitterFanout.drain_status_deliveries(ctx)
 
         # Report per-knot records in an order that depends on the graph alone,
         # never on which knot finished first (PIR-841).  For a graph without
@@ -636,15 +646,19 @@ class Engine:
     def _check_groups(
         shed: Shed,
         limits: ConcurrencyLimits | None,
+        gate: Admission,
         extensible: bool,
         inherited: bool = False,
     ) -> None:
         """Fail fast on a knot in an undefined group; warn on an unused group.
 
-        Only when *limits* define groups: without groups, tags are ignored so
-        the same tapestry still runs unbounded or under ``max_in_flight``
-        alone.  Checked over the static graph before anything runs; a knot
-        registered mid-run is checked by the gate when it is admitted.
+        Every knot of the static graph is offered to ``gate.check_group``
+        before anything runs, so a group the run's gate cannot admit -- at any
+        level of a ``ChainedAdmission`` tree, not only this run's own limits --
+        fails the run before a slot is taken.  A gate whose limits define no
+        groups ignores tags, so the same tapestry still runs unbounded or under
+        ``max_in_flight`` alone.  A knot registered mid-run is checked by the
+        gate when it is admitted.
 
         A defined group no static knot is in warns only when the run cannot
         receive knots it has not seen: an extensible run's newcomers, or the
@@ -657,22 +671,21 @@ class Engine:
 
         Raises:
             UndefinedConcurrencyGroupError: For the first knot, in id order,
-                whose group the limits do not define.
+                whose group the gate cannot admit.
         """
+        ordered = [shed.knots[knot_id] for knot_id in sorted(shed.knots)]
+        for knot in ordered:
+            gate.check_group(knot)
         if limits is None or not limits.groups:
             return
         used: set[str] = set()
         has_container = False
-        for knot_id in sorted(shed.knots):
-            knot = shed.knots[knot_id]
+        for knot in ordered:
             if not knot.holds_admission_slot():
                 has_container = True
             group = knot.config.concurrency_group
-            if group is None:
-                continue
-            if group not in limits.groups:
-                raise UndefinedConcurrencyGroupError(knot_id, group, limits.groups)
-            used.add(group)
+            if group is not None:
+                used.add(group)
         unused = sorted(set(limits.groups) - used)
         if not unused or inherited:
             return

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from threading import Lock
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar, TypeVar
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.base.run_retention import RunRetention
@@ -9,6 +9,10 @@ from pirn.backends.base.run_retention import RunRetention
 if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.knot_source_record import KnotSourceRecord
+    from pirn.core.run_result import RunResult
+
+#: An index entry: a ``RunResult`` or a ``KnotLineage`` row.
+T = TypeVar("T")
 
 
 class InMemoryHistory(RunHistory):
@@ -43,12 +47,12 @@ class InMemoryHistory(RunHistory):
         if max_runs is not None and max_runs <= 0:
             raise ValueError(f"InMemoryHistory: max_runs must be positive, got {max_runs!r}")
         self._max_runs: int = InMemoryHistory.default_max_runs if max_runs is None else max_runs
-        self._runs: dict[str, Any] = {}
+        self._runs: dict[str, RunResult] = {}
         self._lineage_by_output: dict[str, list[KnotLineage]] = {}
         self._lineage_by_input: dict[str, list[KnotLineage]] = {}
         self._lineage_by_knot: dict[str, list[KnotLineage]] = {}
-        self._runs_by_actor: dict[str, list[Any]] = {}
-        self._runs_by_parent: dict[str, list[Any]] = {}
+        self._runs_by_actor: dict[str, list[RunResult]] = {}
+        self._runs_by_parent: dict[str, list[RunResult]] = {}
         self._knot_sources: dict[str, KnotSourceRecord] = {}
         self._lock = Lock()
 
@@ -57,7 +61,7 @@ class InMemoryHistory(RunHistory):
         """Declare the bounded window this store keeps."""
         return RunRetention(max_runs=self._max_runs)
 
-    async def record_run(self, result: Any) -> None:
+    async def record_run(self, result: RunResult) -> None:
         """Persist a run result and index its lineage records.
 
         Evicts the oldest run once the retained count exceeds ``max_runs``.
@@ -91,7 +95,7 @@ class InMemoryHistory(RunHistory):
             oldest_id = next(iter(self._runs))
             self._purge_indexes(self._runs.pop(oldest_id))
 
-    def _purge_indexes(self, evicted: Any) -> None:
+    def _purge_indexes(self, evicted: RunResult) -> None:
         """Remove every index entry contributed by ``evicted``.
 
         Records are matched by identity, not equality: two runs can produce
@@ -110,7 +114,7 @@ class InMemoryHistory(RunHistory):
                 self._drop_from(self._lineage_by_input, input_hash, rec)
 
     @staticmethod
-    def _drop_from(index: dict[str, list[Any]], key: str, item: Any) -> None:
+    def _drop_from(index: dict[str, list[T]], key: str, item: T) -> None:
         """Remove ``item`` from ``index[key]`` by identity, pruning empty keys."""
         bucket = index.get(key)
         if bucket is None:
@@ -121,7 +125,7 @@ class InMemoryHistory(RunHistory):
         else:
             del index[key]
 
-    async def get_run(self, run_id: str) -> Any:
+    async def get_run(self, run_id: str) -> RunResult | None:
         """Fetch a single run by id.
 
         Args:
@@ -185,7 +189,7 @@ class InMemoryHistory(RunHistory):
                 return None
             return max(rows, key=lambda row: row.finished_at)
 
-    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+    async def query_runs_by_actor(self, actor: str) -> list[RunResult]:
         """Return all runs triggered by ``actor``.
 
         Args:
@@ -197,7 +201,7 @@ class InMemoryHistory(RunHistory):
         with self._lock:
             return list(self._runs_by_actor.get(actor, []))
 
-    async def children_of(self, run_id: str) -> list[Any]:
+    async def children_of(self, run_id: str) -> list[RunResult]:
         """Return all runs whose ``parent_run_id`` matches ``run_id``.
 
         Args:

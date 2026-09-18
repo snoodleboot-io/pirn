@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import math
 import unittest
+
+import numpy as np
 
 try:
     import scipy  # noqa: F401
@@ -49,3 +52,23 @@ class TestArbitraryResamplerPipeline(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out, SignalPayload)
         assert out.metadata.signal_id == "test:resampled"
         assert out.metadata.sample_rate_hz == 22050.0
+
+    async def test_fractional_rates_resample_at_their_exact_ratio(self) -> None:
+        # Arrange: 999.5 Hz -> 1000 Hz is exactly 2000/1999; the integer parts (999, 1000)
+        # would give 1000/999 instead.
+        knot = self._make()
+        count = 19990
+        tone_hz = 7.0
+        payload = SignalPayload(
+            metadata=make_signal_payload(sample_rate_hz=999.5, samples_per_channel=count).metadata,
+            data=np.sin(2 * np.pi * tone_hz * np.arange(count) / 999.5),
+        )
+
+        # Act
+        out = await knot.process(payload, input_rate_hz=999.5, output_rate_hz=1000.0)
+
+        # Assert
+        assert out.data.shape[-1] == math.ceil(count * 2000 / 1999)
+        expected = np.sin(2 * np.pi * tone_hz * np.arange(out.data.shape[-1]) / 1000.0)
+        interior = slice(500, -500)
+        np.testing.assert_allclose(out.data[interior], expected[interior], atol=1e-2)

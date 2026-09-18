@@ -11,10 +11,8 @@ changes, disclosed here rather than pinned silently:
   (topological order, tie-broken by knot id) rather than strict input order,
   so "which item ran first" is no longer asserted for concurrency > 1 —
   only "which items ran" and "how many were in flight at once".
-* ``BatchItemResult.attempts`` is not populated by the engine-joined path
-  (see :meth:`MapAgent._make_combine`'s docstring): a ``Result`` carries no
-  attempt count, only ``KnotLineage.extra`` does. Tests below assert the
-  *outcome* of a retried item, not its attempt count.
+* ``BatchItemResult.attempts`` and ``latency`` come from each item's lineage
+  row, on the streaming path and the engine-invoked path alike.
 
 Written in the project's ``asyncio_mode = "auto"`` style: module-level
 ``async def test_...`` functions with plain ``assert`` statements. Stub
@@ -28,6 +26,8 @@ import asyncio
 import pytest
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 from pirn_agents.batch.map_agent import MapAgent
 from tests.batch.batch_doubles import InFlightCounter, StubAgent, TrackingIterable, gated_agent
@@ -258,3 +258,28 @@ async def test_rejects_empty_batch_id() -> None:
     runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), batch_id="")
     with pytest.raises(ValueError):
         await _drain(runner, ["a"])
+
+
+async def test_engine_invoked_results_carry_real_attempts_and_latency() -> None:
+    # The engine-invoked path used to fabricate attempts=1 and latency=0.0 for
+    # every item; both are read from the item's lineage row now, and a failed
+    # item is the aggregator's input rather than a failure of the whole knot.
+    agent = StubAgent(fail_times={"flaky": 1}, fail_items={"bad"}, latency=0.01)
+    with Tapestry() as t:
+        MapAgent(
+            run_item=agent,
+            items=["flaky", "bad", "fine"],
+            _config=KnotConfig(id="map-agent"),
+            batch_id="engine",
+            concurrency=2,
+            retries=1,
+        )
+
+    run = await t.run(RunRequest())
+
+    assert run.succeeded, run.exceptions
+    by_key = {r.key: r for r in run.outputs["map-agent"]}
+    assert by_key["0"].succeeded and by_key["0"].attempts == 2
+    assert isinstance(by_key["1"].outcome, Err) and by_key["1"].attempts == 2
+    assert by_key["2"].succeeded and by_key["2"].attempts == 1
+    assert all(r.latency > 0.0 for r in by_key.values() if r.succeeded)

@@ -44,9 +44,11 @@ class RunContext:
         self.exceptions = ExceptionManager(run_id, traceback_filter=traceback_filter)
         self.lineage: list[KnotLineage] = []
         self.skipped: list[str] = []
-        # Strong references to in-flight, fire-and-forget emitter tasks
-        # (EmitterFanout.subscribe_emitters_to_status); without this, Python's GC
-        # may reclaim them before they complete. Lives as long as the run.
+        # The run's scheduled ``on_status`` deliveries
+        # (EmitterFanout.subscribe_emitters_to_status). Held until the engine
+        # awaits them all before the run finishes
+        # (EmitterFanout.drain_status_deliveries), so a RAISE-policy failure
+        # fails the run and no delivery is left pending on the loop.
         self.emitter_tasks: list[asyncio.Task[None]] = []
         # Deduplicated source snapshots keyed by source_hash — populated
         # during the run, persisted after finalization.

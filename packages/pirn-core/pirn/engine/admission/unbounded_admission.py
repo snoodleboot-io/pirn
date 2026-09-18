@@ -41,6 +41,13 @@ class UnboundedAdmission(Admission):
             ticket: A ticket this gate issued.
         """
 
+    def check_group(self, knot: Knot) -> None:
+        """Accept every knot: this gate defines no groups, so every tag is ignored.
+
+        Args:
+            knot: A knot this gate may be asked to admit.
+        """
+
     async def wait_for_release(self) -> None:
         """Return at once.
 

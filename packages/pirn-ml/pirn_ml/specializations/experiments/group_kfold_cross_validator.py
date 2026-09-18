@@ -5,12 +5,14 @@ Prevents data leakage when samples within a group are correlated (e.g.
 multiple records for the same patient or user).
 
 Algorithm:
-    1. Receive ``dataset`` (DatasetManifest), ``algorithm``, ``metrics``,
+    1. Receive ``dataset`` (DatasetPayload), ``algorithm``, ``metrics``,
        ``group_column``, and ``k`` via process().
     2. Validate all inputs.
-    3. Extract k logical folds via
-       :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds_via_cross_validator`
-       (grouping is recorded as metadata only; see that method's docstring).
+    3. Partition the rows with
+       :class:`~pirn_ml.data_prep.group_cross_validator.GroupCrossValidator`:
+       every group of ``group_column`` lies wholly inside one fold's test
+       partition and never in that fold's train partition. Index the folds via
+       :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds`.
     4. Wire Trainer + Evaluator per fold (shared wiring in
        :class:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase`).
     5. Aggregate per-fold metrics and return an EvalMetadata.
@@ -34,18 +36,21 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
+from pirn_ml.data_prep.group_cross_validator import GroupCrossValidator
 from pirn_ml.specializations.experiments.kfold_validator_base import (
     KFoldValidatorBase,
 )
-from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.dataset_payload import DatasetPayload
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 @KnotFactory.knot
 async def _aggregate_group_kfold_reports(
     reports: list[EvalReportPayload],
+    folds: tuple[SplitManifest, ...],
     algorithm: str,
     dataset_name: str,
     k: int,
@@ -75,6 +80,7 @@ async def _aggregate_group_kfold_reports(
                     "group_column": group_column,
                     "algorithm": algorithm,
                     "per_fold_metrics": per_fold,
+                    "fold_test_row_indices": [list(fold.test.row_indices) for fold in folds],
                 }
             ),
         ),
@@ -107,7 +113,7 @@ class GroupKFoldCrossValidator(KFoldValidatorBase):
 
     async def process(
         self,
-        dataset: DatasetManifest,
+        dataset: DatasetPayload,
         algorithm: str = "",
         metrics: Sequence[str] = (),
         group_column: str = "",
@@ -117,7 +123,7 @@ class GroupKFoldCrossValidator(KFoldValidatorBase):
         """Run group K-fold cross-validation and return an EvalMetadata with mean metrics.
 
         Args:
-            dataset: DatasetManifest to partition into k group-aware folds.
+            dataset: DatasetPayload whose ``group_column`` values define the groups.
             algorithm: Non-empty algorithm name string.
             metrics: Non-empty sequence of metric name strings.
             group_column: Non-empty column name that identifies groups.
@@ -128,9 +134,12 @@ class GroupKFoldCrossValidator(KFoldValidatorBase):
             in details.
 
         Raises:
+            TypeError: If dataset is not a DatasetPayload.
             ValueError: If any input fails validation.
             TypeError: If any fold evaluator does not return an EvalReportPayload.
         """
+        if not isinstance(dataset, DatasetPayload):
+            raise TypeError("GroupKFoldCrossValidator: dataset must be a DatasetPayload")
         if not isinstance(k, int):
             raise TypeError("GroupKFoldCrossValidator: k must be an int")
         if k < 2:
@@ -148,15 +157,21 @@ class GroupKFoldCrossValidator(KFoldValidatorBase):
                     "GroupKFoldCrossValidator: every metric name must be a non-empty string"
                 )
         dataset_node = Parameter(
-            "dataset", DatasetManifest, default=dataset, _config=KnotConfig(id="dataset")
+            "dataset", DatasetPayload, default=dataset, _config=KnotConfig(id="dataset")
         )
-        fold_nodes = self._extract_folds_via_cross_validator(dataset_node, k)
+        folds_node = GroupCrossValidator(
+            dataset=dataset_node, group_column=group_column, k=k, _config=KnotConfig(id="folds")
+        )
+        fold_nodes = self._extract_folds(folds_node, k)
         eval_nodes = self._wire_folds(fold_nodes, algorithm, metric_tuple)
         algorithm_node = Parameter(
             "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
         )
         dataset_name_node = Parameter(
-            "dataset_name", str, default=dataset.name, _config=KnotConfig(id="dataset_name")
+            "dataset_name",
+            str,
+            default=dataset.metadata.name,
+            _config=KnotConfig(id="dataset_name"),
         )
         k_node = Parameter("k", int, default=k, _config=KnotConfig(id="k"))
         group_column_node = Parameter(
@@ -165,6 +180,7 @@ class GroupKFoldCrossValidator(KFoldValidatorBase):
         collected = self._collect(eval_nodes, collect_id="collect-reports")
         return _aggregate_group_kfold_reports(
             reports=collected,
+            folds=folds_node,
             algorithm=algorithm_node,
             dataset_name=dataset_name_node,
             k=k_node,

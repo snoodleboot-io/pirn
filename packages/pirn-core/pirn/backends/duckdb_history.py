@@ -17,7 +17,7 @@ queries are fast (DuckDB's column-store wins on
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.knot_lineage import KnotLineage
@@ -26,6 +26,8 @@ from pirn.core.optional_dependency import OptionalDependency
 
 if TYPE_CHECKING:
     from duckdb import DuckDBPyConnection
+
+    from pirn.core.run_result import RunResult
 
 
 class DuckDBHistory(RunHistory):
@@ -109,7 +111,7 @@ CREATE TABLE IF NOT EXISTS knot_sources (
         self._conn.execute(DuckDBHistory.__ddl)
         self._initialized = True
 
-    async def record_run(self, result: Any) -> None:
+    async def record_run(self, result: RunResult) -> None:
         """Persist a run result and all associated lineage records.
 
         Args:
@@ -163,7 +165,7 @@ CREATE TABLE IF NOT EXISTS knot_sources (
                     (rec.run_id, rec.knot_id, input_name, input_hash),
                 )
 
-    async def get_run(self, run_id: str) -> Any:
+    async def get_run(self, run_id: str) -> RunResult | None:
         """Fetch a single run by id.
 
         Args:
@@ -271,7 +273,7 @@ CREATE TABLE IF NOT EXISTS knot_sources (
         ).fetchall()
         return [KnotLineage.model_validate_json(row[0]) for row in rows]
 
-    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+    async def query_runs_by_actor(self, actor: str) -> list[RunResult]:
         """Return all runs triggered by ``actor``.
 
         Args:
@@ -288,7 +290,7 @@ CREATE TABLE IF NOT EXISTS knot_sources (
         ).fetchall()
         return [RunResult.model_validate_json(row[0]) for row in rows]
 
-    async def children_of(self, run_id: str) -> list[Any]:
+    async def children_of(self, run_id: str) -> list[RunResult]:
         """Return all runs whose ``parent_run_id`` matches ``run_id``.
 
         Args:

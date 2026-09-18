@@ -1,29 +1,28 @@
 """``KFoldValidatorBase`` — shared per-fold wiring for the k-fold family.
 
 ``KFoldCrossValidator``, ``GroupKFoldCrossValidator``, and
-``StratifiedKFoldValidator`` each: request ``k`` logical folds from
-:class:`~pirn_ml.data_prep.cross_validator.CrossValidator`, extract one
+``StratifiedKFoldValidator`` each: partition the dataset rows into ``k``
+row-indexed folds with their own fold-producing knot, extract one
 fold per index, wire a :class:`Trainer` + :class:`Evaluator` pair per
 fold, and collect the per-fold reports through an
 :class:`~pirn.nodes.aggregator.Aggregator` before handing them to a
 final aggregate-report knot. ``TimeSeriesCrossValidator`` and
 ``TimeSeriesSplitterValidator`` build their fold ``SplitManifest``\\s a
 different way (expanding-window / walk-forward row-count partitioning
-instead of ``CrossValidator``), but still share the per-fold
+instead of a fold-producing knot), but still share the per-fold
 Trainer+Evaluator wiring and Aggregator collection step.
 
 This base centralises exactly those shared pieces:
 
-* :meth:`_extract_folds_via_cross_validator` — the "plain"/"group" k-fold
-  split strategy (a :class:`~pirn.nodes.aggregator.Aggregator`-free,
-  ``CrossValidator``-backed extraction of ``k`` logical folds). It is a
-  plain method (not a ``@staticmethod``) so a future group- or
-  stratify-aware validator can override it with real group/stratify-aware
-  partitioning; today ``KFoldCrossValidator``, ``GroupKFoldCrossValidator``,
-  and ``StratifiedKFoldValidator`` all call the identical base
-  implementation — grouping and stratification are recorded as metadata
-  only, since the orchestration-layer ``CrossValidator`` does not itself
-  partition by group or stratify column.
+* :meth:`_extract_folds` — index ``k`` per-fold ``SplitManifest`` knots out of
+  a fold-producing knot. The fold *strategy* belongs to that knot, chosen by
+  each validator: :class:`~pirn_ml.data_prep.cross_validator.CrossValidator`
+  (shuffled plain k-fold),
+  :class:`~pirn_ml.data_prep.stratified_cross_validator.StratifiedCrossValidator`
+  (class proportions preserved per fold), or
+  :class:`~pirn_ml.data_prep.group_cross_validator.GroupCrossValidator`
+  (groups never split across train and test). Every fold carries its exact
+  train/test ``row_indices``.
 * :meth:`_wire_folds` — build one ``Trainer`` + ``Evaluator`` pair per
   fold/split knot, with an optional per-index hyperparameters hook.
 * :meth:`_collect` — fan the per-fold ``Evaluator`` outputs into a single
@@ -38,8 +37,8 @@ fields genuinely differ per validator, so they are not centralised here).
 Algorithm:
     1. A subclass's ``process()`` validates its own inputs.
     2. It obtains a list of per-fold ``SplitManifest`` knots, either via
-       :meth:`_extract_folds_via_cross_validator` (the three CrossValidator-
-       backed validators) or its own row-count partitioning (the two
+       :meth:`_extract_folds` over its own fold-producing knot (the three
+       k-fold validators) or its own row-count partitioning (the two
        time-series validators).
     3. It calls :meth:`_wire_folds` to get one ``Evaluator`` knot per
        fold/split, then :meth:`_collect` to fan them into an Aggregator.
@@ -61,7 +60,6 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.data_prep.cross_validator import CrossValidator
 from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
@@ -76,19 +74,9 @@ async def _extract_fold(folds: tuple[SplitManifest, ...], index: int) -> SplitMa
 class KFoldValidatorBase(SubTapestry):
     """Shared per-fold Trainer/Evaluator wiring and Aggregator collection."""
 
-    def _extract_folds_via_cross_validator(self, dataset: Knot, k: int) -> list[Knot]:
-        """ "Plain"/"group" k-fold split strategy: k logical folds via CrossValidator.
-
-        Overridable so a concrete group-aware or stratify-aware CrossValidator
-        can be substituted later; the base implementation used by
-        KFoldCrossValidator, GroupKFoldCrossValidator, and
-        StratifiedKFoldValidator today is identical for all three.
-        """
-        folds_node = CrossValidator(
-            dataset=dataset,
-            k=k,
-            _config=KnotConfig(id="folds"),
-        )
+    @staticmethod
+    def _extract_folds(folds_node: Knot, k: int) -> list[Knot]:
+        """Index ``k`` per-fold SplitManifest knots out of a fold-producing knot."""
         fold_nodes: list[Knot] = []
         for fold_index in range(k):
             fold_index_node = Parameter(

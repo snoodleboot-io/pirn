@@ -130,7 +130,7 @@ class TestOneNamespaceOfPatternNames(unittest.TestCase):
     (not merely declared) to resolve, through sweet_tea's Registry, to the
     exact class this table names for it — see
     :meth:`AgentPatternRegistry._resolves_uniquely_to`. A name is either
-    reachable there via the ``"pattern"``-labelled alias
+    reachable there via the ``"pattern"``-labelled entry
     :meth:`AgentPatternRegistry.register_with_core_registry` added, or — for
     the handful whose short name already equals their class's own
     auto-registered key (e.g. ``"reranker"``) — via that pre-existing entry,

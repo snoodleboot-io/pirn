@@ -50,6 +50,24 @@ class Admission:
         """
         raise NotImplementedError(f"{type(self).__name__} must implement has_capacity()")
 
+    def check_group(self, knot: Knot) -> None:
+        """Refuse, before anything is taken, a knot whose group this gate can never admit.
+
+        The engine calls this for every knot of the static graph at run start,
+        so a misnamed ``concurrency_group`` fails the run before any knot
+        starts; a gate that composes others (``ChainedAdmission``) calls it on
+        each of them before taking a ticket from any, so the check never
+        leaves a slot behind.
+
+        Args:
+            knot: A knot this gate may be asked to admit.
+
+        Raises:
+            UndefinedConcurrencyGroupError: If the gate's limits define
+                groups and *knot*'s group is not one of them.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement check_group()")
+
     def try_admit(self, knot: Knot) -> AdmissionTicket | None:
         """Admit *knot* if capacity allows.
 

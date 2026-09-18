@@ -10,36 +10,36 @@ The four memory types map to how humans organize knowledge:
 - **Semantic memory** — factual knowledge extracted from interactions; deduplicated and upserted
 - **Procedural memory** — learned action sequences and preferences; retrieved to guide decisions
 
-Each type has a `*Pipeline` (the complete read-write pattern), a writer, and a retriever. Mix types as needed — most production agents use working + episodic at minimum.
+Each type has a `*Pipeline` (a `SubTapestry` over one or two inner knots) and the inner knots themselves, usable directly. Writing and reading are separate knots: the pipelines write, `EpisodicMemoryRetriever` reads. Mix types as needed — most production agents use working + episodic at minimum.
 
 ---
 
 ## Source map
 
 ```
-pirn_agents/specializations/memory_patterns/
+pirn_agents/memory/patterns/
 │
 │  ── Working memory ──
-├── working_memory_pipeline.py        WorkingMemoryPipeline       — maintain sliding window of recent messages
-├── working_memory_window_writer.py   WorkingMemoryWindowWriter   — write new message; evict oldest if over limit
+├── working_memory_pipeline.py        WorkingMemoryPipeline       — append a message to the session window; return the trimmed window
+├── working_memory_window_writer.py   WorkingMemoryWindowWriter   — read "working:<session_id>", append, trim to max_size, write back
 │
 │  ── Episodic memory ──
-├── episodic_memory_pipeline.py       EpisodicMemoryPipeline      — retrieve past episodes; write new episode after run
-├── episodic_episode_writer.py        EpisodicEpisodeWriter       — embed + store a completed interaction as an episode
-├── episodic_memory_retriever.py      EpisodicMemoryRetriever     — retrieve K most similar past episodes by query
+├── episodic_memory_pipeline.py       EpisodicMemoryPipeline      — store a conversation episode; return its key
+├── episodic_episode_writer.py        EpisodicEpisodeWriter       — serialise messages and store them as one episode
+├── episodic_memory_retriever.py      EpisodicMemoryRetriever     — search the store for the top_k episodes matching a context
 │
 │  ── Semantic memory ──
-├── semantic_memory_pipeline.py       SemanticMemoryPipeline      — extract facts from interaction; upsert into store
-├── semantic_fact_extractor.py        SemanticFactExtractor       — LLM extracts verifiable facts from text
-├── semantic_fact_writer.py           SemanticFactWriter          — embed + write facts to memory store
-├── semantic_memory_upsert.py         SemanticMemoryUpsert        — deduplicate facts before writing (update if similar exists)
+├── semantic_memory_pipeline.py       SemanticMemoryPipeline      — extract facts from messages via an LLM; store them
+├── semantic_fact_extractor.py        SemanticFactExtractor       — LLM extracts one fact per line from the conversation
+├── semantic_fact_writer.py           SemanticFactWriter          — store each fact under a "semantic:<sha1>" key
+├── semantic_memory_upsert.py         SemanticMemoryUpsert        — extract facts from an AgentResponse; record only new ones in a KeyedLineageStore
 │
 │  ── Procedural memory ──
-├── procedural_memory_pipeline.py     ProceduralMemoryPipeline    — retrieve procedures; update on new observations
-└── procedural_memory_writer.py       ProceduralMemoryWriter      — write a new procedure or preference to store
+├── procedural_memory_pipeline.py     ProceduralMemoryPipeline    — record a (task, response) recipe
+├── procedural_memory_writer.py       ProceduralMemoryWriter      — store the recipe under a "procedure:" key
 │
 │  ── Shared ──
-└── session_summarizer.py             SessionSummarizer           — summarize a session for long-term storage
+└── session_summarizer.py             SessionSummarizer           — summarize messages via an LLM once they exceed token_threshold
 ```
 
 ---
@@ -49,32 +49,30 @@ pirn_agents/specializations/memory_patterns/
 ### Working + episodic memory for a conversational agent
 
 ```python
-from pirn_agents.memory.patterns.working_memory_pipeline import WorkingMemoryPipeline
-from pirn_agents.memory.patterns.episodic_memory_pipeline import EpisodicMemoryPipeline
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+from pirn_agents.memory.patterns.episodic_memory_retriever import EpisodicMemoryRetriever
+from pirn_agents.memory.patterns.working_memory_pipeline import WorkingMemoryPipeline
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 with Tapestry() as t:
-    user_message  = Parameter("user_message", str)
-    working_ctx   = WorkingMemoryPipeline(
-        message=user_message,
+    user_message = Parameter("user_message", AgentMessage)
+    user_query = Parameter("user_query", str)
+    window = WorkingMemoryPipeline(
+        new_message=user_message,
+        session_id="session-42",
         store=session_store,
-        window_size=20,
+        max_size=20,
         _config=KnotConfig(id="working-mem"),
     )
-    episode_ctx   = EpisodicMemoryPipeline(
-        query=user_message,
+    episodes = EpisodicMemoryRetriever(
+        context=user_query,
         store=episodic_store,
         top_k=3,
         _config=KnotConfig(id="episodic-mem"),
     )
-    response      = LlmCaller(
-        prompt=ContextAssembler(working=working_ctx, episodic=episode_ctx, ...),
-        llm=my_llm,
-        _config=KnotConfig(id="llm"),
-    )
+    # feed `window` (tuple[AgentMessage, ...]) and `episodes` into your LLM call knot
 ```
 
 ### Extract and persist semantic facts after a session
@@ -83,11 +81,11 @@ with Tapestry() as t:
 from pirn_agents.memory.patterns.semantic_memory_pipeline import SemanticMemoryPipeline
 
 with Tapestry() as t:
-    session_text = Parameter("session_text", str)
+    session_messages = Parameter("session_messages", tuple)
     SemanticMemoryPipeline(
-        text=session_text,
-        store=knowledge_store,
+        messages=session_messages,
         llm=my_llm,
+        store=knowledge_store,
         _config=KnotConfig(id="learn"),
     )
 ```
@@ -96,18 +94,18 @@ with Tapestry() as t:
 
 ## Anti-patterns
 
-**Using working memory as long-term storage** — working memory is in-context; it evicts old messages as the window fills. Use episodic or semantic memory for anything that must persist beyond the current session.
+**Using working memory as long-term storage** — working memory is a bounded window; it evicts old messages as the window fills. Use episodic or semantic memory for anything that must persist beyond the current session.
 
-**Running `SemanticMemoryPipeline` on every turn** — fact extraction is an LLM call. Run it periodically (e.g. at session end using `SessionSummarizer`) rather than on every message.
+**Running `SemanticMemoryPipeline` on every turn** — fact extraction is an LLM call. Run it periodically (e.g. at session end) rather than on every message.
 
 ---
 
 ## Constraints and gotchas
 
-- **All pipelines require a `MemoryStore`** implementing the interface from `pirn_agents.knots`. Any vector store adapter works.
-- **`WorkingMemoryPipeline(window_size=N)` counts messages, not tokens.** For LLMs with tight context limits, set `window_size` conservatively.
-- **`SemanticMemoryUpsert` compares new facts by embedding similarity.** Set `similarity_threshold` to control how aggressively it deduplicates. Default is `0.95`.
-- **`EpisodicMemoryPipeline` writes the episode after the LLM call** — the current run's response is included in the stored episode.
+- **The pipelines require a `MemoryStore`** (`pirn_agents.memory.stores.memory_store.MemoryStore`). `SemanticMemoryUpsert` is the exception: it writes to a `KeyedLineageStore` (`pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore`).
+- **`WorkingMemoryPipeline(max_size=N)` counts messages, not tokens.** For LLMs with tight context limits, set `max_size` conservatively or add a `SessionSummarizer`.
+- **`SemanticMemoryUpsert` deduplicates by fact identity, not by embedding similarity.** A fact's identity is the content hash of its text, so only an identical fact is skipped; paraphrases are stored again.
+- **`EpisodicMemoryPipeline` stores the messages you pass it** — wire it after the reply is appended if the stored episode must include the reply.
 
 ---
 
@@ -116,11 +114,11 @@ with Tapestry() as t:
 | Memory type | Pipeline | Use for |
 |-------------|---------|---------|
 | Working | `WorkingMemoryPipeline` | Recent conversation history (in-context window) |
-| Episodic | `EpisodicMemoryPipeline` | Past interaction recall by similarity |
+| Episodic | `EpisodicMemoryPipeline` | Store past interactions; recall them with `EpisodicMemoryRetriever` |
 | Semantic | `SemanticMemoryPipeline` | Long-term factual knowledge from interactions |
 | Procedural | `ProceduralMemoryPipeline` | User preferences and learned action patterns |
 | Session summary | `SessionSummarizer` | Compress a session before long-term storage |
 
 ---
 
-*See also: [specializations AGENTIC_USE.md](../AGENTIC_USE.md)*
+*See also: [pirn_agents AGENTIC_USE.md](../../AGENTIC_USE.md)*

@@ -10,6 +10,8 @@ Algorithm:
     1. Receive all pipeline params via process().
     2. Validate all inputs.
     3. Check freshness via lineage store; return cached model_id if fresh.
+       A lineage-store failure or a malformed last event raises — it never
+       counts as "stale", which would retrain and redeploy on an outage.
     4. Wire full training pipeline in an inner Tapestry.
     5. Run via _run_inner() and return model_id and eval_report.
 
@@ -100,10 +102,9 @@ class ContinuousTrainingPipeline(SubTapestry):
     async def _is_fresh(
         self, lineage: LineageStore, name: str, freshness_window_days: int
     ) -> tuple[bool, str | None]:
-        try:
-            lineage_record = await lineage.fetch_lineage(name)
-        except Exception:
-            return False, None
+        # A lineage-store failure propagates: treating an outage as "stale"
+        # would retrain and redeploy a model on every scheduled run.
+        lineage_record = await lineage.fetch_lineage(name)
         if not isinstance(lineage_record, Mapping) or "events" not in lineage_record:
             raise ValueError(
                 "ContinuousTrainingPipeline: lineage record missing required field 'events'"
@@ -113,15 +114,24 @@ class ContinuousTrainingPipeline(SubTapestry):
             return False, None
         last_event: object = events[-1]
         if not ContinuousTrainingPipeline._is_event(last_event):
-            return False, None
+            raise ValueError(
+                "ContinuousTrainingPipeline: last lineage event must be a mapping, "
+                f"got {type(last_event).__name__}"
+            )
         recorded_at = last_event.get("recorded_at")
         last_model_id = last_event.get("model_id")
         if not isinstance(recorded_at, str) or not isinstance(last_model_id, str):
-            return False, None
+            raise ValueError(
+                "ContinuousTrainingPipeline: last lineage event must carry string "
+                "'recorded_at' and 'model_id' fields"
+            )
         try:
             recorded = datetime.fromisoformat(recorded_at)
-        except ValueError:
-            return False, None
+        except ValueError as exc:
+            raise ValueError(
+                "ContinuousTrainingPipeline: last lineage event 'recorded_at' is not an "
+                f"ISO-8601 timestamp: {recorded_at!r}"
+            ) from exc
         now = datetime.now(UTC)
         if recorded.tzinfo is None:
             recorded = recorded.replace(tzinfo=UTC)
@@ -165,6 +175,9 @@ class ContinuousTrainingPipeline(SubTapestry):
         Raises:
             ValueError: If any string param is empty or sequences are empty.
             TypeError: If pool, lineage, or store are the wrong types.
+            ValueError: If the lineage record or its last event is malformed.
+            Exception: Any error raised by ``lineage.fetch_lineage`` propagates
+                unchanged — a lineage outage never triggers a retrain.
         """
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError("ContinuousTrainingPipeline: pool must be a DatabaseConnectionPool")

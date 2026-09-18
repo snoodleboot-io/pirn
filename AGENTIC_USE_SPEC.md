@@ -265,9 +265,8 @@ generate against an API that no longer exists.
 - Add an anti-pattern whenever review catches a mistake the file would have
   prevented. This is the primary growth mechanism.
 - **Check links in CI.** Relative paths drift silently during restructuring —
-  pirn's root file currently points domain links at
-  `packages/pirn-agents/src/pirn_agents/…`, but the files live at
-  `packages/pirn-agents/pirn_agents/…`, so all six resolve to nothing.
+  a domain link written as `packages/<pkg>/src/<module>/…` when the files live
+  at `packages/<pkg>/<module>/…` resolves to nothing, and no reader notices.
 - Periodically verify every code block still executes. A worked example is a
   test that has not been wired up.
 

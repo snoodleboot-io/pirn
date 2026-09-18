@@ -28,11 +28,11 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.google_analytics_config import (
     GoogleAnalyticsConfig,
 )
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class GoogleAnalyticsClient(ApiClient, TableSource):
@@ -100,13 +100,13 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
 
     @staticmethod
     def _extract_rows(response: object) -> list[Mapping[str, Any]]:
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             rows: object = response.get("rows")
         else:
             rows = getattr(response, "rows", None)
-        if not PayloadShape.is_list(rows):
+        if not ShapeGuard.is_list(rows):
             return []
-        return [row for row in rows if PayloadShape.is_str_mapping(row)]
+        return [row for row in rows if ShapeGuard.is_str_keyed_mapping(row)]
 
     async def request(
         self,

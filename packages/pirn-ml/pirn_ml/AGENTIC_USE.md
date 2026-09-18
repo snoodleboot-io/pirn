@@ -20,24 +20,24 @@ Each stage is a `Knot`. Wire them in a `Tapestry` context; pirn handles executio
 
 **Artifact formats** are separate connector classes (`pirn/connectors/file_formats/`) and plug into `ModelSerializer` (or are used standalone). Each format class receives or emits raw bytes and surfaces metadata alongside the artifact. Two formats — `JoblibFormat` and `PytorchFormat` — wrap pickle-based serialisation; both enforce an HMAC-SHA256 signing contract by default. `SafetensorsFormat`, `OnnxFormat`, `GgufFormat`, and `TfliteFormat` have no pickle path and need no signer.
 
-**Provider interfaces** (`EmbeddingProvider`, `FeatureStoreProvider`, `ImageEncoderProvider`, `LineageStore`) define the external-system contracts. You supply the implementation; pirn defines what it calls.
+**Provider interfaces** (`MLEmbeddingProvider`, `FeatureStoreProvider`, `ImageEncoderProvider`, `LineageStore`) define the external-system contracts. You supply the implementation; pirn defines what it calls.
 
 ---
 
 ## Install
 
 ```bash
-# Core ML domain (numpy, pandas, scikit-learn).
-pip install pirn[ml]
+# Core ML domain (numpy, pandas, scikit-learn, joblib).
+pip install "pirn-ml[ml]"
 
-# Artifact format extras — add what you need:
-pip install pirn[onnx]          # OnnxFormat — ONNX validation
-pip install pirn[safetensors]   # SafetensorsFormat — Hugging Face safetensors
-pip install pirn[joblib]        # JoblibFormat — scikit-learn / joblib persistence
-pip install pirn[pytorch]       # PytorchFormat — PyTorch state dicts
-pip install pirn[tensorflow]    # TfSavedModelFormat — TF SavedModel + TFLite fallback
-pip install pirn[gguf]          # GgufFormat — llama.cpp quantised weights
-pip install pirn[tflite]        # TfliteFormat — TFLite runtime (lighter than full TF)
+# Artifact format extras (the format classes live in pirn-core) — add what you need:
+pip install "pirn-core[onnx]"          # OnnxFormat — ONNX validation
+pip install "pirn-core[safetensors]"   # SafetensorsFormat — Hugging Face safetensors
+pip install "pirn-core[joblib]"        # JoblibFormat — scikit-learn / joblib persistence
+pip install "pirn-core[pytorch]"       # PytorchFormat — PyTorch state dicts
+pip install "pirn-core[tensorflow]"    # TfSavedModelFormat — TF SavedModel
+pip install "pirn-core[gguf]"          # GgufFormat — llama.cpp quantised weights
+pip install "pirn-core[tflite]"        # TfliteFormat — TFLite runtime (lighter than full TF)
 ```
 
 ---
@@ -48,42 +48,51 @@ pip install pirn[tflite]        # TfliteFormat — TFLite runtime (lighter than 
 pirn_ml/
 ├── __init__.py                     # empty public surface; lazy-import pattern
 ├── types/                          # shared value types
-│   ├── ml_dataset.py               # MLDataset — feature DataFrame + optional label Series
-│   ├── data_split.py               # DataSplit — train/test or train/val split pair
-│   ├── trained_model.py            # TrainedModel — fitted estimator + metadata
-│   └── eval_report.py              # EvalReport — metrics, confusion matrix, pass/fail flag
-├── embedding_provider.py           # Interface: embed(texts, *, model) -> list[list[float]]
-├── feature_store_provider.py       # Interface: get_features / write_features
-├── image_encoder_provider.py       # Interface: encode(images, *, model) -> list[list[float]]
-├── lineage_store.py                # Interface: log_event / fetch_lineage
+│   ├── dataset_manifest.py         # DatasetManifest — name, feature/target names, row count, source URI
+│   ├── ml_features.py              # MLFeatures — feature matrix + optional target vector (numpy)
+│   ├── dataset_payload.py          # DatasetPayload — Payload[DatasetManifest, MLFeatures]
+│   ├── split_manifest.py           # SplitManifest — train / test / optional validation DatasetManifests
+│   ├── split_arrays.py             # SplitArrays — train/test arrays
+│   ├── data_split_payload.py       # DataSplitPayload — Payload[SplitManifest, SplitArrays]
+│   ├── model_manifest.py           # ModelManifest — model id, algorithm, hyperparameters, features
+│   ├── fitted_estimator.py         # FittedEstimator — fitted estimator object + algorithm
+│   ├── trained_model_payload.py    # TrainedModelPayload — Payload[ModelManifest, FittedEstimator]
+│   ├── eval_metadata.py            # EvalMetadata — model id, dataset name, evaluated_at
+│   ├── eval_metrics.py             # EvalMetrics — metric scores + details
+│   └── eval_report_payload.py      # EvalReportPayload — Payload[EvalMetadata, EvalMetrics]
+├── ml_embedding_provider.py        # MLEmbeddingProvider: embed(texts, *, model) -> list[list[float]]
+├── feature_store_provider.py       # FeatureStoreProvider: get_features / write_features
+├── image_encoder_provider.py       # ImageEncoderProvider: encode(images, *, model) -> list[list[float]]
+├── lineage_store.py                # LineageStore: log_event / fetch_lineage
 ├── data_prep/
-│   ├── dataset_loader.py           # Load from FeatureStoreProvider or MLDataset
-│   ├── train_test_split.py         # Split with optional stratification
-│   ├── sampler.py                  # Over/under-sample (random, stratified, weighted)
-│   └── cross_validator.py          # k-fold train/validation pairs
+│   ├── dataset_loader.py           # DatasetLoader — file / lakehouse / SQL source → DatasetPayload
+│   ├── dataset_assembler.py        # DatasetAssembler — DataBatch → DatasetPayload
+│   ├── train_test_split.py         # TrainTestSplit — train / test / optional validation SplitManifest
+│   ├── sampler.py                  # Sampler — n / fraction sample, optional stratify column
+│   └── cross_validator.py          # CrossValidator — k-fold SplitManifests
 ├── features/
-│   ├── scaler.py                   # Standard or min-max scaling
-│   ├── encoder.py                  # One-hot or ordinal encoding
-│   ├── imputer.py                  # Missing-value imputation
-│   ├── polynomial_features.py      # Interaction and polynomial features
-│   ├── feature_selector.py         # Variance threshold or univariate selection
-│   ├── embedding_extractor.py      # Text columns → embedding vectors via EmbeddingProvider
-│   ├── image_embedding_extractor.py# Image bytes → vectors via ImageEncoderProvider
-│   └── feature_store.py            # Read/write from FeatureStoreProvider
+│   ├── scaler.py                   # Scaler — standardise / minmax / robust
+│   ├── encoder.py                  # Encoder — onehot / ordinal / target
+│   ├── imputer.py                  # Imputer — mean / median / constant
+│   ├── polynomial_features.py      # PolynomialFeatures — polynomial and interaction features
+│   ├── feature_selector.py         # FeatureSelector — mutual_information / variance / rfe
+│   ├── embedding_extractor.py      # EmbeddingExtractor — text column → vectors via MLEmbeddingProvider
+│   ├── image_embedding_extractor.py# ImageEmbeddingExtractor — image column → vectors via ImageEncoderProvider
+│   └── feature_store.py            # FeatureStore — write split features to a FeatureStoreProvider
 ├── training/
-│   ├── trainer.py                  # Fit any sklearn-compatible estimator → TrainedModel
-│   ├── hyperparam_search.py        # Grid or random search → best TrainedModel
-│   └── ensemble_builder.py         # Voting or stacking ensemble from TrainedModels
+│   ├── trainer.py                  # Trainer — algorithm + hyperparameters → ModelManifest
+│   ├── hyperparam_search.py        # HyperparamSearch — grid / random / bayesian → best ModelManifest
+│   └── ensemble_builder.py         # EnsembleBuilder — stacking / blending / voting over ModelManifests
 ├── evaluation/
-│   ├── evaluator.py                # Score TrainedModel on test split → EvalReport
-│   ├── metric_check.py             # Pass through only if metric >= threshold
-│   ├── explainer.py                # Feature importances / SHAP values
-│   └── fairness_audit.py           # Demographic parity, equalized odds, etc.
+│   ├── evaluator.py                # Evaluator — score a ModelManifest on the test split → EvalReportPayload
+│   ├── metric_check.py             # MetricCheck — True iff metric >= min_value
+│   ├── explainer.py                # Explainer — permutation / shap / linear importances
+│   └── fairness_audit.py           # FairnessAudit — parity scores per sensitive column
 ├── deployment/
-│   ├── model_serializer.py         # Serialise TrainedModel → bytes via format string
-│   ├── model_registrar.py          # Persist bytes + metadata to LineageStore
-│   ├── predictor.py                # Batch inference from a loaded TrainedModel
-│   └── shadow_deployer.py          # Champion/challenger routing; challenger not surfaced
+│   ├── model_serializer.py         # ModelSerializer — ModelManifest metadata → JSON bytes
+│   ├── model_registrar.py          # ModelRegistrar — bytes → ObjectStore + LineageStore event
+│   ├── predictor.py                # Predictor — batch inference for a model id
+│   └── shadow_deployer.py          # ShadowDeployer — log a shadow_deployment event, return its id
 ├── assemblers/
 │   ├── __init__.py
 │   └── trained_model_object_store_assembler.py — bytes + ModelManifest → TrainedModelPayload
@@ -94,31 +103,39 @@ pirn_ml/
 │   ├── data_split_object_store_disassembler.py    — DataSplitPayload → bytes
 │   └── eval_report_database_disassembler.py       — EvalReportPayload → list[tuple]
 └── specializations/                # Pre-built SubTapestry pipelines
-    ├── task_pipelines/             # BinaryClassification, Multiclass, Regression, Forecasting, Nlp, ComputerVision,
-    │                               # TimeSeriesForecasting, AnomalyDetection, CollaborativeFiltering,
-    │                               # TextClassification, NamedEntityRecognition, ImageClassification,
-    │                               # Clustering, DimensionalityReduction, ActiveLearningLoop
-    ├── training/                   # SklearnTrainer, XgboostTrainer, NeuralNetTrainer,
-    │                               # EarlyStopping, LRScheduler,
-    │                               # BaggingEnsemble, StackingEnsemble, BlendingEnsemble,
-    │                               # FineTuning, OnlineLearner, SemiSupervised, SelfSupervisedPretrainer
-    ├── evaluation/                 # Classification, Regression, Ranking, Timeseries, WalkForward,
+    ├── task_pipelines/             # BinaryClassificationPipeline, MulticlassClassificationPipeline,
+    │                               # RegressionPipeline, ForecastingPipeline, NLPPipeline, ComputerVisionPipeline,
+    │                               # TimeSeriesForecastingPipeline, AnomalyDetectionPipeline,
+    │                               # CollaborativeFilteringPipeline, TextClassificationPipeline,
+    │                               # NamedEntityRecognitionPipeline, ImageClassificationPipeline,
+    │                               # ClusteringPipeline, DimensionalityReductionPipeline, ActiveLearningLoop,
+    │                               # SupervisedTaskPipeline (shared base)
+    ├── training/                   # SklearnTrainerPipeline, XGBoostTrainerPipeline, NeuralNetTrainerPipeline,
+    │                               # EarlyStoppingTrainer, LRSchedulerTrainer,
+    │                               # BaggingEnsembleBuilder, StackingEnsembleBuilder, BlendingEnsembleBuilder,
+    │                               # FineTuningTrainer, OnlineLearnerTrainer, SemiSupervisedTrainer,
+    │                               # SelfSupervisedPretrainer
+    ├── evaluation/                 # ClassificationEvalPipeline, RegressionEvalPipeline, RankingEvalPipeline,
+    │                               # TimeSeriesEvalPipeline, EvalPipelineBase, WalkForwardValidator,
     │                               # ThresholdOptimizer, CalibrationFitter, ROCAUCAnalyzer,
     │                               # ConfusionMatrixAnalyzer, ResidualAnalyzer, PredictionIntervalEstimator,
-    │                               # BacktestingEvaluator, RankingEvaluator, NLGEvaluator,
+    │                               # BacktestingEvaluator, RankingEvaluator, NLGEvaluator, BiasDetector,
     │                               # FairnessAuditor, AdversarialRobustnessEvaluator
-    ├── experiments/                # GridSearchTuner, BayesianSearchTuner, StratifiedKfold, AblationStudy,
-    │                               # ChampionChallengerCheck, KFoldCrossValidator, TimeSeriesCrossValidator,
-    │                               # GroupKFoldCrossValidator, RandomSearchTuner, HyperbandTuner
-    ├── feature_engineering/        # FeatureStoreReader/Writer, TextEmbedding, ImageEmbedding, LagFeatures,
+    ├── experiments/                # GridSearchTuner, BayesianSearchTuner, RandomSearchTuner, HyperbandTuner,
+    │                               # StratifiedKFoldValidator, KFoldCrossValidator, TimeSeriesCrossValidator,
+    │                               # GroupKFoldCrossValidator, TimeSeriesSplitterValidator, KFoldValidatorBase,
+    │                               # AblationStudyPipeline, BaselineEstablisher, ChampionChallengerCheck
+    ├── feature_engineering/        # FeatureStoreReader, FeatureStoreReaderKnot, FeatureStoreWriter,
+    │                               # TextEmbeddingExtractor, FeatureEngineeringImageEmbeddingExtractor,
+    │                               # ImageEncoderExtractor, LagFeatureGenerator, LagAppendKnot,
     │                               # TargetEncoder, FrequencyEncoder, HashEncoder,
     │                               # RollingStatisticsGenerator, FourierFeatureGenerator,
     │                               # InteractionFeatureGenerator, TFIDFExtractor, NGramExtractor
-    └── production/                 # FullTrainDeploy, ShadowDeployment, AbTest, ContinuousTraining,
-                                    # DriftMonitor, ModelLineageTracker,
+    └── production/                 # FullTrainDeployPipeline, ShadowDeploymentPipeline, ABTestPipeline,
+                                    # ContinuousTrainingPipeline, DriftMonitor, ModelLineageTracker,
                                     # CanaryDeployer, ABTestDeployer,
                                     # DataDriftDetector, ConceptDriftDetector, PredictionDriftMonitor,
-                                    # PerformanceTriggedRetrainer, BatchInferencePipeline,
+                                    # PerformanceTriggeredRetrainer, BatchInferencePipeline,
                                     # SHAPExplainer, LIMEExplainer
 ```
 
@@ -162,28 +179,28 @@ All format classes live in `pirn/connectors/file_formats/`.
 
 | Format | Class | Extra | Signer required | Notes |
 |--------|-------|-------|-----------------|-------|
-| ONNX | `OnnxFormat` | `pirn[onnx]` | No | Protobuf parser; no pickle path. `validate=True` (default) calls `onnx.checker.check_model`. Treat untrusted payloads as potentially triggering upstream library bugs. |
-| SafeTensors | `SafetensorsFormat` | `pirn[safetensors]` | No | RCE-safe by design — no embedded code during deserialisation. `include_data=False` emits shape/dtype only, useful for large models. |
-| Joblib | `JoblibFormat` | `pirn[joblib]` | Yes (or `allow_unsigned=True`) | Wraps pickle internally. HMAC-SHA256 signs before emit, verifies before load. `allow_unsigned=True` is dev/test only. |
-| PyTorch | `PytorchFormat` | `pirn[pytorch]` | Yes (or `allow_unsigned=True`) | `torch.load` with `weights_only=False` is an RCE sink. Defaults to `weights_only=True`. Full model loading needs signer or `allow_unsigned=True`. |
-| TF SavedModel | `TfSavedModelFormat` | `pirn[tensorflow]` | No | Zips the SavedModel directory on encode; extracts to temp dir on decode with path-traversal guards. Malicious models may embed arbitrary ops. |
-| GGUF | `GgufFormat` | `pirn[gguf]` | No | llama.cpp quantised weights. No pickle path. Malformed payloads may trigger upstream parser bugs. |
-| TFLite | `TfliteFormat` | `pirn[tflite]` | No | FlatBuffer format; falls back to `tensorflow.lite.Interpreter` when `tflite-runtime` is absent. Custom ops in malicious models are a risk. |
+| ONNX | `OnnxFormat` | `pirn-core[onnx]` | No | Protobuf parser; no pickle path. `validate=True` (default) calls `onnx.checker.check_model`. Treat untrusted payloads as potentially triggering upstream library bugs. |
+| SafeTensors | `SafetensorsFormat` | `pirn-core[safetensors]` | No | RCE-safe by design — no embedded code during deserialisation. `include_data=False` emits shape/dtype only, useful for large models. |
+| Joblib | `JoblibFormat` | `pirn-core[joblib]` | Yes (or `allow_unsigned=True`) | Wraps pickle internally. HMAC-SHA256 signs before emit, verifies before load. `allow_unsigned=True` is dev/test only. |
+| PyTorch | `PytorchFormat` | `pirn-core[pytorch]` | Yes (or `allow_unsigned=True`) | `torch.load` with `weights_only=False` is an RCE sink. Defaults to `weights_only=True`. Full model loading needs signer or `allow_unsigned=True`. |
+| TF SavedModel | `TfSavedModelFormat` | `pirn-core[tensorflow]` | No | Zips the SavedModel directory on encode; extracts to temp dir on decode with path-traversal guards. Malicious models may embed arbitrary ops. |
+| GGUF | `GgufFormat` | `pirn-core[gguf]` | No | llama.cpp quantised weights. No pickle path. Malformed payloads may trigger upstream parser bugs. |
+| TFLite | `TfliteFormat` | `pirn-core[tflite]` | No | FlatBuffer format; falls back to `tensorflow.lite.Interpreter` when `tflite-runtime` is absent. Custom ops in malicious models are a risk. |
+
+Every format implements the `FileFormat` streaming contract: `read(body)` takes an async iterator of byte chunks (what `ObjectStore.get(key)` returns) and yields records; `write(records)` takes an async iterator of records and yields byte chunks.
 
 ```python
-from pirn.connectors.file_formats.safetensors_format import SafetensorsFormat
-from pirn.connectors.file_formats.joblib_format import JoblibFormat
 from pirn.backends.signer import Signer
+from pirn.connectors.file_formats.joblib_format import JoblibFormat
+from pirn.connectors.file_formats.safetensors_format import SafetensorsFormat
 
 # SafeTensors — no signer required.
 fmt = SafetensorsFormat(include_data=True)
-records = list(await fmt.read(Path("model.safetensors").read_bytes()))
-# records[0] keys: "tensors", "metadata", "tensor_count"
+records = [record async for record in fmt.read(await store.get("model.safetensors"))]
 
 # Joblib — production: always use a signer.
-signer = Signer(secret=b"my-hmac-key")
+signer = Signer.from_env()  # base64 key from PIRN_SIGNING_KEY, or Signer(key=b"...")
 fmt = JoblibFormat(signer=signer)
-payload = await fmt.write([{"object": my_sklearn_pipeline}])
 
 # Joblib — dev/test only.
 fmt = JoblibFormat(allow_unsigned=True)
@@ -197,42 +214,64 @@ Training pipeline: data prep → feature engineering → train → gate → seri
 
 ```python
 import asyncio
+from pathlib import Path
+
+from pirn.connectors.file_formats.csv_format import CsvFormat
+from pirn.connectors.object_storage.local_filesystem_config import LocalFilesystemConfig
+from pirn.connectors.object_storage.local_filesystem_store import LocalFilesystemStore
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pirn_ml.data_prep.dataset_loader import DatasetLoader
 from pirn_ml.data_prep.train_test_split import TrainTestSplit
-from pirn_ml.features.scaler import Scaler
-from pirn_ml.training.trainer import Trainer
+from pirn_ml.deployment.model_registrar import ModelRegistrar
+from pirn_ml.deployment.model_serializer import ModelSerializer
 from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.evaluation.metric_check import MetricCheck
-from pirn_ml.deployment.model_serializer import ModelSerializer
-from pirn_ml.deployment.model_registrar import ModelRegistrar
-from pirn.connectors.file_formats.joblib_format import JoblibFormat
-from pirn.backends.signer import Signer
-from sklearn.linear_model import LogisticRegression
+from pirn_ml.features.scaler import Scaler
+from pirn_ml.training.trainer import Trainer
 
-async def main():
-    signer = Signer(secret=b"prod-secret")
+
+async def main() -> None:
+    store = LocalFilesystemStore(LocalFilesystemConfig(root=Path("data")))
+    features = ["amount", "age", "tenure"]
 
     with Tapestry() as t:
         dataset = DatasetLoader(
-            source=Parameter("dataset_path", str),
+            name="fraud",
+            feature_names=features,
+            target_name="is_fraud",
+            store=store,
+            file_format=CsvFormat(),
+            key=Parameter("dataset_key", str),
             _config=KnotConfig(id="load"),
         )
-        split = TrainTestSplit(dataset=dataset, test_size=0.2, stratify=True, _config=KnotConfig(id="split"))
-        scaled = Scaler(split=split, strategy="standard", _config=KnotConfig(id="scale"))
-        model = Trainer(split=scaled, estimator=LogisticRegression(max_iter=500), _config=KnotConfig(id="train"))
-        report = Evaluator(model=model, split=scaled, _config=KnotConfig(id="eval"))
-        gate = MetricCheck(report=report, metric="f1", min_value=0.80, raise_on_fail=True, _config=KnotConfig(id="gate"))
-        # `ModelSerializer` serialises metadata only. Wire a format connector (e.g. `JoblibFormat`) upstream to produce serialised bytes if you need to persist the estimator itself.
-        serialized = ModelSerializer(model=model, format="joblib", _config=KnotConfig(id="serialize"))
-        ModelRegistrar(serialized=serialized, lineage_store=my_mlflow_store, model_name="fraud-clf", _config=KnotConfig(id="register"))
+        split = TrainTestSplit(dataset=dataset, test_fraction=0.2, _config=KnotConfig(id="split"))
+        scaled = Scaler(split=split, columns=features, method="standardise", _config=KnotConfig(id="scale"))
+        model = Trainer(
+            split=scaled,
+            algorithm="logistic_regression",
+            hyperparameters={"max_iter": 500},
+            _config=KnotConfig(id="train"),
+        )
+        report = Evaluator(model=model, split=scaled, metrics=["f1"], _config=KnotConfig(id="eval"))
+        MetricCheck(report=report, metric="f1", min_value=0.80, raise_on_fail=True, _config=KnotConfig(id="gate"))
+        # ModelSerializer serialises ModelManifest metadata only (see anti-patterns).
+        serialized = ModelSerializer(model=model, format="json", _config=KnotConfig(id="serialize"))
+        ModelRegistrar(
+            serialized=serialized,
+            model=model,
+            lineage=my_lineage_store,  # your LineageStore implementation
+            store=store,
+            _config=KnotConfig(id="register"),
+        )
 
-    result = await t.run(RunRequest(parameters={"dataset_path": "data/train.csv"}))
-    print(result.outputs["eval"])    # EvalReport
-    print(result.outputs["gate"])    # True if f1 >= 0.80
+    result = await t.run(RunRequest(parameters={"dataset_key": "train.csv"}))
+    print(result.outputs["eval"])      # EvalReportPayload
+    print(result.outputs["gate"])      # True if f1 >= 0.80
+    print(result.outputs["register"])  # model_id
+
 
 asyncio.run(main())
 ```
@@ -245,10 +284,11 @@ from pirn_ml.specializations.task_pipelines.binary_classification_pipeline impor
 )
 
 pipeline = BinaryClassificationPipeline(
-    dataset=dataset_knot,
-    estimator=LogisticRegression(),
-    test_size=0.2,
-    thresholds={"f1": 0.80},
+    pool=pool,  # a DatabaseConnectionPool
+    query="SELECT * FROM transactions",
+    target_column="is_fraud",
+    feature_names=["amount", "age", "tenure"],
+    algorithm="logistic",
     _config=KnotConfig(id="classify"),
 )
 ```
@@ -265,7 +305,7 @@ For dynamic registry sweeps (e.g. evaluating N models in sequence without knowin
 
 ### Using `ModelSerializer` expecting actual fitted-model bytes
 
-The default `ModelSerializer.process()` serialises only the `TrainedModel` metadata fields (algorithm, hyperparameters, feature names) to JSON — it does not serialise the fitted estimator object. Subclass `ModelSerializer` and override `process()`, or use a format connector directly (`JoblibFormat`, `OnnxFormat`, etc.) alongside your own persistence logic.
+The default `ModelSerializer.process()` serialises only the `ModelManifest` metadata fields (model id, algorithm, hyperparameters, feature names) to JSON — it does not serialise the fitted estimator object. Subclass `ModelSerializer` and override `process()`, or use a format connector directly (`JoblibFormat`, `OnnxFormat`, etc.) alongside your own persistence logic.
 
 To persist the fitted estimator itself, use a format connector (`JoblibFormat`, `SafetensorsFormat`, etc.) to serialise to bytes first, then pass the bytes to `ModelSerializer` or directly to `ModelRegistrar`.
 
@@ -277,24 +317,24 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 
 `MetricCheck` takes a single `metric: str` and `min_value: float`, not a dict of thresholds. To gate on multiple metrics, chain multiple `MetricCheck` knots in series.
 
-### Ignoring `EmbeddingProvider.close()` in long-running processes
+### Ignoring `MLEmbeddingProvider.close()` in long-running processes
 
-`EmbeddingProvider`, `FeatureStoreProvider`, `ImageEncoderProvider`, and `LineageStore` all expose `close()`. Call it (or use an async context manager if the implementation provides one) to release connections and null credential references. Skipping `close()` leaks connections and leaves API keys in memory.
+`MLEmbeddingProvider`, `FeatureStoreProvider`, `ImageEncoderProvider`, and `LineageStore` all expose `close()`. Call it (or use an async context manager if the implementation provides one) to release connections and null credential references. Skipping `close()` leaks connections and leaves API keys in memory.
 
 ### Passing a `CrossValidator` output directly to `Trainer`
 
-`CrossValidator` produces `k` fold pairs; `Trainer` expects a single `DataSplit`. Use `SklearnTrainerPipeline` or the `StratifiedKFoldValidator` specialisation which handles the fold loop internally.
+`CrossValidator` produces a tuple of `k` `SplitManifest` folds; `Trainer` expects a single `SplitManifest`. Use the `KFoldCrossValidator` or `StratifiedKFoldValidator` specialisation, which handles the fold loop internally.
 
 ---
 
 ## Constraints and gotchas
 
 - **Lazy extras guard.** The core interfaces and types import without optional deps. Knots that need an optional SDK import it inside the method through `OptionalDependency.require(module, extra=..., package="pirn-ml")` — the missing-extra `ImportError` fires when that knot runs, not at install or import time, and names the `pip install "pirn-ml[<extra>]"` command.
-- **`MetricCheck` raises `KeyError` on unknown metric names.** The knot does not silently skip absent metrics — it raises. Ensure the metric key matches exactly what `Evaluator` puts in `EvalReport.metrics`.
-- **`ShadowDeployer` does not surface the challenger result.** Challenger responses are logged to the `LineageStore` but not returned to callers. Do not use `ShadowDeployer` if you need the challenger result in your application logic.
-- **`ModelRegistrar` depends on a `LineageStore` implementation.** There is no default built-in store. Wire in an MLflow, Weights & Biases, or custom `LineageStore` implementation before running.
+- **`MetricCheck` raises `KeyError` on unknown metric names.** The knot does not silently skip absent metrics — it raises. Ensure the metric key is one of the `metrics` you passed to `Evaluator` (they land in `EvalReportPayload.data.scores`).
+- **`ShadowDeployer` does not serve traffic.** It logs a `shadow_deployment` event to the `LineageStore` and returns the deployment id; routing requests to the shadow model is up to you.
+- **`ModelRegistrar` depends on a `LineageStore` and an `ObjectStore`.** There is no default built-in lineage store. Wire in an MLflow, Weights & Biases, or custom `LineageStore` implementation before running; the bytes are written under `models/<model_id>.bin`.
 - **Dynamic DAG expansion requires `extensible=True`.** When knots register successor knots at runtime via `Tapestry.current_store()`, call `await t.run(extensible=True)`. Without the flag, pirn treats the initial graph as final and will not resolve the dynamically registered knots.
-- **`TrainTestSplit.stratify` requires a label column.** If `MLDataset.labels` is `None`, stratification raises at runtime — not at graph construction time.
+- **`TrainTestSplit` fractions must sum below 1.** `test_fraction + validation_fraction >= 1` raises at runtime — not at graph construction time.
 
 ---
 
@@ -308,7 +348,7 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 | Scale features | `Scaler` |
 | Encode categoricals | `Encoder` |
 | Impute missing values | `Imputer` |
-| Text embeddings | `EmbeddingExtractor` + `EmbeddingProvider` |
+| Text embeddings | `EmbeddingExtractor` + `MLEmbeddingProvider` |
 | Image embeddings | `ImageEmbeddingExtractor` + `ImageEncoderProvider` |
 | Feature store I/O | `FeatureStore` + `FeatureStoreProvider` |
 | Fit a model | `Trainer` |

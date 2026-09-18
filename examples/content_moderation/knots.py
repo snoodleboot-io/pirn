@@ -6,40 +6,12 @@ These are referenced by dotted path from the YAML definition.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 
 from pirn.core.knot_factory import KnotFactory
 
-# ── Domain types ─────────────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True)
-class ContentFlags:
-    """Structured output from the classifier stage."""
-
-    has_profanity: bool
-    has_pii: bool
-    toxicity_score: float  # 0.0-1.0
-    language: str
-
-
-@dataclass(frozen=True)
-class ModerationDecision:
-    """Final moderation verdict."""
-
-    action: str  # "allow" | "warn" | "block"
-    reason: str
-    score: float
-
-
-# ── Knots ─────────────────────────────────────────────────────────────────────
-
-_PROFANITY = {"badword", "spam", "offensive"}
-_PII_PATTERN = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"  # email
-    r"|\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b"  # phone
-    r"|\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"  # card
-)
+from examples.content_moderation.content_flags import ContentFlags
+from examples.content_moderation.moderation_decision import ModerationDecision
+from examples.content_moderation.moderation_patterns import ModerationPatterns
 
 
 @KnotFactory.knot
@@ -59,19 +31,21 @@ def detect_language(text: str) -> str:
 def check_profanity(text: str) -> bool:
     """Return True if the text contains known profanity."""
     words = set(re.findall(r"\w+", text))
-    return bool(words & _PROFANITY)
+    return bool(words & ModerationPatterns.profanity)
 
 
 @KnotFactory.knot
 def check_pii(text: str) -> bool:
     """Return True if the text contains personally identifiable information."""
-    return bool(_PII_PATTERN.search(text))
+    return bool(ModerationPatterns.pii_pattern.search(text))
 
 
 @KnotFactory.knot
 def score_toxicity(text: str) -> float:
     """Compute a simple heuristic toxicity score (0.0 - 1.0)."""
-    bad_words = sum(1 for w in re.findall(r"\w+", text) if w in _PROFANITY)
+    bad_words = sum(
+        1 for w in re.findall(r"\w+", text) if w in ModerationPatterns.profanity
+    )
     caps_ratio = sum(1 for c in text if c.isupper()) / max(len(text), 1)
     return min(1.0, bad_words * 0.4 + caps_ratio * 0.3)
 
@@ -98,9 +72,13 @@ def decide(flags: ContentFlags) -> ModerationDecision:
     if flags.has_pii:
         return ModerationDecision("block", "PII detected", flags.toxicity_score)
     if flags.toxicity_score >= 0.7 or flags.has_profanity:
-        return ModerationDecision("warn", "High toxicity or profanity", flags.toxicity_score)
+        return ModerationDecision(
+            "warn", "High toxicity or profanity", flags.toxicity_score
+        )
     if flags.language == "unknown":
-        return ModerationDecision("warn", "Language not recognised", flags.toxicity_score)
+        return ModerationDecision(
+            "warn", "Language not recognised", flags.toxicity_score
+        )
     return ModerationDecision("allow", "Passed all checks", flags.toxicity_score)
 
 

@@ -26,7 +26,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.observability.prometheus_config import (
     PrometheusConfig,
 )
-from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class PrometheusClient(ApiClient, MetricQuery):
@@ -86,7 +86,7 @@ class PrometheusClient(ApiClient, MetricQuery):
         if time is not None:
             params["time"] = int(time.timestamp())
         response = await self.request("GET", "/api/v1/query", params=params)
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             return response
         return {"data": response}
 
@@ -110,7 +110,7 @@ class PrometheusClient(ApiClient, MetricQuery):
             "step": step,
         }
         response = await self.request("GET", "/api/v1/query_range", params=params)
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             return response
         return {"data": response}
 

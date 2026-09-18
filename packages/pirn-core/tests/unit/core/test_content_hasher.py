@@ -81,6 +81,13 @@ class TestContentHash(unittest.TestCase):
         h = ContentHasher.hash(Opaque())
         self.assertIn("unhashable", h)
 
+    def test_canonicalisation_bail_out_is_a_pirn_error(self) -> None:
+        class Opaque:
+            pass
+
+        with pytest.raises(PirnError):
+            ContentHasher._canonicalise(Opaque())
+
     def test_tuple_hashed_as_sequence(self) -> None:
         self.assertEqual(ContentHasher.hash((1, 2)), ContentHasher.hash((1, 2)))
         self.assertNotEqual(ContentHasher.hash((1, 2)), ContentHasher.hash((2, 1)))

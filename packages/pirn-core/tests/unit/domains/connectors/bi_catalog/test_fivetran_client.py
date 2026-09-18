@@ -224,3 +224,23 @@ class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
 
         assert rows == [{"id": "g1"}]
         assert fake.calls[0]["url"].endswith("/groups")
+
+
+class TestMalformedPage(unittest.IsolatedAsyncioTestCase):
+    """A malformed page raises; it is never read as a shorter or empty page."""
+
+    def _client(self, payload: object) -> FivetranClient:
+        fake = FakeHttpx()
+        cfg = FivetranConfig(api_key="k", api_secret="s", base_url="https://api.fivetran.com/v1")
+        fake.responses[("GET", "https://api.fivetran.com/v1/connectors")] = payload
+        return FivetranClient(cfg, client=fake)
+
+    async def test_non_mapping_data_raises_instead_of_empty_page(self) -> None:
+        client = self._client({"data": ["not", "an", "object"]})
+        with self.assertRaisesRegex(ValueError, "'data' to be a JSON object"):
+            await client.fetch_page()
+
+    async def test_non_mapping_item_raises_instead_of_being_dropped(self) -> None:
+        client = self._client({"data": {"items": [{"id": "a"}, 7]}})
+        with self.assertRaisesRegex(ValueError, "FivetranClient: expected every record"):
+            await client.fetch_page()
