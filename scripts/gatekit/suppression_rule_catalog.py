@@ -26,9 +26,7 @@ from typing import ClassVar
 class SuppressionRuleCatalog:
     """The pyright rule names and ruff codes known to the pinned linters."""
 
-    _pyright_rule: ClassVar[re.Pattern[str]] = re.compile(
-        r"\.(report[A-Z][A-Za-z]+)=\"\1\""
-    )
+    _pyright_rule: ClassVar[re.Pattern[str]] = re.compile(r"\.(report[A-Z][A-Za-z]+)=\"\1\"")
 
     def __init__(self, pyright_rules: frozenset[str], ruff_codes: frozenset[str]) -> None:
         if not pyright_rules or not ruff_codes:

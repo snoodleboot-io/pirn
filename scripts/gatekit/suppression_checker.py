@@ -72,9 +72,7 @@ class SuppressionChecker:
         for lineno, _col, comment in source_file.comments:
             segments = [segment.strip() for segment in comment.split("#")[1:]]
             for index, segment in enumerate(segments):
-                trailing = " ".join(
-                    s for s in segments[index + 1 :] if not self._is_directive(s)
-                )
+                trailing = " ".join(s for s in segments[index + 1 :] if not self._is_directive(s))
                 violations.extend(
                     self._check_segment(source_file, lineno, comment, segment, trailing)
                 )
@@ -113,8 +111,13 @@ class SuppressionChecker:
         if pyright is not None:
             rules = [r.strip() for r in (pyright.group("rules") or "").split(",") if r.strip()]
             return self._named_and_reasoned(
-                path, lineno, shown, rules, self._catalog.pyright_rules,
-                f"{pyright.group('rest')} {trailing}", "pyright rule",
+                path,
+                lineno,
+                shown,
+                rules,
+                self._catalog.pyright_rules,
+                f"{pyright.group('rest')} {trailing}",
+                "pyright rule",
             )
         if self._pyright_directive.match(segment) or self._file_noqa.match(segment):
             return [
@@ -130,8 +133,13 @@ class SuppressionChecker:
         if noqa is not None:
             codes = re.split(r"[\s,]+", noqa.group("codes") or "")
             return self._named_and_reasoned(
-                path, lineno, shown, [c for c in codes if c], self._catalog.ruff_codes,
-                f"{noqa.group('rest')} {trailing}", "ruff code",
+                path,
+                lineno,
+                shown,
+                [c for c in codes if c],
+                self._catalog.ruff_codes,
+                f"{noqa.group('rest')} {trailing}",
+                "ruff code",
             )
         pragma = self._pragma.match(segment)
         if pragma is not None and not self.is_reason(f"{pragma.group('rest')} {trailing}"):

@@ -1,7 +1,17 @@
-"""Tests for the house-conventions AST gate (PIR-856)."""
+"""Tests for the house-convention gate.
+
+Every rule gets a pair: a fixture that *violates* it, asserted to fire, and a fixture
+that is clean, asserted not to. A gate rule with no failing fixture is a rule nobody has
+ever seen work — that is how 146 real violations survived a green gate (PIR-873).
+
+Fixtures are written into a throwaway repository laid out like the real one
+(``packages/<dist>/<import root>/``) with a miniature pirn-core, so the class hierarchy
+index resolves bases exactly as it does in the workspace.
+"""
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -9,851 +19,571 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import check_conventions  # noqa: E402
-from check_conventions import (  # noqa: E402
-    check_file,
-    collect_counts,
-    main,
-    resolve_import_roots,
-)
+from check_conventions import CheckConventions
+from gatekit.convention_scan import ConventionScan
+from gatekit.knot_design_checker import KnotDesignChecker
+from gatekit.suppression_rule_catalog import SuppressionRuleCatalog
+
+_ruff = str(Path(__file__).resolve().parents[2] / ".venv" / "bin" / "ruff")
 
 
-def _import_root(tmp_path: Path, dist_name: str, import_name: str) -> Path:
-    """Create ``tmp_path/<dist_name>/<import_name>/`` as an import root."""
-    root = tmp_path / dist_name / import_name
-    root.mkdir(parents=True)
-    (root / "__init__.py").write_text("")
-    return root
-
-
-def _rules(violations: list) -> list[str]:
-    return [v.rule for v in violations]
-
-
-# --- rule 1: multi_class_file -----------------------------------------------
-
-
-def test_flags_more_than_one_top_level_class(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "two.py"
-    f.write_text("class A: ...\n\n\nclass B: ...\n")
-    violations = check_file(f, "acme", "two.py")
-    assert "multi_class_file" in _rules(violations)
-
-
-def test_single_class_file_is_clean(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "one.py"
-    f.write_text("class One: ...\n")
-    assert "multi_class_file" not in _rules(check_file(f, "acme", "one.py"))
-
-
-# --- rule 2: module_level_function ------------------------------------------
-
-
-def test_flags_module_level_function(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "funcs.py"
-    f.write_text("def helper() -> None:\n    pass\n")
-    violations = check_file(f, "acme", "funcs.py")
-    assert "module_level_function" in _rules(violations)
-
-
-def test_dunder_function_is_exempt(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "dunder.py"
-    f.write_text("def __getattr__(name: str):\n    raise AttributeError(name)\n")
-    assert "module_level_function" not in _rules(check_file(f, "acme", "dunder.py"))
-
-
-def test_knot_decorated_function_is_exempt(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "factory.py"
-    f.write_text(
-        "from pirn.core.knot_factory import KnotFactory\n\n\n@KnotFactory.knot\ndef make_thing():\n    pass\n"
+def _framework(repo: Path) -> Path:
+    """A miniature pirn-core: ``Knot``, ``Gate``, ``Aggregator``, ``Payload``, a Check."""
+    core = repo / "packages" / "pirn-core" / "pirn"
+    for package in ("", "core", "nodes", "nodes/gate"):
+        directory = core / package if package else core
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "__init__.py").write_text("", encoding="utf-8")
+    (core / "core" / "knot.py").write_text(
+        "class Knot:\n"
+        "    async def process(self, **_: object) -> object: ...\n"
+        "    def _bootstrap(self, **_: object) -> None: ...\n",
+        encoding="utf-8",
     )
-    assert "module_level_function" not in _rules(check_file(f, "acme", "factory.py"))
-
-
-def test_bare_alias_assignment_is_not_a_module_level_function(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "renderer.py"
-    f.write_text(
-        "class Renderer:\n"
-        "    @staticmethod\n"
-        "    def render(x: int) -> int:\n"
-        "        return x\n\n\n"
-        "render = Renderer.render\n"
-    )
-    assert "module_level_function" not in _rules(check_file(f, "acme", "acme/renderer.py"))
-
-
-# --- rule 3: nested_def_missing_override ------------------------------------
-
-
-def test_flags_nested_function_without_override_comment(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "closures.py"
-    f.write_text("def outer():\n    def inner():\n        pass\n    return inner\n")
-    violations = check_file(f, "acme", "closures.py")
-    assert "nested_def_missing_override" in _rules(violations)
-
-
-def test_nested_function_with_override_comment_is_allowed(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "closures.py"
-    f.write_text(
-        "def outer():\n"
-        "    #design-decision-override: closure captures config\n"
-        "    def inner():\n"
-        "        pass\n"
-        "    return inner\n"
-    )
-    assert "nested_def_missing_override" not in _rules(
-        check_file(f, "acme", "closures.py")
-    )
-
-
-def test_method_inside_class_is_not_nested(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "widget.py"
-    f.write_text("class Widget:\n    def method(self) -> None:\n        pass\n")
-    assert "nested_def_missing_override" not in _rules(
-        check_file(f, "acme", "widget.py")
-    )
-
-
-# --- rule 4: gate_wrong_base -------------------------------------------------
-
-
-def test_flags_gate_suffix_with_wrong_base(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "eval_gate.py"
-    f.write_text("class EvalGate:\n    pass\n")
-    assert "gate_wrong_base" in _rules(check_file(f, "acme", "eval_gate.py"))
-
-
-def test_allows_gate_suffix_extending_gate_primitive(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "row_count_gate.py"
-    f.write_text(
-        "from pirn.nodes.gate.gate import Gate\n\n\nclass RowCountGate(Gate):\n    pass\n"
-    )
-    assert "gate_wrong_base" not in _rules(check_file(f, "acme", "row_count_gate.py"))
-
-
-def test_gate_primitive_itself_is_not_flagged(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "gate.py"
-    f.write_text("from pirn.core.knot import Knot\n\n\nclass Gate(Knot):\n    pass\n")
-    assert "gate_wrong_base" not in _rules(check_file(f, "acme", "gate.py"))
-
-
-# --- rules 5-7: Knot purity (init, self-assignment, property) --------------
-
-
-def test_flags_impure_knot_init(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
-        "    def __init__(self, *, x, _config, **kwargs) -> None:\n"
-        "        if not x:\n"
-        "            raise ValueError('x required')\n"
-        "        super().__init__(x=x, _config=_config, **kwargs)\n"
-    )
-    assert "knot_init_impure" in _rules(check_file(f, "acme", "thing_knot.py"))
-
-
-def test_allows_pure_knot_init(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
-        "    def __init__(self, *, x, _config, **kwargs) -> None:\n"
-        '        """Wire x through."""\n'
-        "        super().__init__(x=x, _config=_config, **kwargs)\n"
-    )
-    assert "knot_init_impure" not in _rules(check_file(f, "acme", "thing_knot.py"))
-
-
-def test_allows_knot_with_no_init(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\nclass ThingKnot(Knot):\n    pass\n"
-    )
-    assert "knot_init_impure" not in _rules(check_file(f, "acme", "thing_knot.py"))
-
-
-def test_flags_self_assignment_in_knot_init(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
-        "    def __init__(self, *, x, _config, **kwargs) -> None:\n"
-        "        self._x = x\n"
-        "        super().__init__(x=x, _config=_config, **kwargs)\n"
-    )
-    assert "knot_self_assignment" in _rules(check_file(f, "acme", "thing_knot.py"))
-
-
-def test_mutable_prefixed_self_assignment_is_allowed(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
-        "    def __init__(self, *, x, _config, **kwargs) -> None:\n"
-        "        self._mutable_cache = {}\n"
-        "        super().__init__(x=x, _config=_config, **kwargs)\n"
-    )
-    assert "knot_self_assignment" not in _rules(check_file(f, "acme", "thing_knot.py"))
-
-
-def test_flags_property_on_knot_subclass(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
+    (core / "core" / "payload.py").write_text(
+        "class Payload:\n"
         "    @property\n"
-        "    def column(self) -> str:\n"
-        "        return self._column\n"
+        "    def metadata(self) -> dict[str, object]:\n"
+        "        return self._metadata\n",
+        encoding="utf-8",
     )
-    assert "knot_property" in _rules(check_file(f, "acme", "thing_knot.py"))
-
-
-def test_flags_cached_property_on_knot_subclass(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from functools import cached_property\n\n"
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
-        "    @cached_property\n"
-        "    def column(self) -> str:\n"
-        "        return 'x'\n"
+    (core / "nodes" / "aggregator.py").write_text(
+        "from pirn.core.knot import Knot\n\n\nclass Aggregator(Knot): ...\n", encoding="utf-8"
     )
-    assert "knot_property" in _rules(check_file(f, "acme", "thing_knot.py"))
-
-
-def test_property_on_plain_class_is_not_flagged(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "widget.py"
-    f.write_text(
-        "class Widget:\n    @property\n    def name(self) -> str:\n        return self._name\n"
+    (core / "nodes" / "gate" / "gate.py").write_text(
+        "from pirn.core.knot import Knot\n\n\nclass Gate(Knot): ...\n", encoding="utf-8"
     )
-    assert "knot_property" not in _rules(check_file(f, "acme", "widget.py"))
-
-
-# --- rule 8: knot_process_kwargs_name ---------------------------------------
-
-
-def test_flags_wrongly_named_process_kwargs(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
-        "    async def process(self, x: int, **kwargs) -> int:\n"
-        "        return x\n"
+    (core / "check.py").write_text(
+        "from pirn.core.knot import Knot\n\n\nclass Check(Knot): ...\n", encoding="utf-8"
     )
-    assert "knot_process_kwargs_name" in _rules(check_file(f, "acme", "thing_knot.py"))
+    return core
 
 
-def test_allows_underscore_named_process_kwargs(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class ThingKnot(Knot):\n"
-        "    async def process(self, x: int, **_) -> int:\n"
-        "        return x\n"
+def _write(repo: Path, relative: str, source: str) -> Path:
+    path = repo / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for parent in path.parents:
+        if parent == repo:
+            break
+        # Only the import root and its subpackages are importable packages: a
+        # distribution directory (``pirn-widgets``) must NOT get an ``__init__.py``,
+        # or the dotted module name would start with the distribution name.
+        if parent.name in {"tests", "packages"} or "-" in parent.name:
+            continue
+        if not (parent / "__init__.py").exists():
+            (parent / "__init__.py").write_text("", encoding="utf-8")
+    path.write_text(source, encoding="utf-8")
+    return path
+
+
+def _rules(repo: Path, relative: str, source: str) -> list[str]:
+    """The rules the gate reports for one fixture file written into ``repo``."""
+    _framework(repo)
+    path = _write(repo, relative, source)
+    scan = CheckConventions.build_scan(repo, [path], _ruff)
+    return sorted(violation.rule for violation in scan.run())
+
+
+def _source_rules(repo: Path, source: str, name: str = "widget.py") -> list[str]:
+    return _rules(repo, f"packages/pirn-widgets/pirn_widgets/{name}", source)
+
+
+def _test_rules(repo: Path, source: str, name: str = "test_widget.py") -> list[str]:
+    return _rules(repo, f"packages/pirn-widgets/tests/{name}", source)
+
+
+# --------------------------------------------------------------------- structure
+
+
+def test_multi_class_file_fires_and_one_class_file_is_clean(tmp_path: Path) -> None:
+    two = "class Widget:\n    pass\n\n\nclass Gadget:\n    pass\n"
+    assert "multi_class_file" in _source_rules(tmp_path / "a", two)
+    assert _source_rules(tmp_path / "b", "class Widget:\n    pass\n") == []
+
+
+def test_module_level_function_fires_unless_dunder_or_knot_factory(tmp_path: Path) -> None:
+    assert "module_level_function" in _source_rules(tmp_path / "a", "def build() -> None: ...\n")
+    assert _source_rules(tmp_path / "b", "def __getattr__(name: str) -> None: ...\n") == []
+    factory = "from pirn.core.knot import Knot\n\n\n@Knot.knot\ndef widget() -> None: ...\n"
+    assert "module_level_function" not in _source_rules(tmp_path / "c", factory)
+
+
+def test_filename_mismatch_compares_alnum_lowercase(tmp_path: Path) -> None:
+    assert (
+        _source_rules(tmp_path / "a", "class OpenAIClient:\n    pass\n", "open_ai_client.py") == []
     )
-    assert "knot_process_kwargs_name" not in _rules(
-        check_file(f, "acme", "thing_knot.py")
+    assert "filename_mismatch" in _source_rules(tmp_path / "b", "class Gadget:\n    pass\n")
+
+
+def test_nested_def_needs_the_override_marker(tmp_path: Path) -> None:
+    nested = (
+        "class Widget:\n"
+        "    def run(self) -> None:\n"
+        "        def inner() -> None: ...\n"
+        "        inner()\n"
     )
-
-
-def test_process_with_no_kwargs_param_is_not_flagged_by_this_rule(
-    tmp_path: Path,
-) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "thing_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\nclass ThingKnot(Knot):\n    async def process(self, x: int) -> int:\n        return x\n"
+    assert "nested_def_missing_override" in _source_rules(tmp_path / "a", nested)
+    marked = (
+        "class Widget:\n"
+        "    def run(self) -> None:\n"
+        "        # design-decision-override: the callback must close over run's frame\n"
+        "        def inner() -> None: ...\n"
+        "        inner()\n"
     )
-    assert "knot_process_kwargs_name" not in _rules(
-        check_file(f, "acme", "thing_knot.py")
+    assert "nested_def_missing_override" not in _source_rules(tmp_path / "b", marked)
+
+
+# --------------------------------------------------------------------- constants
+
+
+def test_module_level_constant_fires_whatever_its_case(tmp_path: Path) -> None:
+    assert "module_level_constant" in _source_rules(tmp_path / "a", "_gr_clean = 20.0\n")
+    assert "module_level_constant" in _source_rules(tmp_path / "b", "GR_CLEAN = 20.0\n")
+    on_class = (
+        "from typing import ClassVar\n\n\nclass Widget:\n    _gr_clean: ClassVar[float] = 20.0\n"
     )
+    assert "module_level_constant" not in _source_rules(tmp_path / "c", on_class)
 
 
-# --- rule 9: filename_mismatch ----------------------------------------------
+def test_module_level_constant_sees_inside_compound_blocks(tmp_path: Path) -> None:
+    """The old rule read ``tree.body`` only, so a compound block hid a constant."""
+    guarded = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    _limit = 5\n"
+    assert "module_level_constant" in _source_rules(tmp_path / "a", guarded)
+    tried = "try:\n    _limit = 5\nexcept ValueError:\n    _limit = 6\n"
+    assert "module_level_constant" in _source_rules(tmp_path / "b", tried)
 
 
-def test_flags_filename_not_matching_class(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "foo.py"
-    f.write_text("class Bar:\n    pass\n")
-    assert "filename_mismatch" in _rules(check_file(f, "acme", "foo.py"))
-
-
-def test_alnum_lowercase_comparison_allows_acronym_class(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "openai_client.py"
-    f.write_text("class OpenAIClient:\n    pass\n")
-    assert "filename_mismatch" not in _rules(check_file(f, "acme", "openai_client.py"))
-
-
-def test_private_only_class_file_is_not_checked(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "__init__.py"
-    f.write_text("class _Helper:\n    pass\n")
-    assert "filename_mismatch" not in _rules(check_file(f, "acme", "__init__.py"))
-
-
-# --- knot-like class detection (base name or suffix) ------------------------
-
-
-def test_pipeline_suffix_counts_as_knot_like_even_without_knot_base(
-    tmp_path: Path,
-) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "score_pipeline.py"
-    f.write_text(
-        "class ScorePipeline:\n    def __init__(self, *, x) -> None:\n        self.x = x\n"
+def test_type_aliases_and_dunders_are_not_constants(tmp_path: Path) -> None:
+    aliases = (
+        "from typing import Any, TypeVar\n\n"
+        "__all__ = ['Widget']\n"
+        "JsonValue = dict[str, Any]\n"
+        "Number = int | float\n"
+        "T = TypeVar('T')\n\n\n"
+        "class Widget:\n    pass\n"
     )
-    assert "knot_self_assignment" in _rules(check_file(f, "acme", "score_pipeline.py"))
+    assert _source_rules(tmp_path, aliases) == []
 
 
-# --- core-lane allowlist (rules 5-7 only) -----------------------------------
+# --------------------------------------------------------------------- knot design
 
 
-def test_core_nodes_allowlist_exempts_rules_5_to_7() -> None:
-    assert check_conventions._is_exempt_from_knot_purity(
-        "pirn-core", "pirn/nodes/gate/gate.py"
+def _knot(body: str, base: str = "Knot") -> str:
+    imports = "from pirn.core.knot import Knot\nfrom pirn.check import Check\n"
+    return f"{imports}\n\nclass Widget({base}):\n{body}"
+
+
+def test_knot_is_found_through_an_intermediate_and_a_subscripted_base(tmp_path: Path) -> None:
+    """The base-*name* list missed 61 real knots: ``Check``, ``Router``, ``Base[T]``."""
+    through_check = _knot(
+        "    def __init__(self, *, thing: object) -> None:\n        self._thing = thing\n",
+        base="Check",
     )
-    assert check_conventions._is_exempt_from_knot_purity(
-        "pirn-core", "pirn/core/parameter.py"
+    assert "knot_self_assignment" in _source_rules(tmp_path / "a", through_check)
+    subscripted = (
+        "from typing import Generic, TypeVar\n\n"
+        "from pirn.core.knot import Knot\n\n"
+        "S = TypeVar('S')\n\n\n"
+        "class Base(Knot, Generic[S]): ...\n"
     )
-    assert not check_conventions._is_exempt_from_knot_purity(
-        "pirn-core", "pirn/connectors/foo.py"
+    _framework(tmp_path / "b")
+    _write(tmp_path / "b", "packages/pirn-widgets/pirn_widgets/base.py", subscripted)
+    loop = (
+        "from pirn_widgets.base import Base\n\n\n"
+        "class Widget(Base[int]):\n"
+        "    def __init__(self, *, thing: object) -> None:\n"
+        "        self._thing = thing\n"
     )
-    assert not check_conventions._is_exempt_from_knot_purity(
-        "pirn-agents", "pirn/nodes/gate/gate.py"
+    assert "knot_self_assignment" in _source_rules(tmp_path / "b", loop)
+
+
+def test_a_class_that_only_reuses_a_root_name_is_not_a_knot(tmp_path: Path) -> None:
+    """``class Source:`` in someone else's file is not ``pirn.nodes.source.Source``."""
+    impostor = (
+        "class Source:\n"
+        "    def __init__(self, *, thing: object) -> None:\n"
+        "        self._thing = thing\n"
     )
+    assert _source_rules(tmp_path, impostor, "source.py") == []
 
 
-def test_allowlisted_file_still_checked_for_process_kwargs(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "pirn-core", "pirn")
-    nodes = root / "nodes"
-    nodes.mkdir()
-    f = nodes / "some_knot.py"
-    f.write_text(
-        "from pirn.core.knot import Knot\n\n\n"
-        "class SomeKnot(Knot):\n"
-        "    def __init__(self, *, x) -> None:\n"
-        "        self.x = x\n"
-        "    async def process(self, x, **kwargs):\n"
-        "        return x\n"
+def test_knot_self_assignment_judges_the_value_not_the_attribute(tmp_path: Path) -> None:
+    stores_input = _knot(
+        "    def __init__(self, *, llm: object) -> None:\n"
+        "        self._llm = llm\n"
+        "        super().__init__()\n"
     )
-    violations = _rules(check_file(f, "pirn-core", "pirn/nodes/some_knot.py"))
-    assert "knot_self_assignment" not in violations
-    assert "knot_init_impure" not in violations
-    assert "knot_process_kwargs_name" in violations
+    assert "knot_self_assignment" in _source_rules(tmp_path / "a", stores_input)
+    latch = _knot(
+        "    def __init__(self) -> None:\n        super().__init__()\n        self._frozen = True\n"
+    )
+    assert "knot_self_assignment" not in _source_rules(tmp_path / "b", latch)
+    mutable = _knot(
+        "    def __init__(self, *, llm: object) -> None:\n"
+        "        super().__init__()\n"
+        "        self._mutable_llm = llm\n"
+    )
+    assert "knot_self_assignment" not in _source_rules(tmp_path / "c", mutable)
 
 
-# --- framework root definitions (rules 5-8) ---------------------------------
-
-_ROOT_KNOT_SOURCE = (
-    "from typing import Any\n\n\n"
-    "class Knot:\n"
-    "    def __init__(self, **kwargs: Any) -> None:\n"
-    "        config = kwargs.pop('_config')\n"
-    "        self._mutable_config = config\n"
-    "        self._frozen = True\n\n"
-    "    @property\n"
-    "    def knot_id(self) -> str:\n"
-    "        return self._mutable_config.id\n\n"
-    "    async def process(self, *args: Any, **kwargs: Any) -> Any:\n"
-    "        raise NotImplementedError\n"
-)
-
-_KNOT_RULES = {
-    "knot_init_impure",
-    "knot_self_assignment",
-    "knot_property",
-    "knot_process_kwargs_name",
-}
+def test_knot_init_rejects_work_and_accepts_guards_and_wiring(tmp_path: Path) -> None:
+    works = _knot(
+        "    def __init__(self, *, path: str) -> None:\n"
+        "        rows = open(path).read()\n"
+        "        super().__init__(rows=rows)\n"
+    )
+    assert "knot_init_impure" in _source_rules(tmp_path / "a", works)
+    guarded = _knot(
+        "    def __init__(self, *, count: int, extra: object | None = None) -> None:\n"
+        "        if not isinstance(count, int):\n"
+        "            raise TypeError('count must be an int')\n"
+        "        parents = {'count': count}\n"
+        "        if extra is not None:\n"
+        "            parents['extra'] = extra\n"
+        "        super().__init__(**parents)\n"
+    )
+    assert _source_rules(tmp_path / "b", guarded) == []
 
 
-def test_core_knot_root_definition_is_exempt_from_rules_5_to_8(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "pirn-core", "pirn")
-    (root / "core").mkdir()
-    f = root / "core" / "knot.py"
-    f.write_text(_ROOT_KNOT_SOURCE)
-    violations = set(_rules(check_file(f, "pirn-core", "pirn/core/knot.py")))
-    assert not violations & _KNOT_RULES
+def test_knot_super_init_argument_sees_work_inside_the_parentheses(tmp_path: Path) -> None:
+    """The old rule never looked at the arguments, so the logic moved in there."""
+    computed = _knot(
+        "    def __init__(self, *, paths: list[str]) -> None:\n"
+        "        super().__init__(cache={k: open(k).read() for k in paths})\n"
+    )
+    assert "knot_super_init_argument" in _source_rules(tmp_path / "a", computed)
+    numbered = _knot(
+        "    def __init__(self, *, models: list[object]) -> None:\n"
+        "        super().__init__(**{f'model_{i}': m for i, m in enumerate(models)})\n"
+    )
+    assert _source_rules(tmp_path / "b", numbered) == []
 
 
-def test_core_aggregator_root_definition_keeps_variadic_process(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "pirn-core", "pirn")
-    (root / "engine").mkdir()
-    f = root / "engine" / "aggregator.py"
-    f.write_text(
+def test_knot_property_and_process_kwargs(tmp_path: Path) -> None:
+    prop = _knot("    @property\n    def size(self) -> int:\n        return 1\n")
+    assert "knot_property" in _source_rules(tmp_path / "a", prop)
+    kwargs = _knot("    async def process(self, **kwargs: object) -> None: ...\n")
+    assert "knot_process_kwargs_name" in _source_rules(tmp_path / "b", kwargs)
+    catch_all = _knot("    async def process(self, **_: object) -> None: ...\n")
+    assert "knot_process_kwargs_name" not in _source_rules(tmp_path / "c", catch_all)
+
+
+def test_gate_base_is_resolved_and_pytest_suites_are_not_gates(tmp_path: Path) -> None:
+    wrong = "class WidgetGate:\n    pass\n"
+    assert "gate_wrong_base" in _source_rules(tmp_path / "a", wrong, "widget_gate.py")
+    right = "from pirn.nodes.gate.gate import Gate\n\n\nclass WidgetGate(Gate):\n    pass\n"
+    assert _source_rules(tmp_path / "b", right, "widget_gate.py") == []
+    suite = "class TestWidgetGate:\n    def test_it(self) -> None: ...\n"
+    assert "gate_wrong_base" not in _source_rules(tmp_path / "c", suite, "test_widget_gate.py")
+
+
+def test_only_the_named_framework_roots_are_exempt(tmp_path: Path) -> None:
+    """The exemption is a qualified class id, not a file name anywhere in core."""
+    assert KnotDesignChecker.framework_root_ids == frozenset(
+        {
+            "pirn.core.knot.Knot",
+            "pirn.nodes.aggregator.Aggregator",
+            "pirn.core.parameter.Parameter",
+        }
+    )
+    impostor = (
         "from pirn.core.knot import Knot\n\n\n"
         "class Aggregator(Knot):\n"
-        "    async def process(self, **inputs):\n"
-        "        return inputs\n"
+        "    def __init__(self, *, thing: object) -> None:\n"
+        "        self._thing = thing\n"
     )
-    assert "knot_process_kwargs_name" not in _rules(
-        check_file(f, "pirn-core", "pirn/engine/aggregator.py")
+    rules = _rules(
+        tmp_path,
+        "packages/pirn-core/pirn/connectors/queue/aggregator.py",
+        impostor,
     )
+    assert "knot_self_assignment" in rules
 
 
-def test_same_named_subclass_of_a_core_root_is_still_checked(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "pirn-core", "pirn")
-    (root / "nodes").mkdir()
-    f = root / "nodes" / "sub_tapestry.py"
-    f.write_text(
-        "from pirn.nodes import sub_tapestry\n\n\n"
-        "class SubTapestry(sub_tapestry.SubTapestry):\n"
-        "    async def process(self, **inputs):\n"
-        "        return inputs\n"
-    )
-    assert "knot_process_kwargs_name" in _rules(
-        check_file(f, "pirn-core", "pirn/nodes/sub_tapestry.py")
-    )
-
-
-def test_knot_subclass_in_core_is_still_checked(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "pirn-core", "pirn")
-    (root / "core").mkdir()
-    f = root / "core" / "fancy_knot.py"
-    f.write_text(
-        "from typing import Any\n\n"
+def test_the_knot_purity_path_allowlist_is_gone(tmp_path: Path) -> None:
+    """``pirn/nodes/`` used to be exempt wholesale, hiding 28 findings."""
+    offender = (
         "from pirn.core.knot import Knot\n\n\n"
-        "class FancyKnot(Knot):\n"
-        "    def __init__(self, *, x: Any, **kwargs: Any) -> None:\n"
-        "        self._x = x\n"
-        "        super().__init__(x=x, **kwargs)\n\n"
+        "class Widget(Knot):\n"
+        "    def __init__(self, *, path: str) -> None:\n"
+        "        rows = open(path).read()\n"
+        "        super().__init__(rows=rows)\n"
+    )
+    rules = _rules(tmp_path, "packages/pirn-core/pirn/nodes/widget.py", offender)
+    assert "knot_init_impure" in rules
+
+
+# --------------------------------------------------------------------- aliases
+
+
+def test_module_alias_of_a_callable_fires_and_a_marker_does_not(tmp_path: Path) -> None:
+    renamed = "class Widget:\n    pass\n\n\nOldWidget = Widget\n"
+    assert "module_alias_assignment" in _source_rules(tmp_path / "a", renamed)
+    marker = "import pytest\n\npytestmark = pytest.mark.slow\n"
+    assert "module_alias_assignment" not in _test_rules(tmp_path / "b", marker)
+
+
+def test_call_rooted_module_alias_fires(tmp_path: Path) -> None:
+    """``available_extras = CapabilityProbe().available_extras`` — the shape the old
+    "value is a Name or an Attribute" test could not see."""
+    probe = (
+        "class CapabilityProbe:\n    def available_extras(self) -> list[str]:\n        return []\n"
+    )
+    _framework(tmp_path)
+    _write(tmp_path, "packages/pirn-widgets/pirn_widgets/capability_probe.py", probe)
+    lifted = (
+        "from pirn_widgets.capability_probe import CapabilityProbe\n\n"
+        "available_extras = CapabilityProbe().available_extras\n"
+    )
+    assert "module_alias_assignment" in _source_rules(tmp_path, lifted, "widget.py")
+
+
+def test_a_path_value_is_not_a_call_rooted_alias(tmp_path: Path) -> None:
+    value = "from pathlib import Path\n\nhere = Path(__file__).resolve().parent\n"
+    assert "module_alias_assignment" not in _source_rules(tmp_path, value)
+
+
+def test_class_scope_alias_of_a_sibling_method_fires(tmp_path: Path) -> None:
+    alias = "class Widget:\n    def build(self) -> None: ...\n\n    make = build\n"
+    assert "class_alias_assignment" in _source_rules(tmp_path / "a", alias)
+    pointer = "class Executor:\n    pass\n"
+    _framework(tmp_path / "b")
+    _write(tmp_path / "b", "packages/pirn-widgets/pirn_widgets/executor.py", pointer)
+    wiring = (
+        "from typing import ClassVar\n\n"
+        "from pirn_widgets.executor import Executor\n\n\n"
+        "class Widget:\n    _executor_class: ClassVar[type[Executor]] = Executor\n"
+    )
+    assert "class_alias_assignment" not in _source_rules(tmp_path / "b", wiring)
+
+
+def test_payload_alias_property_sees_a_mapping_get(tmp_path: Path) -> None:
+    """``return self.metadata.get("run_id")`` is the same alias as ``[...]``."""
+    getter = (
+        "from pirn.core.payload import Payload\n\n\n"
+        "class Widget(Payload):\n"
         "    @property\n"
-        "    def x(self) -> Any:\n"
-        "        return self._x\n\n"
-        "    async def process(self, x: Any, **kwargs: Any) -> Any:\n"
-        "        return x\n"
+        "    def run_id(self) -> object:\n"
+        "        return self.metadata.get('run_id')\n"
     )
-    violations = set(_rules(check_file(f, "pirn-core", "pirn/core/fancy_knot.py")))
-    assert violations >= _KNOT_RULES
-
-
-def test_root_name_in_another_core_file_is_still_checked(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "pirn-core", "pirn")
-    (root / "core").mkdir()
-    f = root / "core" / "not_the_root.py"
-    f.write_text(_ROOT_KNOT_SOURCE)
-    violations = set(_rules(check_file(f, "pirn-core", "pirn/core/not_the_root.py")))
-    assert violations >= _KNOT_RULES
-
-
-def test_root_definition_outside_pirn_core_is_still_checked(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "knot.py"
-    f.write_text(_ROOT_KNOT_SOURCE)
-    violations = set(_rules(check_file(f, "acme", "acme/knot.py")))
-    assert violations >= _KNOT_RULES
-
-
-# --- rule 10: deprecation_reference -----------------------------------------
-
-
-def _check_source(tmp_path: Path, source: str, name: str = "subject.py") -> list[str]:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / name
-    f.write_text(source)
-    return _rules(check_file(f, "acme", f"acme/{name}"))
-
-
-def test_flags_deprecation_warning_reference(tmp_path: Path) -> None:
-    source = "import warnings\n\n\nclass Old:\n    def run(self) -> None:\n        warnings.warn('x', DeprecationWarning)\n"
-    assert "deprecation_reference" in _check_source(tmp_path, source)
-
-
-def test_flags_pending_deprecation_warning_attribute(tmp_path: Path) -> None:
-    source = "import builtins\n\n\nclass Old:\n    category = builtins.PendingDeprecationWarning\n"
-    assert "deprecation_reference" in _check_source(tmp_path, source)
-
-
-def test_flags_deprecated_since_marker(tmp_path: Path) -> None:
-    source = "class Old:\n    _deprecated_since = '0.9'\n"
-    assert "deprecation_reference" in _check_source(tmp_path, source)
-
-
-def test_deprecation_word_in_a_docstring_is_not_a_reference(tmp_path: Path) -> None:
-    source = '"""Nothing here raises a DeprecationWarning."""\n\n\nclass Fine:\n    pass\n'
-    assert "deprecation_reference" not in _check_source(tmp_path, source)
-
-
-# --- rule 11: module_alias_assignment ---------------------------------------
-
-
-def test_flags_method_alias_at_module_scope(tmp_path: Path) -> None:
-    source = (
-        "class Renderer:\n"
-        "    @staticmethod\n"
-        "    def render(x: int) -> int:\n"
-        "        return x\n\n\n"
-        "render = Renderer.render\n"
+    assert "payload_alias_property" in _source_rules(tmp_path / "a", getter)
+    subscript = (
+        "from pirn.core.payload import Payload\n\n\n"
+        "class Widget(Payload):\n"
+        "    @property\n"
+        "    def run_id(self) -> object:\n"
+        "        return self.metadata['run_id']\n"
     )
-    assert "module_alias_assignment" in _check_source(tmp_path, source, "renderer.py")
-
-
-def test_flags_old_name_bound_to_imported_class(tmp_path: Path) -> None:
-    source = "from acme.new_name import NewName\n\nOldName = NewName\n"
-    assert "module_alias_assignment" in _check_source(tmp_path, source)
-
-
-def test_flags_annotated_alias_inside_module_level_if(tmp_path: Path) -> None:
-    source = (
-        "import sys\n"
-        "from acme.new_name import NewName\n\n"
-        "if sys.version_info >= (3, 11):\n"
-        "    OldName: type[NewName] = NewName\n"
+    assert "payload_alias_property" in _source_rules(tmp_path / "b", subscript)
+    canonical = (
+        "from pirn.core.payload import Payload\n\n\n"
+        "class Widget(Payload):\n"
+        "    @property\n"
+        "    def metadata(self) -> object:\n"
+        "        return self._metadata\n"
     )
-    assert "module_alias_assignment" in _check_source(tmp_path, source)
+    assert "payload_alias_property" not in _source_rules(tmp_path / "c", canonical)
 
 
-def test_call_subscript_and_unbound_names_are_not_aliases(tmp_path: Path) -> None:
-    source = (
-        "import logging\n"
-        "from typing import Any\n\n"
-        "logger = logging.getLogger(__name__)\n"
-        "JsonValue = dict[str, Any]\n"
-        "fallback = undefined_elsewhere\n"
-    )
-    assert "module_alias_assignment" not in _check_source(tmp_path, source)
+# --------------------------------------------------------------------- deprecation
 
 
-def test_class_scope_assignment_is_not_a_module_alias(tmp_path: Path) -> None:
-    source = "from acme.base import Base\n\n\nclass Child:\n    parent = Base\n"
-    assert "module_alias_assignment" not in _check_source(tmp_path, source, "child.py")
-
-
-# --- rule 12: reexport_module -------------------------------------------------
-
-
-def test_flags_module_that_only_reexports(tmp_path: Path) -> None:
-    source = (
-        '"""Old import path."""\n\n'
-        "from __future__ import annotations\n\n"
-        "from acme.core.map import Map\n"
-        "from acme.core.zip_map import ZipMap\n\n"
-        '__all__ = ["Map", "ZipMap"]\n'
-    )
-    assert "reexport_module" in _check_source(tmp_path, source, "map_markers.py")
-
-
-def test_recreated_map_markers_compat_module_fails(tmp_path: Path) -> None:
-    """A copy of the deleted ``pirn/nodes/map_markers.py`` re-export module is caught."""
-    root = _import_root(tmp_path, "pirn-core", "pirn")
-    (root / "nodes").mkdir()
-    f = root / "nodes" / "map_markers.py"
-    f.write_text(
-        '"""Wiring-time markers, re-exported from their canonical location."""\n\n'
-        "from __future__ import annotations\n\n"
-        "from pirn.core.dict_map import DictMap\n"
-        "from pirn.core.map import Map\n"
-        "from pirn.core.map_type_error import MapTypeError\n"
-        "from pirn.core.zip_map import ZipMap\n\n"
-        '__all__ = ["DictMap", "Map", "MapTypeError", "ZipMap"]\n'
-    )
-    assert "reexport_module" in _rules(check_file(f, "pirn-core", "pirn/nodes/map_markers.py"))
-
-
-def test_docstring_only_package_init_is_not_a_reexport(tmp_path: Path) -> None:
-    assert "reexport_module" not in _check_source(tmp_path, '"""A package."""\n', "__init__.py")
-
-
-def test_module_that_imports_and_defines_is_not_a_reexport(tmp_path: Path) -> None:
-    source = "from acme.base import Base\n\n\nclass Child(Base):\n    pass\n"
-    assert "reexport_module" not in _check_source(tmp_path, source, "child.py")
-
-
-# --- rule 13: suppression_without_rule_or_reason -----------------------------
-
-
-def test_flags_bare_type_ignore(tmp_path: Path) -> None:
-    source = "class Subject:\n    value: int = 'x'  # type: ignore\n"
-    assert "suppression_without_rule_or_reason" in _check_source(tmp_path, source)
-
-
-def test_flags_pyright_ignore_without_rule(tmp_path: Path) -> None:
-    source = "class Subject:\n    value: int = 'x'  # pyright: ignore  # wrong on purpose\n"
-    assert "suppression_without_rule_or_reason" in _check_source(tmp_path, source)
-
-
-def test_flags_ruled_suppression_without_reason(tmp_path: Path) -> None:
-    source = "class Subject:\n    value: int = 'x'  # pyright: ignore[reportAssignmentType]\n"
-    assert "suppression_without_rule_or_reason" in _check_source(tmp_path, source)
-
-
-def test_ruled_suppression_with_same_line_reason_passes(tmp_path: Path) -> None:
-    source = (
-        "class Subject:\n"
-        "    value: int = 'x'  # pyright: ignore[reportAssignmentType]  # untyped stub returns str\n"
-        "    other: int = 'y'  # type: ignore[assignment]  # untyped stub returns str\n"
-    )
-    assert "suppression_without_rule_or_reason" not in _check_source(tmp_path, source)
-
-
-def test_suppression_text_inside_a_string_is_not_a_comment(tmp_path: Path) -> None:
-    source = 'class Subject:\n    doc = "write # type: ignore to silence it"\n'
-    assert "suppression_without_rule_or_reason" not in _check_source(tmp_path, source)
-
-
-# --- rule 14: file_level_pyright_directive -----------------------------------
-
-
-def test_flags_file_level_rule_override(tmp_path: Path) -> None:
-    source = "# pyright: reportUnnecessaryIsInstance=false\n\n\nclass Subject:\n    pass\n"
-    assert "file_level_pyright_directive" in _check_source(tmp_path, source)
-
-
-def test_flags_file_level_mode_directive(tmp_path: Path) -> None:
-    source = "# pyright: basic\n\n\nclass Subject:\n    pass\n"
-    assert "file_level_pyright_directive" in _check_source(tmp_path, source)
-
-
-def test_per_line_pyright_ignore_is_not_a_file_directive(tmp_path: Path) -> None:
-    source = "class Subject:\n    value: int = 'x'  # pyright: ignore[reportAssignmentType]  # reason\n"
-    assert "file_level_pyright_directive" not in _check_source(tmp_path, source)
-
-
-# --- rule 15: payload_alias_property ------------------------------------------
-
-
-_PAYLOAD_ALIAS_SOURCE = (
-    "from pirn.core.payload import Payload\n\n\n"
-    "class SignalPayload(Payload[Frame, bytes]):\n"
-    "    @property\n"
-    "    def frame(self) -> Frame:\n"
-    '        """The frame."""\n'
-    "        return self._metadata\n\n"
-    "    @property\n"
-    "    def samples(self) -> bytes:\n"
-    "        return self.data\n\n"
-    "    @property\n"
-    "    def rate(self) -> float:\n"
-    "        return self.metadata.sample_rate\n\n"
-    "    @property\n"
-    "    def label(self) -> str:\n"
-    "        return self.metadata['label']\n"
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import warnings\n\n\nclass Widget:\n"
+        "    def run(self) -> None:\n"
+        "        warnings.warn('gone', DeprecationWarning, stacklevel=2)\n",
+        "import warnings\n\n\nclass Widget:\n"
+        "    def run(self) -> None:\n"
+        "        warnings.warn('gone', FutureWarning, stacklevel=2)\n",
+        "from warnings import deprecated\n\n\n@deprecated('use Gadget')\nclass Widget:\n    pass\n",
+        "from typing import ClassVar\n\n\nclass Widget:\n"
+        "    _deprecated_since: ClassVar[str] = '0.9.0'\n",
+    ],
+    ids=["DeprecationWarning", "FutureWarning", "pep702-deprecated", "since-marker"],
 )
+def test_every_spelling_of_deprecation_fires(tmp_path: Path, source: str) -> None:
+    assert "deprecation_reference" in _source_rules(tmp_path, source)
 
 
-def test_flags_every_payload_field_alias_property(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "signal_payload.py"
-    f.write_text(_PAYLOAD_ALIAS_SOURCE)
-    details = [
-        v.detail for v in check_file(f, "acme", "acme/signal_payload.py") if v.rule == "payload_alias_property"
-    ]
-    assert [d.split(" ", 1)[0] for d in details] == [
-        "SignalPayload.frame",
-        "SignalPayload.samples",
-        "SignalPayload.rate",
-        "SignalPayload.label",
-    ]
-
-
-def test_flags_alias_on_pirn_opaque_value_subclass(tmp_path: Path) -> None:
-    source = (
-        "class Wrapper(PirnOpaqueValue):\n"
-        "    @property\n"
-        "    def inner(self) -> int:\n"
-        "        return self._data\n"
+def test_prose_about_deprecation_is_not_a_deprecation(tmp_path: Path) -> None:
+    prose = (
+        '"""This module replaced the deprecated Gadget outright."""\n\n\nclass Widget:\n    pass\n'
     )
-    assert "payload_alias_property" in _check_source(tmp_path, source, "wrapper.py")
+    assert _source_rules(tmp_path, prose) == []
 
 
-def test_canonical_accessors_and_computed_properties_are_not_aliases(tmp_path: Path) -> None:
-    source = (
-        "class Payload(PirnOpaqueValue):\n"
-        "    @property\n"
-        "    def metadata(self) -> int:\n"
-        "        return self._metadata\n\n"
-        "    @property\n"
-        "    def data(self) -> int:\n"
-        "        return self._data\n\n"
-        "    @property\n"
-        "    def size(self) -> int:\n"
-        "        return len(self.data)\n"
+# --------------------------------------------------------------------- suppressions
+
+
+def test_a_type_ignore_is_rejected_outright(tmp_path: Path) -> None:
+    """pyright reads the bracket as decoration and suppresses the whole line."""
+    ignored = (
+        "class Widget:\n    value: int = 'x'  # type: ignore[assignment]  # a real reason here\n"
     )
-    assert "payload_alias_property" not in _check_source(tmp_path, source, "payload.py")
+    assert "suppression_without_rule_or_reason" in _source_rules(tmp_path, ignored)
 
 
-def test_property_on_non_payload_class_is_not_flagged(tmp_path: Path) -> None:
-    source = "class Holder:\n    @property\n    def frame(self) -> int:\n        return self._metadata\n"
-    assert "payload_alias_property" not in _check_source(tmp_path, source, "holder.py")
-
-
-def test_payload_subclass_of_a_subclass_is_followed_across_files(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    (root / "agent_result.py").write_text(
-        "from pirn.core.payload import Payload\n\n\nclass AgentResult(Payload[int, str]):\n    pass\n"
+def test_pyright_ignore_needs_a_bracketed_rule_and_a_real_reason(tmp_path: Path) -> None:
+    bare = "class Widget:\n    value: int = 1  # pyright: ignore\n"
+    assert "suppression_without_rule_or_reason" in _source_rules(tmp_path / "a", bare)
+    thin = "class Widget:\n    value: int = 1  # pyright: ignore[reportAssignmentType]  # .\n"
+    assert "suppression_without_rule_or_reason" in _source_rules(tmp_path / "b", thin)
+    good = (
+        "class Widget:\n"
+        "    value: int = 1  # pyright: ignore[reportAssignmentType]  # the stub types this as str\n"
     )
-    (root / "lats_result.py").write_text(
-        "from acme.agent_result import AgentResult\n\n\n"
-        "class LatsResult(AgentResult):\n"
-        "    @property\n"
-        "    def answer(self) -> str:\n"
-        "        return self.data\n"
+    assert _source_rules(tmp_path / "c", good) == []
+
+
+def test_an_unknown_rule_name_is_reported(tmp_path: Path) -> None:
+    unknown = (
+        "class Widget:\n"
+        "    value: int = 1  # pyright: ignore[notARealRule]  # this suppresses nothing at all\n"
     )
-    counts, _violations = collect_counts([root])
-    assert counts["acme"]["payload_alias_property"] == 1
+    assert "suppression_unknown_rule" in _source_rules(tmp_path / "a", unknown)
+    bad_code = "class Widget:\n    pass  # noqa: XYZ999  # this code does not exist either\n"
+    assert "suppression_unknown_rule" in _source_rules(tmp_path / "b", bad_code)
 
 
-# --- file discovery (skips tests/, conftest.py) -----------------------------
+def test_noqa_and_pragma_need_codes_and_reasons(tmp_path: Path) -> None:
+    bare = "class Widget:\n    pass  # noqa\n"
+    assert "suppression_without_rule_or_reason" in _source_rules(tmp_path / "a", bare)
+    unexplained = "class Widget:\n    pass  # noqa: E501\n"
+    assert "suppression_without_rule_or_reason" in _source_rules(tmp_path / "b", unexplained)
+    pragma = "class Widget:\n    def run(self) -> None:\n        pass  # pragma: no cover\n"
+    assert "suppression_without_rule_or_reason" in _source_rules(tmp_path / "c", pragma)
+    explained = (
+        "class Widget:\n"
+        "    def run(self) -> None:\n"
+        "        pass  # pragma: no cover  # only runs when the backend is absent\n"
+    )
+    assert _source_rules(tmp_path / "d", explained) == []
 
 
-def test_collect_counts_skips_tests_dir_and_conftest(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    (root / "real.py").write_text("def leaked() -> None:\n    pass\n")
-    tests_dir = root / "tests"
-    tests_dir.mkdir()
-    (tests_dir / "test_real.py").write_text("def helper() -> None:\n    pass\n")
-    (root / "conftest.py").write_text("def fixture_helper() -> None:\n    pass\n")
-
-    counts, _violations = collect_counts([root])
-    assert counts["acme"]["module_level_function"] == 1
+def test_a_file_wide_directive_is_reported(tmp_path: Path) -> None:
+    for index, header in enumerate(
+        ("# pyright: strict\n", "# ruff: noqa\n", "# mypy: ignore-errors\n")
+    ):
+        rules = _source_rules(tmp_path / str(index), f"{header}\n\nclass Widget:\n    pass\n")
+        assert "file_level_directive" in rules
 
 
-# --- failure semantics: no baseline, any finding fails ------------------------
+def test_a_directive_inside_a_string_is_not_a_suppression(tmp_path: Path) -> None:
+    quoted = 'class Widget:\n    text = "# type: ignore"\n'
+    assert "suppression_without_rule_or_reason" not in _source_rules(tmp_path, quoted)
 
 
-def _run(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
-    monkeypatch.setattr(sys, "argv", ["check_conventions.py", *args])
-    return main()
+def test_the_catalog_comes_from_the_installed_tools() -> None:
+    catalog = SuppressionRuleCatalog.from_installed_tools(_ruff)
+    assert "reportUnusedImport" in catalog.pyright_rules
+    assert "E501" in catalog.ruff_codes
+    assert "notARealRule" not in catalog.pyright_rules
 
 
-def test_any_finding_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_a_missing_ruff_is_an_error_not_a_pass(tmp_path: Path) -> None:
+    with pytest.raises((LookupError, OSError, subprocess.CalledProcessError)):
+        SuppressionRuleCatalog.from_installed_tools(str(tmp_path / "no-such-ruff"))
+
+
+# --------------------------------------------------------------------- scope
+
+
+def test_test_code_keeps_the_meaning_rules_and_is_spared_the_layout_rules(
+    tmp_path: Path,
 ) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    (root / "leak.py").write_text("def helper() -> None:\n    pass\n")
-
-    exit_code = _run(monkeypatch, str(root))
-
-    out = capsys.readouterr().out
-    assert exit_code == 1
-    assert "[module_level_function]" in out
-    assert "acme: module_level_function 1" in out
-
-
-def test_clean_tree_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    (root / "clean.py").write_text('"""Clean."""\n\n\nclass Clean:\n    pass\n')
-
-    assert _run(monkeypatch, str(root)) == 0
+    messy = (
+        "def helper() -> None: ...\n\n\n"
+        "class TestOne:\n    pass\n\n\n"
+        "class TestTwo:\n"
+        "    value: int = 1  # type: ignore[assignment]\n"
+    )
+    rules = _test_rules(tmp_path / "a", messy)
+    assert rules == ["suppression_without_rule_or_reason"]
+    assert _source_rules(tmp_path / "b", messy, "test_widget.py") != rules
 
 
-def test_baseline_options_no_longer_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    for option in (["--baseline", str(tmp_path / "b.json")], ["--write-baseline"]):
-        with pytest.raises(SystemExit) as excinfo:
-            _run(monkeypatch, str(root), *option)
-        assert excinfo.value.code == 2
+def test_conftest_counts_as_test_code(tmp_path: Path) -> None:
+    messy = "def fixture_one() -> None: ...\n\n\ndef fixture_two() -> None: ...\n"
+    assert _rules(tmp_path, "packages/pirn-widgets/pirn_widgets/conftest.py", messy) == []
 
 
-def test_real_packages_have_no_findings() -> None:
-    """The workspace itself is clean under every rule."""
+def test_the_deferred_rule_sets_are_exactly_the_two_families() -> None:
+    assert ConventionScan.structural_rules == frozenset(
+        {
+            "filename_mismatch",
+            "module_level_constant",
+            "module_level_function",
+            "multi_class_file",
+            "nested_def_missing_override",
+            "reexport_module",
+        }
+    )
+    assert ConventionScan.knot_design_rules == frozenset(
+        {
+            "gate_wrong_base",
+            "knot_init_impure",
+            "knot_process_kwargs_name",
+            "knot_property",
+            "knot_self_assignment",
+            "knot_super_init_argument",
+        }
+    )
+
+
+# --------------------------------------------------------------------- re-exports
+
+
+def test_a_reexport_module_fires_even_wrapped_in_a_trivial_if(tmp_path: Path) -> None:
+    plain = '"""Old home."""\n\nfrom pirn.core.knot import Knot\n\n__all__ = ["Knot"]\n'
+    assert "reexport_module" in _source_rules(tmp_path / "a", plain)
+    hatted = (
+        '"""Old home."""\n\n'
+        "from typing import TYPE_CHECKING\n\n"
+        "if TYPE_CHECKING:\n"
+        "    from pirn.core.knot import Knot\n"
+    )
+    assert "reexport_module" in _source_rules(tmp_path / "b", hatted)
+    real = "from pirn.core.knot import Knot\n\n\nclass Widget(Knot):\n    pass\n"
+    assert "reexport_module" not in _source_rules(tmp_path / "c", real)
+
+
+# --------------------------------------------------------------------- CLI
+
+
+def test_an_unparsable_file_is_a_finding_not_a_silent_skip(tmp_path: Path) -> None:
+    assert _source_rules(tmp_path, "class Widget(:\n") == ["unparsable_file"]
+
+
+def test_main_exits_one_on_a_finding_and_zero_when_clean(tmp_path: Path) -> None:
+    _framework(tmp_path)
+    path = _write(tmp_path, "packages/pirn-widgets/pirn_widgets/widget.py", "def build(): ...\n")
+    argv = [str(path), "--repository-root", str(tmp_path), "--ruff", _ruff]
+    assert CheckConventions.main(argv) == 1
+    path.write_text("class Widget:\n    pass\n", encoding="utf-8")
+    assert CheckConventions.main(argv) == 0
+
+
+def test_main_rejects_an_unusable_invocation(tmp_path: Path) -> None:
+    assert CheckConventions.main([]) == 2
+    assert CheckConventions.main([str(tmp_path / "missing")]) == 2
+    (tmp_path / "notes.txt").write_text("x", encoding="utf-8")
+    assert (
+        CheckConventions.main([str(tmp_path), "--repository-root", str(tmp_path), "--ruff", _ruff])
+        == 2
+    )
+
+
+def test_the_real_repository_is_scanned_including_tests_examples_and_scripts() -> None:
+    """A gate that checked nothing is the failure mode this replaces."""
     repo = Path(__file__).resolve().parents[2]
-    roots = [r for r in sorted(repo.glob("packages/*/pirn*")) if (r / "__init__.py").exists()]
-    _counts, violations = collect_counts(roots)
-    assert [str(v) for v in violations] == []
-
-
-# --- CLI contract -------------------------------------------------------
-
-
-def test_no_arguments_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert _run(monkeypatch) == 2
-
-
-def test_missing_path_is_an_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    assert _run(monkeypatch, str(tmp_path / "nope")) == 2
-
-
-def test_non_directory_path_is_an_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    f = tmp_path / "file.py"
-    f.write_text("")
-    assert _run(monkeypatch, str(f)) == 2
-
-
-def test_resolve_import_roots_accepts_directories(tmp_path: Path) -> None:
-    root = _import_root(tmp_path, "acme", "acme")
-    roots, errors = resolve_import_roots([str(root)])
-    assert errors == []
-    assert roots == [root]
-
-
-def test_fan_in_wiring_in_init_is_pure(tmp_path: Path) -> None:
-    """Building an Aggregator over a variadic input before super() is wiring, not logic."""
-    src = (
-        "from pirn.core.knot import Knot\n"
-        "from pirn.nodes.aggregator import Aggregator\n"
-        "class EnsembleBuilder(Knot):\n"
-        "    def __init__(self, *, models, _config, **kwargs):\n"
-        "        numbered = {f'model_{i}': m for i, m in enumerate(models)}\n"
-        "        node = Aggregator(combine=max, _config=_config, **numbered)\n"
-        "        super().__init__(models=node, _config=_config, **kwargs)\n"
-        "    async def process(self, models, **_):\n"
-        "        return models\n"
+    scan = CheckConventions.build_scan(
+        repo, [repo / "packages", repo / "examples", repo / "scripts"], _ruff
     )
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "ensemble_builder.py"
-    f.write_text(src)
-    assert "knot_init_impure" not in _rules(
-        check_file(f, "acme", "ensemble_builder.py")
-    )
-
-
-def test_non_fan_in_logic_in_init_is_impure(tmp_path: Path) -> None:
-    src = (
-        "from pirn.core.knot import Knot\n"
-        "class Bad(Knot):\n"
-        "    def __init__(self, *, x, _config, **kwargs):\n"
-        "        if x is None:\n"
-        "            raise ValueError('x')\n"
-        "        super().__init__(x=x, _config=_config, **kwargs)\n"
-        "    async def process(self, x, **_):\n"
-        "        return x\n"
-    )
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "bad.py"
-    f.write_text(src)
-    assert "knot_init_impure" in _rules(check_file(f, "acme", "bad.py"))
-
-
-def test_override_marker_survives_ruff_format_spacing(tmp_path: Path) -> None:
-    """``ruff format`` inserts a space after ``#``; both spellings must count."""
-    root = _import_root(tmp_path, "acme", "acme")
-    f = root / "closure.py"
-    f.write_text(
-        "def outer(x):\n"
-        "    # design-decision-override: closure captures x\n"
-        "    def inner():\n"
-        "        return x\n"
-        "    return inner\n"
-    )
-    assert "nested_def_missing_override" not in _rules(
-        check_file(f, "acme", "closure.py")
-    )
+    relative = {str(target.relative_posix) for target in scan.targets()}
+    assert scan.checked_file_count > 2000
+    assert any(path.startswith("packages/pirn-core/tests/") for path in relative)
+    assert any(path.startswith("examples/") for path in relative)
+    assert any(path.startswith("scripts/") for path in relative)
+    assert "scripts/check_conventions.py" in relative
