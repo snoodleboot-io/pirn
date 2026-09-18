@@ -1,4 +1,4 @@
-"""ATDD acceptance test: ``ScdType2History`` end-to-end.
+"""ATDD acceptance test: ``ScdType2`` end-to-end.
 
 Three runs over a SQLite source/target pair:
 
@@ -22,9 +22,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_data.specializations.scd.scd_type_2_history import (
-    ScdType2History,
-)
+from pirn_data.specializations.scd.scd_type_2 import ScdType2
 
 
 @pytest.fixture
@@ -60,20 +58,20 @@ async def pool() -> SqlitePool:
 
 def _build_pipeline(pool: SqlitePool) -> Tapestry:
     with Tapestry() as t:
-        ScdType2History(
+        ScdType2(
             source_pool=pool,
             source_query=("SELECT customer_id, region, tier FROM source_customers"),
             target_pool=pool,
             target_table="dim_customers_history",
-            key_columns=("customer_id",),
-            tracked_columns=("region", "tier"),
+            primary_keys=("customer_id",),
+            column_names=("customer_id", "region", "tier"),
             _config=KnotConfig(id="scd2"),
         )
     return t
 
 
 @pytest.mark.asyncio
-async def test_scd_type_2_history_first_run_inserts_all(
+async def test_scd_type_2_first_run_inserts_all(
     pool: SqlitePool,
 ) -> None:
     r1 = await _build_pipeline(pool).run(RunRequest())
@@ -89,7 +87,7 @@ async def test_scd_type_2_history_first_run_inserts_all(
 
 
 @pytest.mark.asyncio
-async def test_scd_type_2_history_idempotent_when_source_unchanged(
+async def test_scd_type_2_idempotent_when_source_unchanged(
     pool: SqlitePool,
 ) -> None:
     await _build_pipeline(pool).run(RunRequest())
@@ -101,7 +99,7 @@ async def test_scd_type_2_history_idempotent_when_source_unchanged(
 
 
 @pytest.mark.asyncio
-async def test_scd_type_2_history_closes_out_and_inserts_on_change(
+async def test_scd_type_2_closes_out_and_inserts_on_change(
     pool: SqlitePool,
 ) -> None:
     await _build_pipeline(pool).run(RunRequest())

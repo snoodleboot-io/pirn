@@ -550,7 +550,7 @@ table = HudiTable(config)
 
 ## Specialisations
 
-The `pirn_data.specialisations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
+The `pirn_data.specializations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
 
 ### Ingestion patterns (`ingestion/`)
 
@@ -578,14 +578,13 @@ The `pirn_data.specialisations` package bundles higher-level knot compositions f
 
 | Class | What it does |
 |-------|-------------|
-| `ScdType1` | Overwrite current record (no history). |
-| `ScdType1MergeKnot` | SCD Type 1 upsert via lakehouse merge. |
-| `ScdType2` | Maintain row history with `valid_from` / `valid_to` timestamps. |
-| `ScdType2History` | Resolves historical SCD-2 records for a given key + timestamp. |
-| `ScdType2MergeKnot` | SCD Type 2 merge using lakehouse primitives. |
-| `ScdType7` | Hybrid: SCD-2 history table + SCD-1 current view. |
-| `ScdType7Hybrid` | Manages both the history and current-view tables simultaneously. |
-| `ScdType7MergeKnot` | Merge step for SCD Type 7. |
+| `ScdType1` | Overwrite the current record on change (no history). |
+| `ScdType2` | Maintain row history with `valid_from` / `valid_to` / `is_current`; set `row_hash_column` for dbt-snapshot hash change detection. |
+| `ScdType3PreviousValue` | Keep the one prior value in a `previous_*` column. |
+| `ScdType4MiniDimension` | Split fast-changing attributes into a mini-dimension. |
+| `ScdType5MiniDimWithCurrent` | Mini-dimension plus a current-value outrigger on the base dimension. |
+| `ScdType6Hybrid` | Type 2 history with `current_*` and `previous_*` columns on every row. |
+| `ScdType7` | Surrogate-keyed Type 2 history; `current_columns` adds the Type 1 current view. |
 | `CDCDebezium` | Applies Debezium CDC event envelopes (op=c/u/d) to a target table. |
 | `DebeziumSource` | Reads Debezium-formatted CDC events from a topic. |
 
