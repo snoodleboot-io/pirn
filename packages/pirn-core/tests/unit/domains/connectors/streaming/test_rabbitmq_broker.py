@@ -1,15 +1,46 @@
-"""Unit tests for :class:`RabbitMQBroker` using stub aio_pika connection."""
+"""Unit tests for :class:`RabbitMQBroker` using stub aio_pika connection.
+
+``publish`` builds a real ``aio_pika.Message``; ``aio_pika`` is an optional
+extra, so these tests stand a fake module in ``sys.modules`` for the duration
+(PIR-873). The broker used to fall back to a ``RabbitMQPlainMessage`` of its own
+when the import failed — production code that only existed to keep these tests
+offline, and which would have silently published a non-SDK object against a real
+broker.
+"""
 
 from __future__ import annotations
 
+import sys
 import unittest
+from types import SimpleNamespace
 from typing import Any
+from unittest import mock
 
 from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.rabbitmq_broker import RabbitMQBroker
 from pirn.connectors.streaming.rabbitmq_config import RabbitMQConfig
 
 # ──────────────────────────────────────────────────────────── stub layer
+
+
+class FakeAioPikaMessage:
+    """The ``aio_pika.Message`` fields :meth:`RabbitMQBroker._build_message` sets."""
+
+    def __init__(
+        self,
+        *,
+        body: bytes,
+        headers: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        self.body = body
+        self.headers = headers
+        self.correlation_id = correlation_id
+
+
+def _fake_aio_pika() -> mock._patch_dict:
+    """Patch ``sys.modules`` so the lazy ``aio_pika`` import resolves to the fake."""
+    return mock.patch.dict(sys.modules, {"aio_pika": SimpleNamespace(Message=FakeAioPikaMessage)})
 
 
 class StubMessageContext:
@@ -118,7 +149,8 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_bytes_to_default_exchange(self) -> None:
         channel = StubChannel()
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection(channel=channel))
-        await broker.publish("events", b"hello")
+        with _fake_aio_pika():
+            await broker.publish("events", b"hello")
         assert len(channel.default_exchange.published) == 1
         pub = channel.default_exchange.published[0]
         assert pub["routing_key"] == "events"
@@ -129,7 +161,8 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_with_key_and_headers(self) -> None:
         channel = StubChannel()
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection(channel=channel))
-        await broker.publish("events", b"v", key=b"user-1", headers={"trace": b"abc"})
+        with _fake_aio_pika():
+            await broker.publish("events", b"v", key=b"user-1", headers={"trace": b"abc"})
         published = channel.default_exchange.published[0]
         assert published["body"] == b"v"
         assert published["correlation_id"] == "user-1"
@@ -169,7 +202,8 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         channel = StubChannel()
         connection = StubConnection(channel=channel)
         broker = RabbitMQBroker(RabbitMQConfig(), connection=connection)
-        await broker.publish("t", b"v")
+        with _fake_aio_pika():
+            await broker.publish("t", b"v")
         await broker.close()
         await broker.close()
         assert connection.closed is True
@@ -196,3 +230,13 @@ class TestCredentialSafety(unittest.TestCase):
         cfg = RabbitMQConfig(password="leaks")
         d = cfg.to_audit_dict()
         assert d["password"] == "<redacted>"
+
+
+class TestMissingBackend(unittest.IsolatedAsyncioTestCase):
+    """A missing ``aio_pika`` is reported, never worked around (PIR-873)."""
+
+    async def test_publish_without_aio_pika_raises_the_install_hint(self) -> None:
+        broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
+        with mock.patch.dict(sys.modules, {"aio_pika": None}):
+            with self.assertRaisesRegex(ImportError, r'pip install "pirn-core\[rabbitmq\]"'):
+                await broker.publish("t", b"v")

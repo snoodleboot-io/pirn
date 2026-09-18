@@ -101,6 +101,27 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### No production code falls back to a test stub (PIR-873)
+
+Four modules caught the `ImportError` from their optional backend and carried on
+with a substitute. Each now lets the install hint out, and the fake that kept the
+tests offline lives in the test that needs it.
+
+| Deleted name | Replacement |
+|---|---|
+| `pirn/connectors/streaming/rabbitmq_plain_message.py::RabbitMQPlainMessage` | a fake `aio_pika` module in `tests/unit/domains/connectors/streaming/test_rabbitmq_broker.py` |
+| `pirn/connectors/streaming/azure_servicebus_stub_message.py::AzureServiceBusStubMessage` | a fake `azure.servicebus` module in `test_azure_servicebus_broker.py` |
+| `pirn/connectors/databases/bigquery_stub_job_config.py::BigqueryStubJobConfig` | a fake `google.cloud.bigquery` module in `test_bigquery_pool.py` |
+| `BrainVisionFormat._decode_fallback` (with `_parse_vhdr`, `_parse_channel_names`) | a fake `mne` module in `test_brainvision_format.py` |
+
+The first three would have handed a live broker or BigQuery client an object its
+SDK cannot read, reported as a vendor error far from the cause.
+`BrainVisionFormat`'s second decoder was worse than useless: `mne` applies each
+channel's `Resolution` factor and unit so records carry volts, while the
+header-only parser returned raw ADC integers, and nothing in the records said
+which had run — the same file decoded to different numbers depending on what
+happened to be installed.
+
 #### Airbyte OAuth2 client-credentials exchange implemented (PIR-873)
 
 `AirbyteConfig` documented a `client_id` / `client_secret` pair the connector

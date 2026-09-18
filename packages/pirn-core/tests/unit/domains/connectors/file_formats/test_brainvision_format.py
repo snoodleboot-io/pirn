@@ -1,12 +1,25 @@
-"""Tests for :class:`BrainVisionFormat` — BrainVision EEG format."""
+"""Tests for :class:`BrainVisionFormat` — BrainVision EEG format.
+
+Decoding requires ``mne``, which is an optional extra of ``pirn-health``, so
+these tests stand a fake ``mne`` in ``sys.modules`` that reads the same three
+files off disk (PIR-873). The format used to carry a header-only decoder of its
+own and fall back to it whenever the import failed — production code that only
+existed to keep these tests offline, and which returned raw ADC integers where
+``mne`` returns volts, with nothing in the records to say which had run.
+"""
 
 from __future__ import annotations
 
+import configparser
 import io
+import sys
 import unittest
 import zipfile
 from collections.abc import Mapping
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
+from unittest import mock
 from unittest.mock import patch
 
 import numpy as np
@@ -54,8 +67,60 @@ async def _decode_bytes(fmt: BrainVisionFormat, payload: bytes) -> list[Mapping[
     return records
 
 
+class FakeRawBrainVision:
+    """The slice of ``mne``'s ``Raw`` that :meth:`_decode_with_mne` reads."""
+
+    def __init__(self, data: Any, sfreq: float, ch_names: list[str]) -> None:
+        self._data = data
+        self.info: dict[str, Any] = {"sfreq": sfreq, "ch_names": ch_names}
+
+    def get_data(self, return_times: bool = False) -> Any:
+        times = np.arange(self._data.shape[1], dtype=np.float64)
+        return (self._data, times) if return_times else self._data
+
+
+def _fake_read_raw_brainvision(
+    vhdr_path: str, preload: bool = True, verbose: bool = False
+) -> FakeRawBrainVision:
+    """Read the bundle the format wrote to disk, the way ``mne`` would.
+
+    Deliberately reads the ``.eeg`` file named by the rewritten header, so the
+    test still covers ``_decode_with_mne``'s temp-directory handling and
+    ``_rewrite_vhdr_paths``.
+    """
+    base = Path(vhdr_path).parent
+    text = Path(vhdr_path).read_text(encoding="utf-8")
+    parser = configparser.ConfigParser(strict=False)
+    parser.read_string(
+        "\n".join(line for line in text.splitlines() if not line.startswith("Brain Vision"))
+    )
+    n_channels = int(parser.get("Common Infos", "NumberOfChannels", fallback="0"))
+    sfreq = 1_000_000.0 / float(parser.get("Common Infos", "SamplingInterval", fallback="1000"))
+    data_file = parser.get("Common Infos", "DataFile", fallback="recording.eeg")
+    ch_names = [
+        parser.get("Channel Infos", f"ch{idx}", fallback=f"Ch{idx}").split(",")[0].strip()
+        for idx in range(1, n_channels + 1)
+    ]
+    raw = np.frombuffer((base / data_file).read_bytes(), dtype=np.float32)
+    n_samples = len(raw) // n_channels if n_channels else 0
+    data = raw[: n_samples * n_channels].reshape(n_samples, n_channels).T.astype(np.float64)
+    return FakeRawBrainVision(data, sfreq, ch_names)
+
+
+def _fake_mne() -> mock._patch_dict:
+    """Patch ``sys.modules`` so the lazy ``mne`` import resolves to the fake."""
+    return mock.patch.dict(
+        sys.modules,
+        {
+            "mne": SimpleNamespace(
+                io=SimpleNamespace(read_raw_brainvision=_fake_read_raw_brainvision)
+            )
+        },
+    )
+
+
 def _make_zip_bundle(n_channels: int = 2, n_samples: int = 50, sfreq: float = 500.0) -> bytes:
-    """Build a minimal BrainVision zip bundle for testing the fallback decoder."""
+    """Build a minimal BrainVision zip bundle."""
     sampling_interval = int(1_000_000 / sfreq)
     vhdr = (
         "Brain Vision Data Exchange Header File Version 1.0\n"
@@ -132,7 +197,8 @@ class TestBrainVisionFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 
     async def test_decoded_records_have_no_phi_keys(self) -> None:
         payload = _make_zip_bundle(n_channels=2, n_samples=50)
-        records = await _decode_bytes(BrainVisionFormat(), payload)
+        with _fake_mne():
+            records = await _decode_bytes(BrainVisionFormat(), payload)
         phi_keys = {"subjectname", "subjectid", "institutionname"}
         for rec in records:
             for key in rec:
@@ -140,7 +206,8 @@ class TestBrainVisionFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 
     async def test_decoded_record_shape(self) -> None:
         payload = _make_zip_bundle(n_channels=1, n_samples=20)
-        records = await _decode_bytes(BrainVisionFormat(), payload)
+        with _fake_mne():
+            records = await _decode_bytes(BrainVisionFormat(), payload)
         assert len(records) == 1
         rec = records[0]
         for key in ("channel_index", "channel_name", "sample_rate", "n_samples", "data"):
@@ -157,7 +224,8 @@ class TestBrainVisionFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         records = _make_channel_records(n_channels=1, n_samples=80)
         fmt = BrainVisionFormat()
         payload = await FormatRoundTrip.encode(fmt, records)
-        decoded = await FormatRoundTrip.decode(fmt, payload)
+        with _fake_mne():
+            decoded = await FormatRoundTrip.decode(fmt, payload)
 
         assert len(decoded) == 1
         assert decoded[0]["channel_index"] == 0
@@ -168,7 +236,8 @@ class TestBrainVisionFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         records = _make_channel_records(n_channels=4, n_samples=64)
         fmt = BrainVisionFormat()
         payload = await FormatRoundTrip.encode(fmt, records)
-        decoded = await FormatRoundTrip.decode(fmt, payload)
+        with _fake_mne():
+            decoded = await FormatRoundTrip.decode(fmt, payload)
 
         assert len(decoded) == 4
         for idx, rec in enumerate(decoded):
@@ -176,26 +245,26 @@ class TestBrainVisionFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
-# Fallback path (no mne)
+# Decode path
 # ---------------------------------------------------------------------------
 
 
-class TestBrainVisionFormatFallback(unittest.IsolatedAsyncioTestCase):
-    async def test_fallback_decodes_bundle(self) -> None:
+class TestBrainVisionFormatDecode(unittest.IsolatedAsyncioTestCase):
+    async def test_decodes_bundle(self) -> None:
         payload = _make_zip_bundle(n_channels=2, n_samples=40, sfreq=250.0)
         fmt = BrainVisionFormat()
-        # Force fallback by hiding mne
-        with patch.dict("sys.modules", {"mne": None}):
+        with _fake_mne():
             decoded = await _decode_bytes(fmt, payload)
         assert len(decoded) == 2
         for idx, rec in enumerate(decoded):
             assert rec["channel_index"] == idx
             assert rec["n_samples"] == 40
+            assert rec["sample_rate"] == 250.0
 
-    async def test_fallback_channel_names(self) -> None:
+    async def test_channel_names_come_from_the_header(self) -> None:
         payload = _make_zip_bundle(n_channels=3, n_samples=20)
         fmt = BrainVisionFormat()
-        with patch.dict("sys.modules", {"mne": None}):
+        with _fake_mne():
             decoded = await _decode_bytes(fmt, payload)
         ch_names = [r["channel_name"] for r in decoded]
         assert ch_names == ["Chan1", "Chan2", "Chan3"]
@@ -230,15 +299,22 @@ class TestBrainVisionFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
-# Missing dependency (mne) — format still works via fallback
+# Missing dependency (mne)
 # ---------------------------------------------------------------------------
 
 
 class TestBrainVisionFormatMissingDep(unittest.IsolatedAsyncioTestCase):
-    async def test_works_without_mne_via_fallback(self) -> None:
-        """BrainVisionFormat must not raise ImportError when mne is absent."""
+    async def test_decode_without_mne_raises_the_install_hint(self) -> None:
+        """No second decoder: a missing mne is reported, not silently replaced (PIR-873)."""
         payload = _make_zip_bundle(n_channels=1, n_samples=10)
         fmt = BrainVisionFormat()
         with patch.dict("sys.modules", {"mne": None}):
-            decoded = await _decode_bytes(fmt, payload)
-        assert len(decoded) == 1
+            with self.assertRaisesRegex(ImportError, r'pip install "pirn-health\[health\]"'):
+                await _decode_bytes(fmt, payload)
+
+    async def test_encode_needs_no_mne(self) -> None:
+        """Encoding is pure numpy, so it keeps working without the extra."""
+        records = _make_channel_records(n_channels=2, n_samples=16)
+        with patch.dict("sys.modules", {"mne": None}):
+            payload = await FormatRoundTrip.encode(BrainVisionFormat(), records)
+        assert payload[:2] == b"PK"
