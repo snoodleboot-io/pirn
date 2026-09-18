@@ -21,6 +21,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
@@ -89,7 +90,7 @@ class ReflectionCheck(Knot):
             },
             {"role": "user", "content": response.data},
         )
-        raw = await llm.chat(messages=wire_messages)
+        raw = await RecordedLlmCall.chat(knot_id=self.knot_id, llm=llm, messages=wire_messages)
         text = LlmResponseText().extract(raw)
         normalised = text.strip().lower()
         return normalised.startswith("yes") or normalised.startswith("y ")

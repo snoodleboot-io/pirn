@@ -31,6 +31,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_message import AgentMessage
@@ -85,8 +86,11 @@ class SemanticFactExtractor(Knot):
         prompt = (
             f"{fact_extraction_prompt}\n\nConversation:\n{rendered}\n\nReturn one fact per line."
         )
-        chat_messages = [{"role": "user", "content": prompt}]
-        raw = await llm.chat(chat_messages)
+        raw = await RecordedLlmCall.chat(
+            knot_id=self.knot_id,
+            llm=llm,
+            messages=({"role": "user", "content": prompt},),
+        )
         text = LlmResponseText().extract(raw)
         facts: list[str] = []
         for raw_line in text.splitlines():

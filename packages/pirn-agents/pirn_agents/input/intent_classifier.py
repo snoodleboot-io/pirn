@@ -24,6 +24,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
@@ -104,7 +105,9 @@ class IntentClassifier(Knot):
         prompt = type(self)._classification_prompt.render(
             {"intents": ", ".join(intent_categories), "message": last},
         )
-        response = await llm.chat(
+        response = await RecordedLlmCall.chat(
+            knot_id=self.knot_id,
+            llm=llm,
             messages=({"role": "user", "content": prompt},),
         )
         raw = LlmResponseText().extract(response)
