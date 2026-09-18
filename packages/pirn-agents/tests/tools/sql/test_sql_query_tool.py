@@ -20,7 +20,11 @@ from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
+from pirn_agents.exceptions.tool_argument_validation_error import (
+    ToolArgumentValidationError,
+)
 from pirn_agents.tools.sql.aiosqlite_connector import AiosqliteConnector
+from pirn_agents.tools.sql.read_write_sql_query_tool import ReadWriteSqlQueryTool
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
@@ -78,11 +82,29 @@ class TestReadOnlyEnforcement:
         )
         assert result["row_count"] == 1
 
-    async def test_write_allowed_when_read_only_disabled(self) -> None:
+    async def test_write_allowed_on_the_read_write_class(self) -> None:
         connector = _StubSqlConnector([], [])
-        tool = SqlQueryTool.bind(connector=connector, read_only=False)
+        tool = ReadWriteSqlQueryTool.bind(connector=connector)
         await ToolRunner.value(tool, {"query": "UPDATE t SET x = 1"})
         assert connector.calls[-1][0] == "UPDATE t SET x = 1"
+
+    def test_the_write_policy_is_not_in_the_declaration(self) -> None:
+        """PIR-873: ``read_only`` was a model-visible argument that turned the guard off."""
+        declared = SqlQueryTool.bind(connector=_StubSqlConnector([], [])).declaration()
+        assert "read_only" not in declared.parameters["properties"]
+
+    async def test_a_call_cannot_argue_its_way_past_the_read_only_guard(self) -> None:
+        """PIR-873: ``{"read_only": false}`` in a call used to run the write."""
+        connector = _StubSqlConnector([], [])
+        tool = SqlQueryTool.bind(connector=connector)
+        with pytest.raises(ToolArgumentValidationError, match="read_only"):
+            await ToolRunner.value(tool, {"query": "DROP TABLE t", "read_only": False})
+        assert connector.calls == []
+
+    def test_the_two_classes_are_addressed_by_different_names(self) -> None:
+        assert SqlQueryTool.tool_name != ReadWriteSqlQueryTool.tool_name
+        assert vars(ReadWriteSqlQueryTool)["_read_only"] is False
+        assert vars(SqlQueryTool)["_read_only"] is True
 
 
 class TestRowCapAndShape:
@@ -363,10 +385,10 @@ class TestAiosqliteConnectorDurability:
         assert self._rows_on_disk(database) == [(1, "new")]
 
     async def test_a_write_through_the_tool_persists(self, tmp_path: Any) -> None:
-        # The reachable path: SqlQueryTool.bind(read_only=False) -> AiosqliteConnector.
+        # The reachable path: ReadWriteSqlQueryTool.bind(...) -> AiosqliteConnector.
         pytest.importorskip("aiosqlite")
         database = str(tmp_path / "via_tool.db")
-        tool = SqlQueryTool.bind(connector=AiosqliteConnector(database=database), read_only=False)
+        tool = ReadWriteSqlQueryTool.bind(connector=AiosqliteConnector(database=database))
 
         await ToolRunner.value(
             tool, {"query": "CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)"}
@@ -457,7 +479,7 @@ class TestSqlServiceConnectorIsASqlConnector:
 
     async def test_tool_surfaces_connector_read_only_rejection(self) -> None:
         connector = SqlServiceConnector(pool=_FakeColumnAwarePool([], []))
-        tool = SqlQueryTool.bind(connector=connector, read_only=False)
+        tool = ReadWriteSqlQueryTool.bind(connector=connector)
         with pytest.raises(ValueError):
             await ToolRunner.value(tool, {"query": "DROP TABLE t"})
         await connector.close()

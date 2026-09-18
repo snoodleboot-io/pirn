@@ -7,9 +7,27 @@ resolver keep unit tests fully offline. Every request is vetted by
 ``GET``/``HEAD``, and the response body is streamed and truncated at
 ``max_bytes`` to protect the context window.
 
-The fetch policy — ``allowed_hosts``, ``allow_private``, ``max_bytes``, the
-timeouts, the injected ``client``/``resolver`` — is bound once with
-``HttpRequestTool.bind(...)``; a call supplies ``url`` and ``method``.
+The size and timeout policy — ``max_bytes``, the timeouts, the injected
+``client``/``resolver`` — is bound once with ``HttpRequestTool.bind(...)``; a
+call supplies ``url`` and ``method``.
+
+The *egress* policy is not an input at all.  ``allow_private`` and
+``allowed_hosts`` used to be ``Knot | ...`` inputs with permissive defaults, so
+both were part of the declaration the model reads: a call not built through
+``bind`` (or ``Bundles.web_toolset``) could carry ``allow_private: true`` and
+reach the loopback interface or a cloud metadata endpoint.  Both are now
+``ClassVar`` policy chosen by *which class* the pipeline author offers
+(PIR-817, ``docs/contributing/knot-design-rules.md`` Rule 4):
+
+* :class:`HttpRequestTool` — public hosts only, no allowlist;
+* :class:`~pirn_agents.tools.web.private_http_request_tool.PrivateHttpRequestTool`
+  — the one class permitted to reach private/loopback addresses;
+* an allowlisted deployment declares its own subclass::
+
+      class PartnerApiFetch(HttpRequestTool):
+          # Fetch a document from the partner API.
+          tool_name: ClassVar[str] = "partner_api_fetch"
+          _allowed_hosts: ClassVar[tuple[str, ...] | None] = ("api.partner.example",)
 """
 
 from __future__ import annotations
@@ -32,16 +50,24 @@ class HttpRequestTool(Tool):
 
     tool_name: ClassVar[str] = "http_request"
 
+    #: Hosts this tool may fetch from, or ``None`` for "any public host".
+    #: Egress policy, so a ``ClassVar`` and not an input (PIR-817): a subclass
+    #: narrows it, and nothing the model sends can widen it.
+    _allowed_hosts: ClassVar[tuple[str, ...] | None] = None
+    #: Whether private/loopback targets are permitted.  ``False`` here, and
+    #: ``True`` only on
+    #: :class:`~pirn_agents.tools.web.private_http_request_tool.PrivateHttpRequestTool`
+    #: — the class *is* the opt-in (PIR-817).
+    _allow_private: ClassVar[bool] = False
+
     def __init__(
         self,
         *,
         url: Knot | str,
         method: Knot | str = "GET",
-        allowed_hosts: Knot | tuple[str, ...] | None = None,
         max_bytes: Knot | int = 1_000_000,
         timeout: Knot | float = 10.0,
         connect_timeout: Knot | float = 5.0,
-        allow_private: Knot | bool = False,
         client: Any | None = None,
         resolver: Any | None = None,
         _config: KnotConfig,
@@ -50,11 +76,9 @@ class HttpRequestTool(Tool):
         super().__init__(
             url=url,
             method=method,
-            allowed_hosts=allowed_hosts,
             max_bytes=max_bytes,
             timeout=timeout,
             connect_timeout=connect_timeout,
-            allow_private=allow_private,
             client=client,
             resolver=resolver,
             _config=_config,
@@ -67,11 +91,9 @@ class HttpRequestTool(Tool):
         method: Annotated[
             Literal["GET", "HEAD"], Field(description="HTTP method: GET (default) or HEAD.")
         ] = "GET",
-        allowed_hosts: tuple[str, ...] | None = None,
         max_bytes: int = 1_000_000,
         timeout: float = 10.0,
         connect_timeout: float = 5.0,
-        allow_private: bool = False,
         # ``client`` / ``resolver`` are typed ``Any``: an ``httpx.AsyncClient``
         # and a bare callable have no pydantic schema for core's eager adapter
         # build, and both are bound policy, never model-supplied.
@@ -84,12 +106,9 @@ class HttpRequestTool(Tool):
         Args:
             url: The absolute http(s) URL to fetch.
             method: ``GET`` (default) or ``HEAD``.
-            allowed_hosts: Optional host allow-list; other hosts are refused.
             max_bytes: Maximum number of response-body bytes read before truncation.
             timeout: Overall per-request timeout in seconds.
             connect_timeout: Connection-establishment timeout in seconds.
-            allow_private: When ``True``, skip the private/loopback IP guard
-                (opt-in for trusted internal endpoints only).
             client: An optional ``httpx.AsyncClient``-compatible client; when
                 bound it is used as-is (and not closed) instead of creating one.
             resolver: Optional hostname->IP resolver forwarded to the SSRF guard.
@@ -110,7 +129,9 @@ class HttpRequestTool(Tool):
         if verb not in ("GET", "HEAD"):
             raise ValueError(f"http_request: unsupported method {method!r} (use GET or HEAD)")
         guard = SsrfGuard(
-            allowed_hosts=allowed_hosts, allow_private=allow_private, resolver=resolver
+            allowed_hosts=self._allowed_hosts,
+            allow_private=self._allow_private,
+            resolver=resolver,
         )
         endpoint = guard.assert_public_host(url)
         if client is not None:
