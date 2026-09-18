@@ -9,6 +9,7 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
+from pirn.core.transport.advisory_file_lock import AdvisoryFileLock
 from pirn.core.transport.filesystem_transport import FilesystemTransport
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
@@ -167,6 +168,50 @@ class TestFilesystemTransport(unittest.IsolatedAsyncioTestCase):
         removed = t.sweep_abandoned(max_age_hours=48)
         assert removed == 0
         assert run_dir.exists()
+
+    async def test_sweep_abandoned_keeps_a_stale_dir_whose_lock_cannot_be_read(self) -> None:
+        """The gate in front of rmtree fails safe: "cannot tell" must mean "keep".
+
+        Before PIR-873 ``_is_lock_held`` returned False for an unreadable lock
+        and for every platform without ``fcntl``, so the sweeper deleted the run
+        directory of a process that was still writing into it.
+        """
+        t = self._transport()
+        run_dir = self.base / "pirn-locked"
+        run_dir.mkdir()
+        (run_dir / "pirn-manifest.json").write_text(
+            json.dumps({"run_id": "locked", "created_at": time.time() - 100 * 3600})
+        )
+        (run_dir / "pirn-lock").write_text("")
+        with unittest.mock.patch.object(
+            AdvisoryFileLock, "platform_supported", staticmethod(lambda: False)
+        ):
+            removed = t.sweep_abandoned(max_age_hours=48)
+        assert removed == 0
+        assert run_dir.exists()
+
+    async def test_sweep_abandoned_removes_a_stale_dir_whose_lock_is_provably_free(self) -> None:
+        t = self._transport()
+        run_dir = self.base / "pirn-unlocked"
+        run_dir.mkdir()
+        (run_dir / "pirn-manifest.json").write_text(
+            json.dumps({"run_id": "unlocked", "created_at": time.time() - 100 * 3600})
+        )
+        (run_dir / "pirn-lock").write_text("")
+        removed = t.sweep_abandoned(max_age_hours=48)
+        assert removed == 1
+        assert not run_dir.exists()
+
+    async def test_sweep_abandoned_keeps_the_directory_of_a_run_in_progress(self) -> None:
+        t = self._transport()
+        await t.begin_run("live")
+        run_dir = self.base / "pirn-live"
+        manifest = run_dir / "pirn-manifest.json"
+        manifest.write_text(json.dumps({"run_id": "live", "created_at": time.time() - 100 * 3600}))
+        removed = t.sweep_abandoned(max_age_hours=48)
+        assert removed == 0
+        assert run_dir.exists()
+        await t.end_run("live", success=True)
 
     async def test_sweep_abandoned_skips_dirs_without_manifest(self) -> None:
         t = self._transport()
