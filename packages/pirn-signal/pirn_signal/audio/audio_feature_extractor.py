@@ -2,7 +2,7 @@
 
 Algorithm:
     1. Receive the input audio signal frame.
-    2. Validate n_mfcc, n_fft, and hop_length.
+    2. Validate n_fft and hop_length.
     3. Compute RMS energy across frames.
     4. Compute zero-crossing rate.
     5. Compute spectral centroid from the STFT magnitude spectrum.
@@ -20,13 +20,11 @@ Math:
 
     $$B = \\sqrt{\\frac{\\sum_f (f - C)^2 \\cdot |X(f)|}{\\sum_f |X(f)|}}$$
 
-    MFCC coefficients use the DCT-II of log mel-filterbank energies.
-
 References:
     - McFee, B. et al. (2015). "librosa: Audio and music signal analysis in Python."
       Proc. SciPy 2015.
-    - Davis, S. & Mermelstein, P. (1980). "Comparison of parametric representations
-      for monosyllabic word recognition." IEEE Trans. ASSP, 28(4), 357-366.
+    - Peeters, G. (2004). "A large set of audio features for sound description."
+      CUIDADO project report, IRCAM.
 """
 
 from __future__ import annotations
@@ -63,7 +61,6 @@ class AudioFeatureExtractor(Knot):
         self,
         *,
         signal: Knot,
-        n_mfcc: Knot | int,
         n_fft: Knot | int,
         hop_length: Knot | int,
         _config: KnotConfig,
@@ -71,7 +68,6 @@ class AudioFeatureExtractor(Knot):
     ) -> None:
         super().__init__(
             signal=signal,
-            n_mfcc=n_mfcc,
             n_fft=n_fft,
             hop_length=hop_length,
             _config=_config,
@@ -81,7 +77,6 @@ class AudioFeatureExtractor(Knot):
     async def process(
         self,
         signal: SignalPayload,
-        n_mfcc: int,
         n_fft: int,
         hop_length: int,
         **_: Any,
@@ -90,7 +85,6 @@ class AudioFeatureExtractor(Knot):
 
         Args:
             signal: Audio signal to extract features from.
-            n_mfcc: Number of MFCC coefficients (positive integer, reserved for future use).
             n_fft: FFT window size (positive integer).
             hop_length: Hop size in samples (positive integer).
 
@@ -100,10 +94,8 @@ class AudioFeatureExtractor(Knot):
             ``spectral_centroid``, ``spectral_bandwidth``, and ``spectral_rolloff``.
 
         Raises:
-            ValueError: If n_mfcc, n_fft, or hop_length are invalid.
+            ValueError: If n_fft or hop_length are invalid.
         """
-        if not isinstance(n_mfcc, int) or n_mfcc <= 0:
-            raise ValueError("AudioFeatureExtractor: n_mfcc must be a positive integer")
         if not isinstance(n_fft, int) or n_fft <= 0:
             raise ValueError("AudioFeatureExtractor: n_fft must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:

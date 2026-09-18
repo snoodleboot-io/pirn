@@ -72,7 +72,9 @@ class OnsetDetector(Knot):
         Args:
             signal: Audio signal to analyse for onset events.
             hop_length: Hop size in samples (positive integer).
-            threshold: Peak-picking threshold multiplier (must be positive).
+            threshold: Peak-picking threshold as a multiple of the mean onset
+                strength; a peak must exceed ``threshold * mean(O)`` to count
+                (must be positive).
 
         Returns:
             FeaturePayload with ``data`` shaped ``(channel_count, max_onset_count)``:
@@ -90,7 +92,9 @@ class OnsetDetector(Knot):
         channels = np.atleast_2d(signal.data)
         onset_lists = await asyncio.gather(
             *(
-                asyncio.to_thread(OnsetDetector._detect_onsets, channel, sr, hop_length)
+                asyncio.to_thread(
+                    OnsetDetector._detect_onsets, channel, sr, hop_length, float(threshold)
+                )
                 for channel in channels
             )
         )
@@ -109,6 +113,28 @@ class OnsetDetector(Knot):
         )
 
     @staticmethod
-    def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:
+    def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int, threshold: float) -> np.ndarray:
+        """Detect onsets in one channel at the requested peak-picking threshold.
+
+        ``threshold`` is the multiplier on the mean onset strength a peak must exceed,
+        the rule this module documents: librosa's peak picker proposes the local
+        maxima of the strength envelope, and a candidate is kept only when
+        ``O(k) > threshold * mean(O)``. The envelope is left unnormalised
+        (``normalize=False``) so the comparison is on the envelope's own scale.
+        """
         librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
-        return librosa.onset.onset_detect(y=mono, sr=sr, hop_length=hop_length, units="time")
+        onset_envelope = librosa.onset.onset_strength(y=mono, sr=sr, hop_length=hop_length)
+        candidates = librosa.onset.onset_detect(
+            onset_envelope=onset_envelope,
+            sr=sr,
+            hop_length=hop_length,
+            units="frames",
+            normalize=False,
+        )
+        frames: np.ndarray = np.asarray(candidates, dtype=int)
+        strengths: np.ndarray = np.asarray(onset_envelope, dtype=float)
+        strong = frames[strengths[frames] > threshold * float(np.mean(strengths))]
+        times: np.ndarray = np.asarray(
+            librosa.frames_to_time(strong, sr=sr, hop_length=hop_length), dtype=float
+        )
+        return times
