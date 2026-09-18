@@ -29,7 +29,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -37,12 +37,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
-
-_gr_clean = 20.0
-_gr_shale = 120.0
-_rho_ma = 2.65
-_rho_fl = 1.0
-_eps = 1e-9
 
 
 class PetrophysicalEvaluator(Knot):
@@ -52,6 +46,12 @@ class PetrophysicalEvaluator(Knot):
     ``curve_data`` are augmented with the standard interpreted-log mnemonics.
     """
 
+    _gr_clean: ClassVar[float] = 20.0
+    _gr_shale: ClassVar[float] = 120.0
+    _rho_ma: ClassVar[float] = 2.65
+    _rho_fl: ClassVar[float] = 1.0
+    _eps: ClassVar[float] = 1e-9
+
     @staticmethod
     def _compute_curves(
         curve_data: dict[str, np.ndarray],
@@ -59,10 +59,20 @@ class PetrophysicalEvaluator(Knot):
         if "GR" not in curve_data:
             raise ValueError("PetrophysicalEvaluator: need GR and either RHOB or a PHI curve")
         gr = curve_data["GR"]
-        vsh = np.clip((gr - _gr_clean) / (_gr_shale - _gr_clean), 0.0, 1.0)
+        vsh = np.clip(
+            (gr - PetrophysicalEvaluator._gr_clean)
+            / (PetrophysicalEvaluator._gr_shale - PetrophysicalEvaluator._gr_clean),
+            0.0,
+            1.0,
+        )
 
         if "RHOB" in curve_data:
-            phi_d = np.clip((_rho_ma - curve_data["RHOB"]) / (_rho_ma - _rho_fl), 0.0, 1.0)
+            phi_d = np.clip(
+                (PetrophysicalEvaluator._rho_ma - curve_data["RHOB"])
+                / (PetrophysicalEvaluator._rho_ma - PetrophysicalEvaluator._rho_fl),
+                0.0,
+                1.0,
+            )
             phie = phi_d * (1.0 - vsh)
         else:
             phi_curve = next(
@@ -76,7 +86,9 @@ class PetrophysicalEvaluator(Knot):
         depth_count = len(gr)
         if "RT" in curve_data:
             rt = curve_data["RT"]
-            sw = np.clip((1.0 * 0.1 / (phie**2 * rt + _eps)) ** 0.5, 0.0, 1.0)
+            sw = np.clip(
+                (1.0 * 0.1 / (phie**2 * rt + PetrophysicalEvaluator._eps)) ** 0.5, 0.0, 1.0
+            )
         else:
             sw = np.ones(depth_count, dtype=np.float64)
 

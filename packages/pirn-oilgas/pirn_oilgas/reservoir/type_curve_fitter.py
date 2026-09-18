@@ -27,7 +27,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -36,16 +36,15 @@ from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
-# Typical economic abandonment rate for a single well (BOPD).
-_q_aban = 1.0
-
-# Nominal decline / exponent initial guesses (Fetkovich, 1980).
-_di_init_day = 0.15 / 365.0
-_b_init = 0.5
-
 
 class TypeCurveFitter(Knot):
     """Fit a single type curve to a representative rate series."""
+
+    # Typical economic abandonment rate for a single well (BOPD).
+    _q_aban: ClassVar[float] = 1.0
+    # Nominal decline / exponent initial guesses (Fetkovich, 1980).
+    _di_init_day: ClassVar[float] = 0.15 / 365.0
+    _b_init: ClassVar[float] = 0.5
 
     def __init__(
         self,
@@ -104,7 +103,7 @@ class TypeCurveFitter(Knot):
                     TypeCurveFitter._hyperbolic_model,
                     time_days,
                     rate_array,
-                    p0=[qi0, _di_init_day, _b_init],
+                    p0=[qi0, TypeCurveFitter._di_init_day, TypeCurveFitter._b_init],
                     bounds=([0.0, 1e-9, 1e-6], [np.inf, np.inf, 0.9999]),
                     maxfev=5000,
                 )[0],
@@ -126,13 +125,20 @@ class TypeCurveFitter(Knot):
             eur = (
                 qi
                 / max(di_day, 1e-9)
-                * (1.0 - np.exp(-di_day * np.log(qi / max(_q_aban, 1e-9)) / max(di_day, 1e-9)))
+                * (
+                    1.0
+                    - np.exp(
+                        -di_day
+                        * np.log(qi / max(TypeCurveFitter._q_aban, 1e-9))
+                        / max(di_day, 1e-9)
+                    )
+                )
             )
         else:
             # Hyperbolic EUR: qi^arps_b / (di*(1-arps_b)) * (qi^(1-arps_b) - q_aban^(1-arps_b))
             # Robertson (1988) integrated Arps formula.
             eur = (qi**arps_b / (di_day * (1.0 - arps_b))) * (
-                qi ** (1.0 - arps_b) - _q_aban ** (1.0 - arps_b)
+                qi ** (1.0 - arps_b) - TypeCurveFitter._q_aban ** (1.0 - arps_b)
             )
 
         eur = max(float(eur), 0.0)

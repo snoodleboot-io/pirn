@@ -41,13 +41,13 @@ from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
-# Nominal decline initial guess: 15 %/year converted to per-day.
-_di_init_day = 0.15 / 365.0
-_b_init = 0.5  # mid-range hyperbolic exponent
-
 
 class DeclineCurveAnalyzer(Knot):
     """Fit an Arps decline (exponential, hyperbolic, harmonic) to a series."""
+
+    # Nominal decline initial guess: 15 %/year converted to per-day.
+    _di_init_day: ClassVar[float] = 0.15 / 365.0
+    _b_init: ClassVar[float] = 0.5  # mid-range hyperbolic exponent
 
     valid_methods: ClassVar[frozenset[str]] = frozenset({"exponential", "hyperbolic", "harmonic"})
 
@@ -153,7 +153,7 @@ class DeclineCurveAnalyzer(Knot):
                     DeclineCurveAnalyzer._hyperbolic_model,
                     time_days,
                     rate_array,
-                    p0=[qi0, _di_init_day, _b_init],
+                    p0=[qi0, DeclineCurveAnalyzer._di_init_day, DeclineCurveAnalyzer._b_init],
                     bounds=([0.0, 1e-9, 1e-6], [np.inf, np.inf, 0.9999]),
                     maxfev=5000,
                 )[0],

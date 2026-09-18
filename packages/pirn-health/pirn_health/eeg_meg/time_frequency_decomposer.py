@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -27,11 +27,12 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
-_morlet_w = 6.0
-
 
 class TimeFrequencyDecomposer(Knot):
     """Decompose a signal into time-frequency representations."""
+
+    # Morlet parameter omega_0: cycles inside the Gaussian envelope (MNE's default).
+    _morlet_omega: ClassVar[float] = 6.0
 
     def __init__(
         self,
@@ -96,8 +97,10 @@ class TimeFrequencyDecomposer(Knot):
 
     @staticmethod
     def _cwt_power(signal_1d: np.ndarray, fs: float, freq: float) -> float:
-        width = fs / freq * _morlet_w / (2 * np.pi)
-        wavelet = TimeFrequencyDecomposer._morlet_wavelet(len(signal_1d), width, omega=_morlet_w)
+        width = fs / freq * TimeFrequencyDecomposer._morlet_omega / (2 * np.pi)
+        wavelet = TimeFrequencyDecomposer._morlet_wavelet(
+            len(signal_1d), width, omega=TimeFrequencyDecomposer._morlet_omega
+        )
         coef = np.convolve(signal_1d, wavelet[::-1], mode="same")
         return float(np.mean(np.abs(coef) ** 2))
 

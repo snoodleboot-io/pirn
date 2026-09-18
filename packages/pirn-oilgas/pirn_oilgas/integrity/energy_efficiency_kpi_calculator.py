@@ -24,7 +24,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -32,12 +32,12 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
-# IOGP 2019e baseline for onshore oil production facilities (kWh per boe).
-_baseline_kwh_per_boe = 25.0
-
 
 class EnergyEfficiencyKpiCalculator(Knot):
     """Compute kWh / boe and similar energy-per-production efficiency KPIs."""
+
+    # IOGP 2019e baseline for onshore oil production facilities (kWh per boe).
+    _baseline_kwh_per_boe: ClassVar[float] = 25.0
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class EnergyEfficiencyKpiCalculator(Knot):
         total_boe = float(np.sum(production.data[:aligned_count]) * p_interval_day)
 
         kwh_per_boe = total_kwh / (total_boe + 1e-9)
-        eii = kwh_per_boe / _baseline_kwh_per_boe
+        eii = kwh_per_boe / EnergyEfficiencyKpiCalculator._baseline_kwh_per_boe
 
         return {
             "kwh_per_boe": float(kwh_per_boe),
