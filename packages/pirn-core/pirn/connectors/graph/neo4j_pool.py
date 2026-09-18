@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.graph.neo4j_config import Neo4jConfig
+from pirn.connectors.neo4j_transaction import Neo4jTransaction
 from pirn.core.optional_dependency import OptionalDependency
 
 
 class Neo4jPool(DatabaseConnectionPool):
     """Async Neo4j driver wrapper with credential-safe error reporting."""
+
+    # Cypher binds parameters as ``$name`` and writes map literals as ``{k: v}``,
+    # so the base pattern's brace rule would reject valid Cypher — e.g.
+    # ``CREATE (n:N {id: $id})``. Only printf-style markers are interpolation here.
+    _inline_interpolation_pattern = r"%[sd]"
 
     def __init__(
         self,
@@ -76,6 +83,36 @@ class Neo4jPool(DatabaseConnectionPool):
     async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         for params in parameter_seq:
             await self.execute(query, params)
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's Cypher as one explicit Neo4j transaction.
+
+        Opens a session, begins an explicit transaction on it and yields a
+        :class:`Neo4jTransaction` bound to that transaction. A clean exit commits;
+        an exception rolls back and propagates. The session closes either way.
+
+        The pool's own methods open a session per statement and so run each in its
+        own implicit transaction; statements issued on the pool while this scope is
+        open are therefore *not* part of it, as the interface's contract says.
+        """
+        driver = await self._ensure_driver()
+        database = self._config.database if self._config else None
+        session = driver.session(database=database)
+        try:
+            neo4j_transaction = await session.begin_transaction()
+            handle = Neo4jTransaction(neo4j_transaction, self)
+            try:
+                try:
+                    yield handle
+                except BaseException:
+                    await neo4j_transaction.rollback()
+                    raise
+                await neo4j_transaction.commit()
+            finally:
+                handle.finish()
+        finally:
+            await session.close()
 
     async def _ensure_driver(self) -> Any:
         if self._closed:

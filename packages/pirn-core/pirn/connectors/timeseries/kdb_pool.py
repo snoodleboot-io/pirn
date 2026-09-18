@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -48,6 +49,18 @@ class KdbPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("kdb.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: kdb+ has none through this surface.
+
+        kdb+ has no transaction manager: an IPC message either evaluates or raises, and
+        its effects on the in-memory tables persist either way.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("kdb+", "the pykx IPC connection")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         await self._ensure_connection()

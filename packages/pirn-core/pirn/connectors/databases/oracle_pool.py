@@ -14,12 +14,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.oracle_config import OracleConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.threaded_cursor_transaction import ThreadedCursorTransaction
 from pirn.core.optional_dependency import OptionalDependency
 
 _logger = logging.getLogger(__name__)
@@ -108,6 +110,8 @@ class OraclePool(DatabaseConnectionPool):
         # dialect's client).
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
+        self._transaction_lock = asyncio.Lock()
+        self._transaction_task: asyncio.Task[Any] | None = None
 
     @property
     def config(self) -> OracleConfig | None:
@@ -140,9 +144,11 @@ class OraclePool(DatabaseConnectionPool):
         docstring for why that is not an unconditional commit.
         """
         self.reject_inline_interpolation(query)
-        client = await self._ensure_client()
-        params = list(parameters or ())
-        return await asyncio.to_thread(self._sync_execute, client, query, params)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            params = list(parameters or ())
+            return await asyncio.to_thread(self._sync_execute, client, query, params)
 
     def _sync_execute(self, client: Any, query: str, params: list[Any]) -> Any:
         in_transaction_on_entry = self._transaction_in_progress(client)
@@ -173,9 +179,11 @@ class OraclePool(DatabaseConnectionPool):
         connection — see the class docstring.
         """
         self.reject_inline_interpolation(query)
-        client = await self._ensure_client()
-        params = list(parameters or ())
-        return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            params = list(parameters or ())
+            return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
 
     def _sync_fetch_all(self, client: Any, query: str, params: list[Any]) -> list[tuple[Any, ...]]:
         in_transaction_on_entry = self._transaction_in_progress(client)
@@ -205,9 +213,11 @@ class OraclePool(DatabaseConnectionPool):
         docstring for why that is not an unconditional commit.
         """
         self.reject_inline_interpolation(query)
-        client = await self._ensure_client()
-        rows = [list(p) for p in parameter_seq]
-        return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            rows = [list(p) for p in parameter_seq]
+            return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
 
     def _sync_execute_many(self, client: Any, query: str, rows: list[Any]) -> Any:
         in_transaction_on_entry = self._transaction_in_progress(client)
@@ -225,6 +235,60 @@ class OraclePool(DatabaseConnectionPool):
         if self._opened_transaction(client, in_transaction_on_entry, when_unreportable=True):
             self._commit(client)
         return rowcount
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's statements as one Oracle transaction.
+
+        Oracle opens a transaction implicitly on the first DML statement, so
+        there is no ``BEGIN`` to issue: this yields a
+        :class:`ThreadedCursorTransaction` on the pool's client, and a clean exit
+        commits while an exception rolls back and propagates.
+
+        The pool holds one client, so a statement issued through the pool by
+        another task while the scope is open would silently join — and be
+        committed or rolled back with — this transaction. The scope therefore
+        holds a lock for its whole duration and the statement methods wait for
+        it; a statement issued on the pool from *inside* the scope's own task is
+        refused rather than deadlocked.
+
+        Raises:
+            RuntimeError: If a transaction is already open on the client — one a
+                caller began by hand is theirs to end, not this scope's.
+        """
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            if self._transaction_in_progress(client):
+                raise RuntimeError(
+                    "OraclePool: a transaction is already open on the client; "
+                    "end it before opening a transaction scope"
+                )
+            self._transaction_task = asyncio.current_task()
+            handle = ThreadedCursorTransaction(client, self)
+            try:
+                try:
+                    yield handle
+                except BaseException:
+                    await asyncio.to_thread(self._rollback, client)
+                    raise
+                await asyncio.to_thread(self._commit, client)
+            finally:
+                handle.finish()
+                self._transaction_task = None
+
+    def _reject_statement_inside_own_transaction(self) -> None:
+        """Raise when the task holding this pool's transaction scope uses the pool directly.
+
+        Waiting for the lock there would deadlock: the scope cannot end until the
+        statement returns. The statement belongs on the yielded handle.
+        """
+        task = self._transaction_task
+        if task is not None and task is asyncio.current_task():
+            raise RuntimeError(
+                "OraclePool: statement issued on the pool inside its own "
+                "transaction scope; use the handle `async with pool.transaction()` yielded"
+            )
 
     @staticmethod
     def _transaction_in_progress(client: Any) -> bool | None:

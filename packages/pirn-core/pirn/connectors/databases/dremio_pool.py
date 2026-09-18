@@ -10,6 +10,7 @@ import asyncio
 import base64
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -53,6 +54,19 @@ class DremioPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("dremio.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: Dremio has none through this surface.
+
+        Dremio is a federated query engine; Flight SQL here carries statements, not
+        transaction control, and Dremio does not manage the underlying sources'
+        transactions.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("Dremio", "the Arrow Flight SQL client")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         self.reject_inline_interpolation(query)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -54,6 +55,18 @@ class OrientDBPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("orientdb.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: OrientDB has none through this surface.
+
+        pyorient's command surface offers no transaction handle; OrientDB's transactions
+        are driven through a separate batch API.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("OrientDB", "the pyorient client")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         client = await self._ensure_client()

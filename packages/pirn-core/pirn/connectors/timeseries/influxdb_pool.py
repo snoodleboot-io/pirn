@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -51,6 +52,18 @@ class InfluxDBPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("influxdb.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: InfluxDB has none through this surface.
+
+        InfluxDB is an append-oriented store with no transaction concept; a write is
+        visible as soon as it is accepted.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("InfluxDB", "the influxdb-client write and query APIs")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         await self._ensure_client()

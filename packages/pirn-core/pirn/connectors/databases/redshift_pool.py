@@ -9,9 +9,11 @@ because it does not support server-side prepared statements.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
+from pirn.connectors.asyncpg_transaction import AsyncpgTransaction
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.redshift_config import RedshiftConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
@@ -83,6 +85,31 @@ class RedshiftPool(DatabaseConnectionPool):
         self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         await pool.executemany(query, [tuple(p) for p in parameter_seq])
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's statements as one Redshift transaction.
+
+        Checks out one connection, starts asyncpg's transaction on it and yields
+        an :class:`AsyncpgTransaction` bound to it. A clean exit commits; an
+        exception rolls back and propagates. The connection returns to the pool
+        either way.
+        """
+        pool = await self._ensure_pool()
+        connection = await pool.acquire()
+        handle = AsyncpgTransaction(connection, self)
+        transaction = connection.transaction()
+        try:
+            await transaction.start()
+            try:
+                yield handle
+            except BaseException:
+                await transaction.rollback()
+                raise
+            await transaction.commit()
+        finally:
+            handle.finish()
+            await pool.release(connection)
 
     async def _ensure_pool(self) -> Any:
         if self._closed:

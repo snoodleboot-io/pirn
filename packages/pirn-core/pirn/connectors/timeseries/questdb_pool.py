@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -48,6 +49,19 @@ class QuestDBPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("questdb.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: QuestDB has none through this surface.
+
+        QuestDB speaks the Postgres wire protocol but does not implement rollback: a
+        BEGIN/COMMIT pair is accepted and then ignored, so a scope would look atomic and
+        not be.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("QuestDB", "its Postgres wire protocol")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         self.reject_inline_interpolation(query)

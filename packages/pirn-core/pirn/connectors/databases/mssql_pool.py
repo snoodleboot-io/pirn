@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.mssql_config import MssqlConfig
+from pirn.connectors.dbapi_cursor_transaction import DbapiCursorTransaction
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.optional_dependency import OptionalDependency
 
@@ -184,6 +186,44 @@ class MssqlPool(DatabaseConnectionPool):
                 await self._end_transaction(connection, "commit")
             return rowcount
         finally:
+            await pool.release(connection)
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's statements as one SQL Server transaction.
+
+        Checks out one connection and yields a :class:`DbapiCursorTransaction`
+        bound to it. ODBC opens the transaction implicitly on the first statement
+        when ``autocommit`` is clear, so there is no ``BEGIN`` to issue: a clean
+        exit commits, an exception rolls back and propagates. The connection is
+        released either way — and because :meth:`release` rolls back anything
+        still open, a scope that somehow ends with work outstanding discards it
+        rather than leaking it to the next checkout.
+
+        Raises:
+            RuntimeError: If the connection is in ODBC autocommit mode, where
+                each statement commits itself and no scope can be atomic. Set
+                ``MssqlConfig.autocommit = False`` for transactional work.
+        """
+        pool = await self._ensure_pool()
+        connection = await pool.acquire()
+        if not self._manages_transactions(connection):
+            await pool.release(connection)
+            raise RuntimeError(
+                "MssqlPool: the connection is in ODBC autocommit mode, so each "
+                "statement commits itself and a transaction scope would not be "
+                "atomic; set MssqlConfig.autocommit = False"
+            )
+        handle = DbapiCursorTransaction(connection, self)
+        try:
+            try:
+                yield handle
+            except BaseException:
+                await self._end_transaction(connection, "rollback")
+                raise
+            await self._end_transaction(connection, "commit")
+        finally:
+            handle.finish()
             await pool.release(connection)
 
     @staticmethod

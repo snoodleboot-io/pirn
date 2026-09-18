@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.mongodb_config import MongoDBConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.mongodb_transaction import MongodbTransaction
 from pirn.core.optional_dependency import OptionalDependency
 
 
@@ -77,6 +79,38 @@ class MongoDBPool(DatabaseConnectionPool):
         db = await self.acquire()
         docs = list(parameter_seq)
         await db[query].insert_many(docs)
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's operations as one MongoDB multi-document transaction.
+
+        Starts a client session, opens a transaction on it and yields a
+        :class:`MongodbTransaction` bound to the database handle and that session.
+        A clean exit commits; an exception aborts and propagates. The session ends
+        either way.
+
+        MongoDB serves multi-document transactions on replica sets and sharded
+        clusters only; on a standalone ``mongod`` the driver raises when the
+        transaction starts. That error is left to propagate rather than downgraded
+        to a scope that would not be atomic.
+        """
+        client = await self._ensure_client()
+        database = await self.acquire()
+        session = await client.start_session()
+        try:
+            session.start_transaction()
+            handle = MongodbTransaction((database, session), self)
+            try:
+                try:
+                    yield handle
+                except BaseException:
+                    await session.abort_transaction()
+                    raise
+                await session.commit_transaction()
+            finally:
+                handle.finish()
+        finally:
+            await session.end_session()
 
     async def _ensure_client(self) -> Any:
         if self._closed:

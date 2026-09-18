@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -49,6 +50,18 @@ class ArangoDBPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("arangodb.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: ArangoDB has none through this surface.
+
+        ArangoDB's stream transactions are a separate API that binds a transaction id to
+        every request; the AQL execute call this pool drives carries no such binding.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("ArangoDB", "the python-arango AQL surface")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Execute an AQL query; returns cursor result as str."""
