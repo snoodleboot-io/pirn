@@ -14,9 +14,6 @@ from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.bigquery_config import BigqueryConfig
-from pirn.connectors.databases.bigquery_stub_job_config import (
-    BigqueryStubJobConfig,
-)
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.optional_dependency import OptionalDependency
 
@@ -125,14 +122,7 @@ class BigqueryPool(DatabaseConnectionPool):
             params_list: list[Any] = []
         else:
             params_list = list(parameters)
-        try:
-            bigquery = OptionalDependency.require("google.cloud.bigquery", extra="bigquery")
-        except ImportError:
-            # When the SDK is not installed (e.g. stub-injected client tests),
-            # surface a plain object so the stub can introspect it without
-            # needing the real BigQuery types.
-            return BigqueryStubJobConfig(query_parameters=params_list)
-
+        bigquery = OptionalDependency.require("google.cloud.bigquery", extra="bigquery")
         wrapped: list[Any] = []
         for value in params_list:
             if hasattr(value, "to_api_repr"):

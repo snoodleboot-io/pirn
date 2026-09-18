@@ -3,18 +3,59 @@
 Uses an injected stub client that mirrors the slice of the
 ``google.cloud.bigquery.Client`` surface that the pool calls into. No
 real BigQuery account needed.
+
+Every statement builds a real ``bigquery.QueryJobConfig``; the SDK is an optional
+extra, so these tests stand a fake module in ``sys.modules`` for the duration
+(PIR-873). The pool used to fall back to a ``BigqueryStubJobConfig`` of its own
+when the import failed — production code that only existed to keep these tests
+offline, and which would have handed a real client an object it cannot read.
 """
 
 from __future__ import annotations
 
+import sys
 import unittest
+from types import SimpleNamespace
 from typing import Any
+from unittest import mock
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.bigquery_config import BigqueryConfig
 from pirn.connectors.databases.bigquery_pool import BigqueryPool
 
 # ──────────────────────────────────────────────────────────── fake client
+
+
+class FakeScalarQueryParameter:
+    """``bigquery.ScalarQueryParameter`` as the pool constructs it."""
+
+    def __init__(self, name: str | None, type_: str, value: Any) -> None:
+        self.name = name
+        self.type_ = type_
+        self.value = value
+
+    def to_api_repr(self) -> dict[str, Any]:
+        return {"name": self.name, "type": self.type_, "value": self.value}
+
+
+class FakeQueryJobConfig:
+    """``bigquery.QueryJobConfig`` as the pool constructs it."""
+
+    def __init__(self, query_parameters: list[Any] | None = None) -> None:
+        self.query_parameters = list(query_parameters or [])
+
+
+def _fake_bigquery() -> mock._patch_dict:
+    """Patch ``sys.modules`` so the lazy ``google.cloud.bigquery`` import finds the fake."""
+    return mock.patch.dict(
+        sys.modules,
+        {
+            "google.cloud.bigquery": SimpleNamespace(
+                QueryJobConfig=FakeQueryJobConfig,
+                ScalarQueryParameter=FakeScalarQueryParameter,
+            )
+        },
+    )
 
 
 class FakeQueryJob:
@@ -61,30 +102,32 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeBigqueryClient()
         pool = BigqueryPool(client=fake)
-        await pool.execute("INSERT INTO t (x) VALUES (@x)", [1])
+        with _fake_bigquery():
+            await pool.execute("INSERT INTO t (x) VALUES (@x)", [1])
         assert len(fake.queries) == 1
         sql, job_config = fake.queries[0]
         assert sql == "INSERT INTO t (x) VALUES (@x)"
         assert job_config is not None
         params = list(job_config.query_parameters)
         assert len(params) == 1
-        # The pool may wrap bare values into a ScalarQueryParameter when the
-        # real google-cloud-bigquery SDK is installed; accept either shape.
-        wrapped = params[0]
-        unwrapped = getattr(wrapped, "value", wrapped)
-        assert unwrapped == 1
+        # A bare value is wrapped into a typed ScalarQueryParameter — BigQuery
+        # takes no untyped binds.
+        assert params[0].value == 1
+        assert params[0].type_ == "INT64"
 
     async def test_fetch_all_returns_rows(self) -> None:
         fake = FakeBigqueryClient()
         fake.responses["SELECT id FROM t"] = [(1,), (2,)]
         pool = BigqueryPool(client=fake)
-        rows = await pool.fetch_all("SELECT id FROM t")
+        with _fake_bigquery():
+            rows = await pool.fetch_all("SELECT id FROM t")
         assert rows == [(1,), (2,)]
 
     async def test_execute_many_runs_each_row(self) -> None:
         fake = FakeBigqueryClient()
         pool = BigqueryPool(client=fake)
-        await pool.execute_many("INSERT INTO t VALUES (@a, @b)", [(1, "a"), (2, "b")])
+        with _fake_bigquery():
+            await pool.execute_many("INSERT INTO t VALUES (@a, @b)", [(1, "a"), (2, "b")])
         assert len(fake.queries) == 2
 
     async def test_acquire_returns_client(self) -> None:
@@ -169,3 +212,13 @@ class TestCredentialSafety(unittest.TestCase):
         d = cfg.to_audit_dict()
         assert d["credentials_path"] == "<redacted>"
         assert d["project_id"] == "proj"
+
+
+class TestMissingBackend(unittest.IsolatedAsyncioTestCase):
+    """A missing ``google-cloud-bigquery`` is reported, never worked around (PIR-873)."""
+
+    async def test_execute_without_the_sdk_raises_the_install_hint(self) -> None:
+        pool = BigqueryPool(client=FakeBigqueryClient())
+        with mock.patch.dict(sys.modules, {"google.cloud.bigquery": None}):
+            with self.assertRaisesRegex(ImportError, r'pip install "pirn-core\[bigquery\]"'):
+                await pool.execute("SELECT 1")

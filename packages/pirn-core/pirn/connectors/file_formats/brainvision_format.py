@@ -7,8 +7,10 @@ BrainVision is a three-file EEG format:
 * ``.eeg``  — raw binary signal data
 
 The "payload" is a :mod:`zipfile` bundle containing all three files.
-Decoding uses ``mne`` when available; otherwise a minimal pure-Python
-parser reads the text header and interprets the raw binary data.
+Decoding requires ``mne``, which applies each channel's ``Resolution``
+factor and unit so records carry volts; there is deliberately no
+header-only second decoder to silently substitute raw ADC integers for
+them.
 
 PHI safety
 ----------
@@ -27,12 +29,11 @@ Record shape (one per channel)::
         "data":          bytes,  # raw float64 array bytes
     }
 
-Install: ``pip install "pirn-health[health]"`` to decode with ``mne``.
+Install: ``pip install "pirn-health[health]"`` — required to decode.
 """
 
 from __future__ import annotations
 
-import configparser
 import io
 import tempfile
 import zipfile
@@ -55,8 +56,7 @@ class BrainVisionFormat(BatchFileFormat):
     """BrainVision (.vhdr/.vmrk/.eeg) encoder/decoder.
 
     The payload is a zip archive containing the three constituent files.
-    Reading uses ``mne`` when available; a lightweight pure-Python
-    fallback is used otherwise.
+    Reading requires ``mne`` (``pip install "pirn-health[health]"``).
     """
 
     _phi_header_fields: ClassVar[frozenset[str]] = frozenset(
@@ -76,11 +76,17 @@ class BrainVisionFormat(BatchFileFormat):
     # ------------------------------------------------------------------
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
+        """Decode the zip bundle with ``mne``, or raise its install hint.
+
+        There is no second decoder. ``mne`` returns channel data in volts,
+        having applied each channel's ``Resolution`` factor and unit; a
+        header-only parser returns raw ADC integers. Substituting one for the
+        other when the import fails would make the same file decode to
+        different numbers depending on what happens to be installed, with
+        nothing in the records to say which happened (PIR-873).
+        """
         bundle = self._unpack_zip(payload)
-        try:
-            mne = OptionalDependency.require("mne", extra="health", package="pirn-health")
-        except ImportError:
-            return self._decode_fallback(bundle)
+        mne = OptionalDependency.require("mne", extra="health", package="pirn-health")
         return self._decode_with_mne(mne, bundle)
 
     @classmethod
@@ -122,71 +128,6 @@ class BrainVisionFormat(BatchFileFormat):
                         "data": data[idx].astype(np.float64).tobytes(),
                     }
                 )
-        return records
-
-    @classmethod
-    def _decode_fallback(cls, bundle: dict[str, bytes]) -> list[Mapping[str, Any]]:
-        """Pure-Python BrainVision decoder (no mne required)."""
-        import numpy as np
-
-        vhdr_text = bundle.get("recording.vhdr", b"").decode("utf-8", errors="replace")
-        eeg_bytes = bundle.get("recording.eeg", b"")
-
-        parser = cls._parse_vhdr(vhdr_text)
-
-        # Channel count and sample rate from header
-        n_channels = int(parser.get("Common Infos", "NumberOfChannels", fallback="0"))
-        sfreq = 1_000_000.0 / float(parser.get("Common Infos", "SamplingInterval", fallback="1000"))
-        data_format = parser.get("Common Infos", "DataFormat", fallback="BINARY").upper()
-        binary_format = parser.get("Binary Infos", "BinaryFormat", fallback="INT_16").upper()
-        data_orientation = parser.get(
-            "Common Infos", "DataOrientation", fallback="MULTIPLEXED"
-        ).upper()
-
-        if data_format != "BINARY":
-            raise ValueError(
-                "BrainVisionFormat fallback: only BINARY DataFormat "
-                f"is supported, got {data_format!r}"
-            )
-
-        dtype_map = {
-            "INT_16": np.int16,
-            "INT_32": np.int32,
-            "IEEE_FLOAT_32": np.float32,
-        }
-        np_dtype = dtype_map.get(binary_format, np.int16)
-
-        raw_array = np.frombuffer(eeg_bytes, dtype=np_dtype)
-        if n_channels > 0 and len(raw_array) > 0:
-            if data_orientation == "MULTIPLEXED":
-                # Samples interleaved: ch0_t0, ch1_t0, ..., chN_t0, ch0_t1, ...
-                total_samples = len(raw_array)
-                n_samples = total_samples // n_channels
-                raw_array = raw_array[: n_samples * n_channels]
-                data = raw_array.reshape(n_samples, n_channels).T.astype(np.float64)
-            else:
-                n_samples = len(raw_array) // n_channels
-                data = raw_array.reshape(n_channels, n_samples).astype(np.float64)
-        else:
-            n_channels = max(n_channels, 1)
-            data = np.zeros((n_channels, 0), dtype=np.float64)
-            n_samples = 0
-
-        # Parse channel names
-        ch_names = cls._parse_channel_names(parser, n_channels)
-
-        records: list[Mapping[str, Any]] = []
-        for idx in range(n_channels):
-            ch_data = data[idx] if idx < len(data) else np.zeros(n_samples)
-            records.append(
-                {
-                    "channel_index": idx,
-                    "channel_name": ch_names[idx],
-                    "sample_rate": float(sfreq),
-                    "n_samples": int(ch_data.shape[0]),
-                    "data": ch_data.astype(np.float64).tobytes(),
-                }
-            )
         return records
 
     # ------------------------------------------------------------------
@@ -299,33 +240,6 @@ class BrainVisionFormat(BatchFileFormat):
             "\n"
             "[Marker Infos]\n"
         )
-
-    # ------------------------------------------------------------------
-    # VHDR parser helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _parse_vhdr(text: str) -> configparser.ConfigParser:
-        parser = configparser.ConfigParser(strict=False)
-        # Skip the first "Brain Vision Data Exchange Header..." line
-        lines = text.splitlines()
-        ini_lines = [line for line in lines if not line.startswith("Brain Vision")]
-        parser.read_string("\n".join(ini_lines))
-        return parser
-
-    @staticmethod
-    def _parse_channel_names(parser: configparser.ConfigParser, n_channels: int) -> list[str]:
-        ch_names: list[str] = []
-        section = "Channel Infos"
-        for idx in range(1, n_channels + 1):
-            key = f"ch{idx}"
-            if parser.has_option(section, key):
-                val = parser.get(section, key)
-                name = val.split(",")[0].strip()
-            else:
-                name = f"Ch{idx}"
-            ch_names.append(name)
-        return ch_names
 
     @classmethod
     def _rewrite_vhdr_paths(cls, vhdr_text: str, tmpdir: str) -> str:

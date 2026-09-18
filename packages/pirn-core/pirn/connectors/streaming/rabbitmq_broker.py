@@ -8,9 +8,6 @@ from typing import Any
 
 from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.rabbitmq_config import RabbitMQConfig
-from pirn.connectors.streaming.rabbitmq_plain_message import (
-    RabbitMQPlainMessage,
-)
 from pirn.core.optional_dependency import OptionalDependency
 
 
@@ -118,14 +115,7 @@ class RabbitMQBroker(MessageBroker):
         key: bytes | None,
         headers: dict[str, bytes] | None,
     ) -> Any:
-        try:
-            aio_pika = OptionalDependency.require("aio_pika", extra="rabbitmq")
-        except ImportError:
-            return RabbitMQPlainMessage(
-                body=bytes(value),
-                key=bytes(key) if key is not None else None,
-                headers=dict(headers) if headers else None,
-            )
+        aio_pika = OptionalDependency.require("aio_pika", extra="rabbitmq")
         message_headers: dict[str, Any] = {}
         if headers:
             for header_name, header_value in headers.items():

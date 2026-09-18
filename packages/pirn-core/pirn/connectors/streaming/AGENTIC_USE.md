@@ -20,15 +20,13 @@ pirn/connectors/streaming/
 ├── kinesis_broker.py            KinesisBroker            — AWS Kinesis via aioboto3
 ├── rabbitmq_config.py           RabbitMQConfig           — host, port, vhost, user, password, ssl
 ├── rabbitmq_broker.py           RabbitMQBroker           — RabbitMQ via aio-pika
-├── rabbitmq_plain_message.py    RabbitMQPlainMessage     — simple message wrapper for RabbitMQ
 ├── pubsub_config.py             PubSubConfig             — project, service_account_json
 ├── pubsub_broker.py             PubSubBroker             — Google Pub/Sub via google-cloud-pubsub
 ├── valkey_stream_config.py      ValkeyStreamConfig       — host, port, password, use_tls, consumer_group
 ├── valkey_stream_broker.py      ValkeyStreamBroker       — ValKey streams via valkey-py async
 ├── valkey_record.py             ValkeyRecord             — record yielded by ValkeyStreamBroker.consume()
 ├── azure_servicebus_config.py   AzureServiceBusConfig    — connection_string or namespace
-├── azure_servicebus_broker.py   AzureServiceBusBroker    — Azure Service Bus via azure-servicebus async
-└── azure_servicebus_stub_message.py  AzureServiceBusStubMessage — message wrapper for Service Bus
+└── azure_servicebus_broker.py   AzureServiceBusBroker    — Azure Service Bus via azure-servicebus async
 ```
 
 ---

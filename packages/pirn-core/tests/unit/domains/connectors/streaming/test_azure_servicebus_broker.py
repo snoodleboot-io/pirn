@@ -1,9 +1,20 @@
-"""Unit tests for :class:`AzureServiceBusBroker` using stub Service Bus client."""
+"""Unit tests for :class:`AzureServiceBusBroker` using stub Service Bus client.
+
+``publish`` builds a real ``azure.servicebus.ServiceBusMessage``; the SDK is an
+optional extra, so these tests stand a fake module in ``sys.modules`` for the
+duration (PIR-873). The broker used to fall back to an
+``AzureServiceBusStubMessage`` of its own when the import failed — production
+code that only existed to keep these tests offline, and which would have sent a
+non-SDK object to a real namespace.
+"""
 
 from __future__ import annotations
 
+import sys
 import unittest
+from types import SimpleNamespace
 from typing import Any
+from unittest import mock
 
 from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.azure_servicebus_broker import (
@@ -14,6 +25,23 @@ from pirn.connectors.streaming.azure_servicebus_config import (
 )
 
 # ──────────────────────────────────────────────────────────── stub layer
+
+
+class FakeServiceBusMessage:
+    """The SDK fields :meth:`AzureServiceBusBroker._build_message` sets."""
+
+    def __init__(self, *, body: bytes, session_id: str | None = None) -> None:
+        self.body = body
+        self.session_id = session_id
+        self.application_properties: dict[str, bytes] | None = None
+
+
+def _fake_servicebus() -> mock._patch_dict:
+    """Patch ``sys.modules`` so the lazy ``azure.servicebus`` import finds the fake."""
+    return mock.patch.dict(
+        sys.modules,
+        {"azure.servicebus": SimpleNamespace(ServiceBusMessage=FakeServiceBusMessage)},
+    )
 
 
 class StubSender:
@@ -118,7 +146,8 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
             AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
             client=client,
         )
-        await broker.publish("events", b"hello")
+        with _fake_servicebus():
+            await broker.publish("events", b"hello")
         sender = client.senders["events"]
         assert len(sender.sent) == 1
         sent_message = sender.sent[0]
@@ -135,7 +164,8 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
             AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
             client=client,
         )
-        await broker.publish("events", b"v", key=b"user-1", headers={"trace": b"abc"})
+        with _fake_servicebus():
+            await broker.publish("events", b"v", key=b"user-1", headers={"trace": b"abc"})
         sender = client.senders["events"]
         sent = sender.sent[0]
         body = sent.body
@@ -192,7 +222,8 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
             AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
             client=client,
         )
-        await broker.publish("t", b"v")
+        with _fake_servicebus():
+            await broker.publish("t", b"v")
         await broker.close()
         await broker.close()
         assert client.closed is True
@@ -222,3 +253,18 @@ class TestCredentialSafety(unittest.TestCase):
         cfg = AzureServiceBusConfig(connection_string="leaks")
         d = cfg.to_audit_dict()
         assert d["connection_string"] == "<redacted>"
+
+
+class TestMissingBackend(unittest.IsolatedAsyncioTestCase):
+    """A missing ``azure-servicebus`` is reported, never worked around (PIR-873)."""
+
+    async def test_publish_without_the_sdk_raises_the_install_hint(self) -> None:
+        broker = AzureServiceBusBroker(
+            AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
+            client=StubServiceBusClient(),
+        )
+        with mock.patch.dict(sys.modules, {"azure.servicebus": None}):
+            with self.assertRaisesRegex(
+                ImportError, r'pip install "pirn-core\[azure-servicebus\]"'
+            ):
+                await broker.publish("t", b"v")
