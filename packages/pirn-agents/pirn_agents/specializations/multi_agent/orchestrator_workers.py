@@ -62,6 +62,7 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.inner_group_limit import InnerGroupLimit
 from pirn_agents.specializations.multi_agent.assemble_orchestrator_workers_result import (
     AssembleOrchestratorWorkersResult,
 )
@@ -75,11 +76,8 @@ from pirn_agents.tools.tool_factory import ToolFactory
 class OrchestratorWorkers(AgentPipeline):
     """Dynamically spawn one bounded worker per task, via F7 agents-as-tools."""
 
-    _concurrency_group: ClassVar[str] = "orchestrator_workers"
-    # Recomputed by `process()` on every run; the class-level values only
-    # make the attributes readable before the first `process()` call.
-    _mutable_live_workers: int = 0
-    _mutable_max_concurrency: int = 1
+    #: Per-run carrier for the worker group's cap (never instance state).
+    _group_limit: ClassVar[InnerGroupLimit] = InnerGroupLimit("orchestrator_workers")
 
     def __init__(
         self,
@@ -99,16 +97,14 @@ class OrchestratorWorkers(AgentPipeline):
         )
 
     def _inner_concurrency(self) -> ConcurrencyLimits | None:
-        """The worker group's cap, or ``None`` when nothing runs.
+        """This run's worker-group cap, or ``None`` when no worker runs.
 
-        Read by ``SubTapestry._run_inner`` after ``process()`` has already
-        set ``self._mutable_live_workers`` / ``self._mutable_max_concurrency``
-        — the same "compute during process(), consult after" ordering
-        ``MapAgent._inner_concurrency`` uses.
+        Read by ``SubTapestry._run_inner`` after ``process()`` has declared it
+        on :class:`InnerGroupLimit`. The cap rides the run's own context rather
+        than this knot, so two concurrent runs of the same tapestry cannot
+        overwrite each other's budget.
         """
-        if self._mutable_live_workers <= 0:
-            return None
-        return ConcurrencyLimits(groups={self._concurrency_group: self._mutable_max_concurrency})
+        return type(self)._group_limit.current()
 
     async def process(
         self,
@@ -148,8 +144,7 @@ class OrchestratorWorkers(AgentPipeline):
             raise ValueError(
                 f"OrchestratorWorkers: max_concurrency must be >= 1, got {max_concurrency!r}"
             )
-        self._mutable_live_workers = len(task_tuple)
-        self._mutable_max_concurrency = max_concurrency
+        type(self)._group_limit.declare(members=len(task_tuple), max_concurrency=max_concurrency)
         if not task_tuple:
             return Parameter(
                 "orchestrator_workers_result",
@@ -165,7 +160,7 @@ class OrchestratorWorkers(AgentPipeline):
             parents[key] = WorkerInvocation(
                 task=task,
                 worker=worker,
-                _config=KnotConfig(id=key, concurrency_group=self._concurrency_group),
+                _config=KnotConfig(id=key, concurrency_group=type(self)._group_limit.group),
             )
             order.append((key, task))
         return Aggregator(

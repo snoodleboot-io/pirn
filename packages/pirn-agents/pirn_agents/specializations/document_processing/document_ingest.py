@@ -4,11 +4,15 @@ Internal per-document knot for
 :class:`~pirn_agents.specializations.document_processing.ingestion_runner.IngestionRunner`'s
 fan-out (PIR-867): each document's ETL is independent of every other
 document's, so it is one node per document rather than a hand-rolled
-``asyncio.gather`` over bare coroutines. A failure on this document is
-isolated here — caught and carried back as an errored
-:class:`~pirn_agents.specializations.document_processing.document_outcome.DocumentOutcome`
-rather than raised — so one bad document never fails the run or its
-siblings; the runner folds the isolated outcomes into the final report.
+``asyncio.gather`` over bare coroutines. A failure on this document *raises*:
+the engine records it as this knot's ``Err`` with its type and traceback, and
+:class:`~pirn_agents.specializations.document_processing.document_ingest_fold.DocumentIngestFold`
+— wired over it with ``RECEIVE_ERRORS`` — turns that ``Result`` into the
+errored :class:`~pirn_agents.specializations.document_processing.document_outcome.DocumentOutcome`
+the runner folds into the final report. The isolation is unchanged (one bad
+document never fails the run or its siblings); what used to be a hand-rolled
+``except Exception`` that discarded the type and traceback is now the engine's
+own ``Result`` (PIR-873).
 
 Internal API.
 """
@@ -63,18 +67,25 @@ class DocumentIngest(Knot):
         upserter: IncrementalUpserter,
         **_: Any,
     ) -> DocumentOutcome:
-        """Load, chunk, and upsert ``document``, isolating any failure.
+        """Load, chunk, and upsert ``document``.
+
+        Args:
+            document: The source document to ingest.
+            loader: The loader turning its bytes into normalized text.
+            chunking_strategy: The strategy splitting that text into chunks.
+            upserter: The incremental upserter embedding and storing the deltas.
 
         Returns:
-            The delta counts on success, or an errored outcome carrying the
-            failure's message when this document's ETL raised.
+            This document's delta counts.
+
+        Raises:
+            Exception: Whatever the loader, chunker or upserter raises. The
+                engine records it as this knot's ``Err``; ``DocumentIngestFold``
+                turns that into an errored outcome so the siblings still run.
         """
-        try:
-            loaded = await loader.load(document.data, source_id=document.source_id)
-            chunks = await chunking_strategy.chunk(loaded.text)
-            plan = await upserter.upsert(document.source_id, chunks)
-        except Exception as exc:
-            return DocumentOutcome(source_id=document.source_id, error=str(exc))
+        loaded = await loader.load(document.data, source_id=document.source_id)
+        chunks = await chunking_strategy.chunk(loaded.text)
+        plan = await upserter.upsert(document.source_id, chunks)
         return DocumentOutcome(
             source_id=document.source_id,
             embedded=plan.embedded_count,
