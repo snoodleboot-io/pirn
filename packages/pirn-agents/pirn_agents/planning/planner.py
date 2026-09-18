@@ -5,7 +5,8 @@ Algorithm:
     2. Validate input types at process time.
     3. Build a wire-format message list with the planning instruction + context messages.
     4. Call ``llm.chat`` with the messages.
-    5. Extract text from the raw response.
+    5. Extract text from the raw response through ``LlmResponseText``, which
+       raises when the response carries none.
     6. Parse lines: lines starting with ``#`` become rationale; numbered/bullet lines become steps.
     7. Raise ``ValueError`` if no steps were produced.
     8. Return a ``Plan`` with the ordered steps and rationale.
@@ -23,11 +24,11 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
@@ -101,33 +102,8 @@ class Planner(Knot):
         response = await RecordedLlmCall.chat(
             knot_id=self.knot_id, llm=llm, messages=tuple(wire_messages)
         )
-        text = self._extract_text(response)
+        text = LlmResponseText().extract(response)
         return self._parse_plan(text)
-
-    def _extract_text(self, response: Any) -> str:
-        if isinstance(response, str):
-            return response
-        text = self._text_from_mapping(response)
-        if text is not None:
-            return text
-        raise TypeError(
-            f"Planner: cannot extract text from LLM response of type {type(response).__name__}"
-        )
-
-    def _text_from_mapping(self, response: Any) -> str | None:
-        """Return the text carried by a chat-completion mapping, or ``None``."""
-        if not JsonShape.is_dict(response):
-            return None
-        content = response.get("content")
-        if isinstance(content, str):
-            return content
-        if JsonShape.is_list(content) and content:
-            first = content[0]
-            if JsonShape.is_dict(first):
-                text = first.get("text")
-                if isinstance(text, str):
-                    return text
-        return None
 
     def _parse_plan(self, text: str) -> Plan:
         rationale_lines: list[str] = []
