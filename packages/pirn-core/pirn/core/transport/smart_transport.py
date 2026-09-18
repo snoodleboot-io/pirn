@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import logging
 import pickle
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_handle import TransportHandle
+
+if TYPE_CHECKING:
+    from pirn.backends.signer import Signer
 
 _log = logging.getLogger(__name__)
 
@@ -45,6 +48,12 @@ class SmartTransport(DataTransport):
         If ``None``, falls back to ``pickle.dumps`` for the size probe —
         this is only used for routing; the transports do their own
         serialisation.
+    signer:
+        Forwarded to the default *bulk* transport when one is not supplied, whose
+        pickle fallback HMAC-signs on write and verifies before unpickling on read.
+    allow_unsigned:
+        Forwarded to the same default *bulk* transport; also requires
+        ``PIRN_ALLOW_UNSIGNED=1``. Only for single-tenant dev / test use.
     """
 
     def __init__(
@@ -55,6 +64,8 @@ class SmartTransport(DataTransport):
         threshold_bytes: int = 1024 * 1024,
         large_types: tuple[type, ...] = (),
         serializer_registry: SerializerRegistry | None = None,
+        signer: Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
         from pirn.core.transport.inline_transport import InlineTransport
 
@@ -68,7 +79,13 @@ class SmartTransport(DataTransport):
 
             from pirn.core.transport.filesystem_transport import FilesystemTransport
 
-            self._bulk = FilesystemTransport(base_dir=Path(tempfile.gettempdir()) / "pirn-smart")
+            # The default bulk transport unpickles what it wrote, so it needs the
+            # same signing decision every other store-backed transport needs.
+            self._bulk = FilesystemTransport(
+                base_dir=Path(tempfile.gettempdir()) / "pirn-smart",
+                signer=signer,
+                allow_unsigned=allow_unsigned,
+            )
         self._threshold = threshold_bytes
         self._large_types = large_types
         self._registry = serializer_registry

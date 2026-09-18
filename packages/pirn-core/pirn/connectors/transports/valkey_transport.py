@@ -29,13 +29,16 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
+
+if TYPE_CHECKING:
+    from pirn.backends.signer import Signer
 
 _log = logging.getLogger(__name__)
 
@@ -66,7 +69,17 @@ class ValkeyTransport(DataTransport):
         If True, enable TLS for the connection.
     serializer_registry:
         Registry of type→serialiser mappings. Defaults to
-        :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`.
+        :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`,
+        built with *signer* / *allow_unsigned*.
+    signer:
+        Forwarded to the serialiser registry's pickle fallback, which HMAC-signs
+        every payload on write and verifies it before unpickling on read. Required
+        in production: ``pickle.loads`` on bytes read back from a store an
+        attacker can write is a remote-code-execution sink (PIR-873).
+    allow_unsigned:
+        Operate without signing; also requires ``PIRN_ALLOW_UNSIGNED=1``. Only
+        for a single-tenant development or test environment, where the backing
+        store is inside the same trust boundary as this process.
     """
 
     _key_prefix = "pirn"
@@ -82,6 +95,8 @@ class ValkeyTransport(DataTransport):
         cluster_mode: bool = False,
         tls: bool = False,
         serializer_registry: SerializerRegistry | None = None,
+        signer: Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
         if mode not in {"content_addressed", "write_over"}:
             raise ValueError(
@@ -96,7 +111,9 @@ class ValkeyTransport(DataTransport):
         self._slot_name = slot_name
         self._cluster_mode = cluster_mode
         self._tls = tls
-        self._registry = serializer_registry or SerializerRegistry.default()
+        self._registry = serializer_registry or SerializerRegistry.default(
+            signer=signer, allow_unsigned=allow_unsigned
+        )
         self._client: Any = None
         self._run_keys: dict[str, list[str]] = {}
 

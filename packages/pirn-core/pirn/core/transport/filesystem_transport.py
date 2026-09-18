@@ -44,7 +44,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, TYPE_CHECKING, Any
 from uuid import uuid4
 
 from pirn.core.transport.advisory_file_lock import AdvisoryFileLock
@@ -52,6 +52,9 @@ from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
+
+if TYPE_CHECKING:
+    from pirn.backends.signer import Signer
 
 _log = logging.getLogger(__name__)
 
@@ -76,7 +79,17 @@ class FilesystemTransport(DataTransport):
         run begins.
     serializer_registry:
         Registry of type→serialiser mappings. Defaults to
-        :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`.
+        :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`,
+        built with *signer* / *allow_unsigned*.
+    signer:
+        Forwarded to the serialiser registry's pickle fallback, which HMAC-signs
+        every payload on write and verifies it before unpickling on read. Required
+        in production: ``pickle.loads`` on bytes read back from a store an
+        attacker can write is a remote-code-execution sink (PIR-873).
+    allow_unsigned:
+        Operate without signing; also requires ``PIRN_ALLOW_UNSIGNED=1``. Only
+        for a single-tenant development or test environment, where the backing
+        store is inside the same trust boundary as this process.
     """
 
     _manifest_name = "pirn-manifest.json"
@@ -90,12 +103,16 @@ class FilesystemTransport(DataTransport):
         min_free_gb: float | None = None,
         sweep_on_startup: bool = True,
         serializer_registry: SerializerRegistry | None = None,
+        signer: Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
         self._base_dir = Path(base_dir)
         self._max_age_hours = max_age_hours
         self._min_free_gb = min_free_gb
         self._sweep_on_startup = sweep_on_startup
-        self._registry = serializer_registry or SerializerRegistry.default()
+        self._registry = serializer_registry or SerializerRegistry.default(
+            signer=signer, allow_unsigned=allow_unsigned
+        )
         self._startup_swept = False
         self._lock = AdvisoryFileLock()
         self._lock_handles: dict[str, IO[str]] = {}
