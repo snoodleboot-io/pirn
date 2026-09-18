@@ -117,7 +117,15 @@ is only reachable via `self._x`, that testing path is broken.
 
 All validation of input values — range checks, mutual exclusion, identifier validation,
 type coercion — belongs inside `process()` or in private helper methods called from
-`process()`. `__init__` must not contain any guards beyond `super().__init__()`.
+`process()`. `__init__` must not guard a value that can arrive from an upstream Knot.
+
+The one exception is a value that is **fixed at construction and can never arrive from
+a parent** — `_config` itself, for instance. Refusing `_config.concurrency_group` on a
+container knot (which holds no admission slot) is only checkable at construction, and
+failing there is better than failing mid-run; `scripts/check_conventions.py` therefore
+accepts a bare `if <condition>: raise <Error>(...)` in `__init__` and nothing else that
+computes. It is not a licence to validate inputs there: the paragraph below says why
+that can never work.
 
 ```python
 # Correct — validation in process()
@@ -441,21 +449,33 @@ Several of them construct instance state directly in `__init__` (`Parameter`, fo
 example, bypasses the standard parent/config introspection entirely, because its
 `process()` signature is framework-managed rather than user-declared) — this is what
 *implements* Rules 1-7 for every other knot, so it cannot itself be written in terms of
-them without a bootstrapping paradox. This is not a blanket exemption for anything under
-`pirn/nodes/`: it is why `scripts/check_conventions.py`'s AST gate carries an explicit,
-narrow allowlist for exactly these files (rules covering `__init__` purity, self-assigned
-state, and `@property` fields), reviewed the same way any other rule exception is. New
-files under `pirn/nodes/` do not inherit the allowlist automatically — extending it needs
-the same documented justification as the constructor-state exception above.
+them without a bootstrapping paradox.
+
+This is **not** an exemption for the directory. `scripts/check_conventions.py` used to
+carry a `pirn/nodes/` path allowlist, which covered 21 files, hid 28 findings, and
+silently covered `nested_run_knot.py` — a file nobody had decided to exempt. It is
+deleted. What replaces it is a criterion the code has to satisfy: a pirn-core knot whose
+`__init__` wires itself through `Knot`'s private `_bootstrap` seam instead of
+`super().__init__(...)` is *defining* a primitive rather than being wired by the
+framework, and only then do the `__init__` rules not apply to it. `_bootstrap` is
+private, so pyright's `reportPrivateUsage` keeps the criterion inside pirn-core; a new
+file under `pirn/nodes/` that calls `super().__init__(...)` like every other knot is
+checked like every other knot. The rules about instance state, `@property` fields and
+the `process()` catch-all name still apply to all of them.
 
 The same reasoning covers the roots themselves. `Knot.__init__` is the introspection that
 turns a subclass's keyword arguments into parents, `Knot.knot_id` / `config` / `parents` /
 `config_values` / `input_names` are the framework's read-only accessors over its own
 `_mutable_` state, and `Aggregator.process(**inputs)` is the variadic fan-in whose parent
-names are given at construction rather than in a signature. The gate therefore does not
-apply Rules 1, 2 (catch-all naming) and 4 to pirn-core's own definition of a root it keys
-on (`Knot` in `pirn/core/knot.py`, `Aggregator` in `pirn/nodes/aggregator.py`, …); every
-subclass of a root, and a same-named class anywhere else, is checked like any other knot.
+names are given at construction rather than in a signature. `Parameter` is the same shape: the core vocabulary's named,
+typed input holder, whose whole purpose is to *be* a declared input. The gate therefore
+does not apply Rules 1, 2 (catch-all naming) and 4 to exactly three classes, named by
+fully qualified id in `KnotDesignChecker.framework_root_ids` —
+`pirn.core.knot.Knot`, `pirn.nodes.aggregator.Aggregator`, `pirn.core.parameter.Parameter`.
+Matching by file name used to be enough, so a synthetic
+`pirn/connectors/queue/source.py` with `class Source(Knot)` in it passed the gate; the id
+is the file's real dotted path, so every subclass of a root, and a same-named class
+anywhere else in core or in a domain package, is checked like any other knot.
 
 ---
 
@@ -467,7 +487,7 @@ Before opening a PR with a new or modified Knot:
 - [ ] `process()` parameters use the resolved value types (what each Knot produces, or `scalar_type` for `Knot | T` inputs).
 - [ ] Every input in `__init__` appears by the same name in `process()`.
 - [ ] `process()` ends with `**_: Any`.
-- [ ] `__init__` contains only `super().__init__(...)` — no validation, no `self._x`.
+- [ ] `__init__` contains only `super().__init__(...)` — no validation of inputs, no `self._x = <an input>`, and nothing computed inside the `super().__init__(...)` parentheses either.
 - [ ] All validation lives in `process()` or helpers it calls.
 - [ ] No `@property` fields exposing inputs or derived strings.
 - [ ] Opaque resources are vended by a dedicated Knot.
