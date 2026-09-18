@@ -24,7 +24,6 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -32,6 +31,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -75,7 +75,7 @@ class FactClaimExtractor(Knot):
             {"answer": response.data},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        text = self._extract_text(raw)
+        text = LlmResponseText().extract(raw)
         claims: list[str] = []
         for raw_line in text.splitlines():
             cleaned = raw_line.strip()
@@ -88,19 +88,3 @@ class FactClaimExtractor(Knot):
             if cleaned:
                 claims.append(cleaned)
         return claims
-
-    @staticmethod
-    def _extract_text(raw: Mapping[str, Any] | str) -> str:
-        match raw:
-            case str():
-                return raw
-            case {"content": str() as content}:
-                return content
-            case {"content": [{"text": str() as text}, *_]}:
-                return text
-            case {"content": [str() as first, *_]}:
-                return first
-            case {"text": str() as text}:
-                return text
-            case _:
-                return str(raw)

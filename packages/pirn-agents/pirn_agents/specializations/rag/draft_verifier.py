@@ -27,6 +27,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -100,7 +101,7 @@ class DraftVerifier(Knot):
             {"query": query, "draft": draft, "context": context}
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        return AgentResponse(content=self._extract_text(raw), finish_reason="stop")
+        return AgentResponse(content=LlmResponseText().extract(raw), finish_reason="stop")
 
     @staticmethod
     def _doc_text(doc: Mapping[str, Any]) -> str:
@@ -108,13 +109,3 @@ class DraftVerifier(Knot):
         for value in doc.values():
             parts.append(value if isinstance(value, str) else str(value))
         return " ".join(parts)
-
-    @staticmethod
-    def _extract_text(raw: Mapping[str, Any] | str) -> str:
-        match raw:
-            case str():
-                return raw
-            case {"content": str() as content}:
-                return content
-            case _:
-                return str(raw)

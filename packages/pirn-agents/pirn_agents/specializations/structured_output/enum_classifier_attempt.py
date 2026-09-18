@@ -19,7 +19,7 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -27,6 +27,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class EnumClassifierAttempt(Knot):
@@ -76,7 +77,7 @@ class EnumClassifierAttempt(Knot):
             {"role": "user", "content": prompt},
         ]
         raw = await llm.chat(chat_messages)
-        text = self._extract_text(raw).strip()
+        text = LlmResponseText().extract(raw).strip()
         for label in labels_tuple:
             if text == label:
                 return label
@@ -88,19 +89,3 @@ class EnumClassifierAttempt(Knot):
             f"{text!r} which is not in the allowed labels "
             f"{list(labels_tuple)!r}"
         )
-
-    @staticmethod
-    def _extract_text(raw: Mapping[str, Any] | str) -> str:
-        match raw:
-            case str():
-                return raw
-            case {"content": str() as content}:
-                return content
-            case {"content": [{"text": str() as text}, *_]}:
-                return text
-            case {"content": [str() as first, *_]}:
-                return first
-            case {"text": str() as text}:
-                return text
-            case _:
-                return str(raw)

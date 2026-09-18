@@ -33,6 +33,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class YamlExtractorAttempt(Knot):
@@ -115,7 +116,7 @@ class YamlExtractorAttempt(Knot):
             {"role": "user", "content": prompt},
         ]
         raw = await llm.chat(chat_messages)
-        text = self._extract_text(raw)
+        text = LlmResponseText().extract(raw)
         try:
             parsed = yaml.safe_load(text)
         except yaml.YAMLError as exc:
@@ -129,19 +130,3 @@ class YamlExtractorAttempt(Knot):
                 return fields
             case _:
                 return f"expected YAML mapping at the root, got {type(parsed).__name__}"
-
-    @staticmethod
-    def _extract_text(raw: Mapping[str, Any] | str) -> str:
-        match raw:
-            case str():
-                return raw
-            case {"content": str() as content}:
-                return content
-            case {"content": [{"text": str() as text}, *_]}:
-                return text
-            case {"content": [str() as first, *_]}:
-                return first
-            case {"text": str() as text}:
-                return text
-            case _:
-                return str(raw)
