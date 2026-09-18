@@ -22,7 +22,7 @@ import struct
 import tempfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, SupportsIndex, SupportsInt
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -107,35 +107,105 @@ class SegyFormat(BatchFileFormat):
         try:
             with segyio.create(tmp_path, spec) as f:
                 for idx, record in enumerate(materialised):
-                    raw = record.get("data", b"")
-                    if not isinstance(raw, (bytes, bytearray)):
-                        raw = b"\x00" * (n_samples * 4)
-                    n = len(raw) // 4
-                    if n == 0:
-                        samples = np.zeros(n_samples, dtype=np.float32)
-                    else:
-                        values = struct.unpack(f">{n}f", raw[: n * 4])
-                        samples = np.array(values, dtype=np.float32)
-                        if len(samples) < n_samples:
-                            samples = np.pad(
-                                samples,
-                                (0, n_samples - len(samples)),
-                            )
-                        elif len(samples) > n_samples:
-                            samples = samples[:n_samples]
-                    f.trace[idx] = samples
-                    header = record.get("header", {})
-                    if ShapeGuard.is_dict(header) and header:
-                        for key, val in header.items():
-                            if not isinstance(
-                                val, (str, bytes, bytearray, SupportsInt, SupportsIndex)
-                            ):
-                                continue
-                            try:
-                                f.header[idx].update({key: int(val)})
-                            except (ValueError, TypeError, KeyError):
-                                pass
+                    f.trace[idx] = self._trace_samples(idx, record, n_samples)
+                    updates = self._header_updates(idx, record)
+                    if updates:
+                        try:
+                            f.header[idx].update(updates)
+                        except Exception as exc:
+                            raise ValueError(
+                                f"SegyFormat: trace {idx} header could not be written: {exc}"
+                            ) from exc
             result = Path(tmp_path).read_bytes()
         finally:
             Path(tmp_path).unlink(missing_ok=True)
         return result
+
+    @staticmethod
+    def _trace_samples(trace_index: int, record: Mapping[str, Any], n_samples: int) -> Any:
+        """Decode one record's ``data`` into exactly *n_samples* float32 samples.
+
+        SEG-Y fixes the sample count for the whole file, so a trace of a
+        different length cannot be written — and must not be made to fit. This
+        used to substitute zeros for a non-bytes payload, zero-pad a short trace
+        and truncate a long one, all silently, so a ragged record stream wrote a
+        file that looked valid and was not the data handed in (PIR-873).
+
+        Args:
+            trace_index: The trace's position, for the error messages.
+            record: The record being encoded.
+            n_samples: Samples per trace, fixed by the first record.
+
+        Returns:
+            A ``numpy`` float32 array of exactly *n_samples* samples.
+
+        Raises:
+            TypeError: If ``data`` is not bytes.
+            ValueError: If ``data`` is not a whole number of big-endian float32
+                samples, or does not hold exactly *n_samples* of them.
+        """
+        import numpy as np
+
+        raw = record.get("data", b"")
+        if not isinstance(raw, (bytes, bytearray)):
+            raise TypeError(
+                f"SegyFormat: trace {trace_index} 'data' must be bytes, got {type(raw).__name__}"
+            )
+        if len(raw) % 4 != 0:
+            raise ValueError(
+                f"SegyFormat: trace {trace_index} 'data' is {len(raw)} bytes, which is not a "
+                "whole number of 4-byte float32 samples"
+            )
+        count = len(raw) // 4
+        if count != n_samples:
+            raise ValueError(
+                f"SegyFormat: trace {trace_index} holds {count} samples but the file is being "
+                f"written with {n_samples} per trace (set by the first record). SEG-Y traces are "
+                "fixed length; pad or trim the records deliberately before encoding."
+            )
+        values = struct.unpack(f">{count}f", bytes(raw))
+        return np.array(values, dtype=np.float32)
+
+    @staticmethod
+    def _header_updates(trace_index: int, record: Mapping[str, Any]) -> dict[object, int]:
+        """Return the trace-header fields to write, rejecting anything unwritable.
+
+        A SEG-Y trace-header field is an integer. A value that could not be read
+        as one, and a ``header`` that was not a mapping at all, used to be
+        skipped without a word — so a record carrying a malformed inline number
+        wrote a header quietly missing that field (PIR-873).
+
+        Args:
+            trace_index: The trace's position, for the error messages.
+            record: The record being encoded.
+
+        Returns:
+            ``{field: int}`` ready for ``segyio``'s ``header.update``.
+
+        Raises:
+            TypeError: If ``header`` is present and not a mapping.
+            ValueError: If a header value cannot be read as an integer.
+        """
+        header = record.get("header")
+        if header is None:
+            return {}
+        if not ShapeGuard.is_mapping(header):
+            raise TypeError(
+                f"SegyFormat: trace {trace_index} 'header' must be a mapping, "
+                f"got {type(header).__name__}"
+            )
+        updates: dict[object, int] = {}
+        for key, val in header.items():
+            if not isinstance(val, (int, float, str)):
+                raise ValueError(
+                    f"SegyFormat: trace {trace_index} header field {key!r} cannot be read as an "
+                    f"integer ({type(val).__name__} {val!r}) — SEG-Y trace headers hold integers"
+                )
+            try:
+                updates[key] = int(val)
+            except ValueError as exc:
+                raise ValueError(
+                    f"SegyFormat: trace {trace_index} header field {key!r} cannot be read as an "
+                    f"integer ({type(val).__name__} {val!r}) — SEG-Y trace headers hold integers"
+                ) from exc
+        return updates
