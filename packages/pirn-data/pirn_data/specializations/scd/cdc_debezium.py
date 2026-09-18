@@ -64,6 +64,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.value_shape import ValueShape
 
 _logger = logging.getLogger(__name__)
@@ -204,10 +205,9 @@ class CDCDebezium(Knot):
         max_messages: Any = None,
         **_: Any,
     ) -> dict[str, Any]:
+        PoolValidator.validate_pools("CDCDebezium", target_pool=target_pool)
         if not isinstance(broker, MessageBroker):
             raise TypeError("CDCDebezium: broker must be a MessageBroker")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("CDCDebezium: target_pool must be a DatabaseConnectionPool")
         if not isinstance(topic, str) or not topic:
             raise ValueError("CDCDebezium: topic must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)

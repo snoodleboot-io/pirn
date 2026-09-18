@@ -40,6 +40,7 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
 from pirn_data.specializations.scd.scd_type_1_queries import ScdType1Queries
 
@@ -117,13 +118,13 @@ class ScdType1(PoolMergeKnot):
         column_names: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        self._validate_pools("ScdType1", source_pool=source_pool, target_pool=target_pool)
-        self._validate_non_empty_string("ScdType1", "source_query", source_query)
-        self._validate_identifier("target_table", target_table)
+        PoolValidator.validate_pools("ScdType1", source_pool=source_pool, target_pool=target_pool)
+        PoolValidator.validate_non_empty_string("ScdType1", "source_query", source_query)
+        PoolValidator.validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
-        self._validate_identifier("primary_keys", primary_key_tuple)
+        PoolValidator.validate_identifier("primary_keys", primary_key_tuple)
         column_tuple = tuple(column_names)
-        self._validate_identifier("column_names", column_tuple)
+        PoolValidator.validate_identifier("column_names", column_tuple)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType1: primary_keys not in column_names: {missing}")

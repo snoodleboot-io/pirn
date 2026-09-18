@@ -42,6 +42,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class RowCountAnomalyDetector(Knot):
@@ -89,8 +90,7 @@ class RowCountAnomalyDetector(Knot):
             TypeError: When pool is not a DatabaseConnectionPool.
             ValueError: When window or threshold are invalid.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("RowCountAnomalyDetector: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("RowCountAnomalyDetector", pool=pool)
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         IdentifierValidator.validate_column("audit_table", audit_table)
         if not isinstance(window, int) or window < 1:

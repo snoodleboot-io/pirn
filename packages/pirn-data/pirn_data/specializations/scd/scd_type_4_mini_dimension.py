@@ -46,6 +46,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class ScdType4MiniDimension(Knot):
@@ -120,13 +121,12 @@ class ScdType4MiniDimension(Knot):
         source_key_columns: Any = None,
         **_: Any,
     ) -> dict[str, Any]:
-        for label, pool in (
-            ("source_pool", source_pool),
-            ("main_pool", main_pool),
-            ("mini_pool", mini_pool),
-        ):
-            if not isinstance(pool, DatabaseConnectionPool):
-                raise TypeError(f"ScdType4MiniDimension: {label} must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "ScdType4MiniDimension",
+            source_pool=source_pool,
+            main_pool=main_pool,
+            mini_pool=mini_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("ScdType4MiniDimension: source_query must be a non-empty string")
         for label, value in (

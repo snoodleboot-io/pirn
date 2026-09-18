@@ -56,6 +56,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class MetricLayerAggregator(Knot):
@@ -131,8 +132,7 @@ class MetricLayerAggregator(Knot):
         denominator_column: Any = "",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("MetricLayerAggregator: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("MetricLayerAggregator", pool=pool)
         for label, value in (
             ("source_table", source_table),
             ("metric_name", metric_name),

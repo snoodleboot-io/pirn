@@ -37,6 +37,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class ReconciliationDiff(Knot):
@@ -106,10 +107,11 @@ class ReconciliationDiff(Knot):
             TypeError: When source_pool or target_pool is not a DatabaseConnectionPool.
             ValueError: When queries are empty or columns overlap.
         """
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("ReconciliationDiff: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ReconciliationDiff: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "ReconciliationDiff",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         for label, value in (
             ("source_query", source_query),
             ("target_query", target_query),

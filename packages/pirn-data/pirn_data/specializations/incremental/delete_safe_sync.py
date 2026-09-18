@@ -38,6 +38,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class DeleteSafeSync(Knot):
@@ -123,10 +124,11 @@ class DeleteSafeSync(Knot):
         deleted_at_column: Any = "deleted_at",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("DeleteSafeSync: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("DeleteSafeSync: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "DeleteSafeSync",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("DeleteSafeSync: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

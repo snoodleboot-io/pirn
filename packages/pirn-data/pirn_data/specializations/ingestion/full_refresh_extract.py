@@ -35,6 +35,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
+
 
 class FullRefreshExtract(Knot):
     """Drop + reload a target table from a source query on every run."""
@@ -86,10 +88,11 @@ class FullRefreshExtract(Knot):
             TypeError: If either pool is not a ``DatabaseConnectionPool``.
             ValueError: If any string argument is empty or ``target_table`` is non-alphanumeric.
         """
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("FullRefreshExtract: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("FullRefreshExtract: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "FullRefreshExtract",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("FullRefreshExtract: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

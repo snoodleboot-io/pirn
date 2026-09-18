@@ -32,6 +32,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class ColumnLineageTracker(Knot):
@@ -94,8 +95,7 @@ class ColumnLineageTracker(Knot):
             A dict with keys ``succeeded``, ``lineage_table``, and
             ``mappings_recorded`` summarising the lineage write.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("ColumnLineageTracker: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("ColumnLineageTracker", pool=pool)
         for label, value in (
             ("source_table", source_table),
             ("target_table", target_table),

@@ -46,6 +46,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class DateDimGenerator(Knot):
@@ -99,8 +100,7 @@ class DateDimGenerator(Knot):
         fiscal_year_start_month: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("DateDimGenerator: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("DateDimGenerator", target_pool=target_pool)
         if not isinstance(target_table, str) or not target_table:
             raise ValueError("DateDimGenerator: target_table must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)

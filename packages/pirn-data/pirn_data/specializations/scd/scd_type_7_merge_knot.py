@@ -49,6 +49,7 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
 from pirn_data.specializations.scd.scd_type_7_queries import ScdType7Queries
 
@@ -99,16 +100,16 @@ class ScdType7MergeKnot(PoolMergeKnot):
         current_flag_column: Any,
         **_: Any,
     ) -> dict[str, int]:
-        self._validate_pools("ScdType7MergeKnot", target_pool=target_pool)
-        self._validate_identifier("target_table", target_table)
+        PoolValidator.validate_pools("ScdType7MergeKnot", target_pool=target_pool)
+        PoolValidator.validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
-        self._validate_identifier("primary_keys", primary_key_tuple)
+        PoolValidator.validate_identifier("primary_keys", primary_key_tuple)
         column_tuple = tuple(column_names)
-        self._validate_identifier("column_names", column_tuple)
-        self._validate_identifier("surrogate_key_column", surrogate_key_column)
-        self._validate_identifier("effective_date_column", effective_date_column)
-        self._validate_identifier("expiry_date_column", expiry_date_column)
-        self._validate_identifier("current_flag_column", current_flag_column)
+        PoolValidator.validate_identifier("column_names", column_tuple)
+        PoolValidator.validate_identifier("surrogate_key_column", surrogate_key_column)
+        PoolValidator.validate_identifier("effective_date_column", effective_date_column)
+        PoolValidator.validate_identifier("expiry_date_column", expiry_date_column)
+        PoolValidator.validate_identifier("current_flag_column", current_flag_column)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType7MergeKnot: primary_keys not in column_names: {missing}")

@@ -24,6 +24,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
+
 
 class TruncateTableKnot(Knot):
     """Run ``DELETE FROM <table>`` and return the table name."""
@@ -52,8 +54,7 @@ class TruncateTableKnot(Knot):
             TypeError: If ``pool`` is not a ``DatabaseConnectionPool``.
             ValueError: If ``table`` is empty or contains non-alphanumeric characters.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("TruncateTableKnot: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("TruncateTableKnot", pool=pool)
         if not isinstance(table, str) or not table:
             raise ValueError("TruncateTableKnot: table must be a non-empty string")
         if not table.replace("_", "").isalnum():

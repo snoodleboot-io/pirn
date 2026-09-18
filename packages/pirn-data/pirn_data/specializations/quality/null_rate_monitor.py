@@ -38,6 +38,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class NullRateMonitor(Knot):
@@ -78,8 +79,7 @@ class NullRateMonitor(Knot):
             TypeError: When pool is not a DatabaseConnectionPool.
             ValueError: When column_thresholds is empty.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("NullRateMonitor: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("NullRateMonitor", pool=pool)
         if not isinstance(monitored_table, str) or not monitored_table:
             raise ValueError("NullRateMonitor: monitored_table must be a non-empty string")
         IdentifierValidator.validate_column("monitored_table", monitored_table)

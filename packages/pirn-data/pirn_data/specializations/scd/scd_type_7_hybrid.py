@@ -59,6 +59,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
 from pirn_data.value_shape import ValueShape
 
@@ -167,20 +168,22 @@ class ScdType7Hybrid(PoolMergeKnot):
         current_flag_column: Any = "is_current",
         **_: Any,
     ) -> dict[str, Any]:
-        self._validate_pools("ScdType7Hybrid", source_pool=source_pool, target_pool=target_pool)
-        self._validate_non_empty_string("ScdType7Hybrid", "source_query", source_query)
-        self._validate_non_empty_string("ScdType7Hybrid", "target_table", target_table)
-        self._validate_identifier("target_table", target_table)
+        PoolValidator.validate_pools(
+            "ScdType7Hybrid", source_pool=source_pool, target_pool=target_pool
+        )
+        PoolValidator.validate_non_empty_string("ScdType7Hybrid", "source_query", source_query)
+        PoolValidator.validate_non_empty_string("ScdType7Hybrid", "target_table", target_table)
+        PoolValidator.validate_identifier("target_table", target_table)
         for col_label, col_name in (
             ("valid_from_column", valid_from_column),
             ("valid_to_column", valid_to_column),
             ("current_flag_column", current_flag_column),
         ):
-            self._validate_identifier(col_label, col_name)
+            PoolValidator.validate_identifier(col_label, col_name)
         key_tuple = tuple(key_columns)
         tracked_tuple = tuple(tracked_columns)
-        self._validate_identifier("key_columns", key_tuple)
-        self._validate_identifier("tracked_columns", tracked_tuple)
+        PoolValidator.validate_identifier("key_columns", key_tuple)
+        PoolValidator.validate_identifier("tracked_columns", tracked_tuple)
         if not ValueShape.is_mapping(current_columns):
             raise TypeError("ScdType7Hybrid: current_columns must be a Mapping[str, str]")
         missing = [c for c in tracked_tuple if c not in current_columns]
