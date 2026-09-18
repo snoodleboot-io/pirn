@@ -53,10 +53,10 @@ References:
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any
 
 from pirn.core.assembler import Assembler
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -133,7 +133,7 @@ class RaptorAssembler(Assembler, NestedRunKnot):
             raise ValueError(
                 f"RaptorAssembler: max_levels must be a positive int, got {max_levels!r}"
             )
-        content_hash = hashlib.sha256("\n".join(chunks).encode("utf-8")).hexdigest()[:16]
+        content_hash = ContentHasher.hash(list(chunks), strict=True)
         prefix = f"raptor:{content_hash}"
         existing = await store.get(f"{prefix}:meta")
         if existing is not None:
