@@ -30,7 +30,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
+from pirn_signal.resampling._poly_resampling import PolyResampling
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -66,7 +66,9 @@ class PolyphaseDecimator(Knot):
         Args:
             signal: Signal payload to anti-alias filter and downsample.
             decimation_factor: Downsampling factor (integer > 1).
-            filter_taps: Number of anti-aliasing FIR taps (positive integer).
+            filter_taps: Number of anti-aliasing FIR taps to design (positive integer).
+                A short filter leaves more of the out-of-band energy to alias into
+                the decimated band; a long one rejects it.
 
         Returns:
             SignalPayload at the reduced sample rate with a proportionally smaller sample count.
@@ -74,14 +76,20 @@ class PolyphaseDecimator(Knot):
         Raises:
             ValueError: If decimation_factor or filter_taps are invalid.
         """
-        ss = ScipySignalBinding.load()
         if not isinstance(decimation_factor, int) or decimation_factor <= 1:
             raise ValueError("PolyphaseDecimator: decimation_factor must be an integer > 1")
         if not isinstance(filter_taps, int) or filter_taps <= 0:
             raise ValueError("PolyphaseDecimator: filter_taps must be a positive integer")
 
+        # Polyphase decimation with the caller's own filter length: scipy's
+        # ``decimate`` picks its own tap count (20 * factor + 1) and offers no way to
+        # set it, which is why the requested filter_taps used to do nothing.
         decimated = await asyncio.to_thread(
-            ss.decimate, signal.data, decimation_factor, ftype="fir", zero_phase=True, axis=-1
+            PolyResampling.resample_poly,
+            signal.data,
+            1,
+            decimation_factor,
+            filter_taps,
         )
         new_rate = signal.metadata.sample_rate_hz / decimation_factor
         return signal.derive(

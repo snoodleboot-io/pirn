@@ -50,10 +50,49 @@ class PolyResampling:
 
     @staticmethod
     def resample_poly(
-        data: NDArray[np.floating[Any]], up: int, down: int
+        data: NDArray[np.floating[Any]], up: int, down: int, filter_length: int | None = None
     ) -> NDArray[np.floating[Any]]:
+        """Polyphase-resample ``data`` by ``up / down`` along its last axis.
+
+        Args:
+            data: Samples to resample.
+            up: Upsampling factor L.
+            down: Downsampling factor M.
+            filter_length: Number of anti-alias FIR taps to design, or ``None`` for
+                scipy's default Kaiser window (``20 max(up, down) + 1`` taps).
+
+        Returns:
+            The resampled array.
+        """
         ss = ScipySignalBinding.load()
-        return ss.resample_poly(data, up, down, axis=-1)
+        window = (
+            None
+            if filter_length is None
+            else PolyResampling.antialias_taps(up, down, filter_length)
+        )
+        return ss.resample_poly(data, up, down, axis=-1, window=window)
+
+    @staticmethod
+    def antialias_taps(up: int, down: int, filter_length: int) -> NDArray[np.float64]:
+        """Design the ``filter_length``-tap anti-alias FIR for an ``up / down`` resampling.
+
+        The filter runs on the signal *after* upsampling by ``up``, so its cutoff is
+        ``min(1/up, 1/down)`` of that signal's Nyquist frequency — the lower of the
+        image-rejection and anti-alias edges. The taps are unity-gain at DC; scipy
+        applies the ``up`` gain that replaces the energy zero-stuffing removed.
+
+        Args:
+            up: Upsampling factor L.
+            down: Downsampling factor M.
+            filter_length: Number of taps.
+
+        Returns:
+            The tap weights.
+        """
+        ss = ScipySignalBinding.load()
+        cutoff = min(1.0 / up, 1.0 / down)
+        taps: NDArray[np.float64] = ss.firwin(filter_length, cutoff, window="hamming", fs=2.0)
+        return taps
 
     @staticmethod
     def rational_factors(source_rate_hz: float, target_rate_hz: float) -> tuple[int, int]:
