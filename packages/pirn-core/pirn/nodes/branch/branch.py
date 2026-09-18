@@ -55,7 +55,7 @@ class Branch(Knot):
         input: Knot,
         selector: Callable[[Any], str],
         branches: tuple[str, ...],
-        _config: KnotConfig | None = None,
+        _config: KnotConfig,
         tapestry: Any = None,
     ) -> None:
         if not isinstance(input, Knot):
@@ -66,15 +66,18 @@ class Branch(Knot):
             raise TypeError("Branch requires at least one branch name")
         if len(set(branches)) != len(branches):
             raise TypeError("Branch: duplicate branch names")
-        if _config is None:
-            raise TypeError("Branch requires _config=KnotConfig(id=...)")
 
         self._mutable_execution_extra: dict[str, Any] = {}
 
-        self._bootstrap(
-            config=_config,
-            parents={"input": input},
-            config_values={"selector": selector, "branch_names": branches},
+        # The standard constructor, not a hand-rolled ``_bootstrap``: it is what
+        # builds the input adapters, so ``selector`` and ``branch_names`` are
+        # validated against ``process()``'s hints at construction and the
+        # resolved ``input`` is validated at run time (PIR-873).
+        super().__init__(
+            input=input,
+            selector=selector,
+            branch_names=branches,
+            _config=_config,
             tapestry=tapestry,
         )
 
@@ -83,14 +86,12 @@ class Branch(Knot):
         self._mutable_outputs: dict[str, BranchOutput] = {}
         for name in branches:
             out = BranchOutput(
-                _config=KnotConfig(id=f"{_config.id}:{name}"),
+                _config=KnotConfig(id=f"{self.knot_id}:{name}"),
                 source=self,
                 branch_name=name,
                 tapestry=target,
             )
             self._mutable_outputs[name] = out
-
-        self._frozen = True
 
     def __getitem__(self, branch_name: str) -> BranchOutput:
         try:

@@ -15,7 +15,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -113,8 +113,23 @@ class Parameter(Knot):
 
         # Default _config: id derived from name when not given.  Parameters
         # are common enough that we provide a stable default to keep user
-        # code clean.
+        # code clean.  ``_bootstrap`` refuses anything that is not a
+        # ``KnotConfig``, so a root gets the same check ``Knot.__init__`` does.
         config = _config or KnotConfig(id=f"param:{name}")
+
+        # A declared default is the pipeline author's own value, so it is not
+        # validated per run -- but it is validated once, here, against the type
+        # this parameter declares.  A default that does not match its declared
+        # type is a build-time mistake, and it used to surface only when a run
+        # that omitted the binding reached the parameter (PIR-873).
+        if has_default and config.validate_io:
+            try:
+                adapter.validate_python(default)
+            except ValidationError as exc:
+                raise TypeError(
+                    f"Parameter({name!r}): default {default!r} does not match "
+                    f"the declared type {type_!r}: {exc}"
+                ) from exc
 
         # Stash all _mutable_ state BEFORE the Knot.__init__ freeze.  We
         # don't call Knot.__init__ because its kwargs introspection would
@@ -157,18 +172,6 @@ class Parameter(Knot):
         adapter = self._mutable_output_adapter
         assert adapter is not None, "Parameter always constructs its output_adapter"
         return adapter.validate_python(supplied)
-
-    def bind_value(self, value: Any) -> None:
-        """Set the bound value on *this* instance.
-
-        ``_mutable_value`` starts with ``_mutable_`` so the Knot freeze
-        guard permits this normal assignment without bypass tricks.
-
-        This mutates shared graph state, so the engine does **not** use it —
-        see :meth:`bound_copy`.  It remains for direct, single-owner use of a
-        standalone ``Parameter``.
-        """
-        self._mutable_value = value
 
     def bound_copy(self, value: Any) -> Parameter:
         """Return a run-scoped copy of this parameter carrying ``value``.
