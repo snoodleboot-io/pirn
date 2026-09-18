@@ -1,24 +1,19 @@
-"""Ratchet: freeze the keyed-store and session/determinism-lifecycle inventory.
+"""Guard: there is one key→value plane, and it is core's ``DataStore``.
 
-ADR "agents speaks core" WS3 (memory, sessions, determinism onto core's value
-and lineage planes; see ``.prompticorn/sessions/agents-realignment-proposal-
-20260913.md``) burns this inventory down as writer/recall knots move onto
-``Payload`` + ``DataStore``/``RunHistory`` and sessions/determinism move onto
-``RunResult``/``ReplaySession``. Two independent counts, in the style of
-``tests/specializations/base/test_no_engine_bypass.py``:
+ADR "agents speaks core" WS3 moves memory, sessions and determinism onto core's
+value and lineage planes. A class that keeps its own ``dict`` and offers put/get
+over it is a second value plane: nothing a run replays, records lineage for,
+resolves identities against, or shares between the knots that need the same
+value.
 
-* every class in ``pirn_agents`` whose method surface is a keyed store
-  (``store``/``retrieve``/``forget``, ``put``/``get``, ``save``/``load``, or a
-  namespaced ``search``) — a *fourth* ad hoc keyed store appearing here
-  without shrinking an existing one is exactly the growth WS3 exists to stop;
-* every module importing ``RunCheckpoint`` or a ``*Cassette*`` name — the
-  session/determinism value shapes replaced by ``RunResult``/``ReplaySession``.
-
-PIR-872 turned the first into a named design inventory (every keyed store with
-the reason it is not a shadow of core) and burned the second to empty. Both are
-asserted by **exact equality**: a new entry fails because it is not named
-(growth caught); removing/renaming a store without updating the inventory also
-fails, because the inventory still names it.
+There is no design inventory here. The version this replaced named nine keyed
+stores with a one-line reason each and froze the set by exact equality — and its
+detector, which matched three hard-coded method-name pairs, could not see the
+``register``/``get`` stores that existed the whole time, so the inventory it
+froze was not the inventory of stores. The assertion below is the rule itself:
+**no class holds a keyed store of its own**. :class:`TestKeyedStoreDetectorFires`
+proves the detector fires, so an empty finding means an empty tree and not a
+blind detector.
 """
 
 from __future__ import annotations
@@ -26,238 +21,110 @@ from __future__ import annotations
 import ast
 import unittest
 
+from tests.agents_source_index import AgentsSourceIndex
+from tests.source_shapes import SourceShapes
 from tests.store_inventory import StoreInventory
 
-# --- keyed-store design inventory --------------------------------------------
-# Every class with a keyed-store method surface, each named with the reason it
-# is not a shadow of core's ``DataStore``/``RunHistory``. PIR-872 collapsed the
-# shadows: ``ResultCache``/``InMemoryResultCache``/``SemanticResultCache`` no
-# longer re-expose ``get``/``put``/``has`` over their ``DataStore`` (raw keyed
-# access is ``cache.store``), and ``VectorMemoIndex`` -- a private key->vector
-# dict beside ``DataStore`` -- is deleted (``EmbeddingCache`` stores vectors in
-# an ``InMemoryDataStore``). What remains is design, not drift: an agents-layer
-# similarity-memory seam core has no equivalent of, its adapters to external
-# systems, and the keyed-identity adapter onto core's own lineage plane. A new
-# keyed store fails here until it is justified the same way. Regenerate the
-# keys with StoreInventory.discover_store_classes() from packages/pirn-agents.
 
-KEYED_STORE_DESIGN_INVENTORY: dict[str, str] = {
-    "connectors/streaming_s3_store.py::StreamingS3Store": (
-        "external-system adapter: core S3Store subclass adding a multipart streaming put"
-    ),
-    "memory/stores/data_store_memory_store.py::DataStoreMemoryStore": (
-        "MemoryStore backend whose values are core DataStore/RunHistory rows via KeyedLineageStore"
-    ),
-    "memory/stores/keyed_lineage_store.py::KeyedLineageStore": (
-        "adapter onto core's lineage plane: a caller key is a knot id, values in DataStore"
-    ),
-    "memory/stores/memory_store.py::MemoryStore": (
-        "agents-layer similarity-memory seam (keyed recall + vector search); core has no search"
-    ),
-    "retrieval/vector_stores/chroma_memory_store.py::ChromaMemoryStore": (
-        "external-system adapter: Chroma vector database client"
-    ),
-    "retrieval/vector_stores/in_memory_vector_store.py::InMemoryVectorStore": (
-        "in-process reference backend of the vector seam (nearest-neighbour search, no service)"
-    ),
-    "retrieval/vector_stores/pgvector_memory_store.py::PgvectorMemoryStore": (
-        "external-system adapter: Postgres pgvector client"
-    ),
-    "retrieval/vector_stores/qdrant_memory_store.py::QdrantMemoryStore": (
-        "external-system adapter: Qdrant vector database client"
-    ),
-    "retrieval/vector_stores/vector_memory_store.py::VectorMemoryStore": (
-        "vector-native base (upsert/query) shared by the vector database adapters"
-    ),
-}
+class TestThereIsOneValuePlane(unittest.TestCase):
+    """No class holds a keyed store of its own. Asserted, not inventoried."""
 
-# --- known RunCheckpoint/Cassette* importers ----------------------------------
-# Regenerate by running StoreInventory.discover_lifecycle_importers() from the
-# package root and pasting the sorted keys below.
+    def test_the_walk_is_not_vacuous(self) -> None:
+        """A guard that scans nothing passes for the wrong reason."""
+        assert len(AgentsSourceIndex.classes()) >= 500, len(AgentsSourceIndex.classes())
 
-# ADR agents-speaks-core WS3 part 2 lowered this from 11 to 9 (the rewritten
-# sessions/approval_resumer.py and sessions/suspending_approval_check.py no
-# longer import RunState/RunCheckpoint at all — a suspend is now
-# Skipped(reason="awaiting_human"), and resume replays from RunHistory via
-# ReplaySession — see pirn_agents.sessions.session_chain). Part 3 lowered it
-# again, 9 to 7: determinism/checkpoint_forker.py and fork_result.py no
-# longer import RunState/RunCheckpoint either — a fork is now a branch of the
-# run chain (ResumeToken-shaped fork point + ReplaySession(allow_new_knots=
-# True)), not a RunCheckpoint rewind. PIR-864 deleted the remaining five
-# modules this list named (sessions/* and batch/batch_checkpointer.py),
-# leaving two real importers; PIR-872 deleted
-# batch/batch_progress.py's to_run_state()/from_run_state() bridge (a per-fire
-# summary checkpoints nothing), leaving sessions/run_resumer.py.
-# PIR-872 emptied this. batch/batch_progress.py's RunState bridge is deleted
-# (a per-fire summary checkpoints nothing). RunState itself is no longer a
-# lifecycle checkpoint value: since ADR WS3 part 2 it is a read model projected
-# from a session's RunHistory chain (RunState.from_chain) and never persisted,
-# so sessions/run_resumer.py -- which projects it from RunHistory -- is reading
-# core's lineage plane, not a parallel one; StoreInventory no longer counts the
-# name. RunCheckpoint and any Cassette* name still trip. Empty, not deleted.
-LIFECYCLE_IMPORTERS: frozenset[str] = frozenset()
+    def test_no_class_holds_a_keyed_store_of_its_own(self) -> None:
+        found = StoreInventory.discover()
+        assert found == {}, {label: sorted(stores) for label, stores in found.items()}
 
 
-class TestStoreInventoryIsFrozen(unittest.TestCase):
-    """Freeze the keyed-store and lifecycle-importer inventories. Exact equality."""
+class TestKeyedStoreDetectorFires(unittest.TestCase):
+    """The detector fires on the shape it names, and not on a delegating adapter."""
 
-    def test_the_store_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
-        found = StoreInventory.discover_store_classes()
-        assert len(found) >= 5, len(found)
+    @staticmethod
+    def _stores(source: str) -> frozenset[str]:
+        node = next(n for n in ast.parse(source).body if isinstance(n, ast.ClassDef))
+        return SourceShapes.keyed_store_attributes(node)
 
-    def test_the_importer_walk_is_not_vacuous(self) -> None:
-        # Every importer is gone (LIFECYCLE_IMPORTERS above), so vacuity is
-        # checked on the scanner: it must still read real import syntax.
-        matched = StoreInventory._lifecycle_imports(
-            "from pirn_agents.sessions.run_checkpoint import RunCheckpoint\n"
+    def test_rule_fires_on_a_put_get_store(self) -> None:
+        assert self._stores(
+            "class Cache:\n"
+            "    def put(self, key, value):\n"
+            "        self._values[key] = value\n"
+            "    def get(self, key):\n"
+            "        return self._values.get(key)\n"
+        ) == frozenset({"_values"})
+
+    def test_rule_fires_on_a_register_get_store(self) -> None:
+        """The shape the name-keyed version could not see at all."""
+        assert self._stores(
+            "class ToolRegistry:\n"
+            "    def register(self, namespace, factory):\n"
+            "        key = (namespace, factory.name)\n"
+            "        self._by_key[key] = factory\n"
+            "    def lookup(self, namespace, name):\n"
+            "        return self._by_key.get((namespace, name))\n"
+        ) == frozenset({"_by_key"})
+
+    def test_rule_fires_on_a_store_spelled_with_no_familiar_verb_at_all(self) -> None:
+        assert self._stores(
+            "class Slab:\n"
+            "    def remember(self, token, blob):\n"
+            "        self._slab[token] = blob\n"
+            "    def recall(self, token):\n"
+            "        return self._slab[token]\n"
+        ) == frozenset({"_slab"})
+
+    def test_rule_names_every_store_a_class_holds(self) -> None:
+        assert self._stores(
+            "class Twin:\n"
+            "    def put(self, key, value, tags):\n"
+            "        self._values[key] = value\n"
+            "        self._tags[key] = tags\n"
+            "    def get(self, key):\n"
+            "        return self._values[key], self._tags[key]\n"
+        ) == frozenset({"_values", "_tags"})
+
+    def test_rule_ignores_an_adapter_that_delegates_to_a_data_store(self) -> None:
+        assert (
+            self._stores(
+                "class DataStoreMemoryStore:\n"
+                "    async def store(self, key, value):\n"
+                "        await self._data_store.put(key, value)\n"
+                "    async def retrieve(self, key):\n"
+                "        return await self._data_store.get(key)\n"
+            )
+            == frozenset()
         )
-        assert matched == ("RunCheckpoint",)
 
-    def test_keyed_store_classes_match_the_design_inventory(self) -> None:
-        found = frozenset(StoreInventory.discover_store_classes())
-        named = frozenset(KEYED_STORE_DESIGN_INVENTORY)
-        assert found == named, {
-            "unjustified keyed stores": sorted(found - named),
-            "gone — remove from KEYED_STORE_DESIGN_INVENTORY": sorted(named - found),
-        }
-
-    def test_every_inventory_entry_names_its_reason(self) -> None:
-        for label, reason in KEYED_STORE_DESIGN_INVENTORY.items():
-            assert reason.strip(), label
-
-    def test_the_collapsed_shadows_stay_collapsed(self) -> None:
-        found = frozenset(StoreInventory.discover_store_classes())
-        for label in (
-            "caching/in_memory_result_cache.py::InMemoryResultCache",
-            "caching/result_cache.py::ResultCache",
-            "caching/semantic_result_cache.py::SemanticResultCache",
-            "caching/vector_memo_index.py::VectorMemoIndex",
-        ):
-            assert label not in found, label
-
-    def test_lifecycle_importers_are_frozen(self) -> None:
-        found = frozenset(StoreInventory.discover_lifecycle_importers())
-        assert found == LIFECYCLE_IMPORTERS, {
-            "new importers": sorted(found - LIFECYCLE_IMPORTERS),
-            "shrunk — remove from LIFECYCLE_IMPORTERS": sorted(LIFECYCLE_IMPORTERS - found),
-        }
-
-
-class TestDetectorsAreDiscriminating(unittest.TestCase):
-    """The detectors must fire on the shapes they name, and not on clean code.
-
-    Without these, an allowlist that matches a detector which silently
-    stopped working would still be green — the failure mode a ratchet is
-    most prone to.
-    """
-
-    # -- is_keyed_store ------------------------------------------------------
-
-    def test_store_retrieve_pair_trips(self) -> None:
-        class _S:
-            def store(self) -> None: ...
-            def retrieve(self) -> None: ...
-
-        assert StoreInventory.is_keyed_store(_S)
-
-    def test_put_get_pair_trips(self) -> None:
-        class _S:
-            def put(self) -> None: ...
-            def get(self) -> None: ...
-
-        assert StoreInventory.is_keyed_store(_S)
-
-    def test_save_load_pair_trips(self) -> None:
-        class _S:
-            def save(self) -> None: ...
-            def load(self) -> None: ...
-
-        assert StoreInventory.is_keyed_store(_S)
-
-    def test_namespaced_search_trips(self) -> None:
-        class _S:
-            def search(self) -> None: ...
-            def store(self) -> None: ...
-
-        assert StoreInventory.is_keyed_store(_S)
-
-    def test_inherited_accessors_still_trip(self) -> None:
-        class _Base:
-            def store(self) -> None: ...
-            def retrieve(self) -> None: ...
-
-        class _Child(_Base):
-            """Inherits the pair unchanged; still a keyed store."""
-
-        assert StoreInventory.is_keyed_store(_Child)
-
-    def test_bare_search_does_not_trip(self) -> None:
-        """A similarity search with no keyed accessor next to it is not a store."""
-
-        class _Searcher:
-            def search(self) -> None: ...
-
-        assert not StoreInventory.is_keyed_store(_Searcher)
-
-    def test_unrelated_get_put_names_alone_do_not_trip_without_pair(self) -> None:
-        """Only ``get`` with no ``put`` (e.g. a plain accessor) does not trip."""
-
-        class _Getter:
-            def get(self) -> None: ...
-
-        assert not StoreInventory.is_keyed_store(_Getter)
-
-    def test_plain_class_does_not_trip(self) -> None:
-        class _Plain:
-            def run(self) -> None: ...
-
-        assert not StoreInventory.is_keyed_store(_Plain)
-
-    # -- _lifecycle_imports ---------------------------------------------------
-
-    def test_run_state_read_model_import_does_not_trip(self) -> None:
-        """RunState is a RunHistory projection, not a checkpoint (PIR-872)."""
-        matched = StoreInventory._lifecycle_imports(
-            "from pirn_agents.sessions.run_state import RunState\n"
+    def test_rule_ignores_a_write_only_accumulator(self) -> None:
+        """Collecting is not storing; reading back under a key is."""
+        assert (
+            self._stores(
+                "class Collector:\n"
+                "    def add(self, key, value):\n"
+                "        self._seen[key] = value\n"
+                "    def all(self):\n"
+                "        return dict(self._seen)\n"
+            )
+            == frozenset()
         )
-        assert matched == ()
 
-    def test_run_checkpoint_import_trips(self) -> None:
-        matched = StoreInventory._lifecycle_imports(
-            "from pirn_agents.sessions.run_checkpoint import RunCheckpoint\n"
+    def test_rule_ignores_a_fixed_slot_read_under_a_literal(self) -> None:
+        """A constant index into own state is a field, not a key."""
+        assert (
+            self._stores(
+                "class Pair:\n"
+                "    def set_head(self, value):\n"
+                "        self._slots[0] = value\n"
+                "    def head(self):\n"
+                "        return self._slots[0]\n"
+            )
+            == frozenset()
         )
-        assert "RunCheckpoint" in matched
 
-    def test_cassette_name_import_trips(self) -> None:
-        matched = StoreInventory._lifecycle_imports(
-            "from pirn_agents.determinism.cassette import Cassette\n"
+    def test_rule_ignores_a_class_with_no_state_of_its_own(self) -> None:
+        assert (
+            self._stores("class Plain:\n    def run(self, value):\n        return value\n")
+            == frozenset()
         )
-        assert "Cassette" in matched
-
-    def test_cassette_module_import_trips(self) -> None:
-        matched = StoreInventory._lifecycle_imports(
-            "from pirn_agents.determinism.cassette_store import CassetteStore\n"
-        )
-        assert "CassetteStore" in matched
-
-    def test_bare_cassette_module_import_trips(self) -> None:
-        matched = StoreInventory._lifecycle_imports("import pirn_agents.determinism.cassette\n")
-        assert matched
-
-    def test_unrelated_import_does_not_trip(self) -> None:
-        matched = StoreInventory._lifecycle_imports(
-            "from pirn_agents.sessions.session_message import SessionMessage\n"
-        )
-        assert matched == ()
-
-    def test_lifecycle_import_parses_real_syntax(self) -> None:
-        """Sanity: the scanner is real AST, not a substring match on the source."""
-        source = (
-            "# This module talks about RunState in a comment, not an import.\n"
-            "from pirn_agents.sessions.session_message import SessionMessage\n"
-        )
-        assert StoreInventory._lifecycle_imports(source) == ()
-        tree_source = "from pirn_agents.sessions.run_checkpoint import RunCheckpoint\n"
-        assert ast.parse(tree_source) is not None
-        assert "RunCheckpoint" in StoreInventory._lifecycle_imports(tree_source)

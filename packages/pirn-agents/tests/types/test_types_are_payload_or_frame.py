@@ -1,199 +1,194 @@
-"""Ratchet: every class under ``pirn_agents.types`` is a ``Payload``, a frame, or a named structural type.
+"""Guard: every value a knot hands back is a ``Payload`` or a frame.
 
-ADR agents-speaks-core WS6b: the vocabulary-drift review found agents had no
-``Payload[Frame, Data]`` type at all — ``AgentResponse``/``AgentContext`` were
-flat frozen dataclasses with no frame/metadata lineage descriptor and no
-``derive()``. WS6b introduced ``AgentResponse = Payload[GenerationFrame, str]``
-and ``ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage,
-...]]``. This test freezes the intent going forward: a class added under
-``pirn_agents.types`` in the future is either
+ADR agents-speaks-core WS6b: a value that crosses a knot boundary is a
+``Payload[Frame, Data]`` — data plus a frame that describes its lineage and
+metadata and supports ``derive()``. A flat frozen dataclass crossing the same
+boundary carries the data and nothing else: no metadata descriptor, no lineage,
+nothing to derive from, and nothing the next knot can trace the value back
+through.
 
-* a **Payload** — ``issubclass(cls, pirn.core.payload.Payload)`` — a typed
-  ``(frame, data)`` pair that crosses a knot boundary, or
-* a **frame** — a frozen :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`
-  dataclass named ``*Frame`` that only ever appears as a Payload's
-  ``metadata``, or
-* a **structural type** named in the design inventory below, with a one-line
-  reason, because it is a leaf embedded *inside* a Payload's data (a content
-  block, a plain message record) rather than a knot-boundary value of its own.
+There are no inventories here. The version this replaced had two, both keyed on
+names: a walk of ``pirn_agents/types/`` that let anything through if its
+qualname appeared in a ten-entry structural-type inventory, and a *pinned list of
+twenty-three modules* naming the ``*Result``/``*Frame`` pairs to check — which is
+why at least eleven non-``Payload`` ``*Result`` classes living outside those
+twenty-three modules were invisible to it. The rule does not depend on where a
+type lives or what it is called: **every ``pirn_agents`` type a knot's
+``process()`` is annotated to return is a ``Payload`` or a frame**. Return
+annotations are read off the AST and resolved against the package's class index,
+so a type is found wherever it is defined.
 
-Following the style of ``tests/specializations/base/test_no_engine_bypass.py``:
-the inventory is asserted in both directions, so adding an unclassified class
-fails (not named) and converting/removing a class without updating the
-inventory also fails (it still names it).
+Types core owns, and builtins, are core's business and are not scanned; a knot
+that returns another knot is declaring a graph, not handing back a value.
+:class:`TestKnotOutputDetectorFires` proves the detector fires, so an empty
+finding means an empty tree and not a blind detector.
 """
 
 from __future__ import annotations
 
 import ast
-import importlib
 import unittest
-from pathlib import Path
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.payload import Payload
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-_TYPES_ROOT = Path(__file__).resolve().parents[2] / "pirn_agents" / "types"
-
-#: The named design inventory of structural types under ``pirn_agents.types``:
-#: classes that are neither a ``Payload`` nor a ``*Frame`` by design, each with
-#: the one-line reason. Every one is a leaf carried *inside* a Payload's data
-#: (a content block making up ``MessageContent``/``AgentMessage.blocks``, or the
-#: ``AgentMessage`` record that is ``ConversationPayload``'s element type) or a
-#: token enum -- never a knot-boundary value of its own, so giving it a frame
-#: would describe lineage nothing records. A new class under ``types`` must be a
-#: Payload, a frame, or be added here with its reason (PIR-872).
-STRUCTURAL_TYPE_INVENTORY: dict[str, str] = {
-    "content.content_block::ContentBlock": "base of the content-block union inside AgentMessage.blocks",
-    "content.text_block::TextBlock": "text leaf of the content-block union",
-    "content.image_block::ImageBlock": "image leaf of the content-block union",
-    "content.audio_block::AudioBlock": "audio leaf of the content-block union",
-    "content.file_block::FileBlock": "file leaf of the content-block union",
-    "content.tool_result_block::ToolResultBlock": "tool-result leaf of the content-block union",
-    "content.media_handle::MediaHandle": "reference to media bytes carried by an image/audio/file block",
-    "content.message_content::MessageContent": "the block sequence an AgentMessage carries",
-    "messaging.agent_message::AgentMessage": (
-        "element type of ConversationPayload.data (as ndarray is SignalPayload's data)"
-    ),
-    "messaging.finish_reason::FinishReason": "string token enum on GenerationFrame, not a value",
-}
+from tests.agents_source_index import AgentsSourceIndex
+from tests.types.knot_output_types import KnotOutputTypes
 
 
-def _iter_type_classes() -> list[tuple[str, type]]:
-    """Import every module under ``pirn_agents.types`` and collect its classes.
+class TestEveryKnotOutputIsPayloadOrFrame(unittest.TestCase):
+    """Every value crossing a knot boundary is a Payload or a frame. Asserted."""
 
-    Returns:
-        ``(module::ClassName, cls)`` pairs for every class defined
-        (not merely imported) in a module under ``pirn_agents/types/``.
-    """
-    found: list[tuple[str, type]] = []
-    for path in sorted(_TYPES_ROOT.rglob("*.py")):
-        if path.name == "__init__.py":
-            continue
-        relative = path.relative_to(_TYPES_ROOT).with_suffix("")
-        dotted = ".".join(relative.parts)
-        module = importlib.import_module(f"pirn_agents.types.{dotted}")
-        tree = ast.parse(path.read_text())
-        class_names = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
-        for name in class_names:
-            cls = getattr(module, name)
-            found.append((f"{dotted}::{name}", cls))
-    return found
+    def test_the_walk_is_not_vacuous(self) -> None:
+        """A guard that scans nothing passes for the wrong reason."""
+        annotated = [
+            label
+            for label, (_knot, node) in AgentsSourceIndex.knots().items()
+            if KnotOutputTypes.annotated_type_names(node)
+        ]
+        assert len(annotated) >= 200, len(annotated)
+
+    def test_no_knot_returns_a_type_that_is_neither_payload_nor_frame(self) -> None:
+        found = KnotOutputTypes.discover()
+        assert found == {}, {label: sorted(knots) for label, knots in found.items()}
 
 
-class TestEveryTypeIsPayloadFrameOrAllowlisted(unittest.TestCase):
-    def test_classification(self) -> None:
-        unclassified: list[str] = []
-        for qualname, cls in _iter_type_classes():
-            is_payload = issubclass(cls, Payload)
-            is_frame = (
-                not is_payload
-                and cls.__name__.endswith("Frame")
-                and issubclass(cls, PirnOpaqueValue)
+class TestKnotOutputDetectorFires(unittest.TestCase):
+    """The detector fires on the shape it names, and not on a Payload or a frame."""
+
+    @staticmethod
+    def _names(source: str) -> frozenset[str]:
+        node = next(n for n in ast.parse(source).body if isinstance(n, ast.ClassDef))
+        return KnotOutputTypes.annotated_type_names(node)
+
+    def test_rule_reads_a_bare_return_annotation(self) -> None:
+        assert self._names(
+            "class K:\n"
+            "    async def process(self, x, **_) -> FailoverResult:\n"
+            "        return self._result(x)\n"
+        ) == frozenset({"FailoverResult"})
+
+    def test_rule_reads_through_a_container_annotation(self) -> None:
+        """A tuple of non-Payload values crosses the boundary just as a bare one does."""
+        assert self._names(
+            "class K:\n"
+            "    async def process(self, x, **_) -> tuple[ToolResult, ...]:\n"
+            "        return ()\n"
+        ) == frozenset({"tuple", "ToolResult"})
+
+    def test_rule_reads_through_a_union_annotation(self) -> None:
+        assert self._names(
+            "class K:\n"
+            "    async def process(self, x, **_) -> JudgeVerdict | None:\n"
+            "        return None\n"
+        ) == frozenset({"JudgeVerdict"})
+
+    def test_rule_reads_a_dotted_annotation(self) -> None:
+        assert self._names(
+            "class K:\n"
+            "    async def process(self, x, **_) -> plan.Plan:\n"
+            "        return plan.Plan()\n"
+        ) == frozenset({"Plan"})
+
+    def test_rule_sees_nothing_in_an_unannotated_process(self) -> None:
+        assert self._names(
+            "class K:\n    async def process(self, x, **_):\n        return x\n"
+        ) == (frozenset())
+
+    def test_rule_classifies_a_payload_as_acceptable(self) -> None:
+        class _Body(Payload[Any, str]):
+            """A value that crosses a knot boundary carrying frame and data."""
+
+        assert KnotOutputTypes.is_payload_or_frame(_Body)
+
+    def test_rule_classifies_a_named_frame_as_acceptable(self) -> None:
+        class _GenerationFrame(PirnOpaqueValue):
+            """Only ever a Payload's metadata."""
+
+        assert KnotOutputTypes.is_payload_or_frame(_GenerationFrame)
+
+    def test_rule_classifies_a_flat_dataclass_as_a_violation(self) -> None:
+        class _CompactionResult:
+            """A flat record with no frame and no derive()."""
+
+        assert not KnotOutputTypes.is_payload_or_frame(_CompactionResult)
+
+    def test_rule_treats_a_returned_knot_as_a_graph_node_not_a_value(self) -> None:
+        class _Inner(Knot):
+            """A sink a SubTapestry hands back for the engine to run."""
+
+        assert not KnotOutputTypes.is_boundary_value(_Inner)
+
+    # -- the whole rule, end to end on a synthetic index ------------------------
+
+    @staticmethod
+    def _index(*subjects: type) -> dict[str, tuple[str, type, ast.ClassDef]]:
+        """Stand in for the package's class index with the given classes."""
+        empty = ast.ClassDef(
+            name="_", bases=[], keywords=[], body=[], decorator_list=[], type_params=[]
+        )
+        return {
+            subject.__name__.lstrip("_"): (
+                f"synthetic/{subject.__name__.lstrip('_').lower()}.py::"
+                f"{subject.__name__.lstrip('_')}",
+                subject,
+                empty,
             )
-            is_structural = qualname in STRUCTURAL_TYPE_INVENTORY
-            if not (is_payload or is_frame or is_structural):
-                unclassified.append(qualname)
-        assert unclassified == [], (
-            f"Unclassified pirn_agents.types class(es): {unclassified}. "
-            "Make it a Payload subclass, a *Frame dataclass, or name it in "
-            "STRUCTURAL_TYPE_INVENTORY with its reason."
+            for subject in subjects
+        }
+
+    def test_rule_fires_on_a_knot_returning_a_flat_result_type(self) -> None:
+        """The whole rule: annotation read, resolved, and reported."""
+
+        class _CompactionResult:
+            """A flat record with no frame and no derive()."""
+
+        node = next(
+            n
+            for n in ast.parse(
+                "class CompactionKnot:\n"
+                "    async def process(self, items, **_) -> CompactionResult:\n"
+                "        return self._compact(items)\n"
+            ).body
+            if isinstance(n, ast.ClassDef)
+        )
+        assert KnotOutputTypes.offending_outputs_of(node, self._index(_CompactionResult)) == (
+            frozenset({"synthetic/compactionresult.py::CompactionResult"})
         )
 
-    def test_inventory_entries_still_exist_and_are_not_payload_or_frame(self) -> None:
-        """The other half: a converted/removed entry must be deleted here too."""
-        classes_by_qualname = dict(_iter_type_classes())
-        for qualname, reason in STRUCTURAL_TYPE_INVENTORY.items():
-            assert reason.strip(), qualname
-            assert qualname in classes_by_qualname, (
-                f"{qualname} is inventoried but no longer exists under pirn_agents.types; "
-                "remove it from STRUCTURAL_TYPE_INVENTORY."
-            )
-            cls = classes_by_qualname[qualname]
-            assert not issubclass(cls, Payload), (
-                f"{qualname} is now a Payload subclass; remove it from STRUCTURAL_TYPE_INVENTORY."
-            )
-            assert not (cls.__name__.endswith("Frame") and issubclass(cls, PirnOpaqueValue)), (
-                f"{qualname} is now a *Frame type; remove it from STRUCTURAL_TYPE_INVENTORY."
-            )
+    def test_rule_fires_on_a_flat_result_inside_a_container(self) -> None:
+        class _ToolResult:
+            """A flat record handed back by the tuple-ful."""
 
+        node = next(
+            n
+            for n in ast.parse(
+                "class Executor:\n"
+                "    async def process(self, calls, **_) -> tuple[ToolResult, ...]:\n"
+                "        return ()\n"
+            ).body
+            if isinstance(n, ast.ClassDef)
+        )
+        assert KnotOutputTypes.offending_outputs_of(node, self._index(_ToolResult)) == frozenset(
+            {"synthetic/toolresult.py::ToolResult"}
+        )
 
-# --- specializations/base *Result family (PIR-868) ------------------------
-#
-# PIR-868 rebased the eleven specialization ``*Result`` value objects
-# (previously plain frozen-dataclass ``AgentResult`` subclasses) onto the same
-# ``Payload[Frame, Data]`` split this module already ratchets for
-# ``pirn_agents.types``. Those result/frame pairs live under
-# ``specializations/<pattern>/``, not under ``pirn_agents/types/`` (they are
-# specialization-pattern outcomes, not general messaging types), so they
-# cannot be picked up by ``_iter_type_classes``'s directory walk -- this is an
-# explicit, pinned module list rather than a second directory walk, since
-# ``specializations/**`` also contains many Knot classes that are neither a
-# Payload nor a *Frame and must not be swept into this ratchet.
+    def test_rule_reports_nothing_for_a_knot_returning_a_payload(self) -> None:
+        class _ConversationPayload(Payload[Any, str]):
+            """Frame plus data, the shape a knot boundary takes."""
 
-# (dotted_module, ClassName) pairs for every AgentResult concrete and its Frame.
-_RESULT_FAMILY_MODULES: list[tuple[str, str]] = [
-    ("pirn_agents.specializations.base.agent_result", "AgentResult"),
-    (
-        "pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_frame",
-        "EvaluatorOptimizerFrame",
-    ),
-    (
-        "pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_result",
-        "EvaluatorOptimizerResult",
-    ),
-    ("pirn_agents.specializations.lats.lats_frame", "LatsFrame"),
-    ("pirn_agents.specializations.lats.lats_result", "LatsResult"),
-    (
-        "pirn_agents.specializations.multi_agent.orchestrator_workers_frame",
-        "OrchestratorWorkersFrame",
-    ),
-    (
-        "pirn_agents.specializations.multi_agent.orchestrator_workers_result",
-        "OrchestratorWorkersResult",
-    ),
-    ("pirn_agents.specializations.multi_agent.worker_task_frame", "WorkerTaskFrame"),
-    ("pirn_agents.specializations.multi_agent.worker_task_result", "WorkerTaskResult"),
-    ("pirn_agents.specializations.plan_react.plan_react_frame", "PlanReActFrame"),
-    ("pirn_agents.specializations.plan_react.plan_react_result", "PlanReActResult"),
-    ("pirn_agents.specializations.prompt_chaining.prompt_chain_frame", "PromptChainFrame"),
-    ("pirn_agents.specializations.prompt_chaining.prompt_chain_result", "PromptChainResult"),
-    ("pirn_agents.specializations.reflection.simulation_frame", "SimulationFrame"),
-    ("pirn_agents.specializations.reflection.simulation_result", "SimulationResult"),
-    ("pirn_agents.specializations.reflexion.reflexion_frame", "ReflexionFrame"),
-    ("pirn_agents.specializations.reflexion.reflexion_result", "ReflexionResult"),
-    ("pirn_agents.specializations.rewoo.rewoo_frame", "ReWooFrame"),
-    ("pirn_agents.specializations.rewoo.rewoo_result", "ReWooResult"),
-    ("pirn_agents.specializations.routing.fallback_frame", "FallbackFrame"),
-    ("pirn_agents.specializations.routing.fallback_result", "FallbackResult"),
-    ("pirn_agents.specializations.self_ask.self_ask_frame", "SelfAskFrame"),
-    ("pirn_agents.specializations.self_ask.self_ask_result", "SelfAskResult"),
-]
-
-_RESULT_FAMILY_IDS = [f"{mod}::{name}" for mod, name in _RESULT_FAMILY_MODULES]
-
-
-class TestResultFamilyIsPayloadOrFrame(unittest.TestCase):
-    """Extends this module's Payload-or-Frame ratchet to the AgentResult family."""
-
-    def test_classification(self) -> None:
-        for module_path, class_name in _RESULT_FAMILY_MODULES:
-            module = importlib.import_module(module_path)
-            cls = getattr(module, class_name)
-            is_payload = issubclass(cls, Payload)
-            is_frame = (
-                not is_payload
-                and cls.__name__.endswith("Frame")
-                and issubclass(cls, PirnOpaqueValue)
-            )
-            assert is_payload or is_frame, (
-                f"{module_path}::{class_name} is neither a Payload subclass nor a "
-                "*Frame PirnOpaqueValue dataclass."
-            )
-            if class_name == "AgentResult":
-                # The thin generic base itself: a Payload, never a *Frame.
-                assert is_payload
-            elif class_name.endswith("Frame"):
-                assert is_frame, f"{module_path}::{class_name} must be a *Frame, not a Payload."
-            else:
-                assert is_payload, f"{module_path}::{class_name} must be a Payload."
+        node = next(
+            n
+            for n in ast.parse(
+                "class Writer:\n"
+                "    async def process(self, message, **_) -> ConversationPayload:\n"
+                "        return self._payload(message)\n"
+            ).body
+            if isinstance(n, ast.ClassDef)
+        )
+        assert (
+            KnotOutputTypes.offending_outputs_of(node, self._index(_ConversationPayload))
+            == frozenset()
+        )

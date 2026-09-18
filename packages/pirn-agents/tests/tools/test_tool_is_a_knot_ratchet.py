@@ -1,41 +1,21 @@
-"""Ratchet: freeze what the "a tool is a Knot" collapse burns down (ADR WS1).
+"""Guard: a knot has one execution verb, and the engine runs it (ADR WS1).
 
-ADR "agents speaks core" (2026-09-13), target model item 1: ``Tool`` becomes a
+ADR "agents speaks core" (2026-09-13), target model item 1: ``Tool`` is a
 ``Knot`` class — the capability is the class, one call is an instance with
-``KnotConfig(id=call_id)``, the outcome is the engine's ``Result`` + lineage.
-Until then three parallel things exist in ``pirn_agents`` and are what this
-ratchet inventories (see ``tests/tools/tool_knot_inventory.py``):
+``KnotConfig(id=call_id)``, the outcome is the engine's ``Result`` plus lineage.
+A second public coroutine that does work is a way to call the capability the
+engine never sees, so it gets no ``Ok | Err | Skipped``, no lineage row, no
+retry, timeout, admission, cancellation or replay.
 
-* classes carrying an ``invoke`` method — a second execution verb beside
-  ``Knot.process()``;
-* modules importing the parallel vocabulary (``ToolStatus``,
-  ``ToolSchemaCompiler``, ``ArgumentValidator`` — all deleted);
-* call sites that ``await <x>.invoke(...)`` instead of wiring a knot.
-
-The allowlists are asserted by **exact equality**, deliberately:
-
-* adding a new instance fails, because the finding is not in the list;
-* fixing one *without* updating the list also fails, because the list still
-  names it.
-
-The second half is what keeps the list from rotting into a lie.  When you
-migrate a class or a call site, delete its line and watch this test go green.
-Regenerate all three constants with::
-
-    python -c "from tests.tools.tool_knot_inventory import ToolKnotInventory; \\
-               print(ToolKnotInventory.render())"
-
-from the package root (``packages/pirn-agents``).
-
-Two families the ``invoke`` inventory used to hold were not tools at all, and
-both are gone (PIR-872).  The run-recorder ``invoke(key=, thunk=)`` seam
-(``CassetteRecorder``, ``RunRecorder``, ``NullRunRecorder``,
-``CassetteRunRecorder``) is deleted: an eval item is a knot, so core
-``RunHistory``/``ReplaySession`` record and replay it, and ``ToolTestHarness``
-drives a tool through the engine instead of an ``invoke`` method, so
-``INVOKE_CLASSES`` is empty.  ``CascadeTier.invoke`` is gone too: a cascade tier
-is a model call run as an ``LLMChatCall`` knot, so its ``_TierInvocation`` call
-site left this inventory, and ``AWAITED_INVOKE_CALL_SITES`` is empty.
+There is no allowlist and nothing to regenerate. The version this replaced froze
+three inventories by exact equality — methods named ``invoke``, importers of
+three deleted vocabulary names, ``await <x>.invoke(...)`` call sites — and
+shipped a ``render()`` that recomputed them from the current tree, which made
+every new instance self-approving. All three keyed on the single name ``invoke``,
+so renaming it emptied the whole ratchet at once. The assertion below is the
+rule itself: **no knot carries a public coroutine beside ``process()`` that does
+work**. :class:`TestSecondVerbDetectorFires` proves the detector fires, so an
+empty finding means an empty tree and not a blind detector.
 """
 
 from __future__ import annotations
@@ -43,116 +23,96 @@ from __future__ import annotations
 import ast
 import unittest
 
+from tests.agents_source_index import AgentsSourceIndex
 from tests.tools.tool_knot_inventory import ToolKnotInventory
 
-# --- known inventory, frozen (ADR agents-speaks-core, WS1) -----------------
 
-INVOKE_CLASSES: frozenset[str] = frozenset()
-
-# ToolStatus is deleted and ToolResult/AgentTool are the composed shapes, not
-# parallel ones (PIR-872; see ToolKnotInventory.PARALLEL_NAMES). Empty, not
-# deleted: importing a reintroduced parallel name fails here.
-PARALLEL_VOCABULARY_IMPORTERS: frozenset[str] = frozenset()
-
-AWAITED_INVOKE_CALL_SITES: frozenset[str] = frozenset()
-
-
-class TestToolKnotInventoryIsFrozen(unittest.TestCase):
-    """Freeze the inventory.  Exact equality in both directions."""
-
-    def setUp(self) -> None:
-        self.found = ToolKnotInventory.discover()
-
-    def _assert_frozen(self, key: str, expected: frozenset[str], constant: str) -> None:
-        found = self.found[key]
-        assert found == expected, {
-            "new instances": sorted(found - expected),
-            f"migrated — remove from {constant}": sorted(expected - found),
-        }
+class TestAKnotHasOneExecutionVerb(unittest.TestCase):
+    """``process()`` is the only verb. Asserted, not inventoried."""
 
     def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason.
+        """A guard that scans nothing passes for the wrong reason."""
+        assert len(AgentsSourceIndex.knots()) >= 200, len(AgentsSourceIndex.knots())
 
-        PIR-872 emptied all three inventories, so their sizes can no longer
-        show the walk ran: assert instead that it parsed the package (the
-        detectors themselves are pinned by ``TestDetectorsAreDiscriminating``).
-        """
-        assert set(self.found) == {"invoke_classes", "importers", "call_sites"}, self.found
-        modules = ToolKnotInventory.modules()
-        assert len(modules) >= 500, len(modules)
-
-    def test_classes_with_an_invoke_method_are_frozen(self) -> None:
-        self._assert_frozen("invoke_classes", INVOKE_CLASSES, "INVOKE_CLASSES")
-
-    def test_parallel_vocabulary_importers_are_frozen(self) -> None:
-        self._assert_frozen(
-            "importers", PARALLEL_VOCABULARY_IMPORTERS, "PARALLEL_VOCABULARY_IMPORTERS"
-        )
-
-    def test_awaited_invoke_call_sites_are_frozen(self) -> None:
-        self._assert_frozen("call_sites", AWAITED_INVOKE_CALL_SITES, "AWAITED_INVOKE_CALL_SITES")
+    def test_no_knot_carries_a_second_execution_verb(self) -> None:
+        found = ToolKnotInventory.discover()
+        assert found == {}, {label: sorted(verbs) for label, verbs in found.items()}
 
 
-class TestDetectorsAreDiscriminating(unittest.TestCase):
-    """The detectors must fire on the shapes they name, and not on clean code."""
+class TestSecondVerbDetectorFires(unittest.TestCase):
+    """The detector fires on the shape it names, and not on core's own vocabulary."""
 
     @staticmethod
-    def _class_of(source: str) -> ast.ClassDef:
-        tree = ast.parse(source)
-        return next(node for node in ast.walk(tree) if isinstance(node, ast.ClassDef))
+    def _verbs(source: str, overrides: frozenset[str] = frozenset()) -> frozenset[str]:
+        node = next(n for n in ast.parse(source).body if isinstance(n, ast.ClassDef))
+        return ToolKnotInventory.second_execution_verbs(node, overrides)
 
-    def test_invoke_method_trips(self) -> None:
-        node = self._class_of("class T:\n    async def invoke(self, arguments):\n        pass\n")
-        assert ToolKnotInventory.defines_invoke(node)
+    def test_rule_fires_on_a_verb_named_invoke(self) -> None:
+        assert self._verbs(
+            "class Tool:\n"
+            "    async def invoke(self, arguments):\n"
+            "        return await self._backend.call(arguments)\n"
+        ) == frozenset({"invoke"})
 
-    def test_process_method_does_not_trip(self) -> None:
-        node = self._class_of("class T:\n    async def process(self, x, **_):\n        pass\n")
-        assert not ToolKnotInventory.defines_invoke(node)
+    def test_rule_fires_on_a_verb_renamed_away_from_invoke(self) -> None:
+        """The failure mode of the version this replaced: rename, ratchet empties."""
+        assert self._verbs(
+            "class Tool:\n"
+            "    async def execute(self, arguments):\n"
+            "        return await self._backend.call(arguments)\n"
+        ) == frozenset({"execute"})
 
-    def test_inherited_invoke_does_not_trip(self) -> None:
-        """Only a body of its own counts; a subclass that adds nothing is not a shadow."""
-        node = self._class_of("class T(Base):\n    pass\n")
-        assert not ToolKnotInventory.defines_invoke(node)
+    def test_rule_fires_through_a_private_helper(self) -> None:
+        """Hiding the collaborator behind a helper does not make the verb passive."""
+        assert self._verbs(
+            "class Tool:\n"
+            "    async def run(self, arguments):\n"
+            "        return await self._call(arguments)\n"
+            "    async def _call(self, arguments):\n"
+            "        return await self._backend.call(arguments)\n"
+        ) == frozenset({"run"})
 
-    def test_parallel_import_trips(self) -> None:
-        tree = ast.parse("from pirn_agents.tools.tool_status import ToolStatus\n")
-        assert ToolKnotInventory.imports_parallel_name(tree) == frozenset({"ToolStatus"})
-
-    def test_composed_tool_result_import_does_not_trip(self) -> None:
-        tree = ast.parse("from pirn_agents.tools.tool_result import ToolResult\n")
-        assert ToolKnotInventory.imports_parallel_name(tree) == frozenset()
-
-    def test_core_result_import_does_not_trip(self) -> None:
-        tree = ast.parse("from pirn.core.ok import Ok\nfrom pirn.core.err import Err\n")
-        assert ToolKnotInventory.imports_parallel_name(tree) == frozenset()
-
-    def test_awaited_invoke_trips_with_its_qualname(self) -> None:
-        tree = ast.parse(
-            "class P:\n"
-            "    async def process(self, tool, call, **_):\n"
-            "        return await tool.invoke(call.arguments)\n"
+    def test_rule_ignores_process_itself(self) -> None:
+        assert (
+            self._verbs(
+                "class Tool:\n"
+                "    async def process(self, arguments, **_):\n"
+                "        return await self._backend.call(arguments)\n"
+            )
+            == frozenset()
         )
-        assert ToolKnotInventory.awaited_invoke_sites(tree) == {"P.process"}
 
-    def test_nested_function_site_is_named_by_its_full_path(self) -> None:
-        tree = ast.parse(
-            "class P:\n"
-            "    async def run(self, tool):\n"
-            "        async def inner():\n"
-            "            return await tool.invoke({})\n"
-            "        return inner\n"
+    def test_rule_ignores_an_override_of_a_core_seam(self) -> None:
+        """``LoopSubTapestry.astep`` is core's vocabulary, not a second verb."""
+        assert (
+            self._verbs(
+                "class Loop:\n"
+                "    async def astep(self, state):\n"
+                "        return await self._advance(state)\n"
+                "    async def _advance(self, state):\n"
+                "        return await self._llm.chat(state)\n",
+                frozenset({"astep"}),
+            )
+            == frozenset()
         )
-        assert ToolKnotInventory.awaited_invoke_sites(tree) == {"P.run.inner"}
 
-    def test_wiring_a_knot_does_not_trip(self) -> None:
-        tree = ast.parse(
-            "class P:\n"
-            "    async def process(self, tool, call, **_):\n"
-            "        return ToolInvocation(tool=tool, call=call, _config=KnotConfig(id='i'))\n"
+    def test_rule_ignores_a_private_coroutine(self) -> None:
+        assert (
+            self._verbs(
+                "class Tool:\n"
+                "    async def process(self, arguments, **_):\n"
+                "        return await self._call(arguments)\n"
+                "    async def _call(self, arguments):\n"
+                "        return await self._backend.call(arguments)\n"
+            )
+            == frozenset()
         )
-        assert ToolKnotInventory.awaited_invoke_sites(tree) == set()
 
-    def test_un_awaited_invoke_does_not_trip(self) -> None:
-        """A sync ``.invoke(`` (e.g. a stream factory) is not the awaited execution verb."""
-        tree = ast.parse("def f(tool):\n    return tool.invoke({})\n")
-        assert ToolKnotInventory.awaited_invoke_sites(tree) == set()
+    def test_rule_ignores_a_public_coroutine_that_does_no_work(self) -> None:
+        """A pure accessor is not an execution verb."""
+        assert (
+            self._verbs(
+                "class Tool:\n    async def describe(self):\n        return self._description\n"
+            )
+            == frozenset()
+        )
