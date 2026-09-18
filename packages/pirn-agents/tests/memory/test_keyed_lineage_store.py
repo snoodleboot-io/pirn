@@ -13,6 +13,7 @@ from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot_config import KnotConfig
+from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 
@@ -156,3 +157,33 @@ class TestConstruction:
     def test_rejects_non_data_store(self) -> None:
         with pytest.raises(TypeError):
             KeyedLineageStore(history=InMemoryHistory(), data_store="bad")  # type: ignore[arg-type]
+
+
+class _LosingDataStore(InMemoryDataStore):
+    """A value plane that accepts a write and then cannot produce it again."""
+
+    async def get(self, content_hash: str) -> object:
+        raise ValueEvictedError(
+            content_hash=content_hash, max_values=1, store_name="_LosingDataStore"
+        )
+
+
+class TestALostValueIsNotReportedAsAbsence:
+    """PIR-873: ``except KeyError: return None`` made data loss look like absence."""
+
+    async def test_an_evicted_value_raises_instead_of_reading_as_absent(self) -> None:
+        # Arrange — the row records a successful write; the value plane lost it.
+        losing = KeyedLineageStore(history=InMemoryHistory(), data_store=_LosingDataStore())
+        await losing.put(namespace="ns", key="k1", value={"a": 1})
+
+        # Act / Assert
+        with pytest.raises(ValueEvictedError):
+            await losing.get(namespace="ns", key="k1")
+
+    async def test_a_never_written_key_is_still_absent(self, store: KeyedLineageStore) -> None:
+        assert await store.get(namespace="ns", key="missing") is None
+
+    async def test_a_deleted_key_is_still_absent(self, store: KeyedLineageStore) -> None:
+        await store.put(namespace="ns", key="k1", value={"a": 1})
+        await store.delete(namespace="ns", key="k1")
+        assert await store.get(namespace="ns", key="k1") is None

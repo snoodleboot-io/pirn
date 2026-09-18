@@ -168,20 +168,31 @@ class KeyedLineageStore(PirnOpaqueValue):
         process happened to make; a durable, shared ``history``/``data_store``
         sees writes from any process.
 
+        ``None`` means *absent*: nothing was ever written under the key, or the
+        newest write was a :meth:`delete` tombstone, or the recorded run did not
+        succeed.  A lineage row that names an ``output_hash`` the value plane can
+        no longer produce is **not** absence — it is a store that lost a value it
+        recorded — so the backend's ``KeyError`` propagates
+        (``pirn.exceptions.value_evicted_error.ValueEvictedError`` when a bounded
+        backend dropped it under its own ceiling, a plain ``KeyError`` when the
+        row and the value plane disagree).  It used to be swallowed into
+        ``None``, which made data loss read exactly like "never written"
+        (PIR-873); a caller that genuinely wants to treat both alike catches
+        ``KeyError`` itself, and says so where it does.
+
         Returns:
-            The value, ``None`` if the key was never written (or was
-            :meth:`delete`\\ d and never rewritten), or ``None`` if the
-            backend evicted it (see ``DataStore.get``'s ``KeyError`` note) —
-            a keyed read reports absence the same way for both.
+            The value, or ``None`` when the key is absent.
+
+        Raises:
+            KeyError: If the newest recorded write names a hash the value plane
+                cannot produce.  ``ValueEvictedError`` (a ``KeyError``) when the
+                backend dropped it deliberately.
         """
         identity = self.identity(namespace, key)
         row = await self._history.query_latest_lineage_by_knot_id(identity)
         if row is None or row.outcome != "ok" or row.output_hash is None:
             return None
-        try:
-            value = await self._data_store.get(row.output_hash)
-        except KeyError:
-            return None
+        value = await self._data_store.get(row.output_hash)
         return None if value == type(self)._tombstone else value
 
     async def latest_output_hash(self, *, namespace: str, key: str) -> str | None:

@@ -18,9 +18,15 @@ and reads "the current value under this key" via
 from a bare key: a ``DataStore`` hash identifies a value, never a caller-chosen
 name.
 
-**Missing keys are not errors.** ``KeyedLineageStore.get`` already returns
-``None`` for an absent (or evicted) key, matching the ``MemoryStore``
-contract with no translation needed here.
+**Missing keys are not errors.** ``KeyedLineageStore.get`` returns ``None``
+for an absent or deleted key, matching the ``MemoryStore`` contract. It does
+*not* hide a value the backend lost: a lineage row naming a hash the value
+plane can no longer produce raises (PIR-873), because at that layer the two
+are different facts. Eviction is absence *here*, at the ``MemoryStore``
+surface, whose contract promises no durability — so :meth:`retrieve` is the
+one place that translates ``ValueEvictedError`` to ``None``, and the only
+thing it catches. A plain ``KeyError`` from the value plane means the row and
+the store disagree, which is a defect and propagates.
 
 Similarity :meth:`search` is *not* implemented: a key-value backend has no
 notion of nearness. Use a ``VectorMemoryStore`` when you need search.
@@ -38,6 +44,7 @@ from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.base.value_retention import ValueRetention
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -142,11 +149,18 @@ class DataStoreMemoryStore(MemoryStore):
             declares a ``max_values`` ceiling — the default
             ``InMemoryDataStore`` does, at 10,000 values — drops its least
             recently used entries and raises ``ValueEvictedError`` when the
-            corresponding value has been evicted, which
-            :meth:`KeyedLineageStore.get` already translates to ``None``. See
-            PIR-839.
+            corresponding value is read again. A ``MemoryStore`` reports
+            absence rather than promising durability, so that is translated
+            here (PIR-839); a session whose memory must survive needs a
+            durable ``DataStore``. Only ``ValueEvictedError`` is translated:
+            any other ``KeyError`` means the lineage row and the value plane
+            disagree, which is a defect and is not reported as absence
+            (PIR-873).
         """
-        return await self._keyed.get(namespace=self._namespace, key=key)
+        try:
+            return await self._keyed.get(namespace=self._namespace, key=key)
+        except ValueEvictedError:
+            return None
 
     async def search(
         self,
