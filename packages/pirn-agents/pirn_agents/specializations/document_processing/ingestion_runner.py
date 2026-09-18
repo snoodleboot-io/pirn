@@ -11,9 +11,14 @@ were processed under a hand-rolled ``asyncio.Semaphore`` and
 concurrency is now a :class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`
 group cap on the inner run — the same lever
 :class:`~pirn_agents.batch.map_agent.MapAgent` uses — rather than a semaphore
-held inside the knot. A failure on any one source is isolated by
-``DocumentIngest`` and recorded on the returned :class:`IngestionReport`
-rather than aborting the run.
+held inside the knot, and the cap belongs to the run rather than to this knot
+(:class:`~pirn_agents.specializations.base.inner_group_limit.InnerGroupLimit`,
+PIR-873). A failure on any one source raises inside that document's
+``DocumentIngest`` and is folded into an errored outcome by its
+:class:`~pirn_agents.specializations.document_processing.document_ingest_fold.DocumentIngestFold`
+(``RECEIVE_ERRORS``), so it is recorded on the returned
+:class:`IngestionReport` with its exception type — and in the run's own
+history with a traceback — rather than aborting the run.
 
 Internal API.
 """
@@ -24,16 +29,21 @@ import functools
 from typing import Any, ClassVar
 
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.inner_group_limit import InnerGroupLimit
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
 )
 from pirn_agents.specializations.document_processing.document_ingest import DocumentIngest
+from pirn_agents.specializations.document_processing.document_ingest_fold import (
+    DocumentIngestFold,
+)
 from pirn_agents.specializations.document_processing.document_outcome import DocumentOutcome
 from pirn_agents.specializations.document_processing.incremental.incremental_upserter import (
     IncrementalUpserter,
@@ -48,11 +58,11 @@ from pirn_agents.specializations.document_processing.sources.source_connector im
 class IngestionRunner(AgentPipeline):
     """Fetch every source document and wire one ingest knot per document."""
 
-    _concurrency_group: ClassVar[str] = "ingest_docs"
-    # Recomputed by `process()` on every run; the class-level values only
-    # make the attributes readable before the first `process()` call.
-    _mutable_live_documents: int = 0
-    _mutable_max_concurrency: int = 1
+    #: A document's ``Err`` is delivered to its fold knot, not to this runner.
+    _inner_failures_reach_sink: ClassVar[bool] = True
+
+    #: Per-run carrier for the document group's cap (never instance state).
+    _group_limit: ClassVar[InnerGroupLimit] = InnerGroupLimit("ingest_docs")
 
     def __init__(
         self,
@@ -76,16 +86,14 @@ class IngestionRunner(AgentPipeline):
         )
 
     def _inner_concurrency(self) -> ConcurrencyLimits | None:
-        """The document group's cap, or ``None`` when nothing runs.
+        """This run's document-group cap, or ``None`` when no document runs.
 
-        Read by ``SubTapestry._run_inner`` after ``process()`` has already
-        set ``self._mutable_live_documents`` / ``self._mutable_max_concurrency``
-        — the same "compute during process(), consult after" ordering
-        ``MapAgent._inner_concurrency`` uses.
+        Read by ``SubTapestry._run_inner`` after ``process()`` has declared it
+        on :class:`InnerGroupLimit`. The cap rides the run's own context rather
+        than this knot, so two concurrent runs of the same tapestry cannot
+        overwrite each other's budget.
         """
-        if self._mutable_live_documents <= 0:
-            return None
-        return ConcurrencyLimits(groups={self._concurrency_group: self._mutable_max_concurrency})
+        return type(self)._group_limit.current()
 
     async def process(
         self,
@@ -108,8 +116,9 @@ class IngestionRunner(AgentPipeline):
         Returns:
             The sink of the inner pipeline: a ``Parameter`` defaulting to an
             empty :class:`IngestionReport` when the source yields no
-            documents, or an :class:`Aggregator` over one ``DocumentIngest``
-            per document whose output is the aggregate :class:`IngestionReport`.
+            documents, or an :class:`Aggregator` over one
+            ``DocumentIngest`` → ``DocumentIngestFold`` pair per document whose
+            output is the aggregate :class:`IngestionReport`.
 
         Raises:
             ValueError: If ``max_concurrency`` is less than 1.
@@ -120,8 +129,7 @@ class IngestionRunner(AgentPipeline):
             )
         documents = [doc async for doc in source_connector.fetch()]
         source_errors: tuple[tuple[str, str], ...] = tuple(source_connector.errors)
-        self._mutable_live_documents = len(documents)
-        self._mutable_max_concurrency = max_concurrency
+        type(self)._group_limit.declare(members=len(documents), max_concurrency=max_concurrency)
         if not documents:
             return Parameter(
                 "empty_report",
@@ -135,16 +143,22 @@ class IngestionRunner(AgentPipeline):
                 ),
                 _config=KnotConfig(id="empty_report"),
             )
-        per_document: dict[str, Knot] = {
-            f"doc_{index}": DocumentIngest(
+        per_document: dict[str, Knot] = {}
+        for index, document in enumerate(documents):
+            ingest = DocumentIngest(
                 document=document,
                 loader=loader,
                 chunking_strategy=chunking_strategy,
                 upserter=upserter,
-                _config=KnotConfig(id=f"ingest_{index}", concurrency_group=self._concurrency_group),
+                _config=KnotConfig(
+                    id=f"ingest_{index}", concurrency_group=type(self)._group_limit.group
+                ),
             )
-            for index, document in enumerate(documents)
-        }
+            per_document[f"doc_{index}"] = DocumentIngestFold(
+                source_id=document.source_id,
+                outcome=ingest,
+                _config=KnotConfig(id=f"outcome_{index}", error_policy=ErrorPolicy.RECEIVE_ERRORS),
+            )
         return Aggregator(
             combine=functools.partial(self._build_report, len(documents), source_errors),
             _config=KnotConfig(id="report"),
