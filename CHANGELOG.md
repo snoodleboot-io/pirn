@@ -145,6 +145,25 @@ happened to be installed.
   looked valid and was not the data handed in). New helpers `_trace_samples` and
   `_header_updates` carry the rules, and need no `segyio` to test.
 
+#### `AdvisoryFileLock` — the abandoned-run sweep fails safe (PIR-873)
+
+`pirn/core/transport/advisory_file_lock.py` — `AdvisoryFileLock.acquire` /
+`release` / `is_held`, `fcntl.flock` on POSIX and `msvcrt.locking` on Windows,
+taken out of `FilesystemTransport`'s three inline `import fcntl` blocks.
+
+`is_held` gates a `shutil.rmtree`, so every answer it cannot prove is **"held"**.
+`FilesystemTransport._is_lock_held` used to return `False` — "safe to delete" —
+when `import fcntl` failed (every Windows run) and when opening the lock file
+raised `OSError`, so `sweep_abandoned` could delete the run directory of a
+process still writing into it. `_acquire_lock`'s silent `except ImportError:
+pass` is likewise gone: a run that could not be marked is logged, and the sweeper
+declines to touch it rather than assuming it is dead.
+
+`typings/msvcrt/__init__.pyi` declares the byte-range locking subset
+unconditionally — typeshed gates every `msvcrt` symbol behind
+`sys.platform == "win32"`, so the Windows branch was unverifiable on a Linux
+checker, which is every machine here.
+
 #### Airbyte OAuth2 client-credentials exchange implemented (PIR-873)
 
 `AirbyteConfig` documented a `client_id` / `client_secret` pair the connector
