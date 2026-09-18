@@ -16,6 +16,7 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.messaging.pagerduty_config import PagerDutyConfig
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class PagerDutyClient(ApiClient):
@@ -171,12 +172,12 @@ class PagerDutyClient(ApiClient):
     def _routing_key(self) -> str:
         if self._config is not None and self._config.routing_key:
             return self._config.routing_key
-        raise RuntimeError("PagerDutyClient: routing_key is required for Events API calls")
+        raise ConnectorConfigError("PagerDutyClient: routing_key is required for Events API calls")
 
     def _api_key(self) -> str:
         if self._config is not None and self._config.api_key:
             return self._config.api_key
-        raise RuntimeError("PagerDutyClient: api_key is required for REST API calls")
+        raise ConnectorConfigError("PagerDutyClient: api_key is required for REST API calls")
 
     async def close(self) -> None:
         if self._client is not None:

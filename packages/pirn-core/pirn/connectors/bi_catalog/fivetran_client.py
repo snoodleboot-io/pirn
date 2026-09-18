@@ -25,6 +25,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class FivetranClient(ApiClient, TableSource):
@@ -160,7 +161,9 @@ class FivetranClient(ApiClient, TableSource):
         if self._config is None:
             raise self._missing_config_error("FivetranClient", "client")
         if self._config.api_key is None or self._config.api_secret is None:
-            raise RuntimeError("FivetranClient: config.api_key and config.api_secret are required")
+            raise ConnectorConfigError(
+                "FivetranClient: config.api_key and config.api_secret are required"
+            )
         try:
             client = httpx.AsyncClient(
                 auth=httpx.BasicAuth(self._config.api_key, self._config.api_secret)

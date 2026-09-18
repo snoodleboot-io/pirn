@@ -31,6 +31,7 @@ from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.zendesk_config import ZendeskConfig
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.backend_capability_error import BackendCapabilityError
 
 
 class ZendeskClient(ApiClient, TableSource, RecordWriter):
@@ -191,7 +192,9 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
                 params=request_params,
                 body=request_body,
             )
-        raise RuntimeError("ZendeskClient: underlying client exposes no usable request entry-point")
+        raise BackendCapabilityError(
+            "ZendeskClient: underlying client exposes no usable request entry-point"
+        )
 
     async def close(self) -> None:
         if self._client is not None:

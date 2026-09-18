@@ -52,7 +52,7 @@ class KdbPool(DatabaseConnectionPool):
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         await self._ensure_connection()
         if self._connection is None:
-            raise RuntimeError("KdbPool: not connected — call connect() first")
+            raise self._not_connected_error("KdbPool")
         try:
             result = await asyncio.to_thread(self._connection.sync, query, *tuple(parameters or ()))
         except Exception as exc:
@@ -62,7 +62,7 @@ class KdbPool(DatabaseConnectionPool):
     async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         await self._ensure_connection()
         if self._connection is None:
-            raise RuntimeError("KdbPool: not connected — call connect() first")
+            raise self._not_connected_error("KdbPool")
         try:
             result = await asyncio.to_thread(self._connection.sync, query, *tuple(parameters or ()))
         except Exception as exc:
@@ -72,7 +72,7 @@ class KdbPool(DatabaseConnectionPool):
     async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         await self._ensure_connection()
         if self._connection is None:
-            raise RuntimeError("KdbPool: not connected — call connect() first")
+            raise self._not_connected_error("KdbPool")
         for row in parameter_seq:
             try:
                 await asyncio.to_thread(self._connection.sync, query, *tuple(row))

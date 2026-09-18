@@ -26,6 +26,7 @@ from pirn.connectors.capabilities.event_emitter import EventEmitter
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.saas.amplitude_config import AmplitudeConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class AmplitudeClient(ApiClient, EventEmitter):
@@ -115,8 +116,10 @@ class AmplitudeClient(ApiClient, EventEmitter):
         request_body: dict[str, Any] = dict(body) if body is not None else {}
         if "event" not in request_body:
             raise ValueError("AmplitudeClient.request(/track): body requires 'event'")
-        event = await self._build_event(request_body)
+        # Client first: a missing api_key is the operator's problem to fix, and
+        # building the event would demand the SDK before reporting it.
         client = await self._ensure_client()
+        event = await self._build_event(request_body)
         return await asyncio.to_thread(client.track, event)
 
     async def close(self) -> None:
@@ -148,11 +151,11 @@ class AmplitudeClient(ApiClient, EventEmitter):
         return self._client
 
     async def _create_client(self) -> Any:
-        amplitude = OptionalDependency.require("amplitude", extra="amplitude")
         if self._config is None:
             raise self._missing_config_error("AmplitudeClient", "client")
         if self._config.api_key is None:
-            raise RuntimeError("AmplitudeClient: config.api_key is required")
+            raise ConnectorConfigError("AmplitudeClient: config.api_key is required")
+        amplitude = OptionalDependency.require("amplitude", extra="amplitude")
         try:
             client = await asyncio.to_thread(amplitude.Amplitude, self._config.api_key)
         except Exception as exc:

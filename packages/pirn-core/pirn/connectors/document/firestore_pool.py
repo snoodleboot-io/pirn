@@ -61,7 +61,7 @@ class FirestorePool(DatabaseConnectionPool):
         """
         await self._ensure_client()
         if self._client is None:
-            raise RuntimeError("FirestorePool: not connected — call connect() first")
+            raise self._not_connected_error("FirestorePool")
         doc_data: Iterable[Any] = parameters if parameters is not None else {}
         _timestamp, doc_ref = await self._client.collection(query).add(doc_data)
         return doc_ref.id
@@ -73,7 +73,7 @@ class FirestorePool(DatabaseConnectionPool):
         """
         await self._ensure_client()
         if self._client is None:
-            raise RuntimeError("FirestorePool: not connected — call connect() first")
+            raise self._not_connected_error("FirestorePool")
         col_ref = self._client.collection(query)
         if ShapeGuard.is_str_keyed_dict(parameters):
             for field, value in parameters.items():
@@ -85,7 +85,7 @@ class FirestorePool(DatabaseConnectionPool):
         """Batch-write documents to ``query`` collection."""
         await self._ensure_client()
         if self._client is None:
-            raise RuntimeError("FirestorePool: not connected — call connect() first")
+            raise self._not_connected_error("FirestorePool")
         batch = self._client.batch()
         col_ref = self._client.collection(query)
         for row in parameter_seq:

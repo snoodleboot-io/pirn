@@ -24,6 +24,7 @@ from pirn.connectors.capabilities.event_emitter import EventEmitter
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.saas.mixpanel_config import MixpanelConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class MixpanelClient(ApiClient, EventEmitter):
@@ -138,11 +139,11 @@ class MixpanelClient(ApiClient, EventEmitter):
         return self._client
 
     async def _create_client(self) -> Any:
-        mixpanel = OptionalDependency.require("mixpanel", extra="mixpanel")
         if self._config is None:
             raise self._missing_config_error("MixpanelClient", "client")
         if self._config.project_token is None:
-            raise RuntimeError("MixpanelClient: config.project_token is required")
+            raise ConnectorConfigError("MixpanelClient: config.project_token is required")
+        mixpanel = OptionalDependency.require("mixpanel", extra="mixpanel")
         try:
             client = await asyncio.to_thread(mixpanel.Mixpanel, self._config.project_token)
         except Exception as exc:

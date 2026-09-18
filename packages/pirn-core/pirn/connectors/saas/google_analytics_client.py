@@ -33,6 +33,7 @@ from pirn.connectors.saas.google_analytics_config import (
 )
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class GoogleAnalyticsClient(ApiClient, TableSource):
@@ -87,7 +88,9 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         the response is full (``len(rows) == limit``); otherwise ``None``.
         """
         if self._report_request is None:
-            raise RuntimeError("GoogleAnalyticsClient.fetch_page: no report_request configured")
+            raise ConnectorConfigError(
+                "GoogleAnalyticsClient.fetch_page: no report_request configured"
+            )
         offset = int(cursor) if cursor else 0
         limit = page_size or 1000
         body = dict(self._report_request)

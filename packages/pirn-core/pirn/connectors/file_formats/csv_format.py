@@ -66,10 +66,14 @@ class CsvFormat(StreamingFileFormat):
                     raise TypeError(
                         f"{type(self).__name__}: every entry in column_names must be str"
                     )
-        if not has_header and column_names is None:
-            raise ValueError(
-                f"{type(self).__name__}: column_names is required when has_header=False"
-            )
+        if has_header:
+            headerless_columns: tuple[str, ...] = ()
+        else:
+            if column_names is None:
+                raise ValueError(
+                    f"{type(self).__name__}: column_names is required when has_header=False"
+                )
+            headerless_columns = column_names
         if not isinstance(encoding, str):
             raise TypeError(f"{type(self).__name__}: encoding must be str")
         if not encoding:
@@ -79,6 +83,9 @@ class CsvFormat(StreamingFileFormat):
         self._quotechar = quotechar
         self._has_header = has_header
         self._column_names: tuple[str, ...] | None = column_names
+        # Narrowed once, at construction: headerless mode always has names (the
+        # check above), so the decode path never needs a guard it cannot reach.
+        self._headerless_columns: tuple[str, ...] = headerless_columns
         self._encoding = encoding
 
     @property
@@ -111,7 +118,7 @@ class CsvFormat(StreamingFileFormat):
         delimiter = self._delimiter
         quotechar = self._quotechar
         has_header = self._has_header
-        configured_columns = self._column_names
+        configured_columns = self._headerless_columns
 
         # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
@@ -126,8 +133,6 @@ class CsvFormat(StreamingFileFormat):
                     yield {key: value for key, value in row.items()}
                 return
 
-            if configured_columns is None:
-                raise RuntimeError("CsvFormat: column_names missing in headerless mode")
             row_reader = csv.reader(
                 text_buffer,
                 delimiter=delimiter,

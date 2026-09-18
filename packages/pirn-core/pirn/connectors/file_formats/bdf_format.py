@@ -38,6 +38,7 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.backend_capability_error import BackendCapabilityError
 
 if TYPE_CHECKING:
     import numpy as np
@@ -189,7 +190,7 @@ class BdfFormat(BatchFileFormat):
                     stacklevel=4,
                 )
         if applied == 0:
-            raise RuntimeError(
+            raise BackendCapabilityError(
                 "BdfFormat: none of the PHI-redaction setters are available on "
                 "this pyedflib version. Cannot safely encode records — install a "
                 "supported pyedflib version (>=1.0)."
