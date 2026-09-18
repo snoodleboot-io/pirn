@@ -1,9 +1,11 @@
 """``ScdType2Queries`` — parameterised SQL for the SCD Type 2 (history rows) merge.
 
-Shared by :class:`ScdType2` and :class:`ScdType2MergeKnot`, which issue
-the same statements against a target pool. Every builder splices already-validated identifiers
-(:class:`~pirn_data.identifier_validator.IdentifierValidator`) and leaves
-values as ``?`` placeholders for the pool to bind.
+Every builder splices already-validated identifiers
+(:class:`~pirn_data.identifier_validator.IdentifierValidator`) and leaves values
+as ``?`` placeholders for the pool to bind. ``row_hash_column``, when given,
+appends one more selected and inserted column carrying the row's content hash —
+the dbt-snapshot change-detection mode of
+:class:`~pirn_data.specializations.scd.scd_type_2.ScdType2`.
 """
 
 from __future__ import annotations
@@ -14,9 +16,16 @@ class ScdType2Queries:
 
     @staticmethod
     def select_query(
-        target_table: str, column_names: tuple[str, ...], current_flag_column: str
+        target_table: str,
+        column_names: tuple[str, ...],
+        current_flag_column: str,
+        row_hash_column: str | None = None,
     ) -> str:
-        column_list = ", ".join(column_names)
+        """Select the current row per key, with the stored hash as a trailing column."""
+        selected = [*column_names]
+        if row_hash_column is not None:
+            selected.append(row_hash_column)
+        column_list = ", ".join(selected)
         return f"SELECT {column_list} FROM {target_table} WHERE {current_flag_column} = 1"
 
     @staticmethod
@@ -26,8 +35,12 @@ class ScdType2Queries:
         effective_date_column: str,
         expiry_date_column: str,
         current_flag_column: str,
+        row_hash_column: str | None = None,
     ) -> str:
+        """Insert a new current version, optionally stamping its content hash."""
         all_cols = [*column_names, effective_date_column, expiry_date_column, current_flag_column]
+        if row_hash_column is not None:
+            all_cols.append(row_hash_column)
         column_list = ", ".join(all_cols)
         placeholders = ", ".join(["?"] * len(all_cols))
         return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
@@ -39,6 +52,7 @@ class ScdType2Queries:
         expiry_date_column: str,
         current_flag_column: str,
     ) -> str:
+        """Close out the current row for a key."""
         where_clause = " AND ".join(f"{k} = ?" for k in primary_keys)
         return (
             f"UPDATE {target_table} SET "

@@ -17,14 +17,15 @@ it do not share a base: :class:`~pirn_data.sources.sql_source.SqlSource` is a
 extend ``Knot`` directly. Validation is not a place in a hierarchy.
 
 Algorithm:
-    1. ``validate_pools`` walks the keyword arguments in the order given and
-       raises ``TypeError`` naming the first that is not a
-       ``DatabaseConnectionPool``.
+    1. ``validate_pool`` is the one pool check: it returns the value typed as a
+       ``DatabaseConnectionPool`` or raises ``TypeError`` naming the argument.
+       ``validate_pools`` walks the keyword arguments in the order given and
+       calls it for each, so the first bad one is the one reported.
     2. ``validate_optional_pools`` does the same but accepts ``None`` for an
        argument the knot treats as "not supplied".
-    3. ``validate_non_empty_string`` raises ``ValueError`` when a
-       caller-supplied string (a raw SQL query, a table name) is not a
-       non-empty ``str``.
+    3. ``validate_non_empty_string`` returns a caller-supplied string (a raw SQL
+       query, a table name) typed as ``str``, raising ``ValueError`` when it is
+       not a non-empty one.
     4. ``validate_identifier`` validates a single identifier when given a
        ``str`` and a whole sequence of identifiers otherwise, delegating to
        :class:`~pirn_data.identifier_validator.IdentifierValidator`.
@@ -66,8 +67,22 @@ class PoolValidator:
             TypeError: If any value is not a ``DatabaseConnectionPool``.
         """
         for pool_name, pool_value in pools.items():
-            if not isinstance(pool_value, DatabaseConnectionPool):
-                raise TypeError(f"{knot_name}: {pool_name} must be a DatabaseConnectionPool")
+            PoolValidator.validate_pool(knot_name, pool_name, pool_value)
+
+    @staticmethod
+    def validate_pool(knot_name: str, label: str, value: Any) -> DatabaseConnectionPool:
+        """Return ``value`` typed as a pool, raising ``TypeError`` when it is not one.
+
+        The single pool check in the package: :meth:`validate_pools` is this in a
+        loop. Call this one where the caller then *uses* the pool, so the value
+        arrives typed instead of leaking ``Any`` into the statement run on it.
+
+        Raises:
+            TypeError: If ``value`` is not a ``DatabaseConnectionPool``.
+        """
+        if not isinstance(value, DatabaseConnectionPool):
+            raise TypeError(f"{knot_name}: {label} must be a DatabaseConnectionPool")
+        return value
 
     @staticmethod
     def validate_optional_pools(knot_name: str, **pools: Any) -> None:
@@ -85,14 +100,20 @@ class PoolValidator:
         PoolValidator.validate_pools(knot_name, **supplied)
 
     @staticmethod
-    def validate_non_empty_string(knot_name: str, label: str, value: Any) -> None:
-        """Raise ``ValueError`` if ``value`` is not a non-empty ``str``.
+    def validate_non_empty_string(knot_name: str, label: str, value: Any) -> str:
+        """Return ``value`` typed as ``str``, raising when it is not a non-empty one.
+
+        Returns the checked value so a caller that goes on to *use* the string —
+        splice it into SQL, hand it to ``fetch_all`` — gets a ``str`` rather than
+        the ``Any`` that reached ``process()``. Callers that only need the guard
+        ignore the return.
 
         Raises:
             ValueError: If ``value`` is not a ``str``, or is the empty string.
         """
         if not isinstance(value, str) or not value:
             raise ValueError(f"{knot_name}: {label} must be a non-empty string")
+        return value
 
     @staticmethod
     def validate_identifier(label: str, value: str | Sequence[str]) -> None:

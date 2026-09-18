@@ -1,39 +1,49 @@
-"""``ScdType1`` — Kimball Type 1 Slowly Changing Dimension.
+"""``ScdType1`` — Kimball Type 1 Slowly Changing Dimension (overwrite on change).
 
-Type 1 ("overwrite-on-change") replaces the existing target row's
-non-key columns whenever the source row's values differ. No history is
-preserved — the previous attribute values are lost. Use this for
-attributes where only the current value matters (e.g. customer name
-typo fix, normalisation update).
+Type 1 replaces the existing target row's non-key columns whenever the source
+row's values differ. No history is preserved — the previous attribute values are
+lost. Use this for attributes where only the current value matters (a customer
+name typo fix, a normalisation update).
 
-For history-preserving SCD use :class:`ScdType2` (effective dating) or
-:class:`ScdType7` (surrogate key + Type 2 history).
+For history-preserving SCD use :class:`~pirn_data.specializations.scd.scd_type_2.ScdType2`
+(effective dating) or :class:`~pirn_data.specializations.scd.scd_type_7.ScdType7`
+(surrogate key plus Type 2 history).
+
+This is the *only* Type 1 implementation in the package. It previously had two
+near-identical siblings — ``ScdType1MergeKnot``, which differed only in taking
+its rows from an upstream knot, and ``MergeUpsert``, which differed only in
+issuing a SELECT-then-UPDATE-or-INSERT per row instead of two set-based
+statements. Both are deleted: ``rows`` is now an input here, and the set-based
+statements are strictly fewer round trips for the same result.
+
+Source rows arrive one of two ways, and exactly one must be given:
+
+* ``rows`` — positional rows from an upstream knot, one value per
+  ``column_names`` entry;
+* ``source_pool`` + ``source_query`` — a query this knot runs itself.
 
 Algorithm:
-    1. Receive resolved ``source_pool``, ``source_query``, ``target_pool``,
-       ``target_table``, ``primary_keys``, and ``column_names`` in
-       ``process()``.
-    2. Validate all inputs: pool types, non-empty strings, identifier
-       safety, and pk ⊆ column_names.
-    3. Fetch all source rows via ``source_pool.fetch_all``.
-    4. Fetch all current target rows; index by primary key.
-    5. Classify each source row as INSERT (new key) or UPDATE (changed
-       non-key values). Skip unchanged rows.
-    6. Bulk-execute inserts and updates.
-    7. Return a summary dict with ``succeeded``, ``target_table``,
-       ``rows_inserted``, and ``rows_updated``.
+    1. Validate the pools, the table and column identifiers, and that
+       ``primary_keys`` is a subset of ``column_names``.
+    2. Materialise the source rows from ``rows`` or ``source_query``.
+    3. Fetch every current target row; index it by primary key.
+    4. Classify each source row: INSERT when its key is absent, UPDATE when a
+       non-key value differs, skip when nothing changed.
+    5. Issue one ``execute_many`` for the inserts and one for the updates.
+    6. Return ``succeeded``, ``target_table``, ``rows_inserted`` and
+       ``rows_updated``.
 
 References:
     [1] Kimball Group — SCD Type 1 (overwrite):
         https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-1/
     [2] pirn — DatabaseConnectionPool interface:
         pirn/connectors/database_connection_pool.py
-    [3] pirn — IdentifierValidator (SQL injection guard):
-        pirn_data/identifier_validator.py
+    [3] pirn_data/pool_validator.py — the shared argument checks.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -51,37 +61,40 @@ class ScdType1(PoolMergeKnot):
     def __init__(
         self,
         *,
-        source_pool: Knot | DatabaseConnectionPool,
-        source_query: Knot | str,
         target_pool: Knot | DatabaseConnectionPool,
         target_table: Knot | str,
         primary_keys: Knot | tuple[str, ...],
         column_names: Knot | tuple[str, ...],
+        rows: Knot | Sequence[Sequence[Any]] | None = None,
+        source_pool: Knot | DatabaseConnectionPool | None = None,
+        source_query: Knot | str | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            source_pool=source_pool,
-            source_query=source_query,
             target_pool=target_pool,
             target_table=target_table,
             primary_keys=primary_keys,
             column_names=column_names,
+            rows=rows,
+            source_pool=source_pool,
+            source_query=source_query,
             _config=_config,
             **kwargs,
         )
 
     @staticmethod
     async def _merge(
-        source_rows: list[Any],
+        source_rows: Sequence[tuple[Any, ...]],
         target_pool: DatabaseConnectionPool,
         target_table: str,
         primary_key_tuple: tuple[str, ...],
         column_tuple: tuple[str, ...],
     ) -> dict[str, int]:
+        """Classify ``source_rows`` against the target and apply the two statements."""
         non_key_columns = tuple(c for c in column_tuple if c not in primary_key_tuple)
         if not source_rows:
-            return {"inserted": 0, "updated": 0}
+            return {"rows_inserted": 0, "rows_updated": 0}
         select_q = ScdType1Queries.select_query(target_table, column_tuple)
         insert_q = ScdType1Queries.insert_query(target_table, column_tuple)
         update_q = ScdType1Queries.update_query(target_table, primary_key_tuple, non_key_columns)
@@ -92,34 +105,33 @@ class ScdType1(PoolMergeKnot):
         inserts: list[tuple[Any, ...]] = []
         updates: list[tuple[Any, ...]] = []
         for row in source_rows:
-            row_t = tuple(row)
-            key = tuple(row_t[i] for i in key_indices)
+            key = tuple(row[i] for i in key_indices)
             if key not in existing_by_key:
-                inserts.append(row_t)
+                inserts.append(row)
                 continue
             existing = existing_by_key[key]
-            if not ScdType1._non_key_values_changed(existing, row_t, non_key_indices):
+            if not ScdType1._non_key_values_changed(existing, row, non_key_indices):
                 continue
-            updates.append(tuple(row_t[i] for i in non_key_indices) + key)
+            updates.append(tuple(row[i] for i in non_key_indices) + key)
         if inserts:
             await target_pool.execute_many(insert_q, inserts)
         if updates and non_key_columns:
             await target_pool.execute_many(update_q, updates)
-        return {"inserted": len(inserts), "updated": len(updates)}
+        return {"rows_inserted": len(inserts), "rows_updated": len(updates)}
 
     async def process(
         self,
         *,
-        source_pool: Any,
-        source_query: Any,
         target_pool: Any,
         target_table: Any,
         primary_keys: Any,
         column_names: Any,
+        rows: Any = None,
+        source_pool: Any = None,
+        source_query: Any = None,
         **_: Any,
     ) -> dict[str, Any]:
-        PoolValidator.validate_pools("ScdType1", source_pool=source_pool, target_pool=target_pool)
-        PoolValidator.validate_non_empty_string("ScdType1", "source_query", source_query)
+        PoolValidator.validate_pools("ScdType1", target_pool=target_pool)
         PoolValidator.validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
         PoolValidator.validate_identifier("primary_keys", primary_key_tuple)
@@ -128,7 +140,9 @@ class ScdType1(PoolMergeKnot):
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType1: primary_keys not in column_names: {missing}")
-        source_rows = await source_pool.fetch_all(source_query)
+        source_rows = await self._resolve_source_rows(
+            "ScdType1", rows, source_pool, source_query, column_tuple
+        )
         counts = await ScdType1._merge(
             source_rows, target_pool, target_table, primary_key_tuple, column_tuple
         )

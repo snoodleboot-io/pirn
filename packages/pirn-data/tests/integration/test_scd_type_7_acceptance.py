@@ -1,4 +1,4 @@
-"""ATDD acceptance test: ``ScdType7Hybrid`` end-to-end.
+"""ATDD acceptance test: ``ScdType7`` end-to-end.
 
 Two runs over a SQLite source/target pair:
 
@@ -23,9 +23,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_data.specializations.scd.scd_type_7_hybrid import (
-    ScdType7Hybrid,
-)
+from pirn_data.specializations.scd.scd_type_7 import ScdType7
 
 
 @pytest.fixture
@@ -40,6 +38,7 @@ async def pool() -> SqlitePool:
     )
     await p.execute(
         "CREATE TABLE dim_customers_hybrid ("
+        "  scd_id INTEGER NOT NULL,"
         "  customer_id INTEGER NOT NULL,"
         "  region TEXT NOT NULL,"
         "  tier TEXT NOT NULL,"
@@ -63,13 +62,13 @@ async def pool() -> SqlitePool:
 
 def _build_pipeline(pool: SqlitePool) -> Tapestry:
     with Tapestry() as t:
-        ScdType7Hybrid(
+        ScdType7(
             source_pool=pool,
             source_query=("SELECT customer_id, region, tier FROM source_customers"),
             target_pool=pool,
             target_table="dim_customers_hybrid",
-            key_columns=("customer_id",),
-            tracked_columns=("region", "tier"),
+            primary_keys=("customer_id",),
+            column_names=("customer_id", "region", "tier"),
             current_columns={"region": "current_region", "tier": "current_tier"},
             _config=KnotConfig(id="scd7"),
         )
@@ -77,7 +76,7 @@ def _build_pipeline(pool: SqlitePool) -> Tapestry:
 
 
 @pytest.mark.asyncio
-async def test_scd_type_7_hybrid_initial_load_mirrors_current_columns(
+async def test_scd_type_7_initial_load_mirrors_current_columns(
     pool: SqlitePool,
 ) -> None:
     r1 = await _build_pipeline(pool).run(RunRequest())
@@ -93,7 +92,7 @@ async def test_scd_type_7_hybrid_initial_load_mirrors_current_columns(
 
 
 @pytest.mark.asyncio
-async def test_scd_type_7_hybrid_change_backfills_current_on_history(
+async def test_scd_type_7_change_backfills_current_on_history(
     pool: SqlitePool,
 ) -> None:
     await _build_pipeline(pool).run(RunRequest())
