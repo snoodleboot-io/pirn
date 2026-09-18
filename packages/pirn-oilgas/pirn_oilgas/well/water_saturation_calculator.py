@@ -32,7 +32,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -41,16 +41,21 @@ from pirn.core.knot_config import KnotConfig
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 
-_porosity_curve_priority = ("PHI_density", "PHI_neutron", "PHI_density_neutron", "NPHI")
-_sw_epsilon = 1e-9
-
 
 class WaterSaturationCalculator(Knot):
     """Compute a water-saturation curve using a configured saturation model."""
 
+    _porosity_curve_priority: ClassVar[tuple[str, ...]] = (
+        "PHI_density",
+        "PHI_neutron",
+        "PHI_density_neutron",
+        "NPHI",
+    )
+    _sw_epsilon: ClassVar[float] = 1e-9
+
     @staticmethod
     def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
-        for name in _porosity_curve_priority:
+        for name in WaterSaturationCalculator._porosity_curve_priority:
             if name in curve_data:
                 return curve_data[name]
         raise ValueError(
@@ -67,9 +72,11 @@ class WaterSaturationCalculator(Knot):
         cementation_exponent: float,
         saturation_exponent: float,
     ) -> np.ndarray:
-        sw = (tortuosity_factor * rw / (phi**cementation_exponent * rt + _sw_epsilon)) ** (
-            1.0 / saturation_exponent
-        )
+        sw = (
+            tortuosity_factor
+            * rw
+            / (phi**cementation_exponent * rt + WaterSaturationCalculator._sw_epsilon)
+        ) ** (1.0 / saturation_exponent)
         return np.clip(sw, 0.0, 1.0)
 
     @staticmethod
@@ -86,12 +93,13 @@ class WaterSaturationCalculator(Knot):
         phi_m = phi**cementation_exponent
         term = vsh / (2.0 * rsh)
         discriminant = np.maximum(
-            term**2 + phi_m / (tortuosity_factor * rw * rt + _sw_epsilon), 0.0
+            term**2 + phi_m / (tortuosity_factor * rw * rt + WaterSaturationCalculator._sw_epsilon),
+            0.0,
         )
         sw = (
             phi_m
-            / (tortuosity_factor * rw + _sw_epsilon)
-            / (-term + np.sqrt(discriminant) + _sw_epsilon)
+            / (tortuosity_factor * rw + WaterSaturationCalculator._sw_epsilon)
+            / (-term + np.sqrt(discriminant) + WaterSaturationCalculator._sw_epsilon)
         )
         return np.clip(sw, 0.0, 1.0)
 

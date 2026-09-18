@@ -36,19 +36,19 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-# SPE-PRMS uncertainty scalars for 2P and 3P relative to 1P (Section 2.4).
-_probable_factor = 0.3
-_possible_factor = 0.1
-
 
 class ReservesEstimationPipeline(Knot):
     """Estimate 1P/2P/3P reserves and EUR from a production history using decline analysis."""
+
+    # SPE-PRMS uncertainty scalars for 2P and 3P relative to 1P (Section 2.4).
+    _probable_factor: ClassVar[float] = 0.3
+    _possible_factor: ClassVar[float] = 0.1
 
     def __init__(
         self,
@@ -131,8 +131,8 @@ class ReservesEstimationPipeline(Knot):
             eur_bbl = float(np.sum(rates))
 
         proved = eur_bbl * (1.0 - royalty) / 1000.0
-        probable = proved * _probable_factor
-        possible = proved * _possible_factor
+        probable = proved * ReservesEstimationPipeline._probable_factor
+        possible = proved * ReservesEstimationPipeline._possible_factor
 
         return {
             "proved_reserves_mbo": float(proved),

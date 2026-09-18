@@ -26,18 +26,18 @@ References:
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-# Equirectangular scale factors (Snyder, 1987, §4).
-_meters_per_deg_lat = 110_540.0
-_meters_per_deg_lon_at_equator = 111_320.0
-
 
 class WellLocationProjector(Knot):
     """Project a (lon, lat) surface location into a configured CRS."""
+
+    # Equirectangular scale factors (Snyder, 1987, §4).
+    _meters_per_deg_lat: ClassVar[float] = 110_540.0
+    _meters_per_deg_lon_at_equator: ClassVar[float] = 111_320.0
 
     def __init__(
         self,
@@ -95,10 +95,10 @@ class WellLocationProjector(Knot):
         # meridian convergence (Snyder 1987, eq. 4-1).
         x_m = (
             float(longitude_deg)
-            * _meters_per_deg_lon_at_equator
+            * WellLocationProjector._meters_per_deg_lon_at_equator
             * math.cos(math.radians(float(latitude_deg)))
         )
-        y_m = float(latitude_deg) * _meters_per_deg_lat
+        y_m = float(latitude_deg) * WellLocationProjector._meters_per_deg_lat
 
         return {
             "well_id": well_id,

@@ -33,26 +33,25 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-# Horner skin equation constant (log10 form), Earlougher (1977) Eq. 5-4.
-_skin_log_constant = 3.2275
-
-# Default fluid properties when test_data omits them.
-_default_mu_cp = 1.0  # viscosity, cP
-_default_bo = 1.2  # oil FVF, RB/STB
-_default_phi = 0.15  # porosity fraction
-_default_ct = 1.5e-5  # total compressibility, psi^-1
-_default_tp_hr = 100.0  # assumed producing time before shut-in, hours
-_default_q_bopd = 100.0
-
 
 class PressureTransientAnalyzer(Knot):
     """Estimate permeability, skin, and PI from pressure transient test data."""
+
+    # Horner skin equation constant (log10 form), Earlougher (1977) Eq. 5-4.
+    _skin_log_constant: ClassVar[float] = 3.2275
+    # Default fluid properties when test_data omits them.
+    _default_mu_cp: ClassVar[float] = 1.0  # viscosity, cP
+    _default_bo: ClassVar[float] = 1.2  # oil FVF, RB/STB
+    _default_phi: ClassVar[float] = 0.15  # porosity fraction
+    _default_ct: ClassVar[float] = 1.5e-5  # total compressibility, psi^-1
+    _default_tp_hr: ClassVar[float] = 100.0  # assumed producing time before shut-in, hours
+    _default_q_bopd: ClassVar[float] = 100.0
 
     def __init__(
         self,
@@ -113,7 +112,9 @@ class PressureTransientAnalyzer(Knot):
             "permeability_md": 10.0,
             "skin_factor": 0.0,
             "wellbore_storage": 0.01,
-            "pi_bopd_psi": float(test_data.get("flow_rate_bopd", _default_q_bopd))
+            "pi_bopd_psi": float(
+                test_data.get("flow_rate_bopd", PressureTransientAnalyzer._default_q_bopd)
+            )
             / max(abs(pressure_psi[0] - pressure_psi[-1]) if len(pressure_psi) >= 2 else 1.0, 1.0),
         }
 
@@ -141,11 +142,15 @@ class PressureTransientAnalyzer(Knot):
         h: float,
         mu: float,
     ) -> dict[str, Any]:
-        flow_rate_bopd = float(test_data.get("flow_rate_bopd", _default_q_bopd))
-        producing_time_hr = float(test_data.get("tp_hr", _default_tp_hr))
-        oil_fvf = float(test_data.get("bo", _default_bo))
-        porosity = float(test_data.get("porosity", _default_phi))
-        total_compressibility = float(test_data.get("total_compressibility_psi", _default_ct))
+        flow_rate_bopd = float(
+            test_data.get("flow_rate_bopd", PressureTransientAnalyzer._default_q_bopd)
+        )
+        producing_time_hr = float(test_data.get("tp_hr", PressureTransientAnalyzer._default_tp_hr))
+        oil_fvf = float(test_data.get("bo", PressureTransientAnalyzer._default_bo))
+        porosity = float(test_data.get("porosity", PressureTransientAnalyzer._default_phi))
+        total_compressibility = float(
+            test_data.get("total_compressibility_psi", PressureTransientAnalyzer._default_ct)
+        )
 
         p_ws = np.array(pressure_psi, dtype=np.float64)
         dt = np.array(delta_t_hr, dtype=np.float64)
@@ -176,7 +181,7 @@ class PressureTransientAnalyzer(Knot):
         skin = 1.151 * (
             (p1hr - pwf_start) / horner_slope_abs
             - np.log10(permeability / (porosity * mu * total_compressibility * rw**2))
-            + _skin_log_constant
+            + PressureTransientAnalyzer._skin_log_constant
         )
 
         # Productivity index from rate and total drawdown observed

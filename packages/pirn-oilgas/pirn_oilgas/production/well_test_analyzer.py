@@ -29,23 +29,23 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
-# Horner defaults when only a pressure series is available (no rate history).
-_default_q_bopd = 100.0
-_default_mu_cp = 1.0
-_default_bo = 1.2
-_default_h_ft = 10.0
-_default_tp_hr = 100.0  # assumed producing time prior to shut-in
-
 
 class WellTestAnalyzer(Knot):
     """Analyse a pressure-transient test using a configured method."""
+
+    # Horner defaults when only a pressure series is available (no rate history).
+    _default_q_bopd: ClassVar[float] = 100.0
+    _default_mu_cp: ClassVar[float] = 1.0
+    _default_bo: ClassVar[float] = 1.2
+    _default_h_ft: ClassVar[float] = 10.0
+    _default_tp_hr: ClassVar[float] = 100.0  # assumed producing time prior to shut-in
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -91,16 +91,19 @@ class WellTestAnalyzer(Knot):
     def _horner(p_ws: np.ndarray, dt_hr: np.ndarray) -> dict[str, float]:
         # Horner time ratio: avoid division by zero at dt=0
         dt_safe = np.where(dt_hr > 0.0, dt_hr, 1e-9)
-        horner_time = (_default_tp_hr + dt_safe) / dt_safe
+        horner_time = (WellTestAnalyzer._default_tp_hr + dt_safe) / dt_safe
         log_ht = np.log10(horner_time)
 
         coeffs = np.polyfit(log_ht, p_ws, 1)
         horner_slope = float(coeffs[0])
         horner_slope_abs = abs(horner_slope) if abs(horner_slope) > 1e-6 else 1e-6
 
-        permeability = (162.6 * _default_q_bopd * _default_mu_cp * _default_bo) / (
-            horner_slope_abs * _default_h_ft
-        )
+        permeability = (
+            162.6
+            * WellTestAnalyzer._default_q_bopd
+            * WellTestAnalyzer._default_mu_cp
+            * WellTestAnalyzer._default_bo
+        ) / (horner_slope_abs * WellTestAnalyzer._default_h_ft)
 
         # Extrapolated initial reservoir pressure from Horner line at infinite shut-in
         p_initial = float(coeffs[0] * 0.0 + coeffs[1])  # log((tp+inf)/inf) → 0

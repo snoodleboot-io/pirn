@@ -27,7 +27,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -36,12 +36,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn_oilgas.types.scada_payload import ScadaPayload
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
-# One calendar month in seconds (30-day approximation standard in oil production).
-_month_sec = 86_400.0 * 30.0
-
 
 class ProductionForecaster(Knot):
     """Project a forecast rate series from a fitted decline model."""
+
+    # One calendar month in seconds (30-day approximation standard in oil production).
+    _month_sec: ClassVar[float] = 86_400.0 * 30.0
 
     def __init__(
         self,
@@ -94,7 +94,7 @@ class ProductionForecaster(Knot):
         series = ScadaTimeSeries(
             sensor_id="forecast",
             sample_count=forecast_months,
-            sample_interval_sec=_month_sec,
+            sample_interval_sec=ProductionForecaster._month_sec,
         )
         return ScadaPayload(metadata=series, data=rate_forecast)
 
