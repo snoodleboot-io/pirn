@@ -4,50 +4,55 @@
 Stdlib only; every answer is read from the packages' own ``pyproject.toml`` files, so
 the CI jobs and this script cannot disagree about the dependency graph.
 
-Subcommands
------------
-``affected --changed-file FILE [--github-output PATH]``
-    The JSON array of packages a change affects. ``FILE`` lists changed paths, one
-    per line, from ``git diff --name-only <merge-base> <head>``. A package is affected
-    when a file under ``packages/<pkg>/`` changed or a pirn package it depends on
-    (transitively) is affected; any change under ``.github/`` or ``scripts/``, or an
-    empty file list, affects every package. The command asserts that every package
-    whose tree the diff touches is in the result before printing it.
+The command-line entry point lives in ``scripts/workspace_packages_cli.py``
+(``WorkspacePackagesCli``) — one public class per file — and is dispatched from the
+``__main__`` block at the bottom, so ``python3 scripts/workspace_packages.py <subcommand>``
+keeps working unchanged for every workflow that invokes it.
 
-``closure-wheels PKG --dist DIR [--exclude-self]``
-    The wheel file paths in ``DIR`` for ``PKG`` and every pirn package it depends on.
-    CI installs these by path so a job tests this build, never a same-named release
-    resolved from the public index. Exactly one wheel per distribution must exist.
+Change scopes (PIR-873)
+-----------------------
+A changed-file list maps to exactly one scope, and no scope ever means "run nothing":
 
-``closure PKG [--exclude-self]``
-    The pirn distribution names of that closure, space separated.
-
-``version PKG``
-    The version ``PKG``'s ``pyproject.toml`` declares.
-
-``test-extras PKG``
-    ``PKG``'s optional extras that a per-package CI job installs: every extra except
-    the heavy ML ones and any extra that pulls another pirn distribution (those would
-    resolve from the index, not this build).
+``all-packages``
+    An empty diff (push to main / dispatch) or a change under ``.github/`` or
+    ``scripts/`` — shared CI tooling, so every package is affected.
+``affected-packages``
+    At least one ``packages/<pkg>/`` tree changed; the affected set is those packages
+    plus every package whose dependency closure contains one of them.
+``workspace-only``
+    Changes that touch no package tree at all — ``docs/``, ``examples/``,
+    ``Dockerfile*``, ``.pre-commit-config.yaml``, any other root-level file. NO package
+    is affected, so the per-package matrices legitimately have nothing to fan out over,
+    but the workspace-wide gates (import-forwarding, conventions, version-lockstep,
+    import-graph, doc-imports, scripts/examples ruff) still run. Before PIR-873 this
+    scope was an empty affected list and ``any=false``, which skipped every gate job in
+    ``.github/workflows/workspace.yml`` — and a skipped job is not a failure, so the
+    aggregator went green with zero checks having run.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
-import sys
 import tomllib
 from collections.abc import Iterable
 from pathlib import Path
+from typing import ClassVar
 
 
 class WorkspacePackages:
     """The pirn distributions under ``packages/`` and the dependency edges between them."""
 
-    _SHARED_PREFIXES = (".github/", "scripts/")
-    _HEAVY_EXTRAS = frozenset({"pytorch", "tensorflow", "tflite"})
-    _REQUIREMENT_NAME = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
+    _shared_prefixes: ClassVar[tuple[str, ...]] = (".github/", "scripts/")
+    _heavy_extras: ClassVar[frozenset[str]] = frozenset({"pytorch", "tensorflow", "tflite"})
+    _requirement_name_pattern: ClassVar[re.Pattern[str]] = re.compile(
+        r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)"
+    )
+    # The three change scopes (see the module docstring). Lowercase private ClassVars,
+    # not module-level UPPER_SNAKE constants (python.md).
+    _scope_all: ClassVar[str] = "all-packages"
+    _scope_affected: ClassVar[str] = "affected-packages"
+    _scope_workspace: ClassVar[str] = "workspace-only"
 
     def __init__(self, repo_root: Path) -> None:
         self._projects: dict[str, dict[str, object]] = {}
@@ -57,7 +62,7 @@ class WorkspacePackages:
 
     @classmethod
     def _requirement_name(cls, requirement: str) -> str:
-        match = cls._REQUIREMENT_NAME.match(requirement)
+        match = cls._requirement_name_pattern.match(requirement)
         if match is None:
             raise ValueError(f"unparseable requirement: {requirement!r}")
         return re.sub(r"[-_.]+", "-", match.group(1)).lower()
@@ -67,9 +72,7 @@ class WorkspacePackages:
 
     def _require(self, package: str) -> dict[str, object]:
         if package not in self._projects:
-            raise KeyError(
-                f"unknown workspace package {package!r}; known: {self.names()}"
-            )
+            raise KeyError(f"unknown workspace package {package!r}; known: {self.names()}")
         return self._projects[package]
 
     def pirn_dependencies(self, package: str) -> list[str]:
@@ -100,11 +103,9 @@ class WorkspacePackages:
         assert isinstance(optional, dict)
         extras: list[str] = []
         for extra, requirements in optional.items():
-            if extra in self._HEAVY_EXTRAS:
+            if extra in self._heavy_extras:
                 continue
-            if any(
-                self._requirement_name(str(r)) in self._projects for r in requirements
-            ):
+            if any(self._requirement_name(str(r)) in self._projects for r in requirements):
                 continue
             extras.append(str(extra))
         return extras
@@ -118,20 +119,49 @@ class WorkspacePackages:
                 touched.add(parts[1])
         return touched
 
+    @staticmethod
+    def _paths(changed: Iterable[str]) -> list[str]:
+        return [path.strip() for path in changed if path.strip()]
+
+    def scope(self, changed: Iterable[str]) -> str:
+        """Which of the three change scopes this diff falls into (module docstring)."""
+        paths = self._paths(changed)
+        if not paths or any(path.startswith(self._shared_prefixes) for path in paths):
+            return self._scope_all
+        if self.touched_packages(paths) & set(self._projects):
+            return self._scope_affected
+        return self._scope_workspace
+
     def affected(self, changed: Iterable[str]) -> list[str]:
-        paths = [path.strip() for path in changed if path.strip()]
-        if not paths or any(path.startswith(self._SHARED_PREFIXES) for path in paths):
+        """The packages this diff affects — EMPTY only for the ``workspace-only`` scope.
+
+        An empty list never means "run nothing": read it together with :meth:`scope`
+        (or the ``workspace_only`` key of :meth:`change_outputs`), which says the
+        workspace-wide gates must still run.
+        """
+        paths = self._paths(changed)
+        if self.scope(paths) == self._scope_all:
             return self.names()
         touched = self.touched_packages(paths) & set(self._projects)
-        return sorted(
-            package
-            for package in self._projects
-            if set(self.closure(package)) & touched
-        )
+        return sorted(package for package in self._projects if set(self.closure(package)) & touched)
 
-    def closure_wheels(
-        self, package: str, dist: Path, *, include_self: bool = True
-    ) -> list[Path]:
+    def change_outputs(self, changed: Iterable[str]) -> dict[str, str]:
+        """The ``$GITHUB_OUTPUT`` keys the ``changes`` job publishes for this diff.
+
+        ``packages``/``any`` gate ONLY the per-package matrices. ``scope`` and
+        ``workspace_only`` make the docs/examples/root-tooling case explicit, so the
+        workspace-wide gates are never keyed off an empty package list.
+        """
+        scope = self.scope(changed)
+        packages = self.affected(changed)
+        return {
+            "packages": json.dumps(packages),
+            "any": "true" if packages else "false",
+            "workspace_only": "true" if scope == self._scope_workspace else "false",
+            "scope": scope,
+        }
+
+    def closure_wheels(self, package: str, dist: Path, *, include_self: bool = True) -> list[Path]:
         wheels: list[Path] = []
         for name in self.closure(package, include_self=include_self):
             stem = name.replace("-", "_")
@@ -145,63 +175,12 @@ class WorkspacePackages:
         return wheels
 
 
-class WorkspacePackagesCli:
-    """Command-line entry point (see the module docstring)."""
-
-    @staticmethod
-    def main(argv: list[str] | None = None, repo_root: Path | None = None) -> int:
-        parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-        sub = parser.add_subparsers(dest="command", required=True)
-        affected = sub.add_parser("affected")
-        affected.add_argument("--changed-file", required=True, type=Path)
-        affected.add_argument("--github-output", type=Path)
-        wheels = sub.add_parser("closure-wheels")
-        wheels.add_argument("package")
-        wheels.add_argument("--dist", required=True, type=Path)
-        wheels.add_argument("--exclude-self", action="store_true")
-        closure = sub.add_parser("closure")
-        closure.add_argument("package")
-        closure.add_argument("--exclude-self", action="store_true")
-        sub.add_parser("version").add_argument("package")
-        sub.add_parser("test-extras").add_argument("package")
-        args = parser.parse_args(argv)
-
-        workspace = WorkspacePackages(repo_root or Path(__file__).resolve().parents[1])
-        if args.command == "affected":
-            changed = args.changed_file.read_text(encoding="utf-8").splitlines()
-            result = workspace.affected(changed)
-            missing = sorted(WorkspacePackages.touched_packages(changed) - set(result))
-            if missing:
-                print(
-                    f"affected-set defect: changed packages missing from {result}: {missing}"
-                )
-                return 1
-            print("changed files:", len([c for c in changed if c.strip()]))
-            print("affected:", json.dumps(result))
-            if args.github_output is not None:
-                with args.github_output.open("a", encoding="utf-8") as fh:
-                    fh.write(f"packages={json.dumps(result)}\n")
-                    fh.write(f"any={'true' if result else 'false'}\n")
-            return 0
-        if args.command == "closure-wheels":
-            paths = workspace.closure_wheels(
-                args.package, args.dist, include_self=not args.exclude_self
-            )
-            print(" ".join(str(path) for path in paths))
-            return 0
-        if args.command == "closure":
-            print(
-                " ".join(
-                    workspace.closure(args.package, include_self=not args.exclude_self)
-                )
-            )
-            return 0
-        if args.command == "version":
-            print(workspace.version(args.package))
-            return 0
-        print(",".join(workspace.test_extras(args.package)))
-        return 0
-
-
 if __name__ == "__main__":
+    import sys
+
+    # Imported here, not at module top: `workspace_packages_cli` imports THIS module, so
+    # a top-level import would be a cycle. Running `python3 scripts/workspace_packages.py`
+    # puts `scripts/` on sys.path[0], which is what makes this resolve.
+    from workspace_packages_cli import WorkspacePackagesCli
+
     sys.exit(WorkspacePackagesCli.main())
