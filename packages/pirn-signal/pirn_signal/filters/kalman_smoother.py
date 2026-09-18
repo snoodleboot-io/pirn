@@ -1,9 +1,12 @@
 """``KalmanSmoother`` — Rauch-Tung-Striebel two-pass smoother.
 
 Algorithm:
-    1. Receive the observed signal payload, state_dim, and observation_dim.
-    2. Validate that both dimensions are positive integers.
-    3. Run the RTS smoother via the module-level _rts_smoother function.
+    1. Receive the observed signal payload and state_dim.
+    2. Validate that state_dim is a positive integer no smaller than the signal's
+       channel count — the observation vector at each step *is* the channel vector,
+       so the observation dimension is the signal's own channel count and is read
+       from the payload rather than declared as a second, contradictable input.
+    3. Run the Rauch-Tung-Striebel smoother.
     4. Return a SignalPayload of the smoothed output.
 
 Math:
@@ -41,14 +44,12 @@ class KalmanSmoother(Knot):
         *,
         signal: Knot,
         state_dim: Knot | int,
-        observation_dim: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             signal=signal,
             state_dim=state_dim,
-            observation_dim=observation_dim,
             _config=_config,
             **kwargs,
         )
@@ -57,26 +58,32 @@ class KalmanSmoother(Knot):
         self,
         signal: SignalPayload,
         state_dim: int,
-        observation_dim: int,
         **_: Any,
     ) -> SignalPayload:
         """Run the forward-backward Kalman smoother over the input signal.
 
         Args:
             signal: Signal payload to smooth with the Rauch-Tung-Striebel two-pass Kalman smoother.
-            state_dim: Dimension of the hidden state vector (positive integer).
-            observation_dim: Dimension of the observation vector (positive integer).
+            state_dim: Dimension of the hidden state vector (positive integer, at
+                least the signal's channel count, since each channel is one observed
+                component of the state).
 
         Returns:
             SignalPayload of the Kalman-smoothed output.
 
         Raises:
-            ValueError: If state_dim or observation_dim are not positive integers.
+            ValueError: If state_dim is not a positive integer, or is smaller than the
+                signal's channel count.
         """
         if not isinstance(state_dim, int) or state_dim <= 0:
             raise ValueError("KalmanSmoother: state_dim must be a positive integer")
-        if not isinstance(observation_dim, int) or observation_dim <= 0:
-            raise ValueError("KalmanSmoother: observation_dim must be a positive integer")
+        observation_dim = np.atleast_2d(signal.data).shape[0]
+        if state_dim < observation_dim:
+            raise ValueError(
+                f"KalmanSmoother: state_dim ({state_dim}) must be at least the signal's "
+                f"channel count ({observation_dim}) — every channel is one observed "
+                f"component of the state vector"
+            )
 
         smoothed = await asyncio.to_thread(KalmanSmoother._rts_smoother, signal.data, state_dim)
         return signal.derive(
