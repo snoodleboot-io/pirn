@@ -7,8 +7,9 @@ Algorithm:
     1. Receive ``body`` (raw bytes), ``signal_id``, ``channel_count``, ``sample_rate_hz``,
        and ``samples_per_channel``.
     2. Validate types and values.
-    3. Attempt to load a numpy array from bytes via ``np.load``; fall back to a zero array
-       of shape ``(channel_count, samples_per_channel)`` if the bytes are not a valid npz file.
+    3. Decode the sample array with :class:`MneSampleArrayDecoder` — the same ``.npy``
+       buffer :class:`MegObjectStoreDisassembler` writes — and require its shape to be
+       ``(channel_count, samples_per_channel)``.
     4. Return a :class:`HealthSignalPayload` carrying the decoded sample array and a
        :class:`HealthSignalFrame` built from the supplied metadata.
 
@@ -20,15 +21,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-import io
 from datetime import UTC, datetime
 from typing import Any
 
-import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.assemblers._mne_sample_array_decoder import MneSampleArrayDecoder
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
@@ -69,7 +69,8 @@ class MegObjectStoreAssembler(Assembler):
         """Decode raw MEG bytes into a :class:`HealthSignalPayload`.
 
         Args:
-            body: Raw bytes from an object store (npz format preferred; falls back to zeros).
+            body: Raw bytes from an object store, in NumPy ``.npy`` or single-array
+                ``.npz`` format.
             signal_id: Non-empty signal identifier string.
             channel_count: Positive integer number of MEG channels.
             sample_rate_hz: Positive sample rate in Hz.
@@ -81,7 +82,8 @@ class MegObjectStoreAssembler(Assembler):
 
         Raises:
             TypeError: If ``body`` is not ``bytes`` or a numeric param has wrong type.
-            ValueError: If ``signal_id`` is empty or any numeric value is non-positive.
+            ValueError: If ``signal_id`` is empty, any numeric value is non-positive, or
+                ``body`` does not decode to an array of the declared shape.
         """
         if not isinstance(body, bytes):
             raise TypeError(
@@ -116,16 +118,12 @@ class MegObjectStoreAssembler(Assembler):
         sample_rate_hz: float,
         samples_per_channel: int,
     ) -> HealthSignalPayload:
-        try:
-            npz = np.load(io.BytesIO(body))
-            keys = list(npz.files)
-            if not keys:
-                raise ValueError("empty npz")
-            data = npz[keys[0]].astype(np.float32)
-            if data.ndim == 1:
-                data = data[np.newaxis, :]
-        except Exception:
-            data = np.zeros((channel_count, samples_per_channel), dtype=np.float32)
+        data = MneSampleArrayDecoder.decode(
+            body,
+            knot_name="MegObjectStoreAssembler",
+            channel_count=channel_count,
+            samples_per_channel=samples_per_channel,
+        )
         frame = HealthSignalFrame(
             signal_id=signal_id,
             channel_count=channel_count,

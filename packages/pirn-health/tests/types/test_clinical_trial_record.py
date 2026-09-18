@@ -5,6 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
+from pirn.core.content_hasher import ContentHasher
+
 from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
 
@@ -44,12 +46,28 @@ class TestAuditDict(unittest.TestCase):
         )
         d = r._pirn_audit_dict()
         assert d["trial_id"] == "T1"
-        assert d["subject_id"] == "S1"
         assert d["visit_number"] == 2
         assert d["observation_codes"] == ["A", "B"]
         assert d["observed_at"] == when.isoformat()
         for value in d.values():
             assert isinstance(value, (str, int, float, list, type(None)))
+
+    def test_audit_dict_never_carries_the_raw_subject_id(self) -> None:
+        r = ClinicalTrialRecord(trial_id="T1", subject_id="SUBJ-0012", visit_number=2)
+
+        d = r._pirn_audit_dict()
+
+        assert "subject_id" not in d
+        assert "SUBJ-0012" not in repr(d)
+        assert d["subject_id_hash"] == ContentHasher.hash("SUBJ-0012")
+
+    def test_two_subjects_stay_distinguishable_in_lineage(self) -> None:
+        when = datetime(2026, 1, 1, tzinfo=UTC)
+        first = ClinicalTrialRecord(trial_id="T1", subject_id="SUBJ-0012", observed_at=when)
+        second = ClinicalTrialRecord(trial_id="T1", subject_id="SUBJ-0013", observed_at=when)
+
+        assert first._pirn_audit_dict() != second._pirn_audit_dict()
+        assert ContentHasher.hash(first) != ContentHasher.hash(second)
 
 
 class TestFrozen(unittest.TestCase):
