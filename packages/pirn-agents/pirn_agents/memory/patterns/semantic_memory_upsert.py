@@ -134,9 +134,12 @@ class SemanticMemoryUpsert(Knot):
         upserted = 0
         for fact in facts:
             key = ContentHasher.hash(fact)
-            already_recorded = (
-                await store.latest_output_hash(namespace=namespace, key=key) is not None
-            )
+            # ``get`` and not ``latest_output_hash``: a deleted fact still has a
+            # lineage row and therefore still has a hash, so the hash test read
+            # every tombstoned fact as "already recorded" and the fact could
+            # never be written again (PIR-873).  ``get`` is the one read that
+            # treats a tombstone as absent.
+            already_recorded = await store.get(namespace=namespace, key=key) is not None
             if not already_recorded:
                 now = datetime.now(UTC)
                 record = MemoryRecord(
