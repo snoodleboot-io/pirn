@@ -54,19 +54,19 @@ pip install "pirn-agents[llm]"          # + LLM provider backends
 pip install "pirn-agents[all]"          # every optional backend
 ```
 
-## Graceful degradation with `available_extras()`
+## Graceful degradation with `CapabilityProbe`
 
 Because backends are optional, application code should not assume a connector's
-SDK is installed. :func:`pirn_agents.available_extras` reports which extras are
-importable in the current environment. It probes with
+SDK is installed. :meth:`pirn_agents.capability_probe.CapabilityProbe.available_extras`
+reports which extras are importable in the current environment. It probes with
 `importlib.util.find_spec`, so it **never imports a backend and never raises** —
 importing `pirn_agents` and calling this function stays cheap and side-effect
 free.
 
 ```python
-import pirn_agents
+from pirn_agents.capability_probe import CapabilityProbe
 
-extras = pirn_agents.available_extras()
+extras = CapabilityProbe().available_extras()
 # e.g. {"openai": False, "anthropic": False, "qdrant": True, "web": True,
 #       "mcp": False, "llm": False, "vector": True, "all": False}
 
