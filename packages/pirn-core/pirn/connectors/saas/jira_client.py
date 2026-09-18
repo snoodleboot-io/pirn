@@ -27,6 +27,7 @@ from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.jira_config import JiraConfig
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class JiraClient(ApiClient, TableSource):
@@ -88,7 +89,7 @@ class JiraClient(ApiClient, TableSource):
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the constructor's ``jql``."""
         if self._jql is None:
-            raise RuntimeError("JiraClient.fetch_page: no jql configured")
+            raise ConnectorConfigError("JiraClient.fetch_page: no jql configured")
         start_at = int(cursor) if cursor else 0
         max_results = page_size or 50
         return await self._search(self._jql, start_at=start_at, max_results=max_results)

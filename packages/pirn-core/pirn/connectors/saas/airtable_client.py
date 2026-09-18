@@ -18,6 +18,7 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.saas.airtable_config import AirtableConfig
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class AirtableClient(ApiClient, TableSource):
@@ -169,13 +170,13 @@ class AirtableClient(ApiClient, TableSource):
 
     def _table_path(self) -> str:
         if self._config is None:
-            raise RuntimeError("AirtableClient: config is required to derive table path")
+            raise ConnectorConfigError("AirtableClient: config is required to derive table path")
         return f"/v0/{self._config.base_id}/{self._config.table_name}"
 
     def _api_key(self) -> str:
         if self._config is not None and self._config.api_key:
             return self._config.api_key
-        raise RuntimeError("AirtableClient: api_key is required")
+        raise ConnectorConfigError("AirtableClient: api_key is required")
 
     def _validate_config(self) -> None:
         if self._closed:

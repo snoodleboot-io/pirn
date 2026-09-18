@@ -68,15 +68,17 @@ class TestTestSignerProductionGuard(unittest.TestCase):
 
     def test_test_signer_blocked_in_production(self) -> None:
         from pirn.backends.signer import Signer
+        from pirn.exceptions.pirn_config_error import PirnConfigError
 
         os.environ["PIRN_ENV"] = "production"
-        with self.assertRaises(RuntimeError) as ctx:
+        with self.assertRaises(PirnConfigError) as ctx:
             Signer.test_signer()
         assert "production" in str(ctx.exception)
 
     def test_test_signer_blocked_when_env_unset(self) -> None:
         from pirn.backends.signer import Signer
+        from pirn.exceptions.pirn_config_error import PirnConfigError
 
         os.environ.pop("PIRN_ENV", None)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(PirnConfigError):
             Signer.test_signer()

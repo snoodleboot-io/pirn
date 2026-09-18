@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
+from pirn.exceptions.result_unwrap_error import ResultUnwrapError
 from pirn.managers.exception_record import ExceptionRecord
 
 
@@ -15,7 +16,7 @@ class Err(BaseModel):
     This keeps ``Err`` itself small and serialisable while still allowing
     full traceback retrieval.
 
-    Calling ``unwrap()`` on an ``Err`` always raises ``RuntimeError``; guard
+    Calling ``unwrap()`` on an ``Err`` always raises ``ResultUnwrapError``; guard
     with ``is_err`` or pattern-match on the ``Result`` union before unwrapping.
 
     Attributes:
@@ -40,7 +41,7 @@ class Err(BaseModel):
         return False
 
     def unwrap(self) -> object:  # pragma: no cover
-        raise RuntimeError(
+        raise ResultUnwrapError(
             f"unwrap() called on Err; underlying exception was "
             f"{self.record.exc_type}: {self.record.message}"
         )

@@ -57,7 +57,7 @@ class CouchbasePool(DatabaseConnectionPool):
         """Execute a N1QL/SQL++ query; returns status string."""
         await self._ensure_cluster()
         if self._cluster is None:
-            raise RuntimeError("CouchbasePool: not connected — call connect() first")
+            raise self._not_connected_error("CouchbasePool")
         result = await asyncio.to_thread(self._cluster.query, query, *tuple(parameters or ()))
         return str(result.meta_data().status)
 
@@ -65,7 +65,7 @@ class CouchbasePool(DatabaseConnectionPool):
         """Execute a N1QL/SQL++ query and return all result rows."""
         await self._ensure_cluster()
         if self._cluster is None:
-            raise RuntimeError("CouchbasePool: not connected — call connect() first")
+            raise self._not_connected_error("CouchbasePool")
         result = await asyncio.to_thread(self._cluster.query, query, *tuple(parameters or ()))
         return list(result.rows())
 

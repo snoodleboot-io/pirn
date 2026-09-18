@@ -145,6 +145,17 @@ class DatabaseConnectionPool(PirnOpaqueValue):
         """
         return ConnectorConfigError(f"{class_name}: missing config and no injected {resource}")
 
+    @staticmethod
+    def _not_connected_error(class_name: str) -> ConnectorClosedError:
+        """Build the typed error for "no live connection" — call sites ``raise`` it.
+
+        Guards the window after ``_ensure_connection()`` where a driver handed
+        back nothing instead of a connection: the pool cannot serve the
+        statement, which is the same thing a closed pool reports, so it reports
+        it with the same type rather than a bare ``RuntimeError``.
+        """
+        return ConnectorClosedError(f"{class_name}: not connected — call connect() first")
+
     def reject_inline_interpolation(self, query: str) -> None:
         """Reject Python-string interpolation markers in raw SQL.
 

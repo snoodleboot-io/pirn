@@ -27,6 +27,7 @@ from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.exceptions.connector_usage_error import ConnectorUsageError
 
 
 class DatabaseTransaction(DatabaseConnectionPool):
@@ -54,14 +55,14 @@ class DatabaseTransaction(DatabaseConnectionPool):
 
     async def close(self) -> None:
         """Refuse: the ``async with`` scope owns the connection and ends the transaction."""
-        raise RuntimeError(
+        raise ConnectorUsageError(
             f"{type(self).__name__}: a transaction is ended by leaving its "
             "`async with pool.transaction()` block, not by close()"
         )
 
     def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
         """Refuse a nested transaction: statements on this handle already share one."""
-        raise RuntimeError(
+        raise ConnectorUsageError(
             f"{type(self).__name__}: already inside a transaction; issue the "
             "statements on this handle instead of opening a nested one"
         )

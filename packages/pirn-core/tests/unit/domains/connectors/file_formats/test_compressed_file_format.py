@@ -44,6 +44,25 @@ class TestCompressedFileFormatConstruction(unittest.TestCase):
         fmt = CompressedFileFormat(JsonlFormat(), codec="lz4")
         assert fmt.codec == "lz4"
 
+    def test_every_accepted_codec_actually_builds(self) -> None:
+        """The accepted set and the build table are one mapping, so they cannot drift.
+
+        Before PIR-873 the constructor validated against a frozenset and
+        ``_load_codec`` re-listed the same names in an if-chain, with a
+        ``RuntimeError("not loadable")`` for the gap between them. A codec
+        accepted at construction and unknown to the loader is now unexpressible.
+        """
+        for codec in CompressedFileFormat._codec_types:
+            fmt = CompressedFileFormat(JsonlFormat(), codec=codec)
+            built = fmt._load_codec()
+            assert isinstance(built, CompressedFileFormat._codec_types[codec])
+
+    def test_the_rejected_codec_message_lists_what_is_buildable(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            CompressedFileFormat(JsonlFormat(), codec="brotli")
+        for codec in CompressedFileFormat._codec_types:
+            assert codec in str(ctx.exception)
+
 
 class TestCompressedFileFormatGzip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_gzip(self) -> None:

@@ -30,6 +30,7 @@ from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.observability.grafana_config import GrafanaConfig
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class GrafanaClient(ApiClient, TableSource, MetricQuery):
@@ -161,7 +162,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         if not isinstance(query, str) or not query:
             raise ValueError("GrafanaClient.query: query must be non-empty")
         if self._datasource_uid is None:
-            raise RuntimeError(
+            raise ConnectorConfigError(
                 "GrafanaClient.query: datasource_uid is required; pass it to the constructor"
             )
         body: dict[str, Any] = {
@@ -228,7 +229,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         if self._config is None:
             raise self._missing_config_error("GrafanaClient", "client")
         if self._config.base_url is None:
-            raise RuntimeError("GrafanaClient: config.base_url is required")
+            raise ConnectorConfigError("GrafanaClient: config.base_url is required")
 
         client_headers: dict[str, str] = {}
         if self._config.api_key is not None:

@@ -59,7 +59,7 @@ class CosmosDBPool(DatabaseConnectionPool):
         """Upsert an item; ``parameters`` is the item dict. Returns item id."""
         await self._ensure_container()
         if self._container is None:
-            raise RuntimeError("CosmosDBPool: not connected — call connect() first")
+            raise self._not_connected_error("CosmosDBPool")
         item: Iterable[Any] = parameters if parameters is not None else {}
         result = await self._container.upsert_item(item)
         return str(result.get("id", ""))
@@ -68,7 +68,7 @@ class CosmosDBPool(DatabaseConnectionPool):
         """Execute a SQL query against the container and return all items."""
         await self._ensure_container()
         if self._container is None:
-            raise RuntimeError("CosmosDBPool: not connected — call connect() first")
+            raise self._not_connected_error("CosmosDBPool")
         return [
             item
             async for item in self._container.query_items(
@@ -81,7 +81,7 @@ class CosmosDBPool(DatabaseConnectionPool):
         """Upsert each item dict yielded by parameter_seq."""
         await self._ensure_container()
         if self._container is None:
-            raise RuntimeError("CosmosDBPool: not connected — call connect() first")
+            raise self._not_connected_error("CosmosDBPool")
         for row in parameter_seq:
             empty: dict[str, object] = {}
             item: object = (

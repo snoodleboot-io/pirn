@@ -31,6 +31,7 @@ from pirn.connectors.capabilities.metadata_catalog import (
 )
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class DataHubClient(ApiClient, TableSource, MetadataCatalog):
@@ -186,7 +187,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
         if self._config is None:
             raise self._missing_config_error("DataHubClient", "client")
         if self._config.gms_url is None:
-            raise RuntimeError("DataHubClient: config.gms_url is required")
+            raise ConnectorConfigError("DataHubClient: config.gms_url is required")
         kwargs: dict[str, Any] = {}
         if self._config.token is not None:
             kwargs["headers"] = {"Authorization": f"Bearer {self._config.token}"}

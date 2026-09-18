@@ -101,6 +101,38 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### Every connector refusal is a typed `PirnError` (PIR-873)
+
+The 54 `raise RuntimeError(...)` sites in `pirn-core` are gone. A caller could
+only catch them by catching every programming error alongside them; each now
+raises the exception that says what went wrong, and every one still subclasses
+`RuntimeError`, so an existing `except RuntimeError` handler keeps working.
+
+| Refusal | Now raises |
+|---|---|
+| a config field the call needs is unset (`base_url`, `api_key`, `target_path`, the query a paging adapter pages over) — 24 sites across `bi_catalog/`, `observability/`, `saas/`, `messaging/` | `ConnectorConfigError` |
+| no live connection to serve the statement — 17 sites in `document/` and `timeseries/` pools, via the new `DatabaseConnectionPool._not_connected_error` | `ConnectorClosedError` |
+| the call is wrong for the object (`DatabaseTransaction.close`, a nested `transaction()`, a statement issued on a pool inside its own scope) | `ConnectorUsageError` (new) |
+| an installed backend cannot do it (a `pyedflib` with no PHI-redaction setter, an injected client with no request entry-point) | `BackendCapabilityError` (new) |
+| `Err.unwrap()` / `Skipped.unwrap()` | `ResultUnwrapError` (new) |
+| the synthetic failure a `REQUIRE_ALL_PARENTS` knot records | `RequiredParentMissingError` (new) |
+| `Signer.test_signer()` called outside a test/CI env | `PirnConfigError` |
+
+`ConnectorConfigError`'s contract widens to cover "a config is present but
+missing the field this call needs", which is what most of those sites are.
+
+Three of the removed `RuntimeError`s were unreachable narrowing guards and were
+deleted rather than retyped: `CsvFormat` and `XlsxFormat` narrow their headerless
+column names once at construction, and `CompressedFileFormat` now keeps one
+`_codec_types` mapping that both the constructor's validation and `_load_codec`
+read, so a codec accepted by one and unknown to the other is unexpressible (the
+`_supported_codecs` frozenset is gone).
+
+`MixpanelClient` and `AmplitudeClient` check their config *before* importing
+their SDK, and `AmplitudeClient.request` builds its client before its event, so
+a missing `api_key` reports itself instead of an install hint for a dependency
+that would not have helped.
+
 #### Remaining engine-bypass sites closed (PIR-867)
 
 The last standing entries in `tests/specializations/base/test_no_engine_bypass.py`'s bypass ratchet — `AWAITS_CHILD_PROCESS`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and `USES_ASYNCIO_GATHER` — are now empty; `AWAITS_INVOKE` names a new sanctioned vending knot instead of the pipeline it used to flag. See `packages/pirn-core/docs/FRAMEWORK_REFERENCE.md` ("Control-flow vocabulary" and "Scheduling and concurrency") for the per-site detail.

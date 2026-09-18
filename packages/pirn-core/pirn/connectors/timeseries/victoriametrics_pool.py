@@ -54,7 +54,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
         """Write metrics in Prometheus exposition format via remote write."""
         await self._ensure_client()
         if self._client is None:
-            raise RuntimeError("VictoriaMetricsPool: not connected — call connect() first")
+            raise self._not_connected_error("VictoriaMetricsPool")
         try:
             response = await self._client.post(
                 "/api/v1/import/prometheus",
@@ -70,7 +70,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
         """Execute a MetricsQL/PromQL instant query."""
         await self._ensure_client()
         if self._client is None:
-            raise RuntimeError("VictoriaMetricsPool: not connected — call connect() first")
+            raise self._not_connected_error("VictoriaMetricsPool")
         try:
             response = await self._client.get(
                 "/api/v1/query",
@@ -86,7 +86,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
         """Write multiple metric lines as a single remote write batch."""
         await self._ensure_client()
         if self._client is None:
-            raise RuntimeError("VictoriaMetricsPool: not connected — call connect() first")
+            raise self._not_connected_error("VictoriaMetricsPool")
         lines = "\n".join(str(item) for row in parameter_seq for item in row)
         try:
             response = await self._client.post(
