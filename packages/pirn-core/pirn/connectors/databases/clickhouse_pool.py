@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Iterable, Mapping
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -66,6 +67,18 @@ class ClickhousePool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("clickhouse.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: ClickHouse has none through this surface.
+
+        ClickHouse has no general multi-statement transaction: each INSERT or mutation
+        is its own atomic unit and there is nothing to roll back into.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("ClickHouse", "the clickhouse_connect HTTP client")
 
     async def execute(
         self,

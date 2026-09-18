@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -63,6 +64,19 @@ class BigqueryPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("bigquery.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: BigQuery has none through this surface.
+
+        BigQuery's multi-statement transactions live inside a single script job; this
+        pool submits one job per statement, and there is no transaction spanning jobs to
+        enrol them in.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("BigQuery", "the google-cloud-bigquery client")
 
     async def execute(
         self,

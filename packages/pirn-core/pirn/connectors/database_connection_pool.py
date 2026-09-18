@@ -135,6 +135,32 @@ class DatabaseConnectionPool(PirnOpaqueValue):
         """
         return ConnectorClosedError(f"{class_name} is closed")
 
+    def _no_transaction_support(self, store: str, surface: str) -> Never:
+        """Refuse :meth:`transaction` for a store that cannot honour it.
+
+        A pool whose store offers no multi-statement transaction through the
+        surface this pool drives must refuse rather than yield a scope that
+        would silently not be atomic: a caller who writes
+        ``async with pool.transaction()`` and gets a non-transactional scope has
+        been told a falsehood, and finds out only from half-written data. One
+        place for the message so every such pool refuses the same way, and every
+        refusal has to name which store and which surface.
+
+        Args:
+            store: The store's name, e.g. ``"ClickHouse"``.
+            surface: The driver surface this pool drives and what it lacks, e.g.
+                ``"the clickhouse_connect HTTP client"``.
+
+        Raises:
+            NotImplementedError: Always.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__}: {store} has no multi-statement transaction "
+            f"through {surface}, so this pool refuses to open one rather than "
+            "yield a scope that would not be atomic. Issue the statements "
+            "individually and make each one idempotent."
+        )
+
     @staticmethod
     def _missing_config_error(class_name: str, resource: str) -> ConnectorConfigError:
         """Build the typed error for "no config and no injected *resource*".

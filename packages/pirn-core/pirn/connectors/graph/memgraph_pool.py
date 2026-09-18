@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -47,6 +48,18 @@ class MemgraphPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("memgraph.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: Memgraph has none through this surface.
+
+        Memgraph supports explicit transactions over Bolt, but gqlalchemy's execute
+        surface exposes no transaction handle to enrol statements in.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("Memgraph", "the gqlalchemy connection")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> None:
         conn = await self._ensure_connection()
