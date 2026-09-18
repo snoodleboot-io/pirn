@@ -24,12 +24,12 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
@@ -38,9 +38,9 @@ from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 class PolarsToDataBatch(Knot):
     """Materialise a :class:`PolarsDataBatch` back into a Tier-1 :class:`DataBatch`."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("polars", extra="polars", package="pirn-data"),
+    )
 
     def __init__(
         self,

@@ -30,12 +30,12 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.value_shape import ValueShape
@@ -47,9 +47,9 @@ if TYPE_CHECKING:
 class PolarsWindowCalc(Knot):
     """Append window-expression columns to a :class:`PolarsDataBatch`."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("polars", extra="polars", package="pirn-data"),
+    )
 
     def __init__(
         self,

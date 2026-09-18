@@ -50,12 +50,12 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
@@ -65,9 +65,9 @@ from pirn_data.value_shape import ValueShape
 class DuckdbJoin(Knot):
     """Binary join over two :class:`DuckdbDataBatch` parents."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "duckdb": AnnotationImport("duckdb", extra="duckdb", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("duckdb", extra="duckdb", package="pirn-data"),
+    )
 
     def __init__(
         self,

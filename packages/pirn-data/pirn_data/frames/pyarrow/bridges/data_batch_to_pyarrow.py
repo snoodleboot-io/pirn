@@ -26,26 +26,23 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, ClassVar
+from collections.abc import Sequence
+from typing import Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
-
-if TYPE_CHECKING:
-    pass
 
 
 class DataBatchToPyarrow(Knot):
     """Construct a :class:`PyarrowDataBatch` from a Tier-1 :class:`DataBatch`."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("pyarrow", extra="data", package="pirn-data"),
+    )
 
     def __init__(
         self,

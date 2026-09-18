@@ -31,12 +31,12 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn_data.value_shape import ValueShape
@@ -48,9 +48,9 @@ if TYPE_CHECKING:
 class DaskFilter(Knot):
     """Apply ``frame[predicate(frame)]`` to a deferred Dask DataFrame."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "dd": AnnotationImport("dask.dataframe", extra="dask", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("dask.dataframe", extra="dask", package="pirn-data"),
+    )
 
     def __init__(
         self,

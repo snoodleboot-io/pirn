@@ -22,12 +22,12 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.datafusion.datafusion_data_batch import (
@@ -47,9 +47,9 @@ if TYPE_CHECKING:
 class DataBatchToDatafusion(Knot):
     """Construct a :class:`DatafusionDataBatch` from a Tier-1 :class:`DataBatch`."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "df": AnnotationImport("datafusion", extra="datafusion", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("datafusion", extra="datafusion", package="pirn-data"),
+    )
 
     def __init__(
         self,

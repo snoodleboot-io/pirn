@@ -29,12 +29,12 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 
@@ -42,9 +42,9 @@ from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 class PandasJoin(Knot):
     """Binary join over two :class:`PandasDataBatch` parents."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "pd": AnnotationImport("pandas", extra="data", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("pandas", extra="data", package="pirn-data"),
+    )
 
     def __init__(
         self,

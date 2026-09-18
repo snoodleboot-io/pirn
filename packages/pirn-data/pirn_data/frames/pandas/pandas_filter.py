@@ -32,26 +32,23 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any, ClassVar
+from collections.abc import Callable, Sequence
+from typing import Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.value_shape import ValueShape
-
-if TYPE_CHECKING:
-    pass
 
 
 class PandasFilter(Knot):
     """Apply a callable boolean-mask predicate to a :class:`PandasDataBatch`."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "pd": AnnotationImport("pandas", extra="data", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("pandas", extra="data", package="pirn-data"),
+    )
 
     def __init__(
         self,

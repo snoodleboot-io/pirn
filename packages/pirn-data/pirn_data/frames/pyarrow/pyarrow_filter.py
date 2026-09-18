@@ -28,12 +28,12 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn_data.value_shape import ValueShape
@@ -45,10 +45,10 @@ if TYPE_CHECKING:
 class PyarrowFilter(Knot):
     """Apply a PyArrow predicate to a :class:`PyarrowDataBatch`."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
-        "pc": AnnotationImport("pyarrow.compute", extra="data", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("pyarrow", extra="data", package="pirn-data"),
+        RequiredEngine("pyarrow.compute", extra="data", package="pirn-data"),
+    )
 
     def __init__(
         self,

@@ -42,13 +42,13 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
-from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.required_engine import RequiredEngine
 from pirn.nodes.sink import Sink
 
 from pirn_data.lazy.ray.ray_dataset import RayDataset
@@ -61,10 +61,10 @@ from pirn_data.value_shape import ValueShape
 class RayCompute(Sink):
     """Materialise a deferred Ray Dataset and return a receipt or pandas frame."""
 
-    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
-        "ray": AnnotationImport("ray", extra="ray-data", package="pirn-data"),
-        "ray_data": AnnotationImport("ray.data", extra="ray-data", package="pirn-data"),
-    }
+    _required_engines: ClassVar[Sequence[RequiredEngine]] = (
+        RequiredEngine("ray", extra="ray-data", package="pirn-data"),
+        RequiredEngine("ray.data", extra="ray-data", package="pirn-data"),
+    )
 
     def __init__(
         self,
