@@ -42,5 +42,5 @@ class Skipped(BaseModel):
     def is_skipped(self) -> bool:
         return True
 
-    def unwrap(self) -> object:  # pragma: no cover
+    def unwrap(self) -> object:
         raise RuntimeError(f"unwrap() called on Skipped: {self.reason}")

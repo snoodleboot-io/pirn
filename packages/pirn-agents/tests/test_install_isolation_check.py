@@ -2,60 +2,50 @@
 
 The clean-venv *closure* check only works in CI (the dev venv has all seven
 ``pirn-*`` packages installed, so the closure assertion intentionally fails
-here). These tests exercise the new backend-leak DETECTION logic directly,
+here). These tests exercise the backend-leak DETECTION logic directly,
 independent of the resolved environment, so the per-package denylist and the
 submodule walk are covered without a clean venv.
 
 The shared script lives at ``<repo>/scripts/check_install_isolation.py`` and is
-NOT importable by name, so it is loaded by file path via importlib.
+not importable by name, so ``scripts/`` is put on ``sys.path`` and the module is
+imported from there — it imports its own collaborators from ``gatekit``, which a
+bare file-location import cannot resolve.
 """
 
 from __future__ import annotations
 
-import importlib.util
 import sys
 import types
 import unittest
 from pathlib import Path
 
 
-def _load_isolation_module() -> types.ModuleType:
-    """Load the shared ``check_install_isolation`` script by file path.
-
-    Walks up from this test file to the repo root (the directory that contains
-    ``scripts/check_install_isolation.py``) and imports it via a
-    file-location spec, so the test does not assume the script is importable
-    by name.
-    """
-    here = Path(__file__).resolve()
-    for parent in here.parents:
+def _scripts_directory() -> Path:
+    """The repository's ``scripts/`` directory, found by walking up from here."""
+    for parent in Path(__file__).resolve().parents:
         candidate = parent / "scripts" / "check_install_isolation.py"
         if candidate.is_file():
-            spec = importlib.util.spec_from_file_location(
-                "_pirn_check_install_isolation", candidate
-            )
-            assert spec is not None and spec.loader is not None
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            return module
+            return candidate.parent
     raise AssertionError("could not locate scripts/check_install_isolation.py")
 
 
-_ISO = _load_isolation_module()
+sys.path.insert(0, str(_scripts_directory()))
+
+from check_install_isolation import CheckInstallIsolation  # noqa: E402  # sys.path set just above
 
 
 class BackendDenylistSelectionTests(unittest.TestCase):
-    """`_backend_denylist_for` is the shared denylist minus the hard-dependency closure."""
+    """`_backend_denylist_for` is the derived denylist minus the hard-dependency closure."""
 
     def test_every_package_allows_pirn_core_hard_dependency_numpy(self) -> None:
         # numpy is a pirn-core hard dependency, so it is hard for every package.
-        for pkg in sorted(_ISO._EXPECTED_PIRN_CLOSURE):
-            result = _ISO._backend_denylist_for(pkg)
+        for pkg in sorted(CheckInstallIsolation._expected_pirn_closure):
+            result = CheckInstallIsolation._backend_denylist_for(pkg)
             assert "numpy" not in result
-            assert result <= _ISO._BACKEND_DENYLIST
+            assert result <= CheckInstallIsolation.backend_denylist()
 
     def test_pirn_agents_forbids_its_connector_backends(self) -> None:
-        result = _ISO._backend_denylist_for("pirn-agents")
+        result = CheckInstallIsolation._backend_denylist_for("pirn-agents")
         assert {
             "httpx",
             "openai",
@@ -81,7 +71,7 @@ class BackendDenylistSelectionTests(unittest.TestCase):
 
     def test_domain_packages_forbid_every_optional_backend(self) -> None:
         for pkg in ("pirn-signal", "pirn-data", "pirn-ml", "pirn-health", "pirn-oilgas"):
-            result = _ISO._backend_denylist_for(pkg)
+            result = CheckInstallIsolation._backend_denylist_for(pkg)
             assert {
                 "pandas",
                 "polars",
@@ -117,7 +107,7 @@ class SubmoduleWalkLeakDetectionTests(unittest.TestCase):
         sys.modules[fake_backend] = types.ModuleType(fake_backend)
         self.addCleanup(sys.modules.pop, fake_backend, None)
 
-        violations = _ISO._check_no_backend_after_submodule_walk(
+        violations = CheckInstallIsolation._check_no_backend_after_submodule_walk(
             pkg, frozenset({fake_backend, "_synthetic_absent"})
         )
 
@@ -130,13 +120,13 @@ class SubmoduleWalkLeakDetectionTests(unittest.TestCase):
     def test_clean_case_reports_no_violations(self) -> None:
         pkg = self._make_pkg("_synthetic_agents_pkg_clean")
         # None of the denylisted modules are present in sys.modules.
-        violations = _ISO._check_no_backend_after_submodule_walk(
+        violations = CheckInstallIsolation._check_no_backend_after_submodule_walk(
             pkg, frozenset({"_definitely_absent_backend_a", "_definitely_absent_backend_b"})
         )
         assert violations == []
 
     def test_missing_top_module_is_reported(self) -> None:
-        violations = _ISO._check_no_backend_after_submodule_walk(
+        violations = CheckInstallIsolation._check_no_backend_after_submodule_walk(
             "_module_that_does_not_exist_xyz", frozenset({"httpx"})
         )
         assert len(violations) == 1

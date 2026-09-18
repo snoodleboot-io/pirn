@@ -219,7 +219,7 @@ class Knot:
         if len(adapter_args) == 1:
             adapter_type: Any = adapter_args[0]
         elif adapter_args:
-            adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
+            adapter_type = Union[tuple(adapter_args)]  # noqa: UP007  # the member tuple is built at run time, so `X | Y` cannot express it
         else:
             adapter_type = coerce_type
 

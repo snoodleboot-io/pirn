@@ -39,7 +39,7 @@ class Err(BaseModel):
     def is_skipped(self) -> bool:
         return False
 
-    def unwrap(self) -> object:  # pragma: no cover
+    def unwrap(self) -> object:
         raise RuntimeError(
             f"unwrap() called on Err; underlying exception was "
             f"{self.record.exc_type}: {self.record.message}"

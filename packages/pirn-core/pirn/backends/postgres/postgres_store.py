@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
@@ -12,8 +12,6 @@ from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.postgres.lazy_pool import LazyPool
 from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
-
-_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -27,6 +25,8 @@ class PostgresStore(TapestryStore, SubscribableStore):
     background task that holds a dedicated connection in LISTEN mode and
     dispatches to registered callbacks.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     _schema_version_ddl = """
         CREATE TABLE IF NOT EXISTS pirn_schema_version (
@@ -180,7 +180,7 @@ class PostgresStore(TapestryStore, SubscribableStore):
             asyncio.run(self.aregister(knot))
         else:
             self._live[knot.knot_id] = knot
-            _task = asyncio.ensure_future(self.aregister(knot))  # noqa: RUF006
+            _task = asyncio.ensure_future(self.aregister(knot))  # noqa: RUF006  # registration is fire-and-forget: this caller is synchronous and has nowhere to await the task
 
     def get(self, knot_id: str) -> Knot | None:
         """Return the in-process ``Knot`` for ``knot_id``, or ``None``.
@@ -278,7 +278,7 @@ class PostgresStore(TapestryStore, SubscribableStore):
                 try:
                     cb(knot)
                 except Exception:
-                    _logger.warning(
+                    PostgresStore._logger.warning(
                         "PostgresStore: subscriber callback raised an exception for knot %r",
                         notice.knot_id,
                         exc_info=True,
