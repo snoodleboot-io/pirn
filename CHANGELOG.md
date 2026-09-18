@@ -122,6 +122,29 @@ header-only parser returned raw ADC integers, and nothing in the records said
 which had run — the same file decoded to different numbers depending on what
 happened to be installed.
 
+#### Scientific formats refuse instead of losing data quietly (PIR-873)
+
+- `BidsDatasetFormat` gains `validate=` (default `False`). `_validate_bids_if_available`
+  is deleted: it skipped silently when `pybids` was absent, called
+  `BIDSLayout(validate=False)` — which turns the standard's own checks off, so it
+  validated nothing even when `pybids` was installed — and downgraded a layout
+  failure to a `RuntimeWarning`. `validate=True` requires the `bids` extra
+  (naming the install hint), runs `BIDSLayout(validate=True)`, and raises
+  `ValueError` on a dataset that does not satisfy the standard. Its test module
+  no longer skips wholesale for a missing `pybids`, which is how a validator that
+  validated nothing went unnoticed.
+- `FitsFormat` decode raises instead of reporting `data: None` for an HDU whose
+  array cannot be serialised — `None` is also how it says "this HDU has no
+  data", so the loss was invisible. Encode raises on a header key that is not a
+  string instead of dropping the card. New helpers `_hdu_data_bytes` and
+  `_writable_header_cards` carry the rules, and need no `astropy` to test.
+- `SegyFormat` encode raises instead of substituting zeros for a non-bytes
+  payload, zero-padding a short trace, truncating a long one, dropping a
+  trailing partial sample, or dropping a trace-header field it could not coerce
+  (SEG-Y traces are fixed length, so a ragged record stream wrote a file that
+  looked valid and was not the data handed in). New helpers `_trace_samples` and
+  `_header_updates` carry the rules, and need no `segyio` to test.
+
 #### Airbyte OAuth2 client-credentials exchange implemented (PIR-873)
 
 `AirbyteConfig` documented a `client_id` / `client_secret` pair the connector
