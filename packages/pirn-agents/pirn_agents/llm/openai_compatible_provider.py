@@ -18,7 +18,7 @@ import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.llm.http_structured_output_provider import HttpStructuredOutputProvider
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.llm.openai_compatible_multimodal_adapter import (

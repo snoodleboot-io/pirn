@@ -27,7 +27,7 @@ import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.llm.anthropic_messages_multimodal_adapter import (
     AnthropicMessagesMultimodalAdapter,
 )

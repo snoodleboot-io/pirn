@@ -37,9 +37,9 @@ from typing import Any, ClassVar
 
 from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.prompt.prompt_template import PromptTemplate
-from pirn_agents.tools.filesystem._path_guard import PathGuard
+from pirn_agents.tools.filesystem.path_guard import PathGuard
 
 
 class PromptPackLoader:
@@ -147,7 +147,7 @@ class PromptPackLoader:
         file location, exactly like any other config file. When ``path`` may come
         from an untrusted or multi-tenant source, pass ``allowed_root``: ``path``
         is then treated as *relative to* that root and vetted by
-        :class:`~pirn_agents.tools.filesystem._path_guard.PathGuard`, which
+        :class:`~pirn_agents.tools.filesystem.path_guard.PathGuard`, which
         rejects absolute paths, ``..`` traversal, symlink stepping-stones, and any
         escape from the root, before the file is read.
 

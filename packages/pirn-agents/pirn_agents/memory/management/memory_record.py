@@ -35,7 +35,7 @@ from typing import Any
 
 from pirn.core.payload import Payload
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.memory.management.memory_content import MemoryContent
 from pirn_agents.memory.management.memory_kind import MemoryKind
 from pirn_agents.memory.management.memory_kind_guard import MemoryKindGuard

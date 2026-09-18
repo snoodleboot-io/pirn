@@ -22,7 +22,7 @@ import base64
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.llm.modality_capability import ModalityCapability
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.types.content.audio_block import AudioBlock

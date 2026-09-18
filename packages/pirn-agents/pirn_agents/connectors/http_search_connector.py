@@ -20,7 +20,7 @@ from typing import Any
 
 from pirn.connectors.http_connector import HttpConnector
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.tools.web.search_backend import SearchBackend
 
 

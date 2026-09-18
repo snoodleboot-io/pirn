@@ -25,7 +25,7 @@ from pirn.yaml_loader.specs.knot_spec import KnotSpec
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 from pirn.yaml_loader.specs.yaml_parameter_spec import YamlParameterSpec
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 
 

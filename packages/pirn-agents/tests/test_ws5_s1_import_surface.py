@@ -52,9 +52,9 @@ _S1_IMPORT_SURFACE: list[tuple[str, str]] = [
     # memory domain subpackage
     ("pirn_agents.memory.stores.memory_store", "MemoryStore"),
     # security domain subpackage (intentionally underscored module)
-    ("pirn_agents.security._safe_pattern_compiler", "SafePatternCompiler"),
+    ("pirn_agents.security.safe_pattern_compiler", "SafePatternCompiler"),
     # internal helper subpackage
-    ("pirn_agents._internal.json_shape", "JsonShape"),
+    ("pirn_agents.json_shape", "JsonShape"),
     # NOT moved: remains importable at the package root.
     ("pirn_agents.capability_probe", "CapabilityProbe"),
 ]

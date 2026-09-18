@@ -34,7 +34,7 @@ from typing import Any
 from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 
 
 class IdempotencyKeyAssigner:

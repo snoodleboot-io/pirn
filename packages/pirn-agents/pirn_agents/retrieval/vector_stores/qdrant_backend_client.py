@@ -19,7 +19,7 @@ from typing import Any
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 
 

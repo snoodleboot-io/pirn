@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, TypeGuard
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.content.content_block import ContentBlock
 from pirn_agents.types.content.message_content import MessageContent

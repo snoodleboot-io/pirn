@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.sessions.execution_cursor import ExecutionCursor
 from pirn_agents.sessions.session_message import SessionMessage
 from pirn_agents.sessions.session_tool_result import SessionToolResult

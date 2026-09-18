@@ -34,7 +34,7 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 from sweet_tea.registry import Registry
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.builder.pattern_descriptor import PatternDescriptor
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
 from pirn_agents.types.messaging.agent_message import AgentMessage

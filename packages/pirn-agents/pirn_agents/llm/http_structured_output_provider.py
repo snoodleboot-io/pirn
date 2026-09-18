@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,

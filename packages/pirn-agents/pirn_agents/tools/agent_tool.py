@@ -28,7 +28,7 @@ from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget

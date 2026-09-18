@@ -71,7 +71,7 @@ from pydantic import (
 )
 from pydantic_core import CoreSchema, core_schema
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
+from pirn_agents.tools.sql.read_only_sql_guard import ReadOnlySqlGuard
 
 
 class TestSelectIntoIsRejected:

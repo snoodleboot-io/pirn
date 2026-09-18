@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.generation.block_contribution import BlockContribution
 from pirn_agents.generation.content_block_handler import ContentBlockHandler
 from pirn_agents.tools.tool_call import ToolCall

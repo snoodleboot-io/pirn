@@ -7,7 +7,7 @@ core's ``SqlitePool`` / ``PostgresPool`` (via the column-aware subclasses); this
 connector adds only the three things core's pool abstraction does not provide:
 
 * **read-only mode** (default) rejects any non-``SELECT``/``WITH`` statement via
-  :meth:`~pirn_agents.tools.sql._read_only_sql_guard.ReadOnlySqlGuard.assert_read_only`;
+  :meth:`~pirn_agents.tools.sql.read_only_sql_guard.ReadOnlySqlGuard.assert_read_only`;
 * **column-aware results** — ``(columns, rows)``, which the ``sql_query`` tool
   returns to the LLM (core's ``fetch_all`` is column-blind);
 * **row cap** — the result set is truncated to ``max_rows``.
@@ -38,7 +38,7 @@ from pirn.security.credential_ref import CredentialRef
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.column_aware_postgres_pool import ColumnAwarePostgresPool
 from pirn_agents.connectors.column_aware_sqlite_pool import ColumnAwareSqlitePool
-from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
+from pirn_agents.tools.sql.read_only_sql_guard import ReadOnlySqlGuard
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 
 

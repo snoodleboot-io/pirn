@@ -11,7 +11,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pydantic import Field
 
-from pirn_agents.tools.filesystem._path_guard import PathGuard
+from pirn_agents.tools.filesystem.path_guard import PathGuard
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_permissions import ToolPermissions
 

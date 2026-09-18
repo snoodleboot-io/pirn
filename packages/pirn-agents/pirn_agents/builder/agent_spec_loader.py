@@ -34,9 +34,9 @@ from typing import Any
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.builder.agent_spec import AgentSpec
-from pirn_agents.tools.filesystem._path_guard import PathGuard
+from pirn_agents.tools.filesystem.path_guard import PathGuard
 
 
 class AgentSpecLoader:
@@ -125,7 +125,7 @@ class AgentSpecLoader:
         from an untrusted or multi-tenant source (templated from a request,
         derived from user config), pass ``allowed_root``: ``path`` is then
         treated as *relative to* that root and vetted by
-        :class:`~pirn_agents.tools.filesystem._path_guard.PathGuard` — which
+        :class:`~pirn_agents.tools.filesystem.path_guard.PathGuard` — which
         rejects absolute paths, ``..`` traversal, symlink stepping-stones, and
         any escape from the root — before the file is read. This reuses the F-series
         path guard rather than re-deriving a containment check here.

@@ -37,7 +37,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.security.safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 

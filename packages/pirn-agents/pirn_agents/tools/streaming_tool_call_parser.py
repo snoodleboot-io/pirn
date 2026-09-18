@@ -47,7 +47,7 @@ import json
 from collections.abc import AsyncIterable, AsyncIterator, Mapping
 from typing import Any
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.tools.tool_call import ToolCall
 
 

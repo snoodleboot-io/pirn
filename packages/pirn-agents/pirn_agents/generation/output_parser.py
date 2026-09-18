@@ -22,7 +22,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.generation.content_block_handler import ContentBlockHandler
 from pirn_agents.generation.text_block_handler import TextBlockHandler
 from pirn_agents.generation.tool_use_block_handler import ToolUseBlockHandler

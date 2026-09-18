@@ -19,7 +19,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pydantic import Field
 
-from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
+from pirn_agents.tools.sql.read_only_sql_guard import ReadOnlySqlGuard
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.tool import Tool
 

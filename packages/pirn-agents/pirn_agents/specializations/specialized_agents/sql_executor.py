@@ -5,7 +5,7 @@ executes it. Internal API.
 
 The two guards defend different threats and are both needed:
 
-* :class:`~pirn_agents.tools.sql._read_only_sql_guard.ReadOnlySqlGuard` limits
+* :class:`~pirn_agents.tools.sql.read_only_sql_guard.ReadOnlySqlGuard` limits
   what the statement may *do* — it rejects anything that is not a single
   ``SELECT``/``WITH``. This is the guard the path was missing (PIR-817): the
   statement here is written by a model, so ``DROP TABLE``, ``UPDATE`` and DDL
@@ -45,7 +45,7 @@ from pirn.connectors.database_connection_pool import (
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
+from pirn_agents.tools.sql.read_only_sql_guard import ReadOnlySqlGuard
 
 
 class SQLExecutor(Knot):

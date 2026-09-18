@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.json_shape import JsonShape
 from pirn_agents.sessions.resume_token import ResumeToken
 
 if TYPE_CHECKING:
