@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -10,6 +10,7 @@ from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
+from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 from pirn.viz.mermaid_renderer import MermaidRenderer
 from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
@@ -23,6 +24,21 @@ async def _add(x: int, y: int) -> int:
 @KnotFactory.knot
 async def _double(x: int) -> int:
     return x * 2
+
+
+class _Passthrough(SubTapestry):
+    """A container whose body is one inner knot — rendered as a sub-tapestry."""
+
+    async def process(self, x: int, **_: Any) -> Knot:
+        return _double(x=Parameter("x", int, default=x), _config=KnotConfig(id="out"))
+
+
+class _Doubler(SubTapestry):
+    """A container that doubles its input through an inner pipeline."""
+
+    async def process(self, value: int, **_: Any) -> Knot:
+        p = Parameter("v", int, default=value)
+        return _double(x=p, _config=KnotConfig(id="out"))
 
 
 # ============================================================ Mermaid
@@ -190,17 +206,9 @@ async def test_html_for_run_handles_empty_lineage():
 
 
 async def test_mermaid_for_tapestry_uses_subroutine_shape_for_sub_tapestry():
-    from typing import Any
-
-    from pirn.nodes.sub_tapestry import SubTapestry
-
-    class _Inner(SubTapestry):
-        async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]
-            pass
-
     with Tapestry() as t:
         p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
-        _Inner(x=p, _config=KnotConfig(id="sub"))
+        _Passthrough(x=p, _config=KnotConfig(id="sub"))
 
     output = MermaidRenderer.for_tapestry(t)
     # [[label]] is Mermaid's subroutine (double-bracket) shape
@@ -216,36 +224,16 @@ async def test_mermaid_for_tapestry_regular_knot_uses_normal_shape():
     assert 'd["' in output or "d[" in output
 
 
-@pytest.mark.skip(reason="knot-kind design gap — see planning/backlog/viz-knot-kind-design.md")
 async def test_html_for_tapestry_marks_sub_tapestry_node():
-    from typing import Any
-
-    from pirn.nodes.sub_tapestry import SubTapestry
-    from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
-
-    class _Inner(SubTapestry):
-        async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]
-            pass
-
     with Tapestry() as t:
         p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
-        _Inner(x=p, _config=KnotConfig(id="sub"))
+        _Passthrough(x=p, _config=KnotConfig(id="sub"))
 
     output = TapestryHtmlRenderer.for_tapestry(t)
     assert "sub-tapestry" in output
 
 
-@pytest.mark.skip(reason="knot-kind design gap — see planning/backlog/viz-knot-kind-design.md")
 async def test_html_for_run_marks_sub_tapestry_node():
-    from typing import Any
-
-    from pirn.nodes.sub_tapestry import SubTapestry
-
-    class _Doubler(SubTapestry):
-        async def process(self, value: int, **_: Any) -> Knot:
-            p = Parameter("v", int, default=value)
-            return _double(x=p, _config=KnotConfig(id="out"))
-
     with Tapestry() as t:
         src = Parameter("v", int, default=3, _config=KnotConfig(id="src"))
         _Doubler(value=src, _config=KnotConfig(id="sub", validate_io=False))
@@ -253,3 +241,24 @@ async def test_html_for_run_marks_sub_tapestry_node():
     result = await t.run(RunRequest())
     output = TapestryHtmlRenderer.for_run(result)
     assert "sub-tapestry" in output
+
+
+async def test_html_for_run_leaves_a_plain_knot_unmarked():
+    with Tapestry() as t:
+        src = Parameter("v", int, default=3, _config=KnotConfig(id="src"))
+        _double(x=src, _config=KnotConfig(id="d"))
+
+    result = await t.run(RunRequest())
+    output = TapestryHtmlRenderer.for_run(result)
+    assert "sub-tapestry" not in output
+
+
+async def test_lineage_row_records_the_knot_kind():
+    with Tapestry() as t:
+        src = Parameter("v", int, default=3, _config=KnotConfig(id="src"))
+        _Doubler(value=src, _config=KnotConfig(id="sub", validate_io=False))
+
+    result = await t.run(RunRequest())
+    kinds = {row.knot_id: row.knot_kind for row in result.lineage}
+    assert kinds["sub"] == "sub_tapestry"
+    assert kinds["src"] == "knot"
