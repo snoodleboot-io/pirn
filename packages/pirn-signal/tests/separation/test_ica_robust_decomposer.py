@@ -61,3 +61,74 @@ class TestICARobustDecomposer(unittest.IsolatedAsyncioTestCase):
         out = await knot.process(_SIGNAL, source_count=3, contamination_fraction=0.1)
         assert isinstance(out, SourcePayload)
         assert out.metadata.source_count == 3
+
+
+class TestContaminationFractionIsUsed(unittest.IsolatedAsyncioTestCase):
+    """The declared outlier fraction is excluded from the unmixing fit."""
+
+    @staticmethod
+    def _contaminated_mixture() -> tuple[SignalPayload, np.ndarray, np.ndarray]:
+        """Two mixed sources, 5 % of the samples replaced by gross outliers.
+
+        Returns the payload, the true sources, and the mask of uncontaminated samples.
+        """
+        rng = np.random.default_rng(11)
+        sample_count = 600
+        time = np.linspace(0.0, 8.0, sample_count)
+        sources = np.vstack([np.sin(2.0 * time), np.sign(np.sin(3.0 * time))])
+        mixing = np.array([[0.8, 0.4], [0.3, 0.9]])
+        observations = mixing @ sources
+        outliers = rng.choice(sample_count, size=30, replace=False)
+        observations[:, outliers] += 40.0 * rng.standard_normal((2, 30))
+        clean = np.ones(sample_count, dtype=bool)
+        clean[outliers] = False
+        payload = SignalPayload(
+            metadata=SignalFrame(
+                signal_id="test",
+                channel_count=2,
+                sample_rate_hz=100.0,
+                samples_per_channel=sample_count,
+            ),
+            data=observations,
+        )
+        return payload, sources, clean
+
+    @staticmethod
+    def _best_match(estimates: np.ndarray, sources: np.ndarray) -> float:
+        """Mean best absolute correlation between each true source and some estimate."""
+        total = 0.0
+        for source in sources:
+            correlations = [
+                abs(float(np.corrcoef(estimate, source)[0, 1])) for estimate in estimates
+            ]
+            total += max(correlations)
+        return total / len(sources)
+
+    def _knot(self) -> ICARobustDecomposer:
+        return ICARobustDecomposer(
+            signal=_up(),
+            source_count=2,
+            contamination_fraction=0.1,
+            _config=KnotConfig(id="icar"),
+        )
+
+    async def test_trimming_the_outliers_recovers_the_sources_better(self) -> None:
+        # Arrange
+        payload, sources, clean = self._contaminated_mixture()
+        knot = self._knot()
+
+        # Act
+        untrimmed = await knot.process(signal=payload, source_count=2, contamination_fraction=0.0)
+        trimmed = await knot.process(signal=payload, source_count=2, contamination_fraction=0.1)
+
+        # Assert: on the samples that were never contaminated, the unmixing fitted
+        # without the outliers reconstructs the sources better than the one fitted
+        # with them — the whole point of the declared contamination fraction.
+        untrimmed_match = self._best_match(
+            np.asarray(untrimmed.data, dtype=float)[:, clean], sources[:, clean]
+        )
+        trimmed_match = self._best_match(
+            np.asarray(trimmed.data, dtype=float)[:, clean], sources[:, clean]
+        )
+        assert trimmed_match > untrimmed_match, (trimmed_match, untrimmed_match)
+        assert trimmed_match > 0.99, trimmed_match
