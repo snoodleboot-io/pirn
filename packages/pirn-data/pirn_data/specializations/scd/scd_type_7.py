@@ -30,9 +30,10 @@ Algorithm:
     4. Classify each source row: INSERT when its key is absent, EXPIRE + INSERT
        when a non-key value changed, skip when nothing changed. Each insert
        takes the next surrogate key.
-    5. Issue one ``execute_many`` for the expiries and one for the inserts, then
-       — when mirroring — one backfill per changed key so every historical row
-       carries the new current values.
+    5. Inside one transaction on ``target_pool``, issue one ``execute_many`` for
+       the expiries, one for the inserts and — when mirroring — one backfill, so
+       a failure part-way cannot leave a key expired with no new version, or a
+       new version whose mirror columns disagree with the history's.
     6. Return ``succeeded``, ``target_table``, ``rows_inserted`` and
        ``rows_expired``.
 
@@ -176,15 +177,16 @@ class ScdType7(PoolMergeKnot):
             next_surrogate += 1
             if mirror_columns is not None:
                 backfills.append(non_key_values + key)
-        if expires:
-            await target_pool.execute_many(expire_q, expires)
-        if inserts:
-            await target_pool.execute_many(insert_q, inserts)
-        if backfills and mirror_columns is not None:
-            backfill_q = ScdType7Queries.backfill_current_query(
-                target_table, primary_key_tuple, mirror_columns
-            )
-            await target_pool.execute_many(backfill_q, backfills)
+        async with target_pool.transaction() as transaction:
+            if expires:
+                await transaction.execute_many(expire_q, expires)
+            if inserts:
+                await transaction.execute_many(insert_q, inserts)
+            if backfills and mirror_columns is not None:
+                backfill_q = ScdType7Queries.backfill_current_query(
+                    target_table, primary_key_tuple, mirror_columns
+                )
+                await transaction.execute_many(backfill_q, backfills)
         return {"rows_inserted": len(inserts), "rows_expired": len(expires)}
 
     async def process(
