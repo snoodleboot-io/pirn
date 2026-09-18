@@ -3,8 +3,10 @@
 Wraps ``pypdf`` (imported lazily through
 :meth:`~pirn.core.optional_dependency.OptionalDependency.require`, so importing this module never pulls the
 backend). Concatenates the extracted text of every page into one normalized
-:class:`LoadedDocument`, recording the page count in metadata. Multimodal PDF
-content (embedded images) is out of scope until F15 (see :class:`Loader`).
+:class:`LoadedDocument`, recording the page count in metadata. This loader
+extracts text only; a PDF's embedded images are framed as content blocks by
+:class:`~pirn_agents.specializations.document_processing.loaders.media_loader.MediaLoader`,
+which the caller applies to those bytes directly.
 """
 
 from __future__ import annotations

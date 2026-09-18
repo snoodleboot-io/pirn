@@ -7,30 +7,36 @@ de-duplicated by identity and returned in fused-score order, each carrying its
 ``fusion_score``.
 
 The fan-out is expressed as a graph rather than a hand-rolled
-``asyncio.gather`` over a semaphore: each query variant becomes its own
-:class:`~pirn_agents.specializations.rag.variant_search.VariantSearch`
-invocation, fanned out with a core :class:`~pirn.core.map.Map`, and
-folded into the fused ranking with a :class:`~pirn.nodes.reduce_.Reduce`. The
-engine schedules the per-variant searches concurrently — every ready sibling
-starts as its own task (PIR-841) — so retrieval runs *through* the engine,
-with its own ``Result``, history record, and lineage per variant. Each search
-knot carries a ``concurrency_group`` so a run-level
-:class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` can bound
-in-flight searches; ``max_concurrency`` stays a validated, accepted parameter
-recorded on that group (bounding a *container* knot's own inner run this way
-is not yet enforced by core — see ``ConcurrencyLimits`` PIR-841 slice 2/3 —
-so, until that lands, ``max_concurrency`` documents the intended budget rather
-than strictly capping it).
+``asyncio.gather`` over a semaphore: one
+:class:`~pirn_agents.specializations.rag.variant_search.VariantSearch` knot
+per query variant, wired into an :class:`~pirn.nodes.aggregator.Aggregator`
+that fuses their rankings. The engine schedules ready siblings concurrently
+(PIR-841), so every variant's search gets its own ``Result``, history record,
+lineage row and admission slot.
+
+Every search knot carries the same ``concurrency_group`` and
+``max_concurrency`` is that group's cap: ``process()`` declares it through
+:class:`~pirn_agents.specializations.base.inner_group_limit.InnerGroupLimit`
+and ``_inner_concurrency()`` hands it to the inner run, the lever
+:class:`~pirn_agents.batch.map_agent.MapAgent` and
+:class:`~pirn_agents.specializations.document_processing.ingestion_runner.IngestionRunner`
+use. Until PIR-873 the fan-out was a single knot with a core
+:class:`~pirn.core.map.Map` marker, whose per-element invocations are one
+``asyncio.gather`` *inside* that knot: they shared one lineage row and one
+admission slot, so the group cap could not bound them and
+``max_concurrency`` was validated and then discarded behind a docstring
+claiming core could not enforce it.
 
 Algorithm:
     1. Validate ``queries`` (list of str), ``store`` (:class:`MemoryStore`),
        ``top_k``, ``max_concurrency``, and ``rrf_k`` (positive ints).
-    2. Fan out one ``VariantSearch`` invocation per query variant.
-    3. A :class:`~pirn.nodes.reduce_.Reduce` keys each hit by its ``id`` (or a
-       stable fallback), records the first-seen mapping, builds per-query
+    2. Declare the search group's cap from ``max_concurrency``.
+    3. Build one ``VariantSearch`` knot per query variant, all in that group.
+    4. An :class:`~pirn.nodes.aggregator.Aggregator` keys each hit by its ``id``
+       (or a stable fallback), records the first-seen mapping, builds per-query
        ranked key lists, and fuses them via
        :meth:`~pirn_agents.retrieval.reciprocal_rank_fusion.ReciprocalRankFusion.fuse`.
-    4. Return the top ``top_k`` fused documents, each with a ``fusion_score``.
+    5. Return the top ``top_k`` fused documents, each with a ``fusion_score``.
 
 Math:
     Reciprocal Rank Fusion score for document :math:`d` across query variants
@@ -48,23 +54,35 @@ References:
 from __future__ import annotations
 
 import functools
-from typing import Any
+from typing import Any, ClassVar
 
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.reduce_ import Reduce
+from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.inner_group_limit import InnerGroupLimit
 from pirn_agents.specializations.rag.fuse_variant_hits import FuseVariantHits
 from pirn_agents.specializations.rag.variant_search import VariantSearch
 
 
 class FusionRetriever(AgentPipeline, Retriever):
     """Search each query variant concurrently and fuse the rankings with RRF."""
+
+    #: Per-run carrier for the search group's cap (never instance state).
+    _group_limit: ClassVar[InnerGroupLimit] = InnerGroupLimit("fusion_retriever_search")
+
+    def _inner_concurrency(self) -> ConcurrencyLimits | None:
+        """This run's search-group cap, or ``None`` when no search runs.
+
+        Read by ``SubTapestry._run_inner`` after ``process()`` has declared it;
+        the cap rides the run's own context, never this shared knot.
+        """
+        return type(self)._group_limit.current()
 
     def __init__(
         self,
@@ -102,8 +120,8 @@ class FusionRetriever(AgentPipeline, Retriever):
             queries: The query variants to search for.
             store: The memory store searched once per variant.
             top_k: Number of fused documents to return.
-            max_concurrency: Intended in-flight search budget (see module
-                docstring for the current enforcement caveat).
+            max_concurrency: Maximum searches in flight at once; the cap on
+                the searches' concurrency group.
             rrf_k: The RRF damping constant.
 
         Returns:
@@ -130,21 +148,25 @@ class FusionRetriever(AgentPipeline, Retriever):
             )
         if not isinstance(rrf_k, int) or rrf_k <= 0:
             raise ValueError(f"FusionRetriever: rrf_k must be a positive int, got {rrf_k!r}")
+        type(self)._group_limit.declare(members=len(queries), max_concurrency=max_concurrency)
         if not queries:
             return Parameter("empty", list[Any], default=[], _config=KnotConfig(id="empty"))
 
         fetch = top_k * 2
-        queries_knot = Parameter(
-            "queries", list[str], default=queries, _config=KnotConfig(id="queries")
-        )
-        searched = VariantSearch(
-            query=Map(queries_knot),
-            store=store,
-            top_k=fetch,
-            _config=KnotConfig(id="search_each", concurrency_group="fusion_retriever_search"),
-        )
-        return Reduce(
-            of=searched,
-            combine=functools.partial(FuseVariantHits.combine, rrf_k=rrf_k, top_k=top_k),
+        searches: dict[str, Knot] = {
+            f"search_{index}": VariantSearch(
+                query=query,
+                store=store,
+                top_k=fetch,
+                _config=KnotConfig(
+                    id=f"search_{index}",
+                    concurrency_group=type(self)._group_limit.group,
+                ),
+            )
+            for index, query in enumerate(queries)
+        }
+        return Aggregator(
+            combine=functools.partial(FuseVariantHits.aggregate, len(queries), rrf_k, top_k),
             _config=KnotConfig(id="fuse"),
+            **searches,
         )

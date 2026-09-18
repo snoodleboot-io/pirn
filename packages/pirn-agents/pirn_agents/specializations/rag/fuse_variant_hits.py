@@ -1,4 +1,4 @@
-"""``FuseVariantHits`` — Reduce ``combine`` target fusing per-variant rankings."""
+"""``FuseVariantHits`` — ``Aggregator`` combine target fusing per-variant rankings."""
 
 from __future__ import annotations
 
@@ -9,7 +9,28 @@ from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 
 
 class FuseVariantHits:
-    """Reduce ``combine`` target: fuse per-variant rankings with RRF."""
+    """``Aggregator`` combine target: fuse per-variant rankings with RRF."""
+
+    @staticmethod
+    def aggregate(
+        count: int, rrf_k: int, top_k: int, **searches: list[Mapping[str, Any]]
+    ) -> list[Mapping[str, Any]]:
+        """Fuse the fan-out's per-variant searches in query order.
+
+        Args:
+            count: How many ``search_{i}`` parents the aggregator has.
+            rrf_k: The RRF damping constant.
+            top_k: Maximum number of fused documents to return.
+            **searches: Each ``VariantSearch``'s ranked hits, keyed ``search_{i}``.
+
+        Returns:
+            Up to ``top_k`` fused documents, each with a ``fusion_score``.
+        """
+        return FuseVariantHits.combine(
+            [searches[f"search_{index}"] for index in range(count)],
+            rrf_k=rrf_k,
+            top_k=top_k,
+        )
 
     @staticmethod
     def combine(

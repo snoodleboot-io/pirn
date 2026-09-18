@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class LLMResponseParseError(ValueError):
+
+class LLMResponseParseError(PirnError, ValueError):
     """Raised when a provider reply cannot be parsed into the shape a knot needs.
+
+    Subclasses :class:`~pirn.exceptions.pirn_error.PirnError` alongside
+    ``ValueError`` so it is catchable both as a pirn domain error and by the
+    ordinary ``except ValueError`` a parse failure reads as.
 
     An unparseable reply is a real failure of the turn, not an empty result:
     swallowing it hands the caller a plausible-looking blank value (an empty

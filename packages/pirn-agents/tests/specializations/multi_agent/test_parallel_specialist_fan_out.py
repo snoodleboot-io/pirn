@@ -98,11 +98,11 @@ class TestParallelSpecialistFanOutProcess(unittest.IsolatedAsyncioTestCase):
         assert responses["a"].data == "A:tell-time"
         assert responses["b"].data == "B:tell-time"
 
-    async def test_failure_mode_unchanged_when_a_specialist_fails(self) -> None:
-        # The Aggregator rewrite gains NO per-specialist error isolation:
-        # SubTapestry raises SubTapestryError on ANY inner failure, so the whole
-        # knot fails and the surviving sibling's Ok is not surfaced as a partial
-        # mapping — byte-identical to the old asyncio.gather failure mode.
+    async def test_failure_is_all_or_nothing_when_a_specialist_fails(self) -> None:
+        # By design: the caller asked for every specialist's answer, so one
+        # failure ends the fan-out rather than returning a partial mapping (which
+        # silently drops a specialist) or a synthesized response (which is a
+        # fabricated answer).
         good = _make_spec("A", "spec_ok")
         with Tapestry():
             bad = FailingSpecialist(_config=KnotConfig(id="spec_bad"))
@@ -115,6 +115,33 @@ class TestParallelSpecialistFanOutProcess(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert not run.succeeded
         assert "fan" not in run.outputs
+
+    async def test_a_failed_fan_out_still_names_its_inner_run(self) -> None:
+        """PIR-873: the docstring claimed ``inner_run_id`` may be absent on failure.
+
+        ``NestedRunKnot._run_inner`` records the inner run on the knot whether it
+        succeeded or failed, so the surviving sibling's ``Ok`` is always
+        retrievable from history through the failed knot's lineage row. The old
+        docstring told readers there was no retrieval path there; this pins that
+        there is.
+        """
+        good = _make_spec("A", "spec_ok")
+        with Tapestry():
+            bad = FailingSpecialist(_config=KnotConfig(id="spec_bad"))
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            ParallelSpecialistFanOut(
+                task="tell-time",
+                specialists={"ok": good, "bad": bad},
+                _config=KnotConfig(id="fan"),
+            )
+        run = await t.run(RunRequest())
+        assert not run.succeeded
+        fan_row = next(row for row in run.lineage if row.knot_id == "fan")
+        inner_run_id = fan_row.extra["inner_run_id"]
+        inner_run = await history.get_run(inner_run_id)
+        surviving = next(row for row in inner_run.lineage if row.knot_id == "invoke_0")
+        assert surviving.outcome == "ok", surviving.outcome
 
     async def test_per_specialist_lineage_lives_in_inner_run_not_outputs(self) -> None:
         # Per-specialist lineage never appears in the outer run.outputs — the

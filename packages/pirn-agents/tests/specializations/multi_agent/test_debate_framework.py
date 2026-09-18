@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -113,10 +114,10 @@ class TestDebateFrameworkProcess(unittest.IsolatedAsyncioTestCase):
         assert isinstance(winner, AgentResponse)
         assert winner.data == "against the motion"
 
-    async def test_failure_mode_unchanged_when_a_debater_fails(self) -> None:
-        # Unrolling the rounds into Aggregators gains NO per-debater isolation:
-        # SubTapestry raises SubTapestryError on ANY inner failure, so one failing
-        # debater fails the whole knot — byte-identical to the old per-round gather.
+    async def test_failure_is_all_or_nothing_when_a_debater_fails(self) -> None:
+        # By design: a debate judged on a round with a debater missing is a
+        # different debate, and a synthesized stand-in would hand the judge a
+        # fabricated argument to weigh. So one failing debater ends the debate.
         judge = StubLLMProvider(["0"])
         _DEBATER_REGISTRY["sound"] = "sound argument"
         with Tapestry():
@@ -133,3 +134,28 @@ class TestDebateFrameworkProcess(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert not run.succeeded
         assert "debate" not in run.outputs
+
+
+class TestDebateFrameworkFailureLineage(unittest.IsolatedAsyncioTestCase):
+    """PIR-873: a failed debate still names the inner run its rounds ran in."""
+
+    async def test_a_failed_debate_still_names_its_inner_run(self) -> None:
+        judge = StubLLMProvider(["0"])
+        _DEBATER_REGISTRY["sound2"] = "sound argument"
+        with Tapestry():
+            good = StubDebater(_config=KnotConfig(id="sound2"))
+            bad = FailingDebater(_config=KnotConfig(id="bad2"))
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            DebateFramework(
+                topic="should we ship",
+                debaters=(good, bad),
+                judge_llm=judge,
+                rounds=2,
+                _config=KnotConfig(id="debate"),
+            )
+        run = await t.run(RunRequest())
+        assert not run.succeeded
+        row = next(row for row in run.lineage if row.knot_id == "debate")
+        inner_run = await history.get_run(row.extra["inner_run_id"])
+        assert any(lineage.outcome == "ok" for lineage in inner_run.lineage)
