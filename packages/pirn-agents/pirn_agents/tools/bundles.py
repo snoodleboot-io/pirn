@@ -32,6 +32,7 @@ from pirn_agents.tools.retrieval.retriever_tool import RetrieverTool
 from pirn_agents.tools.sandbox.python_exec_tool import PythonExecTool
 from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
 from pirn_agents.tools.sandbox.shell_tool import ShellTool
+from pirn_agents.tools.sql.read_write_sql_query_tool import ReadWriteSqlQueryTool
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -54,8 +55,7 @@ class Bundles:
     def web_toolset(
         *,
         search_backend: SearchBackend | None = None,
-        allowed_hosts: tuple[str, ...] | None = None,
-        allow_private: bool = False,
+        fetch_tool: type[HttpRequestTool] = HttpRequestTool,
         max_bytes: int = 1_000_000,
         max_chars: int = 20_000,
         resolver: Callable[[str], str | Sequence[str]] | None = None,
@@ -66,19 +66,20 @@ class Bundles:
             search_backend: When provided, adds a :class:`WebSearchTool` over it;
                 omitted (default) yields fetch + html-to-text only, so no search
                 vendor is assumed.
-            allowed_hosts: Optional host allow-list applied to HTTP fetches.
-            allow_private: Opt-in to allow private/loopback fetch targets.
+            fetch_tool: The HTTP fetch capability to offer, which *is* the
+                egress policy (PIR-817): :class:`HttpRequestTool` (default)
+                reaches public hosts only,
+                :class:`~pirn_agents.tools.web.private_http_request_tool.PrivateHttpRequestTool`
+                may reach private/loopback addresses, and a deployment's own
+                subclass narrows the hosts with ``_allowed_hosts``.  Neither the
+                allowlist nor the private opt-in is an input any more, so no call
+                the model writes can widen either.
             max_bytes: Response-body byte cap for HTTP fetch.
             max_chars: Output character cap for HTML-to-text.
             resolver: Optional DNS resolver forwarded to the fetch tool's SSRF guard.
         """
         tools: list[ToolFactory] = [
-            HttpRequestTool.bind(
-                allowed_hosts=allowed_hosts,
-                allow_private=allow_private,
-                max_bytes=max_bytes,
-                resolver=resolver,
-            ),
+            fetch_tool.bind(max_bytes=max_bytes, resolver=resolver),
             HtmlToTextTool.bind(max_chars=max_chars),
         ]
         if search_backend is not None:
@@ -123,13 +124,16 @@ class Bundles:
 
         Args:
             connector: The SQL connector the query tool delegates to.
-            read_only: Enforce read-only SQL (default ``True``).
+            read_only: Which query capability to offer — ``True`` (default)
+                gives the read-only :class:`SqlQueryTool`, ``False`` the
+                write-enabled :class:`ReadWriteSqlQueryTool`.  The guard is the
+                class, never a tool argument (PIR-817), so nothing in a call the
+                model writes can turn a read into a write.
             max_rows: Row cap applied to query results.
             include_calculator: Also include :class:`CalculatorTool` (default ``True``).
         """
-        tools: list[ToolFactory] = [
-            SqlQueryTool.bind(connector=connector, read_only=read_only, max_rows=max_rows)
-        ]
+        query_tool: type[SqlQueryTool] = SqlQueryTool if read_only else ReadWriteSqlQueryTool
+        tools: list[ToolFactory] = [query_tool.bind(connector=connector, max_rows=max_rows)]
         if include_calculator:
             tools.append(CalculatorTool.factory())
         return Toolset(tools)

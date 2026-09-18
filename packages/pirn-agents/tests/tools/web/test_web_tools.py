@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import AsyncIterator, Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 from unittest import mock
 
 import pytest
@@ -21,6 +21,7 @@ from pirn_agents.exceptions.tool_argument_validation_error import (
 )
 from pirn_agents.tools.web.html_to_text_tool import HtmlToTextTool
 from pirn_agents.tools.web.http_request_tool import HttpRequestTool
+from pirn_agents.tools.web.private_http_request_tool import PrivateHttpRequestTool
 from pirn_agents.tools.web.search_backend import SearchBackend
 from pirn_agents.tools.web.web_search_tool import WebSearchTool
 from tests.tools.tool_runner import ToolRunner
@@ -139,6 +140,14 @@ class TestWebSearch:
             WebSearchTool.bind(backend=object())  # type: ignore[arg-type]
 
 
+class _AllowlistedFetch(HttpRequestTool):
+    """A deployment's own allowlisted fetch tool: the allowlist is the class (PIR-817)."""
+
+    tool_name: ClassVar[str] = "allowlisted_fetch"
+
+    _allowed_hosts: ClassVar[tuple[str, ...] | None] = ("allowed.example",)
+
+
 class TestHttpRequest:
     async def test_fetches_with_injected_client(self) -> None:
         response = _FakeResponse(200, {"Content-Type": "text/plain"}, [b"hello ", b"world"])
@@ -165,13 +174,38 @@ class TestHttpRequest:
         assert result["truncated"] is True
 
     async def test_allowlist_rejection(self) -> None:
-        tool = HttpRequestTool.bind(
+        tool = _AllowlistedFetch.bind(
             client=_FakeClient(_FakeResponse(200, {}, [])),
             resolver=_public_resolver,
-            allowed_hosts=("allowed.example",),
         )
         with pytest.raises(ValueError, match="not in allowed_hosts"):
             await ToolRunner.value(tool, {"url": "https://evil.example/x"})
+
+    def test_egress_policy_is_not_in_the_declaration(self) -> None:
+        """PIR-873: both were model-visible arguments that turned the guard off."""
+        declared = HttpRequestTool.bind(resolver=_public_resolver).declaration()
+        assert "allow_private" not in declared.parameters["properties"]
+        assert "allowed_hosts" not in declared.parameters["properties"]
+
+    async def test_a_call_cannot_argue_its_way_past_the_ssrf_guard(self) -> None:
+        """PIR-873: ``{"allow_private": true}`` in a call used to reach loopback."""
+        client = _FakeClient(_FakeResponse(200, {}, [b"secret"]))
+        tool = HttpRequestTool.bind(client=client, resolver=_loopback_resolver)
+        with pytest.raises(ToolArgumentValidationError, match="allow_private"):
+            await ToolRunner.value(
+                tool, {"url": "http://localhost:8080/health", "allow_private": True}
+            )
+        assert client.calls == []
+
+    async def test_a_call_cannot_widen_a_subclass_allowlist(self) -> None:
+        """An allowlisted subclass cannot be widened by the model either."""
+        client = _FakeClient(_FakeResponse(200, {}, [b"x"]))
+        tool = _AllowlistedFetch.bind(client=client, resolver=_public_resolver)
+        with pytest.raises(ToolArgumentValidationError, match="allowed_hosts"):
+            await ToolRunner.value(
+                tool, {"url": "https://evil.example/x", "allowed_hosts": ["evil.example"]}
+            )
+        assert client.calls == []
 
     async def test_ssrf_rejection(self) -> None:
         tool = HttpRequestTool.bind(
@@ -181,15 +215,17 @@ class TestHttpRequest:
         with pytest.raises(ValueError, match="private/loopback"):
             await ToolRunner.value(tool, {"url": "https://internal.example"})
 
-    async def test_allow_private_skips_ssrf(self) -> None:
+    async def test_the_private_class_is_the_only_private_opt_in(self) -> None:
         response = _FakeResponse(200, {}, [b"ok"])
-        tool = HttpRequestTool.bind(
+        tool = PrivateHttpRequestTool.bind(
             client=_FakeClient(response),
             resolver=_loopback_resolver,
-            allow_private=True,
         )
         result = await ToolRunner.value(tool, {"url": "http://localhost:8080/health"})
         assert result["text"] == "ok"
+        assert PrivateHttpRequestTool.tool_name != HttpRequestTool.tool_name
+        assert vars(PrivateHttpRequestTool)["_allow_private"] is True
+        assert vars(HttpRequestTool)["_allow_private"] is False
 
     async def test_unsupported_method(self) -> None:
         tool = HttpRequestTool.bind(

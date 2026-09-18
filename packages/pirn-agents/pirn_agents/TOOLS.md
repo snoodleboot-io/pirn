@@ -65,9 +65,11 @@ class RetrieverTool(Tool):
 | `calculator` | `CalculatorTool` | none (stdlib) | AST-based safe arithmetic; no `eval`/`exec` |
 | `read_file` / `write_file` / `list_dir` / `glob` | `ReadFileTool` … | none (stdlib) | root-scoped, traversal + symlink guarded |
 | `web_search` | `WebSearchTool` | injected `SearchBackend` | vendor-neutral search |
-| `http_request` | `HttpRequestTool` | `web` (`httpx`) | SSRF guard, host allowlist, size cap |
+| `http_request` | `HttpRequestTool` | `web` (`httpx`) | SSRF guard, size cap |
+| `private_http_request` | `PrivateHttpRequestTool` | `web` (`httpx`) | size cap (private reach opted in by class) |
 | `html_to_text` | `HtmlToTextTool` | none (stdlib) | strips scripts/styles, output cap |
 | `sql_query` | `SqlQueryTool` | injected `SqlConnector` | read-only guard + row cap |
+| `sql_write` | `ReadWriteSqlQueryTool` | injected `SqlConnector` | row cap (writes opted in by class) |
 | `python_exec` / `shell` | `PythonExecTool` / `ShellTool` | injected `SandboxExecutor` | **opt-in, off by default** |
 | `retriever` | `RetrieverTool` | injected `MemoryStore` (F4) | ranked retrieval |
 | `rag` | `RagTool` | `MemoryStore` + `LLMProvider` | RAG-as-a-tool |
@@ -169,9 +171,32 @@ would escape the root are excluded from `glob` results.
 ### Web (`http_request`)
 Before any request the target hostname is resolved and rejected if it lands on a
 private, loopback, link-local, reserved, or multicast IP (this blocks the cloud
-metadata endpoint). An optional `allowed_hosts` allowlist narrows further, and the
-response body is streamed and truncated at `max_bytes`. `allow_private=True` is an
-explicit opt-in for trusted internal endpoints only.
+metadata endpoint). The response body is streamed and truncated at `max_bytes`.
+
+The egress policy is the **class**, never a call argument (PIR-817): while
+`allow_private` and `allowed_hosts` were inputs they were part of the declaration
+the model reads, so a call carrying `allow_private: true` reached the loopback
+interface.
+
+| Capability | Class | Reaches |
+|---|---|---|
+| `http_request` | `HttpRequestTool` | public hosts only |
+| `private_http_request` | `PrivateHttpRequestTool` | private/loopback too |
+
+An allowlisted deployment declares its own subclass:
+
+```python
+from typing import ClassVar
+from pirn_agents.tools.web.http_request_tool import HttpRequestTool
+
+class PartnerApiFetch(HttpRequestTool):
+    """Fetch a document from the partner API."""
+
+    tool_name: ClassVar[str] = "partner_api_fetch"
+    _allowed_hosts: ClassVar[tuple[str, ...] | None] = ("api.partner.example",)
+```
+
+`Bundles.web_toolset(fetch_tool=PartnerApiFetch)` offers it in place of the default.
 
 ### `sql_query` — configuration and read-only guarantees
 Bind it to a `SqlConnector` and its policy:
@@ -182,12 +207,15 @@ from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
 
 conn = sqlite3.connect("app.db", check_same_thread=False)   # runs on a worker thread
-tool = SqlQueryTool.bind(connector=SqliteConnector(connection=conn), read_only=True, max_rows=500)
+tool = SqlQueryTool.bind(connector=SqliteConnector(connection=conn), max_rows=500)
 ```
 
-- **`read_only=True`** (default) rejects any statement that is not a single
-  `SELECT`/`WITH`, and rejects stacked statements and DML/DDL keywords
-  (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `PRAGMA`, …).
+- **`SqlQueryTool`** rejects any statement that is not a single `SELECT`/`WITH`,
+  and rejects stacked statements and DML/DDL keywords (`INSERT`, `UPDATE`,
+  `DELETE`, `DROP`, `ALTER`, `CREATE`, `PRAGMA`, …). Writing is opted into by
+  offering `ReadWriteSqlQueryTool` (`sql_write`) instead — the guard is the class,
+  never a call argument, so a call carrying `read_only: false` cannot turn a read
+  capability into a write one (PIR-817).
 - **`max_rows`** caps returned rows; the result carries `truncated=True` when hit.
 - **Parameters** are passed positionally to the driver (parameterized queries).
 - **Async driver:** `AiosqliteConnector` lazily imports `aiosqlite`
