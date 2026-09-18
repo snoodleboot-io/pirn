@@ -12,18 +12,10 @@ This class is that adapter: call it with no arguments and it returns the
 value it was built with, and it carries the function-shaped attributes
 ``KnotFactory.create`` reads.
 
-It also carries ``__globals__``. ``KnotFactory``'s generated ``process``
-method is ``@functools.wraps(fn)``-decorated, which sets
-``process.__wrapped__ = fn``; ``Knot.__init_subclass__`` then calls
-``typing.get_type_hints(process)`` to find ``Knot | T`` scalar-coercion
-candidates, and ``get_type_hints`` resolves a wrapped callable's forward
--referenced annotations (``knot_factory.py`` has ``from __future__ import
-annotations``, so ``**kwargs: Any -> Any`` are strings at that point) by
-walking to the *end* of the ``__wrapped__`` chain and reading *that* object's
-``__globals__`` — not ``knot_factory.py``'s own. A real function has one; a
-plain callable instance like this one does not, so without this, ``Any``
-comes back unresolvable and ``Knot`` disables coercion and I/O validation
-for the generated knot, with a ``UserWarning`` at every construction.
+It carries no ``__globals__``: ``KnotFactory`` gives the ``process`` it
+generates for an unannotated callable annotations that are already type
+objects, so nothing has to be resolved against the wrapped callable's module
+(PIR-873).
 """
 
 from __future__ import annotations
@@ -48,9 +40,6 @@ class ConstantThunk:
         self.__name__ = label
         self.__qualname__ = label
         self.__doc__ = f"Return the object registered under reference label {label!r}."
-        # See the class docstring: `get_type_hints` needs *some* mapping
-        # here to resolve `Any` in KnotFactory's generated `process` method.
-        self.__globals__: dict[str, Any] = {"Any": Any}
 
     def __call__(self) -> Any:
         """Return the bound value."""

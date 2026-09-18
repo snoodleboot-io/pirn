@@ -37,7 +37,6 @@ import copy
 import inspect
 import json
 import types as _types
-import warnings
 import weakref
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
@@ -58,6 +57,7 @@ from pirn.core.run_context_vars import RunContextVars
 from pirn.core.shape_guard import ShapeGuard
 from pirn.core.skipped import Skipped
 from pirn.core.zip_map import ZipMap
+from pirn.exceptions.unresolved_annotation_error import UnresolvedAnnotationError
 from pirn.managers.exception_record import ExceptionRecord
 
 if TYPE_CHECKING:
@@ -192,14 +192,8 @@ class Knot:
         origin = get_origin(hint)
         args: tuple[Any, ...] = ()
 
-        if origin is Union:
+        if origin is Union or isinstance(hint, _types.UnionType):
             args = get_args(hint)
-        else:
-            try:
-                if isinstance(hint, _types.UnionType):
-                    args = get_args(hint)
-            except AttributeError:
-                pass
 
         if not args:
             return None
@@ -967,15 +961,7 @@ class Knot:
         try:
             return get_type_hints(cls.process, localns=namespace or None, include_extras=True)
         except Exception as exc:
-            warnings.warn(
-                f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
-                "input/output validation is disabled for this class regardless "
-                "of KnotConfig.validate_io. This usually means a forward-"
-                "referenced annotation cannot be resolved (e.g. a name only "
-                "imported under TYPE_CHECKING and missing from _annotation_imports).",
-                stacklevel=3,
-            )
-            return {}
+            raise UnresolvedAnnotationError(knot_class=cls.__name__, cause=exc) from exc
 
     @classmethod
     def _require_engines(cls) -> None:
@@ -1031,15 +1017,7 @@ class Knot:
             try:
                 hints = get_type_hints(owner.__dict__["process"], localns=namespace or None)
             except Exception as exc:
-                warnings.warn(
-                    f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
-                    "Knot | T scalar auto-coercion is disabled for this class. "
-                    "This usually means a forward-referenced annotation cannot "
-                    "be resolved (e.g. a name only imported under TYPE_CHECKING "
-                    "and missing from _annotation_imports).",
-                    stacklevel=3,
-                )
-                hints = {}
+                raise UnresolvedAnnotationError(knot_class=cls.__name__, cause=exc) from exc
             for pname, hint in hints.items():
                 if pname in ("self", "return"):
                     continue
