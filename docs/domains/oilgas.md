@@ -133,7 +133,7 @@ WITSML (Wellsite Information Transfer Standard Markup Language) is an XML-based 
 {
     "tag":              value,   # flat dict; child.tag → child.text
     "child.grandchild": value,   # two-level nesting flattened as "parent.child"
-    ...
+    # ... one key per child element, in document order
 }
 ```
 

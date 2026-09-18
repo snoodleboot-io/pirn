@@ -17,6 +17,7 @@ class SourceImportResolver:
     def __init__(self, repo_root: Path) -> None:
         self._roots: dict[str, Path] = {}
         self._bindings: dict[Path, dict[str, ast.stmt]] = {}
+        self._literals: frozenset[str] | None = None
         packages = repo_root / "packages"
         if packages.is_dir():
             for dist in sorted(packages.iterdir()):
@@ -60,14 +61,46 @@ class SourceImportResolver:
         )
 
     def resolves_path(self, dotted: str) -> bool:
-        """Whether ``dotted`` names a module, a module attribute, or a class member."""
+        """Whether ``dotted`` names something the source really defines.
+
+        Three ways to resolve, all static:
+
+        * a module, a module attribute, or a class member — an import path;
+        * a *declared key*: a dotted name the source writes as a string literal.
+          ``pirn.`` is also this project's OpenTelemetry attribute namespace, so
+          ``pirn.run_id`` and ``pirn.output_hash`` are span attribute keys, not import
+          paths, and the docs quote them in exactly the same backticks. They still
+          resolve — to ``span.set_attribute("pirn.run_id", …)`` in
+          ``pirn/emitters/open_telemetry_emitter.py`` — so renaming an emitted
+          attribute still fails the doc that teaches the old name.
+        """
         parts = dotted.split(".")
         for split in range(len(parts), 0, -1):
             module = ".".join(parts[:split])
             source = self.module_file(module)
-            if source is not None:
-                return self._resolves_attributes(source, parts[split:], depth=0)
-        return False
+            if source is not None and self._resolves_attributes(source, parts[split:], depth=0):
+                return True
+        return dotted in self._declared_literals()
+
+    def _declared_literals(self) -> frozenset[str]:
+        """Every dotted string literal the workspace source writes, read once."""
+        if self._literals is None:
+            found: set[str] = set()
+            for root in self._roots.values():
+                for path in sorted(root.rglob("*.py")):
+                    try:
+                        tree = ast.parse(path.read_text(encoding="utf-8"))
+                    except (SyntaxError, UnicodeDecodeError):
+                        continue
+                    found.update(
+                        node.value
+                        for node in ast.walk(tree)
+                        if isinstance(node, ast.Constant)
+                        and isinstance(node.value, str)
+                        and "." in node.value
+                    )
+            self._literals = frozenset(found)
+        return self._literals
 
     def _resolves_attributes(self, source: Path, rest: list[str], depth: int) -> bool:
         if not rest:
@@ -97,9 +130,7 @@ class SourceImportResolver:
             return False
         return True
 
-    def _class_has(
-        self, source: Path, cls: ast.ClassDef, rest: list[str], depth: int
-    ) -> bool:
+    def _class_has(self, source: Path, cls: ast.ClassDef, rest: list[str], depth: int) -> bool:
         members = self._body_bindings(cls.body)
         member = members.get(rest[0])
         if member is not None:
@@ -137,9 +168,7 @@ class SourceImportResolver:
     def _body_bindings(cls, body: list[ast.stmt]) -> dict[str, ast.stmt]:
         bindings: dict[str, ast.stmt] = {}
         for statement in body:
-            if isinstance(
-                statement, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
-            ):
+            if isinstance(statement, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
                 bindings[statement.name] = statement
             elif isinstance(statement, ast.Assign):
                 for target in statement.targets:

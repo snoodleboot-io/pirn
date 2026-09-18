@@ -332,7 +332,7 @@ Healthcare formats (DICOM, HL7 v2, FHIR, CDA) all follow this pattern. If you ar
 ### File location
 
 ```
-tests/unit/domains/connectors/file_formats/test_{name}_format.py
+packages/pirn-core/tests/unit/domains/connectors/file_formats/test_{name}_format.py
 ```
 
 Slow tests (any test that calls a real external library and takes > 1 s) get:
@@ -374,66 +374,60 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 ### Recommended test structure
 
+Shown against `AvroFormat` — a batch format already in the tree — so every module,
+class and property named below is real and can be run today. Copy the shape and
+substitute the module you created in Step 2 (`pirn/connectors/file_formats/widget_format.py`)
+and its class.
+
 ```python
-"""Unit tests for :class:`WidgetFormat`."""
+"""Unit tests for :class:`AvroFormat`."""
 
 from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("widgetlib")   # skip entire module if not installed
+pytest.importorskip("fastavro")   # skip entire module if not installed
 
-from pirn.connectors.file_formats.widget_format import WidgetFormat
+from pirn.connectors.file_formats.avro_format import AvroFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
 
 
-class TestWidgetFormatConstruction:
+class TestAvroFormatConstruction:
     def test_default_construction(self) -> None:
-        fmt = WidgetFormat()
-        assert fmt.schema_version == 2
+        fmt = AvroFormat()
+        assert fmt.schema is None
 
-    def test_schema_version_must_be_int(self) -> None:
+    def test_schema_must_be_a_dict(self) -> None:
         with pytest.raises(TypeError):
-            WidgetFormat(schema_version="2")  # type: ignore[arg-type]
-
-    def test_schema_version_rejects_bool(self) -> None:
-        with pytest.raises(TypeError):
-            WidgetFormat(schema_version=True)  # type: ignore[arg-type]
-
-    def test_unsupported_schema_version_rejected(self) -> None:
-        with pytest.raises(ValueError):
-            WidgetFormat(schema_version=99)
+            AvroFormat(schema="not-a-dict")  # type: ignore[arg-type]
 
 
-class TestWidgetFormatProperties:
+class TestAvroFormatProperties:
     def test_name(self) -> None:
-        assert WidgetFormat().name == "widget"
+        assert AvroFormat().name == "avro"
 
     def test_streaming_is_false(self) -> None:
-        assert WidgetFormat().streaming is False
+        assert AvroFormat().streaming is False
 
 
-class TestWidgetFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestAvroFormatRoundTrip:
     async def test_round_trip_basic(self) -> None:
-        fmt = WidgetFormat()
+        fmt = AvroFormat()
         records = [
-            {"id": "w1", "value": 42},
-            {"id": "w2", "value": 99},
+            {"id": 1, "name": "alpha"},
+            {"id": 2, "name": "beta"},
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
-    async def test_round_trip_empty(self) -> None:
-        await FormatRoundTrip.assert_round_trip(WidgetFormat(), [])
-
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
-        records = [{"id": "only", "value": 1}]
-        await FormatRoundTrip.assert_round_trip(WidgetFormat(), records)
+        records = [{"id": 1, "name": "only"}]
+        await FormatRoundTrip.assert_round_trip(AvroFormat(), records)
 ```
+
+`asyncio_mode = "auto"` is set in every package's `[tool.pytest.ini_options]`, so async
+tests need no `@pytest.mark.asyncio`.
 
 Test class naming: `Test{ClassName}Construction`, `Test{ClassName}Properties`, `Test{ClassName}RoundTrip`, `Test{ClassName}Decoding`, `Test{ClassName}Encoding`. These mirror the pattern used across the existing suite.
 
@@ -455,8 +449,9 @@ house convention forbids import forwarding (`.claude/conventions/languages/pytho
 enforced by `scripts/check_no_import_forwarding.py`): a package's `__init__.py` must not
 re-export symbols defined elsewhere in the tree, even behind an optional-dependency guard.
 `pirn/connectors/file_formats/__init__.py` carries only a module docstring — check it
-before assuming otherwise. Consumers import your format directly:
-`from pirn.connectors.file_formats.widget_format import WidgetFormat`, or resolve it by
+before assuming otherwise. Consumers import your format directly from the module file you
+created — the shape every existing format already uses, e.g.
+`from pirn.connectors.file_formats.avro_format import AvroFormat` — or resolve it by
 name through the registry the same way any other knot is resolved from YAML.
 
 ### Add to `pyproject.toml`
@@ -508,7 +503,7 @@ Before opening a PR, verify:
 - [ ] No bare `except:` — every `except` names a specific exception type.
 - [ ] No nested function definitions that could be `@staticmethod`.
 - [ ] Optional imports are lazy (inside the method body, not at module top-level).
-- [ ] `ImportError` re-raised with exact `pip install pirn[<extra>]` instruction.
+- [ ] The optional import goes through `OptionalDependency.require(module, extra=..., package=...)`, which raises the `ImportError` naming `pip install "<package>[<extra>]"` — never a hand-rolled `try: import ... except ImportError` (see "Rules" above).
 - [ ] `_phi_keywords` and sanitisation logic present for any healthcare format.
 - [ ] `pytest.importorskip("<lib>")` at the top of the test file for optional-dep formats.
 - [ ] `TestConstruction`, `TestProperties`, `TestRoundTrip` classes all present.

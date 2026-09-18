@@ -2,7 +2,7 @@ Audio signal processing — denoise, extract features, estimate pitch, detect be
 
 ## Mental model
 
-Knots here operate on audio waveforms (1-D float arrays, mono or stereo) at a known `fs`. They span the pipeline from raw waveform to high-level descriptors (MFCCs, beat positions, speaker segments). File I/O is deliberately out of scope — load audio through `pirn.connectors.file_formats` using `WavFormat` or `Mp3Format` before wiring into these knots. Resampling to a target rate before feature extraction should go through `pirn_signal.resampling.AudioResampler` (or the dedicated `AudioResampler` here which wraps it for audio conventions).
+Knots here operate on audio waveforms (1-D float arrays, mono or stereo) at a known `fs`. They span the pipeline from raw waveform to high-level descriptors (MFCCs, beat positions, speaker segments). File I/O is deliberately out of scope — load audio through `pirn.connectors.file_formats.wav_format.WavFormat` or `pirn.connectors.file_formats.mp3_format.Mp3Format` before wiring into these knots. Resampling to a target rate before feature extraction goes through `pirn_signal.audio.audio_resampler.AudioResampler` (librosa-backed, audio-idiomatic `quality` settings); the general-purpose rate changers in `pirn_signal.resampling` — `PolyphaseResampler`, `Decimator`, `Upsampler` — are the non-audio equivalents.
 
 ## Source map
 
@@ -54,7 +54,7 @@ features = result["mfccs"]  # shape: (n_mfcc, time_frames)
 
 ## Anti-patterns
 
-- **Loading audio files inside audio knots.** These knots expect a waveform array. Use `pirn.connectors.file_formats.WavFormat` / `Mp3Format` upstream.
+- **Loading audio files inside audio knots.** These knots expect a decoded signal. Use `pirn.connectors.file_formats.wav_format.WavFormat` / `pirn.connectors.file_formats.mp3_format.Mp3Format` upstream.
 - **Skipping resampling when `fs` mismatches.** Passing a 44100 Hz signal to a knot configured for 16000 Hz will silently produce wrong feature timings; always resample first.
 - **Running `SpeakerDiarizationPipeline` on short clips.** Diarization needs at least several seconds per speaker to converge reliably; pad or segment long recordings.
 

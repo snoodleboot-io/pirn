@@ -303,7 +303,7 @@ SDTM XPT is the SAS Transport format mandated by FDA for clinical trial data sub
 {
     "<col_name>": "<value>",  # one key per dataset column
     "_metadata": {
-        "column_labels": {col_name: label, ...},
+        "column_labels": {col_name: label},  # one entry per dataset column
         "file_label":    str,
     }
 }

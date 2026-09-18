@@ -46,9 +46,7 @@ class CheckDocImports:
         except ValueError as error:
             print(f"check_doc_imports: {error}", file=sys.stderr)
             return 2
-        auditor = DocImportAuditor(
-            SourceImportResolver(Path(__file__).resolve().parents[1])
-        )
+        auditor = DocImportAuditor(SourceImportResolver(Path(__file__).resolve().parents[1]))
         count = 0
         for path in files:
             for finding in auditor.audit(str(path), path.read_text(encoding="utf-8")):

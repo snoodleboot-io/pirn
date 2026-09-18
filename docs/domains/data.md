@@ -550,7 +550,7 @@ table = HudiTable(config)
 
 ## Specialisations
 
-The `pirn_data.specialisations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
+The `pirn_data.specializations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
 
 ### Ingestion patterns (`ingestion/`)
 

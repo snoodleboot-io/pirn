@@ -26,15 +26,11 @@ class DocImportAuditor:
     is not a dotted path and is not checked.
     """
 
-    _python_tags: ClassVar[frozenset[str]] = frozenset(
-        {"python", "py", "python3", "pycon"}
-    )
+    _python_tags: ClassVar[frozenset[str]] = frozenset({"python", "py", "python3", "pycon"})
     _dotted: ClassVar[re.Pattern[str]] = re.compile(
         r"^(pirn|pirn_[a-z0-9_]+)(\.[A-Za-z_][A-Za-z0-9_]*)+$"
     )
-    _inline_import: ClassVar[re.Pattern[str]] = re.compile(
-        r"^(from|import)\s+pirn(_[a-z0-9_]+)?\b"
-    )
+    _inline_import: ClassVar[re.Pattern[str]] = re.compile(r"^(from|import)\s+pirn(_[a-z0-9_]+)?\b")
     _file_suffixes: ClassVar[frozenset[str]] = frozenset(
         {
             "cfg",
@@ -119,10 +115,7 @@ class DocImportAuditor:
                     if self._resolver.is_pirn_root(node.module.split(".")[0]):
                         found.append(node)
             elif isinstance(node, ast.Import):
-                if any(
-                    self._resolver.is_pirn_root(a.name.split(".")[0])
-                    for a in node.names
-                ):
+                if any(self._resolver.is_pirn_root(a.name.split(".")[0]) for a in node.names):
                     found.append(node)
         return sorted(found, key=attrgetter("lineno"))
 

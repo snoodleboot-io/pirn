@@ -1,10 +1,10 @@
-`pirn_ml.specializations` provides pre-built machine learning pipeline patterns across training, evaluation, production deployment, experiments, feature engineering, and task pipelines — it does not provide model implementations; models are user-supplied as `Estimator` objects conforming to the ML tier interface.
+`pirn_ml.specializations` provides pre-built machine learning pipeline patterns across training, evaluation, production deployment, experiments, feature engineering, and task pipelines — it does not provide model implementations. A model enters and moves between stages as a `ModelManifest` reference (`pirn_ml.types.model_manifest`); the fitted object itself is user-supplied, wrapped in a `FittedEstimator` (`pirn_ml.types.fitted_estimator`).
 
 ---
 
 ## Mental model
 
-ML specialization knots wrap the lifecycle of a model through its stages: feature preparation → training → evaluation → production. Each sub-package targets one stage. The `Estimator` interface (from `pirn_ml.knots`) is the common contract — any sklearn-compatible, PyTorch, or custom model that implements `fit()` / `predict()` works.
+ML specialization knots wrap the lifecycle of a model through its stages: feature preparation → training → evaluation → production. Each sub-package targets one stage. `ModelManifest` (`pirn_ml.types.model_manifest`) is the common contract between stages — a logical reference carrying `model_id`, `algorithm`, `hyperparameters`, `feature_names` and `target_name`, which a downstream knot resolves to the artifact. The fitted object travels as `FittedEstimator` (`pirn_ml.types.fitted_estimator`), which wraps any sklearn-compatible, PyTorch, or custom model implementing `fit()` / `predict()`; `TrainedModelPayload` (`pirn_ml.types.trained_model_payload`) bundles the manifest with the fitted estimator.
 
 Use a `task_pipeline` for a complete end-to-end ML task (classification, forecasting, anomaly detection). Use individual stage sub-packages when you need to customize a specific stage.
 

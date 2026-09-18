@@ -122,6 +122,8 @@ File formats and object stores live under `pirn/connectors/`, not here.
 ### Tier-1 dict batch pipeline
 
 ```python
+from pathlib import Path
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
@@ -134,10 +136,11 @@ from pirn_data.transforms.aggregate_spec import AggregateSpec
 from pirn_data.sinks.file_sink import FileSink
 from pirn.connectors.file_formats.csv_format import CsvFormat
 from pirn.connectors.file_formats.parquet_format import ParquetFormat
-from pirn.connectors.object_stores.local_object_store import LocalObjectStore
+from pirn.connectors.object_storage.local_filesystem_config import LocalFilesystemConfig
+from pirn.connectors.object_storage.local_filesystem_store import LocalFilesystemStore
 
 with Tapestry() as t:
-    store = LocalObjectStore(root="/data")
+    store = LocalFilesystemStore(LocalFilesystemConfig(root=Path("/data")))
     source = FileSource(
         store=store,
         format=CsvFormat(),

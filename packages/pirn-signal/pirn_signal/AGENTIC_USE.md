@@ -155,9 +155,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn_signal.filters.butterworth_filter import ButterworthFilter
 from pirn_signal.spectral.welch_estimator import WelchEstimator
+from pirn_signal.types.signal_payload import SignalPayload
 
-# Entry point — a raw SignalFrame supplied at run time
-raw = Parameter("raw_signal", _config=KnotConfig(id="raw_signal"))
+# Entry point — a raw SignalPayload supplied at run time
+raw = Parameter("raw_signal", SignalPayload, _config=KnotConfig(id="raw_signal"))
 
 filtered = ButterworthFilter(
     signal=raw,
@@ -210,17 +211,28 @@ dwt = DWTDecomposer(
 
 ## Anti-patterns
 
-### Passing raw numpy arrays instead of SignalFrame
+### Passing raw numpy arrays instead of SignalPayload
 
-Every knot's `process()` signature accepts a `SignalFrame`, not a numpy array. Passing raw arrays bypasses the audit trail and breaks lineage.
+Every knot's `process()` signature accepts a `SignalPayload` — the `SignalFrame` metadata bundled with its sample array — not a bare numpy array. Passing raw arrays bypasses the audit trail and breaks lineage.
 
 ```python
-# WRONG
-ButterworthFilter(signal=np.array([...]), ...)
+# WRONG — a bare array carries no signal_id, sample rate, or lineage
+ButterworthFilter(
+    signal=np.asarray([0.0, 1.0, 0.0]),
+    order=4,
+    cutoff_hz=50.0,
+    _config=KnotConfig(id="filtered"),
+)
 
-# RIGHT — wrap in a SignalFrame and supply via Parameter
-raw = Parameter("raw", _config=KnotConfig(id="raw"))
-# ... resolve the Tapestry with SignalFrame(...) bound to "raw"
+# RIGHT — supply the payload through a Parameter
+raw = Parameter("raw_signal", SignalPayload, _config=KnotConfig(id="raw_signal"))
+ButterworthFilter(
+    signal=raw,
+    order=4,
+    cutoff_hz=50.0,
+    _config=KnotConfig(id="filtered"),
+)
+# ... then bind it: RunRequest(parameters={"raw_signal": SignalPayload(metadata=frame, data=samples)})
 ```
 
 ### Using `sample_rate_hz` from KnotConfig instead of the SignalFrame

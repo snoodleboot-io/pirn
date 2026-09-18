@@ -731,7 +731,7 @@ from pirn.backends.duckdb_history import DuckDBHistory
 t = Tapestry(
     store=PostgresStore(dsn="..."),
     history=PostgresHistory(dsn="..."),  # write path
-    ...
+    # data_store= and dispatcher= as needed
 )
 # Separate read path for analytics:
 analytics_history = DuckDBHistory("analytics.duckdb")
