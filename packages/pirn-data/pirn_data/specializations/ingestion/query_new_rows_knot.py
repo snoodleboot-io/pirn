@@ -34,6 +34,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
+
 
 class QueryNewRowsKnot(Knot):
     """Generate and run an incremental SELECT against the source pool."""
@@ -85,8 +87,7 @@ class QueryNewRowsKnot(Knot):
             TypeError: If ``pool`` is not a ``DatabaseConnectionPool``.
             ValueError: If identifiers are empty or contain invalid characters.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("QueryNewRowsKnot: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("QueryNewRowsKnot", pool=pool)
         if not isinstance(table, str) or not table:
             raise ValueError("QueryNewRowsKnot: table must be a non-empty string")
         if not isinstance(watermark_column, str) or not watermark_column:

@@ -44,6 +44,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class StatisticalProfiler(Knot):
@@ -160,8 +161,7 @@ class StatisticalProfiler(Knot):
             TypeError: When pool is not a DatabaseConnectionPool.
             ValueError: When columns is empty or top_n is not a positive integer.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("StatisticalProfiler: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("StatisticalProfiler", pool=pool)
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         column_tuple = tuple(columns)
         IdentifierValidator.validate_columns("columns", column_tuple)

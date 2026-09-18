@@ -30,6 +30,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class MartModelKnot(Knot):
@@ -83,10 +84,11 @@ class MartModelKnot(Knot):
         target_table: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("MartModelKnot: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("MartModelKnot: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "MartModelKnot",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         for label, value in (
             ("source_table", source_table),
             ("target_table", target_table),

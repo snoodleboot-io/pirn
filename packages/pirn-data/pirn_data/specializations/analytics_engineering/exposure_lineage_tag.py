@@ -29,6 +29,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class ExposureLineageTag(Knot):
@@ -73,8 +74,7 @@ class ExposureLineageTag(Knot):
         audit_log_table: Any = "lineage_audit_log",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("ExposureLineageTag: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("ExposureLineageTag", pool=pool)
         for label, value in (
             ("source_table", source_table),
             ("transform_knot_id", transform_knot_id),

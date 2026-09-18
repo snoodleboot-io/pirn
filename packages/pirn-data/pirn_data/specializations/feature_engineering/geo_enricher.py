@@ -32,6 +32,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class GeoEnricher(Knot):
@@ -97,8 +98,7 @@ class GeoEnricher(Knot):
         ip_column: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("GeoEnricher: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("GeoEnricher", pool=pool)
         for label, value in (
             ("source_table", source_table),
             ("target_table", target_table),

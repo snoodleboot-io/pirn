@@ -33,6 +33,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class SchemaEvolutionDetector(Knot):
@@ -77,8 +78,7 @@ class SchemaEvolutionDetector(Knot):
             TypeError: When pool is not a DatabaseConnectionPool.
             ValueError: When expected_schema is empty or schema_query is empty.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("SchemaEvolutionDetector: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("SchemaEvolutionDetector", pool=pool)
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         if not expected_schema:
             raise ValueError("SchemaEvolutionDetector: expected_schema must be non-empty")

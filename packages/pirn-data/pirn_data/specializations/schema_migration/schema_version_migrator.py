@@ -32,6 +32,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class SchemaVersionMigrator(Knot):
@@ -79,8 +80,7 @@ class SchemaVersionMigrator(Knot):
             ValueError: If migrations are empty, unordered, duplicate, or a
                 version gap is detected at runtime.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("SchemaVersionMigrator: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("SchemaVersionMigrator", pool=pool)
         if not migrations:
             raise ValueError("SchemaVersionMigrator: migrations must be non-empty")
         mig_list = list(migrations)

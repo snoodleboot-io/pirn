@@ -31,6 +31,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
+
 
 class WatermarkIncrementalExtract(Knot):
     """Read source rows newer than the target's high-water mark."""
@@ -93,14 +95,11 @@ class WatermarkIncrementalExtract(Knot):
             ValueError: If any string argument is empty or contains invalid characters,
                 or if ``columns`` is empty.
         """
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "WatermarkIncrementalExtract: source_pool must be a DatabaseConnectionPool"
-            )
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "WatermarkIncrementalExtract: target_pool must be a DatabaseConnectionPool"
-            )
+        PoolValidator.validate_pools(
+            "WatermarkIncrementalExtract",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         for label, value in (
             ("source_table", source_table),
             ("target_table", target_table),

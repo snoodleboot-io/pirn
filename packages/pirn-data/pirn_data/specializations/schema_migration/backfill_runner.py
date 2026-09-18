@@ -33,6 +33,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class BackfillRunner(Knot):
@@ -90,10 +91,11 @@ class BackfillRunner(Knot):
             A dict with keys ``succeeded``, ``batches_processed``,
             ``rows_processed``, and ``last_processed_key``.
         """
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("BackfillRunner: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("BackfillRunner: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "BackfillRunner",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         for label, value in (
             ("source_table", source_table),
             ("batch_query_template", batch_query_template),

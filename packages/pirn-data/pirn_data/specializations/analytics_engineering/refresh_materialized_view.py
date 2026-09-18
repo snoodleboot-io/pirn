@@ -32,6 +32,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class RefreshMaterializedView(Knot):
@@ -74,8 +75,7 @@ class RefreshMaterializedView(Knot):
         concurrently: Any = False,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("RefreshMaterializedView: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("RefreshMaterializedView", pool=pool)
         if not isinstance(view_name, str) or not view_name:
             raise ValueError("RefreshMaterializedView: view_name must be a non-empty string")
         if dialect not in self._supported_dialects:

@@ -26,6 +26,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
+
 
 class ReadHighWaterMarkKnot(Knot):
     """Read ``MAX(watermark_column)`` from a target table."""
@@ -62,8 +64,7 @@ class ReadHighWaterMarkKnot(Knot):
             TypeError: If ``pool`` is not a ``DatabaseConnectionPool``.
             ValueError: If identifiers are empty or contain invalid characters.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("ReadHighWaterMarkKnot: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("ReadHighWaterMarkKnot", pool=pool)
         for label, value in (
             ("table", table),
             ("watermark_column", watermark_column),

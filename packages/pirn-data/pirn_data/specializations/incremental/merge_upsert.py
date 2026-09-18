@@ -29,12 +29,14 @@ References:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
 
 
@@ -85,6 +87,39 @@ class MergeUpsert(PoolMergeKnot):
         placeholders = ", ".join(["?"] * len(all_columns))
         return f"INSERT INTO {target_table} ({columns}) VALUES ({placeholders})"
 
+    @staticmethod
+    async def _execute_per_row_upsert(
+        source_rows: Sequence[Sequence[Any]],
+        target_pool: DatabaseConnectionPool,
+        key_tuple: tuple[str, ...],
+        non_key_tuple: tuple[str, ...],
+        select_existing_query: str,
+        update_query: str,
+        insert_query: str,
+    ) -> list[bool]:
+        """Upsert each of ``source_rows`` individually against ``target_pool``.
+
+        For every row, SELECT by key to decide whether it already exists, then
+        UPDATE the non-key values or INSERT the full row accordingly. Returns
+        one ``bool`` per input row — ``True`` when it matched an existing key
+        (an UPDATE was issued), ``False`` when it was new (an INSERT was
+        issued).
+        """
+        all_columns = key_tuple + non_key_tuple
+        matched: list[bool] = []
+        for row in source_rows:
+            row_dict = dict(zip(all_columns, row, strict=False))
+            key_values = tuple(row_dict[k] for k in key_tuple)
+            non_key_values = tuple(row_dict[k] for k in non_key_tuple)
+            existing = await target_pool.fetch_all(select_existing_query, key_values)
+            if existing:
+                await target_pool.execute(update_query, non_key_values + key_values)
+                matched.append(True)
+            else:
+                await target_pool.execute(insert_query, key_values + non_key_values)
+                matched.append(False)
+        return matched
+
     async def process(
         self,
         *,
@@ -96,14 +131,16 @@ class MergeUpsert(PoolMergeKnot):
         non_key_columns: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        self._validate_pools("MergeUpsert", source_pool=source_pool, target_pool=target_pool)
-        self._validate_non_empty_string("MergeUpsert", "source_query", source_query)
-        self._validate_non_empty_string("MergeUpsert", "target_table", target_table)
-        self._validate_identifier("target_table", target_table)
+        PoolValidator.validate_pools(
+            "MergeUpsert", source_pool=source_pool, target_pool=target_pool
+        )
+        PoolValidator.validate_non_empty_string("MergeUpsert", "source_query", source_query)
+        PoolValidator.validate_non_empty_string("MergeUpsert", "target_table", target_table)
+        PoolValidator.validate_identifier("target_table", target_table)
         key_tuple = tuple(key_columns)
         non_key_tuple = tuple(non_key_columns)
-        self._validate_identifier("key_columns", key_tuple)
-        self._validate_identifier("non_key_columns", non_key_tuple)
+        PoolValidator.validate_identifier("key_columns", key_tuple)
+        PoolValidator.validate_identifier("non_key_columns", non_key_tuple)
         overlap = set(key_tuple) & set(non_key_tuple)
         if overlap:
             raise ValueError(

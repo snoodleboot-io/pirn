@@ -30,6 +30,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class SnapshotTableAppender(Knot):
@@ -80,10 +81,11 @@ class SnapshotTableAppender(Knot):
         snapshot_date_column: Any = "_snapshot_date",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("SnapshotTableAppender: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("SnapshotTableAppender: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "SnapshotTableAppender",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("SnapshotTableAppender: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

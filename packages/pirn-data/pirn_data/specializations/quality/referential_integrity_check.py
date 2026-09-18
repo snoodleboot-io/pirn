@@ -33,6 +33,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class ReferentialIntegrityCheck(Knot):
@@ -81,8 +82,7 @@ class ReferentialIntegrityCheck(Knot):
             TypeError: When pool is not a DatabaseConnectionPool.
             ValueError: When any identifier is invalid.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("ReferentialIntegrityCheck: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("ReferentialIntegrityCheck", pool=pool)
         IdentifierValidator.validate_column("fact_table", fact_table)
         IdentifierValidator.validate_column("fact_column", fact_column)
         IdentifierValidator.validate_column("dimension_table", dimension_table)

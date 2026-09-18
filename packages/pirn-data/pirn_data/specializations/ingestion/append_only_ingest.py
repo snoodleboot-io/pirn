@@ -32,6 +32,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
+
 
 class AppendOnlyIngest(Knot):
     """Read all rows from a source query and append them to a target table."""
@@ -79,10 +81,11 @@ class AppendOnlyIngest(Knot):
             TypeError: If either pool is not a ``DatabaseConnectionPool``.
             ValueError: If either query is empty.
         """
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("AppendOnlyIngest: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("AppendOnlyIngest: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "AppendOnlyIngest",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("AppendOnlyIngest: source_query must be a non-empty string")
         if not isinstance(insert_query, str) or not insert_query:
