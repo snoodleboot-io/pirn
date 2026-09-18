@@ -12,9 +12,7 @@ import unittest
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-
-class _NoSuchKeyError(Exception):
-    pass
+from tests.unit.domains.connectors.object_storage.sdk_errors import SdkErrors
 
 
 class _AccessDeniedError(Exception):
@@ -40,6 +38,7 @@ def _s3_session(head_object: Any) -> MagicMock:
 class TestS3HasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         os.environ["PIRN_ENV"] = "test"
+        self.enterContext(SdkErrors.installed())
         from pirn.backends.signer import Signer
 
         self._signer = Signer.test_signer()
@@ -50,7 +49,7 @@ class TestS3HasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
     async def test_not_found_returns_false(self) -> None:
         from pirn.backends.s3_data_store import S3DataStore
 
-        session = _s3_session(AsyncMock(side_effect=_NoSuchKeyError("NoSuchKey")))
+        session = _s3_session(AsyncMock(side_effect=SdkErrors.s3("404")))
         store = S3DataStore(bucket="test", session=session, signer=self._signer)
 
         assert await store.has("sha256:some-key") is False
@@ -68,6 +67,7 @@ class TestS3HasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
 class TestGCSHasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         os.environ["PIRN_ENV"] = "test"
+        self.enterContext(SdkErrors.installed())
         from pirn.backends.signer import Signer
 
         self._signer = Signer.test_signer()
@@ -79,7 +79,7 @@ class TestGCSHasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
         from pirn.backends.gcs_data_store import GCSDataStore
 
         storage = AsyncMock()
-        storage.download_metadata = AsyncMock(side_effect=Exception("404 Not Found"))
+        storage.download_metadata = AsyncMock(side_effect=SdkErrors.gcs(404, "Not Found"))
         store = GCSDataStore(bucket="test", client=storage, signer=self._signer)
 
         assert await store.has("sha256:some-key") is False

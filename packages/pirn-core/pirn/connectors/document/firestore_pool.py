@@ -10,8 +10,8 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.firestore_config import FirestoreConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class FirestorePool(DatabaseConnectionPool):
@@ -75,7 +75,7 @@ class FirestorePool(DatabaseConnectionPool):
         if self._client is None:
             raise RuntimeError("FirestorePool: not connected — call connect() first")
         col_ref = self._client.collection(query)
-        if PayloadShape.is_str_dict(parameters):
+        if ShapeGuard.is_str_keyed_dict(parameters):
             for field, value in parameters.items():
                 col_ref = col_ref.where(field, "==", value)
         docs = col_ref.stream()
@@ -91,7 +91,9 @@ class FirestorePool(DatabaseConnectionPool):
         for row in parameter_seq:
             empty: dict[str, object] = {}
             doc_data: object = (
-                row if PayloadShape.is_str_dict(row) else (next(iter(row), empty) if row else empty)
+                row
+                if ShapeGuard.is_str_keyed_dict(row)
+                else (next(iter(row), empty) if row else empty)
             )
             doc_ref = col_ref.document()
             batch.set(doc_ref, doc_data)

@@ -301,10 +301,9 @@ SDTM XPT is the SAS Transport format mandated by FDA for clinical trial data sub
 
 ```python
 {
-    "<col_name>": <value>,   # one key per dataset column
-    ...,
+    "<col_name>": "<value>",  # one key per dataset column
     "_metadata": {
-        "column_labels": {col_name: label, ...},
+        "column_labels": {"<col_name>": "<label>"},  # one entry per column
         "file_label":    str,
     }
 }
@@ -399,7 +398,7 @@ Clinical data knots for EHR and CDS workflows.
 
 | Knot | Description |
 |---|---|
-| `FhirPatientAssembler` *(from `pirn_health.assemblers`)* | Assembles `ClinicalRecord` tuples from `list[dict]` + `salt`, hashing `patient_id`/`encounter_id` with the same salted SHA-256 scheme as `PHIRedactor` before construction (replaces removed `FhirPatientIngestor`) |
+| `FhirPatientAssembler` *(from `pirn_health.assemblers`)* | Assembles `ClinicalRecord` tuples from `list[dict]` + `salt`, hashing `patient_id`/`encounter_id` with the same salted SHA-256 scheme as `PHIRedactor` before construction |
 | `HL7v2MessageParser` | Parses HL7 v2 messages from bytes |
 | `PHIRedactor` | Explicit pass-through redaction knot for clinical record streams |
 | `PatientCohortBuilder` | Filters a record stream into a named cohort by inclusion criteria |
@@ -426,7 +425,7 @@ MRI acquisition and analysis knots.
 
 | Knot | Description |
 |---|---|
-| `DicomPacsAssembler` *(from `pirn_health.assemblers`)* | Assembles a `DICOMPayload` from raw DICOM `bytes` + `series_id`, parsed in memory (replaces removed `DicomIngestor`) |
+| `DicomPacsAssembler` *(from `pirn_health.assemblers`)* | Assembles a `DICOMPayload` from raw DICOM `bytes` + `series_id`, parsed in memory |
 | `NIfTIConverter` | Converts DICOM volumes to NIfTI format |
 | `BiasFieldCorrector` | N4 bias field correction via ANTs/SimpleITK |
 | `BrainMaskExtractor` | Skull-stripping and brain mask extraction |
@@ -445,14 +444,14 @@ MRI acquisition and analysis knots.
 
 ### `pirn_health.eeg_meg`
 
-EEG and MEG processing knots backed by `mne`.
+EEG and MEG processing knots over `HealthSignalPayload`, backed by `scipy` and `scikit-learn`.
 
 | Knot | Description |
 |---|---|
-| `EegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `EEGRawIngestor`) |
-| `MegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `MegRawIngestor`) |
-| `BandPassFilter` | Applies a bandpass filter to raw data |
-| `NotchFilter` | Notch filter for power-line noise removal |
+| `EegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `HealthSignalPayload` from EEG `bytes` + metadata |
+| `MegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `HealthSignalPayload` from MEG `bytes` + metadata |
+| `EegBandpassFilter` | Zero-phase Butterworth bandpass filter |
+| `EegNotchFilter` | Notch filter for power-line noise removal |
 | `ArtifactRemover` | ICA-based artifact rejection |
 | `EpochExtractor` | Segments continuous data into epochs around events |
 | `EvokedResponseAverager` | Averages epochs to produce evoked responses |
@@ -499,7 +498,7 @@ Digital pathology knots for whole-slide image analysis.
 
 | Knot | Description |
 |---|---|
-| `WsiObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `tuple[WSITilePayload, ...]` from `bytes` + metadata (replaces removed `WsiTileExtractor`) |
+| `WsiObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `tuple[WSITilePayload, ...]` from `bytes` + metadata |
 | `TissueSegmenter` | Identifies tissue regions and discards background tiles |
 | `CellDetector` | Nuclear/cell detection from H&E tiles |
 | `MitosisCounter` | Counts mitotic figures in a tile set |
@@ -553,7 +552,7 @@ Connection interfaces for healthcare system backends.
 
 ## Connector boundaries
 
-Domain payloads enter and leave the health domain through assembler/disassembler knots. The ingestor pattern is abolished.
+Domain payloads enter and leave the health domain through assembler/disassembler knots.
 
 **Assemblers** (raw → Payload, no I/O) — all in `pirn_health.assemblers`:
 
@@ -567,8 +566,8 @@ from pirn_health.assemblers.wsi_object_store_assembler import WsiObjectStoreAsse
 
 | Assembler | Input | Output |
 |-----------|-------|--------|
-| `EegObjectStoreAssembler` | `bytes` + metadata | `SignalPayload` |
-| `MegObjectStoreAssembler` | `bytes` + metadata | `SignalPayload` |
+| `EegObjectStoreAssembler` | `bytes` + metadata | `HealthSignalPayload` |
+| `MegObjectStoreAssembler` | `bytes` + metadata | `HealthSignalPayload` |
 | `DicomPacsAssembler` | `bytes` + `series_id` | `DICOMPayload` |
 | `WsiObjectStoreAssembler` | `bytes` + metadata | `tuple[WSITilePayload, ...]` |
 | `FhirPatientAssembler` | `list[dict]` + `salt` | `tuple[ClinicalRecord, ...]` |
@@ -577,8 +576,8 @@ from pirn_health.assemblers.wsi_object_store_assembler import WsiObjectStoreAsse
 
 | Disassembler | Input | Output |
 |--------------|-------|--------|
-| `EegObjectStoreDisassembler` | `SignalPayload` | `bytes` |
-| `MegObjectStoreDisassembler` | `SignalPayload` | `bytes` |
+| `EegObjectStoreDisassembler` | `HealthSignalPayload` | `bytes` |
+| `MegObjectStoreDisassembler` | `HealthSignalPayload` | `bytes` |
 | `DicomObjectStoreDisassembler` | `DICOMPayload` | `bytes` |
 | `WsiObjectStoreDisassembler` | `WSITilePayload` | `bytes` |
 

@@ -31,7 +31,7 @@ from typing import Any
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class GeoJsonFormat(StreamingFileFormat):
@@ -58,7 +58,7 @@ class GeoJsonFormat(StreamingFileFormat):
             features: list[Mapping[str, Any]] = []
         else:
             parsed: object = json.loads(payload.decode(self._encoding))
-            if not PayloadShape.is_str_dict(parsed):
+            if not ShapeGuard.is_str_keyed_dict(parsed):
                 raise ValueError(
                     f"GeoJsonFormat: expected JSON object at root, got {type(parsed).__name__}"
                 )
@@ -68,7 +68,7 @@ class GeoJsonFormat(StreamingFileFormat):
                     f"GeoJsonFormat: expected type='FeatureCollection', got {type_value!r}"
                 )
             raw_features = parsed.get("features", [])
-            if not PayloadShape.is_list(raw_features):
+            if not ShapeGuard.is_list(raw_features):
                 raise ValueError(
                     f"GeoJsonFormat: 'features' must be a list, got {type(raw_features).__name__}"
                 )
@@ -97,7 +97,7 @@ class GeoJsonFormat(StreamingFileFormat):
 
     @classmethod
     def _feature_to_record(cls, feature: object) -> Mapping[str, Any]:
-        if not PayloadShape.is_str_dict(feature):
+        if not ShapeGuard.is_str_keyed_dict(feature):
             raise ValueError(
                 f"GeoJsonFormat: each feature must be a JSON object, got {type(feature).__name__}"
             )
@@ -106,7 +106,7 @@ class GeoJsonFormat(StreamingFileFormat):
                 f"GeoJsonFormat: feature missing type='Feature', got {feature.get('type')!r}"
             )
         geometry = feature.get("geometry")
-        if geometry is not None and not PayloadShape.is_str_dict(geometry):
+        if geometry is not None and not ShapeGuard.is_str_keyed_dict(geometry):
             raise ValueError(
                 "GeoJsonFormat: geometry must be a JSON object or null, "
                 f"got {type(geometry).__name__}"
@@ -114,7 +114,7 @@ class GeoJsonFormat(StreamingFileFormat):
         properties_value = feature.get("properties")
         properties: dict[str, object] = {}
         if properties_value:
-            if not PayloadShape.is_str_dict(properties_value):
+            if not ShapeGuard.is_str_keyed_dict(properties_value):
                 raise ValueError(
                     "GeoJsonFormat: properties must be a JSON object, "
                     f"got {type(properties_value).__name__}"
@@ -134,14 +134,14 @@ class GeoJsonFormat(StreamingFileFormat):
         geometry: object = record["geometry"]
         geometry_dict: dict[object, object] | None = None
         if geometry is not None:
-            if not PayloadShape.is_mapping(geometry):
+            if not ShapeGuard.is_mapping(geometry):
                 raise TypeError(
                     "GeoJsonFormat: geometry must be a Mapping or None, "
                     f"got {type(geometry).__name__}"
                 )
             geometry_dict = dict(geometry)
         properties: object = record.get("properties") or {}
-        if not PayloadShape.is_mapping(properties):
+        if not ShapeGuard.is_mapping(properties):
             raise TypeError(
                 f"GeoJsonFormat: properties must be a Mapping, got {type(properties).__name__}"
             )

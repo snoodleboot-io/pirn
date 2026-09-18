@@ -148,12 +148,12 @@ Per-knot records do not depend on completion order. `RunResult.lineage`, `except
 
 ```python
 match knot.config.error_policy:
-    case REQUIRE_ALL_PARENTS:
-        if any parent is Err or Skipped → synthetic Err
-    case SKIP_IF_PARENT_FAILED:
-        if any parent is Err or Skipped → Skipped
-    case RECEIVE_ERRORS:
-        pass Result objects directly as inputs (no unwrapping)
+    case ErrorPolicy.REQUIRE_ALL_PARENTS:
+        ...  # any parent Err or Skipped -> synthetic Err
+    case ErrorPolicy.SKIP_IF_PARENT_FAILED:
+        ...  # any parent Err or Skipped -> Skipped
+    case ErrorPolicy.RECEIVE_ERRORS:
+        ...  # pass Result objects directly as inputs (no unwrapping)
 ```
 
 On a clean path (all parents `Ok`), the input dict is `{name: result.value for name, result in parent_results.items()}`.
@@ -163,7 +163,9 @@ On a clean path (all parents `Ok`), the input dict is `{name: result.value for n
 ```python
 parent_hashes = {name: ContentHasher.hash(value) for name, value in inputs.items()}
 started_at = datetime.now(UTC)
-result = await self._dispatcher.dispatch(knot, inputs)
+result, attempts = await self._governed.dispatch(
+    knot, inputs, gate=gate, ticket_holder=ticket_holder
+)
 return result, parent_hashes, started_at
 ```
 
@@ -174,7 +176,7 @@ The dispatcher calls `knot(inputs)` → `knot.__call__` → `knot.process(**kwar
 **Timeout and retry.** The engine dispatches through `GovernedDispatch` (`pirn/engine/governed_dispatch.py`), which applies two per-knot policies from `KnotConfig` around the dispatcher call — never inside `Knot.__call__`, so dispatchers stay a single `dispatch()` and a retried knot is simply called again:
 
 - `KnotConfig(timeout=seconds)` runs each attempt under `asyncio.wait_for`; on expiry the attempt is cancelled and the knot's result is `Err(KnotTimeoutError)`. The timeout bounds one attempt, not the retry budget, and a knot on a worker thread or remote worker is not stopped — the engine records the timeout and moves on.
-- `KnotConfig(retry=KnotRetryPolicy(...))` re-dispatches an attempt that ended in `Err` (a raised exception, a failed output validation, a timeout) with the same inputs, sleeping on the event loop between attempts: capped exponential backoff with full jitter, or a `retry_after` hint from the `ExceptionRecord` capped by `max_retry_after`. `is_retryable` decides on the record — the only thing every dispatcher hands back — and `max_attempts` counts the first attempt. `Skipped` is never retried; a real cancellation is never retried. The attempt count is recorded as `KnotLineage.extra["attempts"]`. The admission slot is held across backoff.
+- `KnotConfig(retry=KnotRetryPolicy(...))` re-dispatches an attempt that ended in `Err` (a raised exception, a failed output validation, a timeout) with the same inputs, sleeping on the event loop between attempts: capped exponential backoff with full jitter, or a `retry_after` hint from the `ExceptionRecord` capped by `max_retry_after`. `is_retryable` decides on the record — the only thing every dispatcher hands back — and `max_attempts` counts the first attempt. `Skipped` is never retried; a real cancellation is never retried. The attempt count is recorded as `KnotLineage.extra["attempts"]`. The knot's admission slot is released for the backoff sleep and re-admitted before the next attempt (PIR-870).
 
 Both fields are excluded from `model_dump`, like `concurrency_group`: they describe resilience, not computation, so no `knot_config_hash` changes and every existing recording still replays.
 

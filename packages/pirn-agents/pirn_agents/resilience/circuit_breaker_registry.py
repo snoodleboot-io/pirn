@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
+
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.resilience.circuit_breaker import CircuitBreaker
 from pirn_agents.resilience.circuit_breaker_config import CircuitBreakerConfig
 
 
-class CircuitBreakerRegistry:
+class CircuitBreakerRegistry(PirnOpaqueValue):
     """Scopes circuit-breaker state per endpoint/key.
 
     Each distinct endpoint key gets its own :class:`CircuitBreaker`, built lazily
@@ -17,6 +20,10 @@ class CircuitBreakerRegistry:
     Lookup-or-create is synchronous and does not ``await`` between the membership
     check and the insert, so under cooperative scheduling no two coroutines can
     race to build two breakers for the same key.
+
+    A :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`: it holds live
+    breaker state, so a knot declares it as a typed input and IO validation
+    checks only its type.
     """
 
     def __init__(
@@ -55,3 +62,6 @@ class CircuitBreakerRegistry:
     def endpoints(self) -> tuple[str, ...]:
         """The endpoint keys that currently have a live breaker."""
         return tuple(self._breakers)
+
+    def _pirn_audit_dict(self) -> dict[str, Any]:
+        return {"endpoints": sorted(self._breakers)}

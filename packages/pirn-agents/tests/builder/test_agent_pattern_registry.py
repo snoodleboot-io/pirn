@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.knot import Knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
+from sweet_tea.registry import Registry
 
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
+from pirn_agents.planning.plan import Plan
+from pirn_agents.specializations.plan_and_execute.plan_executor import PlanExecutor
 from pirn_agents.specializations.rag.naive_rag_pipeline import NaiveRAGPipeline
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.types.messaging.agent_message import AgentMessage
@@ -24,9 +29,12 @@ class TestPatternResolution(unittest.TestCase):
     def test_react_maps_to_react_loop(self) -> None:
         assert AgentPatternRegistry.pattern_class("react") is ReActLoop
 
-    def test_rag_aliases_map_to_naive_rag(self) -> None:
+    def test_naive_rag_is_reachable_only_under_its_own_name(self) -> None:
+        """PIR-873: the ``rag`` second spelling of ``naive_rag`` is deleted."""
         assert AgentPatternRegistry.pattern_class("naive_rag") is NaiveRAGPipeline
-        assert AgentPatternRegistry.pattern_class("rag") is NaiveRAGPipeline
+        assert "rag" not in AgentPatternRegistry.pattern_names()
+        with self.assertRaisesRegex(ValueError, "unknown pattern 'rag'"):
+            AgentPatternRegistry.pattern_class("rag")
 
     def test_unknown_pattern_raises(self) -> None:
         with self.assertRaisesRegex(ValueError, "unknown pattern"):
@@ -36,9 +44,14 @@ class TestPatternResolution(unittest.TestCase):
         names = AgentPatternRegistry.pattern_names()
         assert names == tuple(sorted(names))
 
-    def test_canonical_names_exclude_aliases(self) -> None:
-        assert "rag" not in AgentPatternRegistry.canonical_names()
-        assert "naive_rag" in AgentPatternRegistry.canonical_names()
+    def test_the_core_registry_does_not_resolve_rag_to_naive_rag(self) -> None:
+        """Core's YAML loader lookup no longer knows the deleted spelling either."""
+        matches = [
+            entry
+            for entry in Registry.entries()
+            if entry.key == "rag" and entry.class_def is NaiveRAGPipeline
+        ]
+        assert matches == []
 
     def test_a_descriptor_names_its_class_without_resolving(self) -> None:
         """The row's ``class_name`` is a plain field -- no registry lookup needed."""
@@ -192,6 +205,27 @@ class TestBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         assert run.outputs[knot.knot_id].data == "answer"
         assert memory.search_queries == ["the query"]
+
+    async def test_plan_execute_builds_and_runs_by_name(self) -> None:
+        """PIR-873: ``PlanExecutor`` ships as a pattern, so it is reachable by name."""
+        # Arrange
+        llm = StubLLMProvider(["first result", "second result"])
+        with Tapestry() as t:
+            knot = AgentPatternRegistry.build(
+                "plan_execute",
+                knot_id="agent.plan_execute.test",
+                input_value=Plan(steps=("gather facts", "write summary")),
+                components={"llm": llm},
+            )
+
+        # Act
+        run = await t.run(RunRequest())
+
+        # Assert
+        assert run.succeeded, run.exceptions
+        assert run.outputs[knot.knot_id].data == "Step 1: first result\nStep 2: second result"
+        assert "plan_execute" in AgentPatternRegistry.pattern_names()
+        assert AbstractInverterFactory[Knot].create("plan_execute") is PlanExecutor
 
     async def test_a_pattern_outside_the_original_three_builds_and_runs(self) -> None:
         """The point of PIR-730: `hyde_rag` was reachable only by hand-wiring."""

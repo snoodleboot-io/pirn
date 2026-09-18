@@ -14,13 +14,13 @@ An emitter is an async observer. The engine calls its four hooks — `on_status`
 
 ```
 pirn/emitters/
-├── base.py                  Emitter              — base class; override the hooks you need
-│                            EmitterErrorPolicy   — enum: IGNORE, LOG, RAISE (default IGNORE)
-├── log.py                   LogEmitter           — stdlib logging; JSON-style extras; optional payload
-├── otel.py                  OpenTelemetryEmitter — OTel trace spans per knot lineage record
-├── kafka.py                 KafkaEmitter         — publish status/lineage events to a Kafka topic
-├── webhook.py               WebhookEmitter       — POST run events to an HTTP endpoint
-└── valkey.py                ValKeyEmitter        — publish events to a Valkey/Redis pub-sub channel
+├── emitter.py                 Emitter              — base class; override the hooks you need
+├── emitter_error_policy.py    EmitterErrorPolicy   — enum: WARN, IGNORE, RAISE (default WARN)
+├── log_emitter.py             LogEmitter           — stdlib logging; JSON-style extras; optional payload
+├── open_telemetry_emitter.py  OpenTelemetryEmitter — OTel trace spans per knot lineage record
+├── kafka_emitter.py           KafkaEmitter         — publish status/lineage events to a Kafka topic
+├── webhook_emitter.py         WebhookEmitter       — POST run events to an HTTP endpoint
+└── valkey_emitter.py          ValKeyEmitter        — publish events to a Valkey pub-sub channel
 ```
 
 ---
@@ -59,8 +59,9 @@ from pirn.core.knot_lineage import KnotLineage
 
 class MetricsEmitter(Emitter):
     async def on_lineage(self, record: KnotLineage) -> None:
+        elapsed_ms = (record.finished_at - record.started_at).total_seconds() * 1000
         MY_METRICS.histogram("pirn.knot.duration_ms").observe(
-            record.duration_ms, tags={"knot": record.knot_id, "outcome": record.outcome}
+            elapsed_ms, tags={"knot": record.knot_id, "outcome": record.outcome}
         )
 ```
 
@@ -85,9 +86,9 @@ All hooks are `async` but they run on the same event loop as the pipeline. A hoo
 ## Constraints and gotchas
 
 - **`LogEmitter(with_payload=True)` is verbose.** It includes the full serialised `RunResult` or `KnotLineage` in each log record. Use only for debugging.
-- **`OpenTelemetryEmitter` produces flat spans, not nested.** Each lineage record becomes an independent span linked by `pirn.run_id`. Nested span hierarchies require a custom sampler in your OTel provider.
+- **`OpenTelemetryEmitter` produces flat spans, not nested.** Each lineage record becomes an independent span linked by the `"pirn.run_id"` attribute. Nested span hierarchies require a custom sampler in your OTel provider.
 - **`KafkaEmitter` and `ValKeyEmitter` require the respective extras.** Install `pip install "pirn-core[kafka]"` (aiokafka) or `pip install "pirn-core[valkey]"` (valkey-glide) before using them.
-- **`WebhookEmitter` fires on `on_run_result` only by default.** Check the constructor for `events` parameter to control which hook types POST to the endpoint.
+- **`WebhookEmitter` posts only the hooks you give a URL.** `url_status`, `url_lineage` and `url_result` each enable one delivery; a `None` URL disables it.
 - **`EmitterErrorPolicy.RAISE` breaks runs on emitter failure.** Only use it in tests where you want to assert emitter correctness.
 
 ---
@@ -100,8 +101,8 @@ All hooks are `async` but they run on the same event loop as the pipeline. A hoo
 | Verbose debug logging | `Tapestry(emitters=[LogEmitter(with_payload=True)])` |
 | OTel tracing | `Tapestry(emitters=[OpenTelemetryEmitter(tracer=my_tracer)])` |
 | Publish to Kafka | `Tapestry(emitters=[KafkaEmitter(topic=..., producer=...)])` |
-| POST to webhook | `Tapestry(emitters=[WebhookEmitter(url=...)])` |
-| Publish to Valkey | `Tapestry(emitters=[ValKeyEmitter(channel=..., client=...)])` |
+| POST to webhook | `Tapestry(emitters=[WebhookEmitter(url_result=...)])` |
+| Publish to Valkey | `Tapestry(emitters=[ValKeyEmitter(client=..., channel_lineage=...)])` |
 | Custom emitter | subclass `Emitter`; override `on_status`, `on_knot_result`, `on_lineage`, or `on_run_result` |
 | Compose emitters | `Tapestry(emitters=[emitter_a, emitter_b, ...])` |
 

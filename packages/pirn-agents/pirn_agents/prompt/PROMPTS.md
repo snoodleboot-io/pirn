@@ -155,7 +155,7 @@ class ReflectionCheck(Knot):
     #: over any registered/loaded template.
     reflection_prompt: ClassVar[str] = _reflection_prompt.default
 
-    async def process(self, ...):
+    async def process(self, **_: Any) -> Any:
         wire_messages = (
             {
                 "role": "system",

@@ -185,17 +185,17 @@ result = await t.run(RunRequest())
 **Do this:**
 
 ```python
-async def process(self, name: str, ...) -> Knot:
-    agg = Aggregator(...)
-    return DatasetAssembler(batch=agg, name=name, ...)   # Assembler is the sink
+async def process(self, name: str, **kwargs) -> Knot:
+    agg = Aggregator(**kwargs)
+    return DatasetAssembler(batch=agg, name=name, **kwargs)   # Assembler is the sink
 ```
 
 **Not this:**
 
 ```python
 # Wrong — process() must return a Knot, not a value
-async def process(self, name: str, ...) -> DatasetPayload:
-    agg = Aggregator(...)
+async def process(self, name: str, **kwargs) -> DatasetPayload:
+    agg = Aggregator(**kwargs)
     result = await self._run_inner(...)                   # do not call _run_inner
     return self._to_payload(result.outputs["agg"], name)  # do not post-process here
 ```
@@ -276,8 +276,8 @@ The outer **transport** is inherited too, so a pipeline configured with `Tapestr
 
 ```python
 # Wrong
-async def process(self, ...) -> Knot:
-    agg = Aggregator(...)
+async def process(self, **kwargs) -> Knot:
+    agg = Aggregator(**kwargs)
     return agg.some_value    # AttributeError or wrong type
 ```
 
@@ -290,7 +290,7 @@ async def process(self, ...) -> Knot:
 sink_knot = SomeKnot(_config=KnotConfig(id="sink"))
 
 class MySubTapestry(SubTapestry):
-    async def process(self, ...) -> Knot:
+    async def process(self, **kwargs) -> Knot:
         return sink_knot    # raises ValueError: not registered in inner tapestry
 ```
 
@@ -300,7 +300,7 @@ All knots that will be part of the inner graph must be constructed inside `proce
 
 ```python
 # Wrong
-async def process(self, ...) -> Knot:
+async def process(self, **kwargs) -> Knot:
     with Tapestry() as inner:    # do not open your own context
         sink = SomeKnot(...)
     result = await self._run_inner(inner)   # do not call this

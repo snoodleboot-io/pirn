@@ -254,6 +254,13 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ### Removed
 
+#### pirn-agents specializations: second names and stale seams (PIR-873)
+
+| Removed name | Replacement |
+|---|---|
+| builder pattern name `rag` (a second spelling of `naive_rag`), `AgentPatternRegistry._aliases` | `.pattern("naive_rag")` / `callable: naive_rag` |
+| `AgentPatternRegistry.canonical_names()` (existed only to exclude the alias) | `AgentPatternRegistry.pattern_names()` |
+
 #### Per-package optional-import helpers, the `map_markers` module and `_Loader` (PIR-872)
 
 Every optional backend is imported through `pirn.core.optional_dependency.OptionalDependency.require(module, extra=..., package="pirn-<pkg>")`; the install hint still names the package's own extra.

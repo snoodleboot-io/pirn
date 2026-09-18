@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.map import Map
 from pirn.core.map_type_error import MapTypeError
 from pirn.core.zip_map import ZipMap
+from pirn.exceptions.pirn_error import PirnError
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
@@ -42,6 +43,11 @@ class TestMapConstruction(unittest.TestCase):
 class TestMapTypeError(unittest.TestCase):
     def test_map_type_error_is_type_error(self) -> None:
         self.assertTrue(issubclass(MapTypeError, TypeError))
+
+    def test_map_type_error_is_caught_by_pirn_error_handler(self) -> None:
+        # A framework failure is catchable as ``PirnError`` like every other one.
+        with self.assertRaises(PirnError):
+            raise MapTypeError("bad type")
 
     def test_map_type_error_instantiates(self) -> None:
         err = MapTypeError("bad type")

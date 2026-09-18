@@ -29,16 +29,23 @@ class ChainedAdmission(Admission):
     further up the tree) before admitting, and releasing both together.
 
     Algorithm:
+        ``check_group(knot)``: the own gate's check, then the parent's (which
+        for a parent chain recurses up the whole tree).  A knot is admissible
+        only if every level of the tree defines its group or defines no
+        groups at all.
+
         ``try_admit(knot)``:
 
-        1. Ask the own gate for a ticket.  Refused -> refuse; nothing was
+        1. ``check_group(knot)`` -- a group some level cannot admit raises
+           ``UndefinedConcurrencyGroupError`` before any ticket is taken.
+        2. Ask the own gate for a ticket.  Refused -> refuse; nothing was
            taken from the parent.
-        2. Ask the parent gate for a ticket for the same knot.  Refused ->
-           give the own ticket back and refuse.  Admission is all-or-nothing
-           across both budgets, the same all-or-nothing shape
-           ``LimitedAdmission`` already uses across its own global and
-           group budgets.
-        3. Both admitted -> wrap them in one combined ticket, remember the
+        3. Ask the parent gate for a ticket for the same knot.  Refused ->
+           give the own ticket back and refuse.  Raised -> give the own
+           ticket back and re-raise.  Admission is all-or-nothing across both
+           budgets, the same all-or-nothing shape ``LimitedAdmission``
+           already uses across its own global and group budgets.
+        4. Both admitted -> wrap them in one combined ticket, remember the
            pair by the combined ticket's identity, and return it.
 
         ``release(ticket)``: look up the pair the combined ticket stands
@@ -49,18 +56,16 @@ class ChainedAdmission(Admission):
         ``wait_for_release()``: wait for a release from either gate,
         whichever comes first.
 
-    Group semantics (``AdmissionTicket.group``) are the *own* gate's alone.
-    The parent gate is asked to admit the very same ``Knot``, so if the
-    enclosing run's limits define groups of their own and this knot's
-    ``concurrency_group`` happens to collide with one of them, the parent
-    applies its own group accounting too -- a knot can be validated against
-    the *own* limits at run start (``Engine._check_groups``) yet still be
-    refused, or raise ``UndefinedConcurrencyGroupError``, from the parent's
-    side of this chain.  That cross-level group validation is not solved
-    here; this class fixes the ``max_in_flight`` / global-budget defect
-    (PIR-870) that motivated it.  The combined ticket surfaces the *own*
-    gate's group because that is what this run's own ``ReadyQueue.unpark``
-    and ``AdmissionFeedback`` key their bookkeeping on.
+    Groups apply at every level.  The parent gate is asked to admit the very
+    same ``Knot``, so when the enclosing run's limits define groups the
+    knot's ``concurrency_group`` is accounted against them too.  The engine
+    runs ``check_group`` over this run's static graph at run start, so a
+    group the enclosing run does not define fails the inner run before any
+    knot starts, exactly as a group its own limits do not define; a knot
+    registered mid-run is refused by step 1 of ``try_admit`` before any slot
+    is taken.  The combined ticket surfaces the *own* gate's group because
+    that is what this run's own ``ReadyQueue.unpark`` and
+    ``AdmissionFeedback`` key their bookkeeping on.
 
     Threading: delegates every counter to the wrapped gates, which are
     already safe to call from several loops/threads at once
@@ -86,6 +91,19 @@ class ChainedAdmission(Admission):
         """Whether both the own and the parent budget could admit a knot."""
         return self._own.has_capacity() and self._parent.has_capacity()
 
+    def check_group(self, knot: Knot) -> None:
+        """Refuse a knot whose group the own gate or any enclosing gate cannot admit.
+
+        Args:
+            knot: A knot this gate may be asked to admit.
+
+        Raises:
+            UndefinedConcurrencyGroupError: From the first level, own first,
+                whose limits define groups that do not include *knot*'s.
+        """
+        self._own.check_group(knot)
+        self._parent.check_group(knot)
+
     def try_admit(self, knot: Knot) -> AdmissionTicket | None:
         """Admit *knot* only if both the own and the parent gate admit it.
 
@@ -96,11 +114,20 @@ class ChainedAdmission(Admission):
             A combined ticket, or ``None`` if either gate refused -- in
             which case whichever gate did admit has already had its ticket
             given back, so this chain holds nothing while the knot waits.
+
+        Raises:
+            UndefinedConcurrencyGroupError: If some level cannot admit
+                *knot*'s group; raised before any ticket is taken.
         """
+        self.check_group(knot)
         own_ticket = self._own.try_admit(knot)
         if own_ticket is None:
             return None
-        parent_ticket = self._parent.try_admit(knot)
+        try:
+            parent_ticket = self._parent.try_admit(knot)
+        except BaseException:
+            self._own.release(own_ticket)
+            raise
         if parent_ticket is None:
             self._own.release(own_ticket)
             return None

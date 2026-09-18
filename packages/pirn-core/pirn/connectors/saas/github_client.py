@@ -26,6 +26,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.github_config import GitHubConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class GitHubClient(ApiClient, TableSource):
@@ -137,9 +138,9 @@ class GitHubClient(ApiClient, TableSource):
         # PyGithub's ``requestJsonAndCheck`` returns ``(headers, body)``;
         # raw HTTP returns ``body`` directly. Handle both shapes.
         body = response
-        if PayloadShape.is_tuple(response) and len(response) == 2:
+        if ShapeGuard.is_tuple(response) and len(response) == 2:
             body = response[1]
-        if PayloadShape.is_list(body):
+        if ShapeGuard.is_list(body):
             return PayloadShape.rows(body, source="GitHubClient")
         return []
 

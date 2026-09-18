@@ -20,8 +20,8 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class BcfFormat(BatchFileFormat):
@@ -134,7 +134,7 @@ class BcfFormat(BatchFileFormat):
         info_keys: list[str] = []
         for record in records:
             info: object = record.get("info", {})
-            if PayloadShape.is_mapping(info):
+            if ShapeGuard.is_mapping(info):
                 for key in info.keys():
                     if isinstance(key, str) and key not in info_keys:
                         info_keys.append(key)
@@ -156,7 +156,7 @@ class BcfFormat(BatchFileFormat):
             qual = float(variant.qual)
         info: dict[str, Any] = {}
         for key, value in variant.info.items():
-            if PayloadShape.is_tuple(value):
+            if ShapeGuard.is_tuple(value):
                 info[key] = ",".join(str(item) for item in value)
             elif value is None:
                 continue
@@ -217,7 +217,7 @@ class BcfFormat(BatchFileFormat):
                 if token:
                     new_record.filter.add(token)
         info: object = record.get("info") or {}
-        if not PayloadShape.is_mapping(info):
+        if not ShapeGuard.is_mapping(info):
             raise TypeError("BcfFormat: 'info' must be a mapping")
         for key, value in info.items():
             if value is None or value is False:

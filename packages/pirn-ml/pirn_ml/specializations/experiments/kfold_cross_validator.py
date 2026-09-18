@@ -7,8 +7,9 @@ the mean and standard deviation across all folds.
 Algorithm:
     1. Receive ``dataset`` (DatasetManifest), ``algorithm``, ``metrics``, and ``k`` via process().
     2. Validate all inputs.
-    3. Extract k logical folds via
-       :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds_via_cross_validator`.
+    3. Partition the rows into k shuffled folds with
+       :class:`~pirn_ml.data_prep.cross_validator.CrossValidator` and index them
+       via :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds`.
     4. Wire Trainer + Evaluator per fold (shared wiring in
        :class:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase`).
     5. Aggregate per-fold metrics (mean ± std) and return an EvalMetadata.
@@ -34,6 +35,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
+from pirn_ml.data_prep.cross_validator import CrossValidator
 from pirn_ml.specializations.experiments.kfold_validator_base import (
     KFoldValidatorBase,
 )
@@ -41,11 +43,13 @@ from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 @KnotFactory.knot
 async def _aggregate_kfold_reports(
     reports: list[EvalReportPayload],
+    folds: tuple[SplitManifest, ...],
     algorithm: str,
     dataset_name: str,
     k: int,
@@ -74,7 +78,12 @@ async def _aggregate_kfold_reports(
         data=EvalMetrics(
             scores=MappingProxyType(aggregated),
             details=MappingProxyType(
-                {"k": k, "algorithm": algorithm, "per_fold_metrics": per_fold}
+                {
+                    "k": k,
+                    "algorithm": algorithm,
+                    "per_fold_metrics": per_fold,
+                    "fold_test_row_indices": [list(fold.test.row_indices) for fold in folds],
+                }
             ),
         ),
     )
@@ -143,7 +152,8 @@ class KFoldCrossValidator(KFoldValidatorBase):
         dataset_node = Parameter(
             "dataset", DatasetManifest, default=dataset, _config=KnotConfig(id="dataset")
         )
-        fold_nodes = self._extract_folds_via_cross_validator(dataset_node, k)
+        folds_node = CrossValidator(dataset=dataset_node, k=k, _config=KnotConfig(id="folds"))
+        fold_nodes = self._extract_folds(folds_node, k)
         eval_nodes = self._wire_folds(fold_nodes, algorithm, metric_tuple)
         algorithm_node = Parameter(
             "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
@@ -155,6 +165,7 @@ class KFoldCrossValidator(KFoldValidatorBase):
         collected = self._collect(eval_nodes, collect_id="collect")
         return _aggregate_kfold_reports(
             reports=collected,
+            folds=folds_node,
             algorithm=algorithm_node,
             dataset_name=dataset_name_node,
             k=k_node,

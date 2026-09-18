@@ -75,3 +75,31 @@ class TestCrossValidatorProcess(unittest.IsolatedAsyncioTestCase):
         k_knot = self._make_knot()
         with self.assertRaises((TypeError, ValueError)):
             await k_knot.process(dataset=_make_dataset(row_count=1), k=5)
+
+
+class TestCrossValidatorRowPartition(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> CrossValidator:
+        with Tapestry():
+            k = CrossValidator.__new__(CrossValidator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
+
+    async def test_folds_partition_rows_and_train_is_the_complement(self) -> None:
+        folds = await self._make_knot().process(dataset=_make_dataset(row_count=23), k=4)
+        test_rows = sorted(row for fold in folds for row in fold.test.row_indices)
+        assert test_rows == list(range(23))
+        assert sorted(fold.test.row_count for fold in folds) == [5, 6, 6, 6]
+        for fold in folds:
+            assert set(fold.train.row_indices) == set(range(23)) - set(fold.test.row_indices)
+            assert fold.train.row_count == len(fold.train.row_indices)
+
+    async def test_random_seed_drives_a_reproducible_shuffle(self) -> None:
+        knot = self._make_knot()
+        first = await knot.process(dataset=_make_dataset(), k=5, random_seed=1)
+        again = await knot.process(dataset=_make_dataset(), k=5, random_seed=1)
+        other = await knot.process(dataset=_make_dataset(), k=5, random_seed=2)
+        rows = [fold.test.row_indices for fold in first]
+        assert rows == [fold.test.row_indices for fold in again]
+        assert rows != [fold.test.row_indices for fold in other]
+        # Shuffled, not contiguous blocks of the source order.
+        assert rows[0] != tuple(range(20))

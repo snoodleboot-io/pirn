@@ -27,8 +27,8 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class CdaXmlFormat(BatchFileFormat):
@@ -101,7 +101,7 @@ class CdaXmlFormat(BatchFileFormat):
             body_el, f"{{{CdaXmlFormat._cda_ns}}}structuredBody"
         )
         body: object = record.get("body") or {}
-        if not PayloadShape.is_mapping(body):
+        if not ShapeGuard.is_mapping(body):
             raise TypeError("CdaXmlFormat: 'body' must be a mapping of section code to text")
         for code, text in body.items():
             comp_el = lxml_etree.SubElement(structured_body, f"{{{CdaXmlFormat._cda_ns}}}component")

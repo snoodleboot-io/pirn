@@ -7,12 +7,15 @@ with :class:`pirn.connectors.database_connection_pool.DatabaseConnectionPool`.
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_transaction import SqliteTransaction
 from pirn.core.optional_dependency import OptionalDependency
 
 
@@ -49,6 +52,15 @@ class SqlitePool(DatabaseConnectionPool):
     opened themselves. A caller driving this pool directly can therefore hold a
     multi-statement transaction across these calls and remains the only one who
     may end it.
+
+    **Atomic units of work.** :meth:`transaction` issues ``BEGIN`` on the shared
+    connection and yields a :class:`SqliteTransaction` whose statements all run
+    inside it. Because there is only one connection, a statement issued through
+    the pool by anyone else while the scope is open would silently join — and
+    be committed or rolled back with — that transaction. So every statement
+    method here waits for an open transaction scope to end first, and one issued
+    on the pool from inside its own scope (instead of on the handle) raises
+    rather than deadlocking.
     """
 
     def __init__(self, config: SqliteConfig) -> None:
@@ -56,6 +68,8 @@ class SqlitePool(DatabaseConnectionPool):
         self._connection: Any = None
         self._closed = False
         self._logger = logging.getLogger(self.__class__.__module__)
+        self._transaction_lock = asyncio.Lock()
+        self._transaction_task: asyncio.Task[Any] | None = None
 
     @property
     def config(self) -> SqliteConfig:
@@ -90,6 +104,11 @@ class SqlitePool(DatabaseConnectionPool):
         docstring for why that is not an unconditional commit.
         """
         self.reject_inline_interpolation(query)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            return await self._execute_unlocked(query, parameters)
+
+    async def _execute_unlocked(self, query: str, parameters: Iterable[Any] | None) -> Any:
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:
@@ -113,6 +132,13 @@ class SqlitePool(DatabaseConnectionPool):
         docstring for why that is not an unconditional commit.
         """
         self.reject_inline_interpolation(query)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            return await self._execute_many_unlocked(query, parameter_seq)
+
+    async def _execute_many_unlocked(
+        self, query: str, parameter_seq: Iterable[Iterable[Any]]
+    ) -> Any:
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:
@@ -137,6 +163,13 @@ class SqlitePool(DatabaseConnectionPool):
         connection — see the class docstring.
         """
         self.reject_inline_interpolation(query)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            return await self._fetch_all_unlocked(query, parameters)
+
+    async def _fetch_all_unlocked(
+        self, query: str, parameters: Iterable[Any] | None
+    ) -> list[tuple[Any, ...]]:
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:
@@ -152,6 +185,53 @@ class SqlitePool(DatabaseConnectionPool):
         if self._opened_transaction(connection, in_transaction_on_entry):
             await connection.commit()
         return [tuple(r) for r in rows]
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's statements as one SQLite transaction.
+
+        Waits for any other open scope on this pool, issues ``BEGIN`` and yields
+        a :class:`SqliteTransaction` on the shared connection. A clean exit
+        commits; an exception rolls back and propagates.
+
+        Raises:
+            RuntimeError: If a transaction is already open on the connection —
+                one a caller began by hand is theirs to end, not this scope's.
+        """
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            connection = await self.acquire()
+            if connection.in_transaction:
+                raise RuntimeError(
+                    "SqlitePool: a transaction is already open on the connection; "
+                    "end it before opening a transaction scope"
+                )
+            self._transaction_task = asyncio.current_task()
+            handle = SqliteTransaction(connection, self)
+            try:
+                await connection.execute("BEGIN")
+                try:
+                    yield handle
+                except BaseException:
+                    await connection.rollback()
+                    raise
+                await connection.commit()
+            finally:
+                handle.finish()
+                self._transaction_task = None
+
+    def _reject_statement_inside_own_transaction(self) -> None:
+        """Raise when the task holding this pool's transaction scope uses the pool directly.
+
+        Waiting for the lock there would deadlock: the scope cannot end until
+        the statement returns. The statement belongs on the yielded handle.
+        """
+        task = self._transaction_task
+        if task is not None and task is asyncio.current_task():
+            raise RuntimeError(
+                "SqlitePool: statement issued on the pool inside its own "
+                "transaction scope; use the handle `async with pool.transaction()` yielded"
+            )
 
     @staticmethod
     def _opened_transaction(connection: Any, in_transaction_on_entry: bool) -> bool:

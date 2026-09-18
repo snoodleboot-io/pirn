@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -98,7 +99,12 @@ class GCSStore(ObjectStore):
     async def delete(self, key: str) -> None:
         self._validate_key(key)
         client = await self._ensure_client()
-        await client.delete(bucket=self._config.bucket, object_name=key)
+        try:
+            await client.delete(bucket=self._config.bucket, object_name=key)
+        except Exception as exc:
+            if not self.is_not_found(exc):
+                raise
+            # delete() is idempotent: the object is already gone.
         self._logger.debug("gcs.delete", extra={"bucket": self._config.bucket, "key": key})
 
     async def exists(self, key: str) -> bool:
@@ -114,8 +120,22 @@ class GCSStore(ObjectStore):
         return True
 
     def is_not_found(self, exc: BaseException) -> bool:
-        text = str(exc)
-        return "404" in text or "Not Found" in text
+        """``True`` only for an ``aiohttp.ClientResponseError`` whose HTTP status is 404.
+
+        gcloud-aio-storage raises aiohttp's typed response error; message text
+        is never inspected (an object name or hash containing ``404`` is not a
+        missing object). aiohttp is looked up rather than imported — an
+        exception of its type cannot exist unless it is already loaded.
+        """
+        aiohttp_module = sys.modules.get("aiohttp")
+        if aiohttp_module is None:
+            return False
+        response_error_type: type[BaseException] = aiohttp_module.ClientResponseError
+        if not isinstance(exc, response_error_type):
+            return False
+        # ClientResponseError.status is the HTTP status code (aiohttp is untyped here).
+        status: object = getattr(exc, "status", None)
+        return status == 404
 
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         client = await self._ensure_client()

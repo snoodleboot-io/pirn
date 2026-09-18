@@ -17,11 +17,10 @@ Well log processing is a depth-indexed transform chain: raw curves arrive with b
 ├── las_curve_validator.py               LasCurveValidator               — validates curve mnemonics, units, and null-value conventions
 ├── lithology_classifier.py              LithologyClassifier             — classifies lithology from crossplot or neural-net model
 ├── log_normalization_knot.py            LogNormalizationKnot            — normalizes logs across wells using histogram or key-well method
-├── petrophysical_interpreter.py         PetrophysicalInterpreter        — computes Vsh, porosity, Sw, and net-pay flags
+├── petrophysical_evaluator.py           PetrophysicalEvaluator          — computes Vsh, porosity, Sw, and net-pay flags
 ├── synthetic_seismogram_generator.py    SyntheticSeismogramGenerator    — generates synthetic seismograms for well-to-seismic tie
 ├── well_correlation_builder.py          WellCorrelationBuilder          — builds cross-section correlations between multiple wells
 ├── well_placement_optimizer.py          WellPlacementOptimizer          — optimizes landing zone and lateral placement for reservoir contact
-├── well_qc_gate.py                      WellQcGate                      — checks log completeness, depth range, and curve nulls before downstream steps
 ├── well_tie_processor.py                WellTieProcessor                — calibrates synthetic seismogram phase and time shift to seismic
 ├── zone_statistics_extractor.py         ZoneStatisticsExtractor         — computes per-zone averages for porosity, Sw, and net pay
 ```
@@ -33,13 +32,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_oilgas.well import (
-    LasCurveValidator,
-    DepthShiftCorrector,
+from pirn_oilgas.well.las_curve_validator import LasCurveValidator
+from pirn_oilgas.well.depth_shift_corrector import DepthShiftCorrector
+from pirn_oilgas.well.environmental_correction_applicator import (
     EnvironmentalCorrectionApplicator,
-    PetrophysicalInterpreter,
-    WellQcGate,
 )
+from pirn_oilgas.well.petrophysical_evaluator import PetrophysicalEvaluator
 
 with Tapestry() as t:
     las_curves = Parameter("las_curves", object)  # curve dict from LasFormat
@@ -49,13 +47,8 @@ with Tapestry() as t:
         _config=KnotConfig(id="curve_validate"),
     )
 
-    qc_passed = WellQcGate(
-        curves=validated,
-        _config=KnotConfig(id="well_qc"),
-    )
-
     shifted = DepthShiftCorrector(
-        curves=qc_passed,
+        curves=validated,
         _config=KnotConfig(id="depth_shift", params={"reference_curve": "GR"}),
     )
 
@@ -64,9 +57,9 @@ with Tapestry() as t:
         _config=KnotConfig(id="env_correct", params={"borehole_diameter_curve": "CALI"}),
     )
 
-    petro = PetrophysicalInterpreter(
-        curves=corrected,
-        _config=KnotConfig(id="petro", params={"vsh_method": "larionov", "porosity_method": "density"}),
+    petro = PetrophysicalEvaluator(
+        payload=corrected,
+        _config=KnotConfig(id="petro"),
     )
 
 result = await t.run(RunRequest(parameters={"las_curves": curve_dict}))
@@ -74,17 +67,14 @@ result = await t.run(RunRequest(parameters={"las_curves": curve_dict}))
 
 ## Anti-patterns
 
-**Running PetrophysicalInterpreter before EnvironmentalCorrectionApplicator** — uncorrected resistivity and density curves carry borehole effects that inflate or suppress Sw and porosity estimates without warning.
+**Running PetrophysicalEvaluator before EnvironmentalCorrectionApplicator** — uncorrected resistivity and density curves carry borehole effects that inflate or suppress Sw and porosity estimates without warning.
 
 **Skipping DeviationSurveyProcessor for horizontal wells** — petrophysical interpretation along measured depth in a deviated well introduces significant TVD errors; always convert to TVD before zone assignments.
 
-**Using LasCurveValidator as a gate for completeness** — the validator checks mnemonics and units but does not assert curve coverage; use WellQcGate for coverage and null-value checks.
-
 ## Constraints and gotchas
 
-- `WellQcGate` raises `KnotCheckError` when required curves (configurable) are absent or exceed the null threshold.
 - `DepthShiftCorrector` shifts all curves by the same scalar offset derived from the reference curve; multi-run depth mismatches exceeding the `max_shift_m` parameter are rejected.
-- `PetrophysicalInterpreter` requires a valid `vsh_method` and at least one porosity curve; missing inputs raise `MissingCurveError` at knot initialisation.
+- `PetrophysicalEvaluator` requires a `GR` curve and either `RHOB` or a `PHI_*` curve on its input `LASPayload`; missing inputs raise `ValueError` from `_compute_curves`.
 - `SyntheticSeismogramGenerator` depends on `DeviationSurveyProcessor` output when the well is deviated; passing MD-indexed sonic without TVD conversion produces time-depth mismatches.
 - Install extra: `pip install pirn[well-log]`
 
@@ -93,10 +83,9 @@ result = await t.run(RunRequest(parameters={"las_curves": curve_dict}))
 | Task | How |
 |------|-----|
 | Validate curve mnemonics and units | `LasCurveValidator(curves=param)` |
-| Check log completeness before processing | `WellQcGate(curves=validated)` |
-| Correct depth offsets between runs | `DepthShiftCorrector(curves=qc_passed)` |
+| Correct depth offsets between runs | `DepthShiftCorrector(curves=validated)` |
 | Apply borehole environmental corrections | `EnvironmentalCorrectionApplicator(curves=shifted)` |
-| Compute Vsh, porosity, and Sw | `PetrophysicalInterpreter(curves=corrected)` |
+| Compute Vsh, porosity, and Sw | `PetrophysicalEvaluator(payload=corrected)` |
 | Pick formation tops from log signatures | `FormationTopPicker(curves=petro)` |
 | Compute TVD and x-y trajectory | `DeviationSurveyProcessor(survey=survey_param)` |
 | Depth-match core samples to logs | `CoreToLogDepthMatcher(core=core_param, logs=log_param)` |

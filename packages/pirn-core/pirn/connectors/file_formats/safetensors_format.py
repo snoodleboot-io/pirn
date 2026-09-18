@@ -28,8 +28,8 @@ from typing import TYPE_CHECKING, Any, SupportsIndex
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
@@ -94,12 +94,12 @@ class SafetensorsFormat(BatchFileFormat):
         if "tensors" not in record:
             raise ValueError("SafetensorsFormat: record missing required 'tensors' key")
         tensors_in: object = record["tensors"]
-        if not PayloadShape.is_mapping(tensors_in):
+        if not ShapeGuard.is_mapping(tensors_in):
             raise TypeError(
                 f"SafetensorsFormat: 'tensors' must be a mapping, got {type(tensors_in).__name__}"
             )
         metadata_in: object = record.get("metadata") or {}
-        if not PayloadShape.is_mapping(metadata_in):
+        if not ShapeGuard.is_mapping(metadata_in):
             raise TypeError(
                 f"SafetensorsFormat: 'metadata' must be a mapping, got {type(metadata_in).__name__}"
             )
@@ -133,7 +133,7 @@ class SafetensorsFormat(BatchFileFormat):
 
         if hasattr(spec, "shape") and hasattr(spec, "dtype"):
             return np.ascontiguousarray(spec)
-        if PayloadShape.is_mapping(spec):
+        if ShapeGuard.is_mapping(spec):
             if "data" not in spec:
                 raise ValueError(
                     "SafetensorsFormat: tensor spec requires 'data' "
@@ -145,7 +145,7 @@ class SafetensorsFormat(BatchFileFormat):
                 raise ValueError(
                     "SafetensorsFormat: tensor spec requires 'shape' and 'dtype' fields"
                 )
-            if not PayloadShape.is_sequence(shape):
+            if not ShapeGuard.is_list_or_tuple(shape):
                 raise TypeError(
                     "SafetensorsFormat: tensor spec 'shape' must be a list or tuple, "
                     f"got {type(shape).__name__}"
@@ -181,9 +181,9 @@ class SafetensorsFormat(BatchFileFormat):
             header: object = json.loads(header_text)
         except (UnicodeDecodeError, ValueError):
             return {}
-        if not PayloadShape.is_dict(header):
+        if not ShapeGuard.is_dict(header):
             return {}
         meta = header.get("__metadata__")
-        if not PayloadShape.is_dict(meta):
+        if not ShapeGuard.is_dict(meta):
             return {}
         return {str(key): str(value) for key, value in meta.items()}

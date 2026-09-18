@@ -1,29 +1,18 @@
 """``StratifiedKFoldValidator`` — K-fold cross-validation with target
 stratification.
 
-Composition:
-
-1. k logical :class:`SplitManifest` folds are extracted via
-   :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds_via_cross_validator`
-   from the upstream :class:`DatasetManifest`.
-2. For each fold, :class:`Trainer` fits the configured algorithm and
-   :class:`Evaluator` scores it on the fold's test partition.
-3. Per-fold metric values are averaged into a single aggregate
-   :class:`EvalMetadata`.
-
-The stratification column is recorded in the aggregate report's
-``details`` for audit; the orchestration layer's :class:`CrossValidator`
-emits logical fold metadata only — concrete subclasses are responsible
-for the actual stratified row partitioning.
-
 Algorithm:
-    1. Receive ``dataset`` (DatasetManifest), ``stratify_column``, ``algorithm``,
+    1. Receive ``dataset`` (DatasetPayload), ``stratify_column``, ``algorithm``,
        ``metrics``, and ``k`` via process().
     2. Validate all inputs.
-    3. Extract k logical folds (shared strategy in
+    3. Partition the rows with
+       :class:`~pirn_ml.data_prep.stratified_cross_validator.StratifiedCrossValidator`:
+       each fold's test partition holds every class of ``stratify_column`` in
+       (to within one row) its whole-dataset proportion. Index the folds via
+       :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds`.
+    4. Wire Trainer + Evaluator per fold (shared wiring in
        :class:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase`).
-    4. Wire Trainer + Evaluator per fold (shared wiring, same base class).
-    5. Aggregate per-fold metrics (mean) and return an EvalMetadata.
+    5. Aggregate per-fold metrics (mean) and return an EvalReportPayload.
 
 Math:
     mean_metric = sum(fold_metric) / k
@@ -44,18 +33,21 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
+from pirn_ml.data_prep.stratified_cross_validator import StratifiedCrossValidator
 from pirn_ml.specializations.experiments.kfold_validator_base import (
     KFoldValidatorBase,
 )
-from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.dataset_payload import DatasetPayload
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 @KnotFactory.knot
 async def _aggregate_stratified_kfold_reports(
     reports: list[EvalReportPayload],
+    folds: tuple[SplitManifest, ...],
     algorithm: str,
     dataset_name: str,
     k: int,
@@ -85,6 +77,7 @@ async def _aggregate_stratified_kfold_reports(
                     "stratify_column": stratify_column,
                     "algorithm": algorithm,
                     "per_fold_metrics": per_fold,
+                    "fold_test_row_indices": [list(fold.test.row_indices) for fold in folds],
                 }
             ),
         ),
@@ -117,7 +110,7 @@ class StratifiedKFoldValidator(KFoldValidatorBase):
 
     async def process(
         self,
-        dataset: DatasetManifest,
+        dataset: DatasetPayload,
         stratify_column: str = "",
         algorithm: str = "",
         metrics: Sequence[str] = (),
@@ -127,7 +120,7 @@ class StratifiedKFoldValidator(KFoldValidatorBase):
         """Run stratified K-fold cross-validation and return an aggregate EvalReportPayload with per-fold mean metrics.
 
         Args:
-            dataset: DatasetManifest reference to partition into k folds.
+            dataset: DatasetPayload whose ``stratify_column`` labels drive stratification.
             stratify_column: Non-empty column name used for stratification.
             algorithm: Non-empty algorithm name string.
             metrics: Non-empty sequence of metric name strings.
@@ -137,9 +130,12 @@ class StratifiedKFoldValidator(KFoldValidatorBase):
             EvalReportPayload with averaged per-fold metrics and per-fold details in the details dict.
 
         Raises:
+            TypeError: If dataset is not a DatasetPayload.
             ValueError: If any input fails validation.
             TypeError: If any inner fold evaluator does not return an EvalReportPayload.
         """
+        if not isinstance(dataset, DatasetPayload):
+            raise TypeError("StratifiedKFoldValidator: dataset must be a DatasetPayload")
         if not isinstance(k, int):
             raise TypeError("StratifiedKFoldValidator: k must be an int")
         if k < 2:
@@ -157,9 +153,15 @@ class StratifiedKFoldValidator(KFoldValidatorBase):
                     "StratifiedKFoldValidator: every metric name must be a non-empty string"
                 )
         dataset_node = Parameter(
-            "dataset", DatasetManifest, default=dataset, _config=KnotConfig(id="dataset")
+            "dataset", DatasetPayload, default=dataset, _config=KnotConfig(id="dataset")
         )
-        fold_nodes = self._extract_folds_via_cross_validator(dataset_node, k)
+        folds_node = StratifiedCrossValidator(
+            dataset=dataset_node,
+            stratify_column=stratify_column,
+            k=k,
+            _config=KnotConfig(id="folds"),
+        )
+        fold_nodes = self._extract_folds(folds_node, k)
         eval_nodes = self._wire_folds(
             fold_nodes,
             algorithm,
@@ -170,7 +172,10 @@ class StratifiedKFoldValidator(KFoldValidatorBase):
             "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
         )
         dataset_name_node = Parameter(
-            "dataset_name", str, default=dataset.name, _config=KnotConfig(id="dataset_name")
+            "dataset_name",
+            str,
+            default=dataset.metadata.name,
+            _config=KnotConfig(id="dataset_name"),
         )
         k_node = Parameter("k", int, default=k, _config=KnotConfig(id="k"))
         stratify_col_node = Parameter(
@@ -182,6 +187,7 @@ class StratifiedKFoldValidator(KFoldValidatorBase):
         collected = self._collect(eval_nodes, collect_id="collect-reports")
         return _aggregate_stratified_kfold_reports(
             reports=collected,
+            folds=folds_node,
             algorithm=algorithm_node,
             dataset_name=dataset_name_node,
             k=k_node,

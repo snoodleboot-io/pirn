@@ -239,7 +239,7 @@ summary = Aggregate(
 
 Null handling in `Aggregate`: aggregations skip `None` values. Empty groups after null filtering yield `None` for mean/min/max/first/last and `0` for count/count_distinct.
 
-**See also:** [Specialisations](#specialisations)
+**See also:** [Specializations](#specializations)
 
 ---
 
@@ -548,9 +548,9 @@ table = HudiTable(config)
 
 ---
 
-## Specialisations
+## Specializations
 
-The `pirn_data.specialisations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
+The `pirn_data.specializations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
 
 ### Ingestion patterns (`ingestion/`)
 

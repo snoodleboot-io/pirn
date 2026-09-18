@@ -13,6 +13,7 @@ from pirn_signal.statistical.ar_model_estimator import ARModelEstimator
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import emit_signal_payload, make_signal_payload
+from tests.reference_signals import ReferenceSignals
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -86,3 +87,46 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out, FeaturePayload)
         assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 4)
+
+
+class TestARModelReference(unittest.IsolatedAsyncioTestCase):
+    """Recover the coefficients of an AR process whose coefficients are known.
+
+    Burg (1975), Yule-Walker (Levinson-Durbin) and ordinary least squares are
+    asymptotically equivalent estimators of the same AR(p) model (Kay 1988, ch. 7;
+    Box, Jenkins & Reinsel 2015, sec. 7.1), so on a long realisation all three must
+    agree with the generating coefficients and with each other, in the one sign
+    convention ``x(n) = sum_k phi_k x(n-k) + e(n)``.
+    """
+
+    _phi: tuple[float, ...] = (0.75, -0.5, 0.2, -0.1)
+    _sigma: float = 0.7
+
+    @staticmethod
+    def _bare() -> ARModelEstimator:
+        with Tapestry():
+            k = ARModelEstimator.__new__(ARModelEstimator)
+            object.__setattr__(k, "_config", KnotConfig(id="ar"))
+        return k
+
+    def _payload(self) -> SignalPayload:
+        samples = ReferenceSignals.autoregressive(self._phi, 20000, seed=5, sigma=self._sigma)
+        return SignalPayload(
+            metadata=make_signal_payload(samples_per_channel=samples.size).metadata,
+            data=samples,
+        )
+
+    async def test_every_method_recovers_the_generating_coefficients(self) -> None:
+        knot = self._bare()
+        payload = self._payload()
+        for method in ("burg", "yule_walker", "ols"):
+            out = await knot.process(signal=payload, order=len(self._phi), method=method)
+            np.testing.assert_allclose(out.data[0, :-1], self._phi, atol=0.03, err_msg=method)
+            assert abs(float(out.data[0, -1]) - self._sigma**2) < 0.03, (method, out.data)
+
+    async def test_burg_matches_yule_walker_in_sign_and_value(self) -> None:
+        knot = self._bare()
+        payload = self._payload()
+        burg = await knot.process(signal=payload, order=len(self._phi), method="burg")
+        yule_walker = await knot.process(signal=payload, order=len(self._phi), method="yule_walker")
+        np.testing.assert_allclose(burg.data, yule_walker.data, atol=0.01)

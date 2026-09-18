@@ -46,7 +46,7 @@ string is assembled but before `ExceptionRecord` is created.
 
 ## Built-in Filter: `TracebackRedactor.redact_common_secrets`
 
-`pirn.redact_common_secrets` replaces the most common credential patterns
+`TracebackRedactor.redact_common_secrets` replaces the most common credential patterns
 with `<redacted>`.
 
 ### Patterns matched
@@ -122,6 +122,8 @@ Even with a filter, the best defence is keeping secrets out of tracebacks:
 4. **Prefer structured errors over raw exception propagation.** Catch
    third-party library exceptions early and re-raise with a sanitised message:
    ```python
+   try:
+       connection = some_library.connect(credential)
    except SomeLibraryError as exc:
        raise RuntimeError("connection failed") from None
    ```

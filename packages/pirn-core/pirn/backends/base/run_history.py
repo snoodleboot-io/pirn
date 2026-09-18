@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pirn.backends.base.run_retention import RunRetention
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -8,6 +8,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.knot_source_record import KnotSourceRecord
+    from pirn.core.run_result import RunResult
 
 
 class RunHistory(PirnOpaqueValue):
@@ -38,7 +39,7 @@ class RunHistory(PirnOpaqueValue):
         """
         return RunRetention()
 
-    async def record_run(self, result: Any) -> None:
+    async def record_run(self, result: RunResult) -> None:
         """Persist a completed run and its per-knot lineage records.
 
         Args:
@@ -47,7 +48,7 @@ class RunHistory(PirnOpaqueValue):
         """
         raise NotImplementedError(f"{type(self).__name__} must implement record_run()")
 
-    async def get_run(self, run_id: str) -> Any:
+    async def get_run(self, run_id: str) -> RunResult | None:
         """Fetch a single run by its unique identifier.
 
         Args:
@@ -132,7 +133,7 @@ class RunHistory(PirnOpaqueValue):
             return None
         return max(rows, key=lambda row: row.finished_at)
 
-    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+    async def query_runs_by_actor(self, actor: str) -> list[RunResult]:
         """Return all runs triggered by a specific actor.
 
         Args:
@@ -144,7 +145,7 @@ class RunHistory(PirnOpaqueValue):
         """
         raise NotImplementedError(f"{type(self).__name__} must implement query_runs_by_actor()")
 
-    async def children_of(self, run_id: str) -> list[Any]:
+    async def children_of(self, run_id: str) -> list[RunResult]:
         """Return all runs whose parent_run_id matches run_id."""
         raise NotImplementedError(f"{type(self).__name__} must implement children_of()")
 

@@ -1,7 +1,7 @@
 """``MapAgent`` — map an agent over a dataset through core's own scheduler.
 
 ADR agents-speaks-core, WS4b. ``MapAgent`` is a
-:class:`~pirn.nodes.sub_tapestry.SubTapestry` whose inner graph is one
+:class:`~pirn.nodes.nested_run_knot.NestedRunKnot` whose inner run is one
 :class:`~pirn_agents.batch.map_item.MapItem` knot per input item, joined by
 a core :class:`~pirn.nodes.aggregator.Aggregator`:
 
@@ -22,11 +22,14 @@ a core :class:`~pirn.nodes.aggregator.Aggregator`:
   ``history=`` skips any item whose id already has an ``Ok`` lineage row. No
   checkpoint store is written or read.
 * **Dispatcher choice** (Local/Thread/Ray/Dask), the **group cap** and
-  **adaptive admission feedback** reach the inner run through core's own
-  per-container overrides — ``SubTapestry._inner_dispatcher`` /
-  ``_inner_concurrency`` / ``_inner_admission_observers`` (ADR WS0b) — and an
-  unset dispatcher inherits the enclosing run's execution plane, like every
-  other ``SubTapestry``.
+  **adaptive admission feedback** reach the inner run as the
+  ``dispatcher`` / ``concurrency`` / ``admission_observers`` arguments of
+  ``NestedRunKnot._run_inner`` (ADR WS0b), resolved per invocation in
+  ``process()`` — and an unset dispatcher inherits the enclosing run's
+  execution plane, like every other nested run.
+* **Attempts and latency** come from each item's own ``KnotLineage`` row in
+  the inner run (``extra["attempts"]``, ``duration_ms``), the same values the
+  streaming path reads.
 
 Every setting is a declared knot input (knot-design-rules.md Rules 1-4): the
 constructor only wires them, and ``process()`` validates them and builds the
@@ -35,7 +38,7 @@ graph. Two ways to use it, matching the two things a ``Knot`` can be:
 1. **Wired into a bigger pipeline** — pass ``items=`` a parent ``Knot`` (or a
    literal list) at construction; the engine calls this knot like any other,
    and its single output is the ``list[BatchItemResult]`` the aggregator
-   combined.
+   combined, each with the attempt count and latency of its lineage row.
 2. **Standalone streaming** — :meth:`run` builds a throwaway ``Tapestry``,
    runs the same item/aggregator graph, and yields each ``BatchItemResult``
    **the instant its item settles**, before the join completes — an
@@ -53,8 +56,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
@@ -62,6 +66,7 @@ from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.parameter import Parameter
 from pirn.core.result import Result
@@ -70,7 +75,7 @@ from pirn.core.skipped import Skipped
 from pirn.engine.admission.admission_observer import AdmissionObserver
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.sub_tapestry import SubTapestry
+from pirn.nodes.nested_run_knot import NestedRunKnot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
@@ -80,16 +85,11 @@ from pirn_agents.batch.map_item import MapItem
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
 
 
-class MapAgent(SubTapestry):
+class MapAgent(NestedRunKnot):
     """Map a per-item agent over a batch, scheduled entirely by the core engine."""
 
-    #: The inner run's execution-plane overrides, resolved by :meth:`process`
-    #: and read back by the ``_inner_*`` hooks ``SubTapestry._run_inner``
-    #: calls once the graph is built. ``_mutable_``-prefixed: framework slots
-    #: written per invocation, never constructor state.
-    _mutable_inner_dispatcher: Dispatcher | None = None
-    _mutable_inner_concurrency: ConcurrencyLimits | None = None
-    _mutable_inner_observers: list[AdmissionObserver] | None = None
+    #: A failed item is an ``Err`` its aggregator receives, not this knot's failure.
+    _inner_failures_reach_sink: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -186,8 +186,8 @@ class MapAgent(SubTapestry):
         history: RunHistory | None = None,
         data_store: DataStore | None = None,
         **_: Any,
-    ) -> Knot:
-        """Validate the settings and build the per-item + aggregator graph for this run.
+    ) -> list[BatchItemResult]:
+        """Validate the settings, run the per-item + aggregator graph, and return its results.
 
         ``dispatcher`` and ``admission_observers`` are typed ``Any`` here (the
         constructor names their real types): core's ``Dispatcher`` and
@@ -197,8 +197,8 @@ class MapAgent(SubTapestry):
         checked with ``isinstance`` instead.
 
         Returns:
-            The ``Aggregator`` (or, when every item already resumed, a tiny
-            pass-through sink) whose output is ``list[BatchItemResult]``.
+            One :class:`BatchItemResult` per item in input order; a live item's
+            ``attempts`` and ``latency`` are read from its lineage row.
 
         Raises:
             TypeError: If a setting has the wrong type.
@@ -215,10 +215,22 @@ class MapAgent(SubTapestry):
             concurrency_controller.bind_to_group(concurrency_group)
         resumed = await MapAgent._resume_lookup(item_list, batch_id, key_fn, resolved_history)
         live_items = len(item_list) - len(resumed)
-        self._mutable_inner_dispatcher = dispatcher
+        with Tapestry() as inner:
+            sink = MapAgent._build_graph(
+                item_list,
+                batch_id,
+                resumed,
+                run_item=run_item,
+                key_fn=key_fn,
+                concurrency_group=concurrency_group,
+                timeout=timeout,
+                retry=resolved_retry,
+                rate_limiter=rate_limiter,
+                concurrency_controller=concurrency_controller,
+            )
         # A group cap with nothing left to run is left undeclared, since naming
         # an unused group only warns (``UnusedConcurrencyGroupWarning``).
-        self._mutable_inner_concurrency = (
+        limits = (
             ConcurrencyLimits(
                 groups={
                     concurrency_group: MapAgent._group_limit(concurrency, concurrency_controller)
@@ -228,33 +240,30 @@ class MapAgent(SubTapestry):
             else None
         )
         observers = MapAgent._observers(admission_observers, concurrency_controller)
-        self._mutable_inner_observers = observers or None
-        return MapAgent._build_graph(
-            item_list,
-            batch_id,
-            resumed,
-            run_item=run_item,
-            key_fn=key_fn,
-            concurrency_group=concurrency_group,
-            timeout=timeout,
-            retry=resolved_retry,
-            rate_limiter=rate_limiter,
-            concurrency_controller=concurrency_controller,
+        run = await self._run_inner(
+            inner,
+            dispatcher=dispatcher,
+            concurrency=limits,
+            admission_observers=observers or None,
         )
+        rows = {row.knot_id: row for row in run.lineage}
+        results: list[BatchItemResult] = run.outputs[sink.knot_id]
+        return [MapAgent._with_lineage(result, batch_id, rows) for result in results]
 
-    # ------------------------------------ inner-run overrides (core seams)
-
-    def _inner_dispatcher(self) -> Dispatcher | None:
-        """This batch's dispatcher; ``None`` inherits the enclosing run's (WS0b)."""
-        return self._mutable_inner_dispatcher
-
-    def _inner_concurrency(self) -> ConcurrencyLimits | None:
-        """The group cap the items are admitted under, or ``None`` when nothing runs."""
-        return self._mutable_inner_concurrency
-
-    def _inner_admission_observers(self) -> list[AdmissionObserver] | None:
-        """The batch's observers (controller included); ``None`` when there are none."""
-        return self._mutable_inner_observers
+    @staticmethod
+    def _with_lineage(
+        result: BatchItemResult, batch_id: str, rows: Mapping[str, KnotLineage]
+    ) -> BatchItemResult:
+        """``result`` with the attempt count and latency its item's lineage row recorded."""
+        row = rows.get(MapAgent._item_knot_id(batch_id, result.key))
+        if row is None or isinstance(result.outcome, Skipped):
+            return result
+        attempts = row.extra.get("attempts", 1)
+        return dataclasses.replace(
+            result,
+            attempts=attempts if isinstance(attempts, int) else 1,
+            latency=row.duration_ms / 1000.0,
+        )
 
     # ------------------------------------------------------ standalone path
 
@@ -546,12 +555,8 @@ class MapAgent(SubTapestry):
     ) -> Callable[..., list[BatchItemResult]]:
         """Build the ``RECEIVE_ERRORS`` combine turning each item's ``Result`` into a ``BatchItemResult``.
 
-        Attempts and latency are not populated here (default to ``1`` /
-        ``0.0``): a ``Result`` carries neither, only the run's
-        ``KnotLineage`` does (``extra["attempts"]``, ``duration_ms``) — a
-        disclosed trade-off of joining through a plain ``Aggregator``. A
-        caller needing exact figures reads ``RunResult.lineage`` for the
-        item's knot id instead.
+        A ``Result`` carries no attempt count or latency; :meth:`process`
+        fills both in from the item's lineage row once the inner run ends.
         """
 
         # Aggregator's combine hook takes only the resolved **inputs kwargs,

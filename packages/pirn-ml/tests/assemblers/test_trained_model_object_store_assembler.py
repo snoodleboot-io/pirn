@@ -54,13 +54,29 @@ class TestTrainedModelObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
         result = await knot.process(body=body, algorithm="LogisticRegression")
         assert result.metadata.algorithm == "LogisticRegression"
 
-    async def test_falls_back_to_pickle_on_joblib_failure(self) -> None:
+    async def test_plain_pickle_bytes_load_through_joblib(self) -> None:
         import pickle
 
         knot = _make()
         body = pickle.dumps({"coef": [3.0]})
         result = await knot.process(body=body, algorithm="RandomForest")
         assert result.data.estimator == {"coef": [3.0]}
+
+    async def test_joblib_failure_propagates_without_pickle_fallback(self) -> None:
+        import pickle
+
+        knot = _make()
+        body = pickle.dumps({"coef": [3.0]})
+
+        def _reject(_: object) -> object:
+            raise ValueError("joblib rejected the stream")
+
+        with (
+            pytest.MonkeyPatch.context() as patch,
+            pytest.raises(ValueError, match="joblib rejected the stream"),
+        ):
+            patch.setattr(joblib, "load", _reject)
+            await knot.process(body=body, algorithm="RandomForest")
 
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()

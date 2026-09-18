@@ -16,7 +16,7 @@ A seismic processing pipeline is a directed graph of transform knots, each consu
 ├── instantaneous_attribute_extractor.py  InstantaneousAttributeExtractor  — computes instantaneous phase, amplitude, and frequency
 ├── migration_processor.py            MigrationProcessor           — applies Kirchhoff or phase-shift migration
 ├── mute_applicator.py                MuteApplicator               — applies top, surgical, or surgical mute functions
-├── normal_moveout_corrector.py       NormalMoveoutCorrector       — applies NMO correction using a velocity model
+├── nmo_correction.py                 NmoCorrection                — applies NMO correction using a velocity model
 ├── seismic_qc_check.py               SeismicQCCheck               — checks trace health, fold, and S/N thresholds before downstream steps
 ├── spectral_whitener.py              SpectralWhitener             — flattens amplitude spectrum within an operator length
 ├── surface_consistent_deconvolver.py SurfaceConsistentDeconvolver — surface-consistent spiking or predictive deconvolution
@@ -35,13 +35,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_oilgas.seismic import (
-    CmpGatherExtractor,
-    NormalMoveoutCorrector,
-    MigrationProcessor,
+from pirn_oilgas.seismic.cmp_gather_extractor import CmpGatherExtractor
+from pirn_oilgas.seismic.nmo_correction import NmoCorrection
+from pirn_oilgas.seismic.migration_processor import MigrationProcessor
+from pirn_oilgas.seismic.instantaneous_attribute_extractor import (
     InstantaneousAttributeExtractor,
-    SeismicQCCheck,
 )
+from pirn_oilgas.seismic.seismic_qc_check import SeismicQCCheck
 
 with Tapestry() as t:
     raw_traces = Parameter("raw_traces", object)  # trace array from SegyFormat
@@ -56,9 +56,10 @@ with Tapestry() as t:
         _config=KnotConfig(id="seismic_qc"),
     )
 
-    nmo = NormalMoveoutCorrector(
-        gathers=qc_passed,
-        _config=KnotConfig(id="nmo", params={"velocity_field": "rms_velocities"}),
+    nmo = NmoCorrection(
+        gather=qc_passed,
+        stacking_velocity_m_s=1500.0,
+        _config=KnotConfig(id="nmo"),
     )
 
     migrated = MigrationProcessor(
@@ -85,7 +86,7 @@ result = await t.run(RunRequest(parameters={"raw_traces": trace_array}))
 ## Constraints and gotchas
 
 - `SeismicQCCheck` raises `KnotCheckError` when fold drops below the configured threshold; set `min_fold` explicitly for sparse 3D surveys.
-- `NormalMoveoutCorrector` expects velocities in m/s; ft/s inputs will produce silent stretch artefacts without unit metadata.
+- `NmoCorrection` expects `stacking_velocity_m_s` in m/s; ft/s inputs will produce silent stretch artefacts without unit conversion.
 - `AcousticImpedanceInverter` requires a low-frequency model parameter; omitting it defaults to zero LF trend, which biases absolute impedance.
 - `MigrationProcessor` with `algorithm="phase_shift"` loads the full velocity field into memory; use `algorithm="kirchhoff"` for large 3D volumes.
 - Install extra: `pip install pirn[seismic]`
@@ -96,7 +97,7 @@ result = await t.run(RunRequest(parameters={"raw_traces": trace_array}))
 |------|-----|
 | Extract CMP gathers from trace array | `CmpGatherExtractor(traces=param)` |
 | Validate gather health before processing | `SeismicQCCheck(gathers=gathers)` |
-| Apply NMO and stack gathers | `NormalMoveoutCorrector` then sum in `MigrationProcessor` |
+| Apply NMO and stack gathers | `NmoCorrection` then sum in `MigrationProcessor` |
 | Pick stacking velocities from semblance | `StackingVelocityPicker(gathers=gathers)` |
 | Build velocity model from picks | `VelocityModelBuilder(picks=picks)` |
 | Convert time volume to depth | `TimeDepthConverter(volume=migrated, velocity_model=vm)` |

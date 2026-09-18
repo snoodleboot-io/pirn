@@ -9,8 +9,8 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.cosmosdb_config import CosmosDBConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class CosmosDBPool(DatabaseConnectionPool):
@@ -85,7 +85,9 @@ class CosmosDBPool(DatabaseConnectionPool):
         for row in parameter_seq:
             empty: dict[str, object] = {}
             item: object = (
-                row if PayloadShape.is_str_dict(row) else (next(iter(row), empty) if row else empty)
+                row
+                if ShapeGuard.is_str_keyed_dict(row)
+                else (next(iter(row), empty) if row else empty)
             )
             await self._container.upsert_item(item)
 

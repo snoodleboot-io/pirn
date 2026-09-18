@@ -46,8 +46,8 @@ from typing import Any, ClassVar, SupportsIndex, SupportsInt
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class DicomFormat(BatchFileFormat):
@@ -213,7 +213,7 @@ class DicomFormat(BatchFileFormat):
     def _coerce_shape(cls, shape: object) -> tuple[int, int]:
         if shape is None:
             return 1, 1
-        dims: Sequence[object] = shape if PayloadShape.is_sequence(shape) else ()
+        dims: Sequence[object] = shape if ShapeGuard.is_list_or_tuple(shape) else ()
         if len(dims) >= 2:
             rows = cls._coerce_dim(dims[0])
             columns = cls._coerce_dim(dims[1])

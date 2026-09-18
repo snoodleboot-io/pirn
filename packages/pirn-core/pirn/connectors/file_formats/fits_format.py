@@ -28,8 +28,8 @@ from typing import TYPE_CHECKING, Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 if TYPE_CHECKING:
     pass
@@ -80,7 +80,7 @@ class FitsFormat(BatchFileFormat):
         hdul = fits.HDUList()
         for i, record in enumerate(materialised):
             header_dict: object = record.get("header") or {}
-            if not PayloadShape.is_mapping(header_dict):
+            if not ShapeGuard.is_mapping(header_dict):
                 raise TypeError(
                     f"FitsFormat: record 'header' must be a mapping, got {type(header_dict).__name__}"
                 )

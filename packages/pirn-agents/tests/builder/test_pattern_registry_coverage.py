@@ -116,26 +116,8 @@ _EXPECTED_EXCLUSIONS = frozenset(
         "pirn_agents.specializations.routing.attempt_tier.AttemptTier",
         # PIR-867: public but composed-internally, the same shape as
         # ReActStepExecutor's exclusion above — reachable only through the
-        # pipeline that wires it (FactCheck registers as "fact_check";
-        # plan-and-execute has no composed pipeline registered at all, so
-        # PlanExecutor stays a directly-usable component, not a named pattern).
+        # pipeline that wires it (FactCheck registers as "fact_check").
         "pirn_agents.specializations.guardrails.fact_claim_verifier.FactClaimVerifier",
-        "pirn_agents.specializations.plan_and_execute.plan_executor.PlanExecutor",
-    }
-)
-
-#: Registry-visible ``AgentPipeline`` subclasses outside ``specializations/``,
-#: so the pkgutil walk ``_discover_pipelines`` performs never sees them and
-#: they cannot belong in ``_EXPECTED_EXCLUSIONS`` (that set's own completeness
-#: tests are cross-checked *against* that same walk). Found only by
-#: ``test_every_registry_visible_agent_pipeline_has_seed_metadata``'s
-#: sweet_tea-Registry-based check (PIR-870); justified the same way as any
-#: other private loop body.
-_REGISTRY_ONLY_EXCLUSIONS = frozenset(
-    {
-        # Internal stage: the loop body FailoverChain drives internally (ADR
-        # agents-speaks-core WS5b); lives in resilience/, not specializations/.
-        "pirn_agents.resilience.failover_loop.FailoverLoop",
     }
 )
 
@@ -169,7 +151,7 @@ def _registered_classes() -> dict[str, type]:
         _qualified(AgentPatternRegistry.pattern_class(name)): AgentPatternRegistry.pattern_class(
             name
         )
-        for name in AgentPatternRegistry.canonical_names()
+        for name in AgentPatternRegistry.pattern_names()
     }
 
 
@@ -213,16 +195,12 @@ def test_every_registry_visible_agent_pipeline_has_seed_metadata() -> None:
     registry-visible but was never fed into this table (e.g. a future change to
     how the registry is filled) cannot pass silently.
     """
-    # Arrange. ``canonical_names()`` is one row per class (aliases map onto an
-    # already-covered class_name, so they add nothing here).
+    # Arrange. ``pattern_names()`` is one row per pattern name.
     named_classes = {
         AgentPatternRegistry.descriptor(name).class_name
-        for name in AgentPatternRegistry.canonical_names()
+        for name in AgentPatternRegistry.pattern_names()
     }
-    exclusion_class_names = {
-        excluded.rsplit(".", 1)[1]
-        for excluded in (_EXPECTED_EXCLUSIONS | _REGISTRY_ONLY_EXCLUSIONS)
-    }
+    exclusion_class_names = {excluded.rsplit(".", 1)[1] for excluded in _EXPECTED_EXCLUSIONS}
 
     # Act.
     missing = []
@@ -358,7 +336,7 @@ def test_the_excluded_bases_are_bases_and_the_internal_stages_are_driven_interna
 
 def test_every_row_resolves_to_a_sub_tapestry_with_the_seed_it_declares() -> None:
     # Arrange / Act: knot_class() validates the row while resolving it.
-    for name in AgentPatternRegistry.canonical_names():
+    for name in AgentPatternRegistry.pattern_names():
         descriptor = AgentPatternRegistry.descriptor(name)
         knot_class = descriptor.knot_class()
 
@@ -369,20 +347,23 @@ def test_every_row_resolves_to_a_sub_tapestry_with_the_seed_it_declares() -> Non
 
 def test_no_pattern_requires_its_own_seed_as_a_component() -> None:
     # Arrange / Act / Assert: the seed is bound from .input(...), never twice.
-    for name in AgentPatternRegistry.canonical_names():
+    for name in AgentPatternRegistry.pattern_names():
         descriptor = AgentPatternRegistry.descriptor(name)
         assert descriptor.seed not in descriptor.required_components()
         assert descriptor.seed not in descriptor.optional_parameters()
 
 
-def test_pattern_names_are_unique_and_aliases_resolve_to_canonicals() -> None:
+def test_every_pattern_has_exactly_one_name() -> None:
+    """A pattern class is reachable under one name only (PIR-873: no second spelling)."""
     # Arrange.
-    canonical = AgentPatternRegistry.canonical_names()
+    names = AgentPatternRegistry.pattern_names()
 
-    # Assert: one row per name, and every advertised name resolves.
-    assert len(set(canonical)) == len(canonical)
-    for name in AgentPatternRegistry.pattern_names():
-        assert AgentPatternRegistry.descriptor(name).name in canonical
+    # Act.
+    classes = [AgentPatternRegistry.descriptor(name).class_name for name in names]
+
+    # Assert: one row per name, and no class reachable under two names.
+    assert len(set(names)) == len(names)
+    assert sorted(name for name in set(classes) if classes.count(name) > 1) == []
 
 
 # --- laziness -------------------------------------------------------------
@@ -443,7 +424,7 @@ def test_builder_and_patterns_docs_list_every_registered_pattern() -> None:
     combined_text = "\n".join(path.read_text() for path in _DOC_PATHS)
     class_names = {
         AgentPatternRegistry.descriptor(name).class_name
-        for name in AgentPatternRegistry.canonical_names()
+        for name in AgentPatternRegistry.pattern_names()
     }
 
     # Assert (guard): the two named in PIR-856/870 specifically.

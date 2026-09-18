@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING, Any, Never
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -67,6 +68,27 @@ class DatabaseConnectionPool(PirnOpaqueValue):
     async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         """Execute *query* once per bind-value iterable in *parameter_seq*."""
         raise NotImplementedError(f"{type(self).__name__} must implement execute_many()")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Open one atomic unit of work on this pool.
+
+        Used as ``async with pool.transaction() as tx:``. ``tx`` is a
+        :class:`DatabaseConnectionPool` bound to a single connection inside one
+        open transaction, so code written against the pool interface runs
+        unchanged inside it: every ``fetch_all`` / ``execute`` /
+        ``execute_many`` on ``tx`` is part of that transaction. Leaving the
+        block normally commits; leaving it with an exception rolls back and
+        re-raises, so either every statement takes effect or none does.
+
+        ``tx`` is valid only inside the block. Statements issued on the pool
+        itself (not on ``tx``) are not part of the transaction.
+
+        A pool whose store offers no multi-statement transaction through the
+        surface this pool drives overrides this to raise
+        :class:`NotImplementedError` naming the store, rather than yielding a
+        scope that would not be atomic.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement transaction()")
 
     # Per-engine placeholder grammar. The default regex rejects Python
     # brace interpolation (``{...}``) and printf-style (``%s``/``%d``).

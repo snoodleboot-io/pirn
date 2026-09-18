@@ -216,7 +216,7 @@ Every knot's `process()` signature accepts a `SignalFrame`, not a numpy array. P
 
 ```python
 # WRONG
-ButterworthFilter(signal=np.array([...]), ...)
+ButterworthFilter(signal=np.array([...]))
 
 # RIGHT — wrap in a SignalFrame and supply via Parameter
 raw = Parameter("raw", _config=KnotConfig(id="raw"))

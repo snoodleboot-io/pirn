@@ -137,7 +137,12 @@ def lookup_policy(topic: str) -> str:
     return POLICIES.get(topic, "No policy found.")
 
 # Pass directly anywhere Tool is accepted
-react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy], ...)
+react = ReActLoop(
+    messages=msgs,
+    llm=provider,
+    tools=[web_search, lookup_policy],
+    _config=KnotConfig(id="react"),
+)
 ```
 
 `@ToolDecorator.decorate` produces a `FunctionTool`, a `ToolFactory` over a generated `Tool` class. Use `Tool` subclassing directly when the tool needs bound dependencies (API keys, HTTP clients, connection pools) or wants to declare `permissions` / `streaming`. An agent becomes a tool with `agent.as_tool()` (`AgentTool`), whose nested run is guarded by core's `RunNesting`.

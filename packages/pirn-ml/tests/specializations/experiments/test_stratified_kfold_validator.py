@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
@@ -12,6 +13,9 @@ from pirn.tapestry import Tapestry
 from pirn_ml.specializations.experiments.stratified_kfold_validator import (
     StratifiedKFoldValidator,
 )
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.dataset_payload import DatasetPayload
+from pirn_ml.types.ml_features import MLFeatures
 
 
 class _KnotStub(Knot):
@@ -20,6 +24,15 @@ class _KnotStub(Knot):
 
     async def process(self, **_: Any) -> None:
         return None
+
+
+def _payload() -> DatasetPayload:
+    return DatasetPayload(
+        metadata=DatasetManifest(
+            name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="memory://ds"
+        ),
+        data=MLFeatures(feature_matrix=np.zeros((10, 1)), target_vector=np.array([0, 1] * 5)),
+    )
 
 
 def _make_validator() -> StratifiedKFoldValidator:
@@ -52,15 +65,7 @@ class TestConstruction(unittest.TestCase):
 class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_k_less_than_2(self) -> None:
         validator = _make_validator()
-        from pirn_ml.types.dataset_manifest import DatasetManifest
-
-        ds = DatasetManifest(
-            name="ds",
-            feature_names=("x",),
-            target_name="y",
-            row_count=10,
-            source_uri="memory://ds",
-        )
+        ds = _payload()
         with self.assertRaises(ValueError):
             await validator.process(
                 dataset=ds,
@@ -72,15 +77,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_stratify_column(self) -> None:
         validator = _make_validator()
-        from pirn_ml.types.dataset_manifest import DatasetManifest
-
-        ds = DatasetManifest(
-            name="ds",
-            feature_names=("x",),
-            target_name="y",
-            row_count=10,
-            source_uri="memory://ds",
-        )
+        ds = _payload()
         with self.assertRaises(ValueError):
             await validator.process(
                 dataset=ds,
@@ -92,15 +89,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_algorithm(self) -> None:
         validator = _make_validator()
-        from pirn_ml.types.dataset_manifest import DatasetManifest
-
-        ds = DatasetManifest(
-            name="ds",
-            feature_names=("x",),
-            target_name="y",
-            row_count=10,
-            source_uri="memory://ds",
-        )
+        ds = _payload()
         with self.assertRaises(ValueError):
             await validator.process(
                 dataset=ds,
@@ -112,15 +101,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_metrics(self) -> None:
         validator = _make_validator()
-        from pirn_ml.types.dataset_manifest import DatasetManifest
-
-        ds = DatasetManifest(
-            name="ds",
-            feature_names=("x",),
-            target_name="y",
-            row_count=10,
-            source_uri="memory://ds",
-        )
+        ds = _payload()
         with self.assertRaises(ValueError):
             await validator.process(
                 dataset=ds,
@@ -128,4 +109,17 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
                 algorithm="rf",
                 metrics=[],
                 k=5,
+            )
+
+
+class TestRejectsManifestOnlyDataset(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_dataset_without_rows(self) -> None:
+        validator = _make_validator()
+        with self.assertRaises(TypeError):
+            await validator.process(
+                dataset=_payload().metadata,
+                stratify_column="y",
+                algorithm="rf",
+                metrics=["accuracy"],
+                k=2,
             )

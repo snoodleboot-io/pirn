@@ -594,7 +594,7 @@ Every entry below was checked against the real `__init__` signature (grep it you
 | Summarise session | `SessionSummarizer(messages=..., llm=..., token_threshold=2000, _config=...)` |
 | Detect hallucinations | `HallucinationDetector(response=..., sources=..., llm=..., _config=...)` |
 | Ground citations | `CitationGrounder(response=..., sources=..., llm=..., _config=...)` |
-| Index documents for embedding | `EmbeddingIndexer(chunks=..., embedding_provider=..., store=store, _config=...)` |
+| Index documents for embedding | `EmbeddingIndexer(chunks=..., document_id=..., embedding_provider=..., store=store, _config=...)` (records keyed `{document_id}:{index}`) |
 | Extract document metadata | `MetadataExtractor(document=..., llm=..., _config=...)` |
 
 ---
