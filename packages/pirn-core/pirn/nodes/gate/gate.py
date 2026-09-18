@@ -66,7 +66,7 @@ class Gate(Knot):
         input: Knot,
         predicate: Callable[[Any], bool] | None = None,
         check: Check | None = None,
-        _config: KnotConfig | None = None,
+        _config: KnotConfig,
         tapestry: Any = None,
     ) -> None:
         if not isinstance(input, Knot):
@@ -77,27 +77,26 @@ class Gate(Knot):
             raise TypeError("Gate: 'predicate' must be callable")
         if check is not None and not isinstance(check, Check):
             raise TypeError("Gate: 'check' must be a Check knot")
-        if _config is None:
-            raise TypeError("Gate requires _config=KnotConfig(id=...)")
 
         self._mutable_execution_extra: dict[str, Any] = {}
 
-        parents: dict[str, Knot] = {"input": input}
-        if check is not None:
-            parents["check"] = check
-        config_values: dict[str, Any] = {}
-        if predicate is not None:
-            config_values["predicate"] = predicate
-        if check is not None and type(check).skip_reason is not None:
-            config_values["closed_reason"] = type(check).skip_reason
-        self._bootstrap(
-            config=_config,
-            parents=parents,
-            config_values=config_values,
+        # Every input is declared on ``process()``, so the standard constructor
+        # wires them: ``check`` is a parent when a ``Check`` is given and the
+        # constant ``None`` otherwise, and either way the verdict reaching
+        # ``process()`` is validated against ``bool | None`` -- which a
+        # hand-rolled ``_bootstrap`` built no adapter for at all (PIR-873).
+        super().__init__(
+            input=input,
+            predicate=predicate,
+            check=check,
+            closed_reason=(
+                type(check).skip_reason
+                if check is not None and type(check).skip_reason is not None
+                else None
+            ),
+            _config=_config,
             tapestry=tapestry,
         )
-
-        self._frozen = True
 
     async def process(
         self,

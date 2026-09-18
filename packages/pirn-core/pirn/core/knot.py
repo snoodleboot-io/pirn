@@ -555,7 +555,10 @@ class Knot:
         further state after calling it.
 
         Args:
-            config: The knot's framework configuration.
+            config: The knot's framework configuration.  A root that reaches
+                this method without going through ``Knot.__init__`` is checked
+                here, so no knot can end up holding something that is not a
+                ``KnotConfig`` (PIR-873).
             parents: Name to parent-knot mapping.
             config_values: Name to constant-value mapping. Defaults to empty.
             input_adapters: Name to ``TypeAdapter`` mapping for input
@@ -568,6 +571,11 @@ class Knot:
                 active context-var tapestry is used, matching the standard
                 ``Knot.__init__`` self-registration behaviour.
         """
+        if not isinstance(config, KnotConfig):
+            raise TypeError(
+                f"{type(self).__name__}: _config must be a KnotConfig instance, "
+                f"got {type(config).__name__}"
+            )
         self._mutable_config = config
         self._mutable_parents = dict(parents)
         self._mutable_config_values = dict(config_values) if config_values else {}

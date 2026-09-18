@@ -8,8 +8,7 @@ from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 
 class TestParameterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_bound_value(self):
-        p = Parameter("x", int)
-        p.bind_value(99)
+        p = Parameter("x", int).bound_copy(99)
         self.assertEqual(await p.process(), 99)
 
     async def test_process_returns_default_when_not_bound(self):
@@ -22,9 +21,8 @@ class TestParameterProcess(unittest.IsolatedAsyncioTestCase):
             await p.process()
         self.assertIn("z", str(ctx.exception))
 
-    async def test_bind_value_overrides_default(self):
-        p = Parameter("n", int, default=0)
-        p.bind_value(42)
+    async def test_a_bound_copy_overrides_the_default(self):
+        p = Parameter("n", int, default=0).bound_copy(42)
         self.assertEqual(await p.process(), 42)
 
     def test_spec_name_and_type(self):
