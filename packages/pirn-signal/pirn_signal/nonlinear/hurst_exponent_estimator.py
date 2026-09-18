@@ -64,8 +64,8 @@ References:
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
@@ -73,6 +73,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -128,11 +129,11 @@ class HurstExponentEstimator(Knot):
         if method not in self._valid_methods:
             raise ValueError("HurstExponentEstimator: method must be 'rs', 'dfa', or 'wavelet'")
         channels = np.atleast_2d(signal.data).astype(float)
-        values = await asyncio.gather(
-            *(
-                asyncio.to_thread(HurstExponentEstimator._compute_hurst, channel, method)
+        values = await ChannelFanOut.gather(
+            [
+                partial(HurstExponentEstimator._compute_hurst, channel, method)
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

@@ -30,12 +30,14 @@ References:
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.nonlinear._ordinal_pattern_entropy import OrdinalPatternEntropy
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -87,11 +89,11 @@ class PermutationEntropyCalculator(Knot):
         if not isinstance(delay, int) or delay <= 0:
             raise ValueError("PermutationEntropyCalculator: delay must be a positive integer")
         channels = np.atleast_2d(signal.data).astype(float)
-        values = await asyncio.gather(
-            *(
-                PermutationEntropyCalculator._entropy_of_channel(channel, order, delay)
+        values = await ChannelFanOut.gather_awaitables(
+            [
+                partial(PermutationEntropyCalculator._entropy_of_channel, channel, order, delay)
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

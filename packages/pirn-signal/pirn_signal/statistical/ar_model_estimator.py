@@ -48,13 +48,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -108,11 +109,8 @@ class ARModelEstimator(Knot):
         if method not in self._valid_methods:
             raise ValueError("ARModelEstimator: method must be one of 'burg', 'yule_walker', 'ols'")
         channels = np.atleast_2d(signal.data)
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(ARModelEstimator._compute_ar, channel, order, method)
-                for channel in channels
-            )
+        results = await ChannelFanOut.gather(
+            [partial(ARModelEstimator._compute_ar, channel, order, method) for channel in channels]
         )
         rows = [[*coeffs, var] for coeffs, var in results]
         feature_names = (*(f"ar_coeff_{i}" for i in range(order)), "variance")

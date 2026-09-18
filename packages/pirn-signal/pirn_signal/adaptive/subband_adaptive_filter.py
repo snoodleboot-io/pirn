@@ -27,13 +27,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -103,9 +104,9 @@ class SubbandAdaptiveFilter(Knot):
                 "SubbandAdaptiveFilter: signal and reference must have the same channel count"
             )
 
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
+        results = await ChannelFanOut.gather(
+            [
+                partial(
                     SubbandAdaptiveFilter._subband_lms,
                     sig,
                     ref,
@@ -114,7 +115,7 @@ class SubbandAdaptiveFilter(Knot):
                     step_size,
                 )
                 for sig, ref in zip(sig_channels, ref_channels, strict=True)
-            )
+            ]
         )
 
         return signal.derive("subband-adaptive", np.stack(results, axis=0))

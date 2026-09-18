@@ -25,6 +25,7 @@ References:
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -32,6 +33,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -98,9 +100,9 @@ class BandpassFilterBank(Knot):
             raise ValueError("BandpassFilterBank: order must be a positive integer")
 
         fs = signal.metadata.sample_rate_hz
-        band_outputs = await asyncio.gather(
-            *[
-                BandpassFilterBank._filter_band(signal.data, low, high, order, fs)
+        band_outputs = await ChannelFanOut.gather_awaitables(
+            [
+                partial(BandpassFilterBank._filter_band, signal.data, low, high, order, fs)
                 for low, high in bands
             ]
         )

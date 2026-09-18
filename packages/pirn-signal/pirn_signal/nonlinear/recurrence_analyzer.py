@@ -28,7 +28,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -36,6 +36,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.nonlinear._delay_embedding import DelayEmbedding
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -93,9 +94,9 @@ class RecurrenceAnalyzer(Knot):
         if not isinstance(recurrence_threshold, (int, float)) or recurrence_threshold <= 0:
             raise ValueError("RecurrenceAnalyzer: recurrence_threshold must be positive")
         channels = np.atleast_2d(signal.data).astype(float)
-        rqa_results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
+        rqa_results = await ChannelFanOut.gather(
+            [
+                partial(
                     RecurrenceAnalyzer._compute_rqa,
                     channel,
                     embedding_dim,
@@ -103,7 +104,7 @@ class RecurrenceAnalyzer(Knot):
                     float(recurrence_threshold),
                 )
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

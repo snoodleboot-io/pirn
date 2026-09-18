@@ -31,7 +31,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
@@ -39,6 +39,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.nonlinear._ordinal_pattern_entropy import OrdinalPatternEntropy
 from pirn_signal.nonlinear._sample_entropy import SampleEntropy
 from pirn_signal.types.feature_frame import FeatureFrame
@@ -98,13 +99,11 @@ class EntropyEstimator(Knot):
         if not isinstance(embedding_dim, int) or embedding_dim <= 0:
             raise ValueError("EntropyEstimator: embedding_dim must be a positive integer")
         channels = np.atleast_2d(signal.data).astype(float)
-        values = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    EntropyEstimator._compute_entropy, channel, entropy_kind, embedding_dim
-                )
+        values = await ChannelFanOut.gather(
+            [
+                partial(EntropyEstimator._compute_entropy, channel, entropy_kind, embedding_dim)
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

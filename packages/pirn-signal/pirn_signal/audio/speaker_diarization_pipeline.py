@@ -40,7 +40,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
@@ -49,6 +49,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional_dependency import OptionalDependency
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.bindings.sklearn_cluster_binding import SklearnClusterBinding
 from pirn_signal.bindings.sklearn_metrics_binding import SklearnMetricsBinding
 from pirn_signal.types.feature_frame import FeatureFrame
@@ -109,17 +110,13 @@ class SpeakerDiarizationPipeline(Knot):
             raise ValueError("SpeakerDiarizationPipeline: max_speakers must be >= min_speakers")
         sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    SpeakerDiarizationPipeline._diarize,
-                    channel,
-                    sr,
-                    min_speakers,
-                    max_speakers,
+        results = await ChannelFanOut.gather(
+            [
+                partial(
+                    SpeakerDiarizationPipeline._diarize, channel, sr, min_speakers, max_speakers
                 )
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

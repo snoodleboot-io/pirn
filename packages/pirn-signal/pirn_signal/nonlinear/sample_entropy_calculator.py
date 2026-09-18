@@ -28,13 +28,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.nonlinear._sample_entropy import SampleEntropy
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -86,11 +87,11 @@ class SampleEntropyCalculator(Knot):
         if not isinstance(tolerance, (int, float)) or tolerance <= 0.0:
             raise ValueError("SampleEntropyCalculator: tolerance must be a positive float")
         channels = np.atleast_2d(signal.data).astype(float)
-        values = await asyncio.gather(
-            *(
-                asyncio.to_thread(SampleEntropy.compute, channel, template_length, float(tolerance))
+        values = await ChannelFanOut.gather(
+            [
+                partial(SampleEntropy.compute, channel, template_length, float(tolerance))
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

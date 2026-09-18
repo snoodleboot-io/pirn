@@ -39,13 +39,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -112,9 +113,9 @@ class ParticleFilter(Knot):
         process_noise = 1e-2
         measurement_noise = 1e-1
         channels = np.atleast_2d(signal.data).astype(float)
-        filtered = await asyncio.gather(
-            *(
-                asyncio.to_thread(
+        filtered = await ChannelFanOut.gather(
+            [
+                partial(
                     ParticleFilter._particle_filter,
                     channel,
                     state_dim,
@@ -124,7 +125,7 @@ class ParticleFilter(Knot):
                     resampling_strategy,
                 )
                 for channel in channels
-            )
+            ]
         )
         return signal.derive("particle", np.stack(filtered, axis=0))
 

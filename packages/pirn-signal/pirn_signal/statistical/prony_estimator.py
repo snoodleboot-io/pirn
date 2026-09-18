@@ -38,7 +38,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -46,6 +46,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -93,11 +94,8 @@ class PronyEstimator(Knot):
         if not isinstance(component_count, int) or component_count <= 0:
             raise ValueError("PronyEstimator: component_count must be a positive integer")
         channels = np.atleast_2d(signal.data).astype(float)
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(PronyEstimator._prony, channel, component_count)
-                for channel in channels
-            )
+        results = await ChannelFanOut.gather(
+            [partial(PronyEstimator._prony, channel, component_count) for channel in channels]
         )
         pad_value = complex(float("nan"), float("nan"))
         rows: list[list[tuple[complex, complex]]] = []

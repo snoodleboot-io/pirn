@@ -29,13 +29,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -93,9 +94,9 @@ class VADDetector(Knot):
         threshold_db = -40.0
         sr = signal.metadata.sample_rate_hz
         channels = np.atleast_2d(signal.data)
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
+        results = await ChannelFanOut.gather(
+            [
+                partial(
                     VADDetector._run_vad,
                     channel,
                     threshold_db,
@@ -104,7 +105,7 @@ class VADDetector(Knot):
                     sr,
                 )
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

@@ -26,7 +26,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -34,6 +34,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional_dependency import OptionalDependency
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
@@ -95,13 +96,11 @@ class MFCCExtractor(Knot):
             raise ValueError("MFCCExtractor: hop_length must not exceed n_fft")
         sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    MFCCExtractor._compute_mfcc, channel, sr, n_mfcc, n_fft, hop_length
-                )
+        results = await ChannelFanOut.gather(
+            [
+                partial(MFCCExtractor._compute_mfcc, channel, sr, n_mfcc, n_fft, hop_length)
                 for channel in channels
-            )
+            ]
         )
         return SpectrumPayload(
             metadata=SpectrumFrame(

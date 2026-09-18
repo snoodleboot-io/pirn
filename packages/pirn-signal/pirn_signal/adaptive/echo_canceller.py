@@ -29,13 +29,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -97,11 +98,11 @@ class EchoCanceller(Knot):
                 "EchoCanceller: microphone and far_end must have the same channel count"
             )
 
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(EchoCanceller._lms_echo, mic, far, filter_length, step_size)
+        results = await ChannelFanOut.gather(
+            [
+                partial(EchoCanceller._lms_echo, mic, far, filter_length, step_size)
                 for mic, far in zip(mic_channels, far_channels, strict=True)
-            )
+            ]
         )
 
         return microphone.derive("echo_cancelled", np.stack(results, axis=0))

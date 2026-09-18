@@ -27,7 +27,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -35,6 +35,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional_dependency import OptionalDependency
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -90,13 +91,11 @@ class OnsetDetector(Knot):
             raise ValueError("OnsetDetector: threshold must be positive")
         sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
-        onset_lists = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    OnsetDetector._detect_onsets, channel, sr, hop_length, float(threshold)
-                )
+        onset_lists = await ChannelFanOut.gather(
+            [
+                partial(OnsetDetector._detect_onsets, channel, sr, hop_length, float(threshold))
                 for channel in channels
-            )
+            ]
         )
         max_onsets = max((len(onsets) for onsets in onset_lists), default=0)
         padded = [

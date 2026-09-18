@@ -27,13 +27,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -80,11 +81,11 @@ class PisarenkoEstimator(Knot):
             raise ValueError("PisarenkoEstimator: sinusoid_count must be a positive integer")
         rate = signal.metadata.sample_rate_hz
         channels = np.atleast_2d(signal.data)
-        freqs = await asyncio.gather(
-            *(
-                asyncio.to_thread(PisarenkoEstimator._pisarenko, channel, sinusoid_count, rate)
+        freqs = await ChannelFanOut.gather(
+            [
+                partial(PisarenkoEstimator._pisarenko, channel, sinusoid_count, rate)
                 for channel in channels
-            )
+            ]
         )
         padded = [f + [float("nan")] * (sinusoid_count - len(f)) for f in freqs]
         return FeaturePayload(

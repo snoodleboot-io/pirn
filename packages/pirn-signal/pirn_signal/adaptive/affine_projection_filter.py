@@ -30,13 +30,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -107,9 +108,9 @@ class AffineProjectionFilter(Knot):
                 "AffineProjectionFilter: signal and reference must have the same channel count"
             )
 
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
+        results = await ChannelFanOut.gather(
+            [
+                partial(
                     AffineProjectionFilter._apf,
                     sig,
                     ref,
@@ -118,7 +119,7 @@ class AffineProjectionFilter(Knot):
                     step_size,
                 )
                 for sig, ref in zip(sig_channels, ref_channels, strict=True)
-            )
+            ]
         )
 
         return signal.derive("apa", np.stack(results, axis=0))

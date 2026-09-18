@@ -27,13 +27,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -93,11 +94,11 @@ class ANCPipeline(Knot):
         if ref_channels.shape[0] != err_channels.shape[0]:
             raise ValueError("ANCPipeline: reference and error must have the same channel count")
 
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(ANCPipeline._lms_anc, ref, err, filter_length, step_size)
+        results = await ChannelFanOut.gather(
+            [
+                partial(ANCPipeline._lms_anc, ref, err, filter_length, step_size)
                 for ref, err in zip(ref_channels, err_channels, strict=True)
-            )
+            ]
         )
 
         return reference.derive("anc", np.stack(results, axis=0))

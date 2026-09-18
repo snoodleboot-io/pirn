@@ -34,7 +34,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
@@ -42,6 +42,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional_dependency import OptionalDependency
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -114,13 +115,11 @@ class MusicInformationRetriever(Knot):
                 )
         sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    MusicInformationRetriever._compute_mir_features, channel, sr, feature_set
-                )
+        results = await ChannelFanOut.gather(
+            [
+                partial(MusicInformationRetriever._compute_mir_features, channel, sr, feature_set)
                 for channel in channels
-            )
+            ]
         )
         data = np.empty((channels.shape[0], len(feature_set)), dtype=object)
         for row, feature_values in enumerate(results):

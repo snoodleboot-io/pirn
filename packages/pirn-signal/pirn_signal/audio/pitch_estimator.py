@@ -29,7 +29,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -37,6 +37,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional_dependency import OptionalDependency
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
@@ -103,8 +104,8 @@ class PitchEstimator(Knot):
         else:
             estimator = PitchEstimator._estimate_pitch_autocorrelation
         channels = np.atleast_2d(signal.data)
-        results = await asyncio.gather(
-            *(asyncio.to_thread(estimator, channel, sr, f_min_hz, f_max_hz) for channel in channels)
+        results = await ChannelFanOut.gather(
+            [partial(estimator, channel, sr, f_min_hz, f_max_hz) for channel in channels]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

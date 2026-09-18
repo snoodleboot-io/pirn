@@ -29,7 +29,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -37,6 +37,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.nonlinear._delay_embedding import DelayEmbedding
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -88,13 +89,11 @@ class LyapunovExponentEstimator(Knot):
         if not isinstance(time_delay, int) or time_delay <= 0:
             raise ValueError("LyapunovExponentEstimator: time_delay must be a positive integer")
         channels = np.atleast_2d(signal.data).astype(float)
-        values = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    LyapunovExponentEstimator._lyapunov, channel, embedding_dim, time_delay
-                )
+        values = await ChannelFanOut.gather(
+            [
+                partial(LyapunovExponentEstimator._lyapunov, channel, embedding_dim, time_delay)
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

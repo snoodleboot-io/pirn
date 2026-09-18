@@ -37,7 +37,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any, ClassVar
 
 import numpy as np
@@ -45,6 +45,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional_dependency import OptionalDependency
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -105,13 +106,13 @@ class AudioAugmentationPipeline(Knot):
             raise ValueError("AudioAugmentationPipeline: seed must be a non-negative integer")
         sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(
+        results = await ChannelFanOut.gather(
+            [
+                partial(
                     AudioAugmentationPipeline._apply_augmentations, channel, sr, augmentations, seed
                 )
                 for channel in channels
-            )
+            ]
         )
         return signal.derive("augmented", np.stack(results, axis=0))
 

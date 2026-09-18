@@ -27,13 +27,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -95,11 +96,11 @@ class LMSAdaptiveFilter(Knot):
                 "LMSAdaptiveFilter: signal and reference must have the same channel count"
             )
 
-        results = await asyncio.gather(
-            *(
-                asyncio.to_thread(LMSAdaptiveFilter._lms, sig, ref, filter_length, step_size)
+        results = await ChannelFanOut.gather(
+            [
+                partial(LMSAdaptiveFilter._lms, sig, ref, filter_length, step_size)
                 for sig, ref in zip(sig_channels, ref_channels, strict=True)
-            )
+            ]
         )
 
         return signal.derive("lms", np.stack(results, axis=0))

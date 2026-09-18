@@ -29,7 +29,7 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -37,6 +37,7 @@ from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.nonlinear._delay_embedding import DelayEmbedding
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -97,9 +98,9 @@ class CorrelationDimensionEstimator(Knot):
         if not isinstance(radius_max, (int, float)) or radius_max <= radius_min:
             raise ValueError("CorrelationDimensionEstimator: radius_max must exceed radius_min")
         channels = np.atleast_2d(signal.data).astype(float)
-        dims = await asyncio.gather(
-            *(
-                asyncio.to_thread(
+        dims = await ChannelFanOut.gather(
+            [
+                partial(
                     CorrelationDimensionEstimator._corr_dim,
                     channel,
                     embedding_dim,
@@ -107,7 +108,7 @@ class CorrelationDimensionEstimator(Knot):
                     float(radius_max),
                 )
                 for channel in channels
-            )
+            ]
         )
         return FeaturePayload(
             metadata=FeatureFrame(

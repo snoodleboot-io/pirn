@@ -30,13 +30,14 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+from functools import partial
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal._channel_fan_out import ChannelFanOut
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -81,17 +82,13 @@ class ExtendedKalmanFilter(Knot):
         process_noise = 1e-3
         measurement_noise = 1e-1
         channels = np.atleast_2d(signal.data).astype(float)
-        filtered = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    ExtendedKalmanFilter._ekf,
-                    channel,
-                    process_noise,
-                    measurement_noise,
-                    state_dim,
+        filtered = await ChannelFanOut.gather(
+            [
+                partial(
+                    ExtendedKalmanFilter._ekf, channel, process_noise, measurement_noise, state_dim
                 )
                 for channel in channels
-            )
+            ]
         )
         return signal.derive("ekf", np.stack(filtered, axis=0))
 
