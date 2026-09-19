@@ -17,7 +17,16 @@ import pytest
 
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.connectors.http_connector import HttpConnector
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
+
+
+class _Transient(Exception):
+    """Stands in for an ``httpx.TransportError`` without installing ``httpx``."""
+
+
+def _transient_only(exc: BaseException) -> bool:
+    return isinstance(exc, _Transient)
 
 
 class _FakeResponse:
@@ -183,10 +192,16 @@ class TestHttpConnectorBasics:
 
 
 class TestHttpConnectorRetries:
+    """Retries are scheduled by ``KnotRetryPolicy``; the connector runs one attempt."""
+
     async def test_retries_transient_exception_then_succeeds(self) -> None:
-        client = _FakeClient([RuntimeError("boom"), RuntimeError("boom"), _FakeResponse(200)])
+        client = _FakeClient([_Transient("boom"), _Transient("boom"), _FakeResponse(200)])
         connector = HttpConnector(
-            client=client, resolver=_public_resolver, max_retries=3, sleep=_noop_sleep
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=4),
+            is_retryable_exception=_transient_only,
+            sleep=_noop_sleep,
         )
         response = await connector.request("GET", "https://example.com")
         assert response.status_code == 200
@@ -195,17 +210,37 @@ class TestHttpConnectorRetries:
     async def test_retries_retryable_status_then_succeeds(self) -> None:
         client = _FakeClient([_FakeResponse(503), _FakeResponse(200)])
         connector = HttpConnector(
-            client=client, resolver=_public_resolver, max_retries=2, sleep=_noop_sleep
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=3),
+            sleep=_noop_sleep,
         )
         response = await connector.request("GET", "https://example.com")
         assert response.status_code == 200
 
-    async def test_exhausts_retries_and_raises(self) -> None:
-        client = _FakeClient([RuntimeError("a"), RuntimeError("b")])
+    async def test_exhausted_retryable_status_is_returned_not_raised(self) -> None:
+        """A 503 is still a response: the caller gets it once the budget is spent."""
+        client = _FakeClient([_FakeResponse(503), _FakeResponse(503)])
         connector = HttpConnector(
-            client=client, resolver=_public_resolver, max_retries=1, sleep=_noop_sleep
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=2),
+            sleep=_noop_sleep,
         )
-        with pytest.raises(RuntimeError):
+        response = await connector.request("GET", "https://example.com")
+        assert response.status_code == 503
+        assert len(client.calls) == 2
+
+    async def test_exhausts_retries_and_raises(self) -> None:
+        client = _FakeClient([_Transient("a"), _Transient("b")])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=2),
+            is_retryable_exception=_transient_only,
+            sleep=_noop_sleep,
+        )
+        with pytest.raises(_Transient):
             await connector.request("GET", "https://example.com")
 
     async def test_non_retryable_exception_propagates_immediately(self) -> None:
@@ -213,7 +248,7 @@ class TestHttpConnectorRetries:
         connector = HttpConnector(
             client=client,
             resolver=_public_resolver,
-            max_retries=3,
+            retry=KnotRetryPolicy(max_attempts=4),
             sleep=_noop_sleep,
             is_retryable_exception=lambda exc: not isinstance(exc, ValueError),
         )
@@ -221,16 +256,180 @@ class TestHttpConnectorRetries:
             await connector.request("GET", "https://example.com")
         assert len(client.calls) == 1
 
-    async def test_backoff_delay_is_exponential_and_capped(self) -> None:
+    async def test_arbitrary_exception_is_not_transient_by_default(self) -> None:
+        """The default predicate no longer retries every exception."""
+        client = _FakeClient([RuntimeError("bug in a response hook"), _FakeResponse(200)])
         connector = HttpConnector(
-            client=_FakeClient([]),
+            client=client,
             resolver=_public_resolver,
-            backoff_base=0.1,
-            backoff_cap=0.35,
+            retry=KnotRetryPolicy(max_attempts=4),
+            sleep=_noop_sleep,
         )
-        assert connector._delay_for(0) == pytest.approx(0.1)
-        assert connector._delay_for(1) == pytest.approx(0.2)
-        assert connector._delay_for(2) == pytest.approx(0.35)  # capped
+        with pytest.raises(RuntimeError):
+            await connector.request("GET", "https://example.com")
+        assert len(client.calls) == 1
+
+    async def test_post_is_never_retried_on_a_transient_failure(self) -> None:
+        """A non-idempotent method is attempted once: a retry could duplicate the effect."""
+        client = _FakeClient([_Transient("timeout"), _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=4),
+            is_retryable_exception=_transient_only,
+            sleep=_noop_sleep,
+        )
+        with pytest.raises(_Transient):
+            await connector.request("POST", "https://example.com")
+        assert len(client.calls) == 1
+
+    async def test_post_is_never_retried_on_a_retryable_status(self) -> None:
+        client = _FakeClient([_FakeResponse(503), _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=4),
+            sleep=_noop_sleep,
+        )
+        response = await connector.request("POST", "https://example.com")
+        assert response.status_code == 503
+        assert len(client.calls) == 1
+
+    async def test_put_is_retried_because_it_is_idempotent(self) -> None:
+        client = _FakeClient([_FakeResponse(503), _FakeResponse(204)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=3),
+            sleep=_noop_sleep,
+        )
+        response = await connector.request("PUT", "https://example.com")
+        assert response.status_code == 204
+        assert len(client.calls) == 2
+
+    async def test_idempotent_methods_are_configurable(self) -> None:
+        client = _FakeClient([_FakeResponse(503), _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=3),
+            idempotent_methods=("post",),
+            sleep=_noop_sleep,
+        )
+        response = await connector.request("POST", "https://example.com")
+        assert response.status_code == 200
+        assert len(client.calls) == 2
+
+    async def test_backoff_uses_the_policy_schedule_with_jitter(self) -> None:
+        """Delays come from ``KnotRetryPolicy``, so they are capped and jittered."""
+        slept: list[float] = []
+
+        async def _record(seconds: float) -> None:
+            slept.append(seconds)
+
+        client = _FakeClient([_FakeResponse(503), _FakeResponse(503), _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=3, base_delay=0.1, max_delay=0.15, jitter=True),
+            sleep=_record,
+        )
+        await connector.request("GET", "https://example.com")
+        assert len(slept) == 2
+        # Full jitter draws from [0, capped): never above the cap, and the two
+        # draws are independent rather than a fixed doubling sequence.
+        assert all(0.0 <= delay < 0.15 for delay in slept)
+
+    async def test_retry_after_header_overrides_the_backoff(self) -> None:
+        slept: list[float] = []
+
+        async def _record(seconds: float) -> None:
+            slept.append(seconds)
+
+        throttled = _FakeResponse(429)
+        throttled.headers["Retry-After"] = "7"
+        client = _FakeClient([throttled, _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=2, base_delay=0.01, max_delay=0.01),
+            sleep=_record,
+        )
+        response = await connector.request("GET", "https://example.com")
+        assert response.status_code == 200
+        assert slept == [7.0]
+
+    async def test_retry_after_hint_is_capped_by_the_policy(self) -> None:
+        slept: list[float] = []
+
+        async def _record(seconds: float) -> None:
+            slept.append(seconds)
+
+        throttled = _FakeResponse(429)
+        throttled.headers["Retry-After"] = "99999"
+        client = _FakeClient([throttled, _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=2, max_retry_after=30.0),
+            sleep=_record,
+        )
+        await connector.request("GET", "https://example.com")
+        assert slept == [30.0]
+
+    async def test_unparsable_retry_after_falls_back_to_backoff(self) -> None:
+        slept: list[float] = []
+
+        async def _record(seconds: float) -> None:
+            slept.append(seconds)
+
+        throttled = _FakeResponse(429)
+        throttled.headers["Retry-After"] = "Wed, 21 Oct 2026 07:28:00 GMT"
+        client = _FakeClient([throttled, _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=2, base_delay=0.02, max_delay=0.02, jitter=False),
+            sleep=_record,
+        )
+        await connector.request("GET", "https://example.com")
+        assert slept == [pytest.approx(0.02)]
+
+    async def test_single_attempt_policy_disables_retrying(self) -> None:
+        client = _FakeClient([_FakeResponse(503), _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=1),
+            sleep=_noop_sleep,
+        )
+        response = await connector.request("GET", "https://example.com")
+        assert response.status_code == 503
+        assert len(client.calls) == 1
+
+    def test_rejects_a_non_policy_retry(self) -> None:
+        with pytest.raises(TypeError, match="KnotRetryPolicy"):
+            HttpConnector(retry=object())  # type: ignore[arg-type]
+
+    def test_default_predicate_accepts_an_httpx_transport_error(self) -> None:
+        httpx = pytest.importorskip("httpx")
+        connector = HttpConnector(client=_FakeClient([]), resolver=_public_resolver)
+        assert connector._is_transient(httpx.ConnectTimeout("timed out")) is True
+        assert connector._is_transient(httpx.ReadError("dropped")) is True
+        assert connector._is_transient(httpx.InvalidURL("nope")) is False
+
+    async def test_a_transport_timeout_is_retried_end_to_end(self) -> None:
+        httpx = pytest.importorskip("httpx")
+        client = _FakeClient([httpx.ReadTimeout("slow"), _FakeResponse(200)])
+        connector = HttpConnector(
+            client=client,
+            resolver=_public_resolver,
+            retry=KnotRetryPolicy(max_attempts=2),
+            sleep=_noop_sleep,
+        )
+        response = await connector.request("GET", "https://example.com")
+        assert response.status_code == 200
+        assert len(client.calls) == 2
 
 
 class TestHttpConnectorEgress:
@@ -298,6 +497,6 @@ class TestHttpConnectorLifecycleAndErrors:
         with pytest.raises(ValueError, match="auth_scheme"):
             HttpConnector(auth_scheme="oauth")  # type: ignore[arg-type]
 
-    def test_rejects_negative_max_retries(self) -> None:
-        with pytest.raises(ValueError, match="max_retries"):
-            HttpConnector(max_retries=-1)
+    def test_rejects_non_positive_timeout(self) -> None:
+        with pytest.raises(ValueError, match="timeout"):
+            HttpConnector(timeout=0.0)

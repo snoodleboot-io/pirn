@@ -20,6 +20,7 @@ from pirn.connectors.bi_catalog.dbt_artifacts_reader import (
 from pirn.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class _StandaloneTests(unittest.TestCase):
@@ -63,12 +64,12 @@ class TestLoadRunResults(unittest.IsolatedAsyncioTestCase):
 class TestDiskFallback(unittest.IsolatedAsyncioTestCase):
     async def test_load_manifest_without_data_or_path_raises(self) -> None:
         reader = DbtArtifactsReader(config=DbtArtifactsConfig())
-        with self.assertRaisesRegex(RuntimeError, "target_path"):
+        with self.assertRaisesRegex(ConnectorConfigError, "target_path"):
             await reader.load_manifest()
 
     async def test_load_run_results_without_data_or_path_raises(self) -> None:
         reader = DbtArtifactsReader(config=DbtArtifactsConfig())
-        with self.assertRaisesRegex(RuntimeError, "target_path"):
+        with self.assertRaisesRegex(ConnectorConfigError, "target_path"):
             await reader.load_run_results()
 
     async def test_load_manifest_reads_json_object_from_disk(self) -> None:

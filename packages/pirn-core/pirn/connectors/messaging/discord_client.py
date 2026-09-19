@@ -15,6 +15,7 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.messaging.discord_config import DiscordConfig
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class DiscordClient(ApiClient):
@@ -125,7 +126,7 @@ class DiscordClient(ApiClient):
     def _webhook_url(self) -> str:
         if self._config is not None and self._config.webhook_url:
             return self._config.webhook_url
-        raise RuntimeError("DiscordClient: no webhook_url available")
+        raise ConnectorConfigError("DiscordClient: no webhook_url available")
 
     async def close(self) -> None:
         if self._client is not None:

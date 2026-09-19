@@ -17,6 +17,7 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_transaction import SqliteTransaction
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.connector_usage_error import ConnectorUsageError
 
 
 class SqlitePool(DatabaseConnectionPool):
@@ -195,14 +196,14 @@ class SqlitePool(DatabaseConnectionPool):
         commits; an exception rolls back and propagates.
 
         Raises:
-            RuntimeError: If a transaction is already open on the connection —
+            ConnectorUsageError: If a transaction is already open on the connection —
                 one a caller began by hand is theirs to end, not this scope's.
         """
         self._reject_statement_inside_own_transaction()
         async with self._transaction_lock:
             connection = await self.acquire()
             if connection.in_transaction:
-                raise RuntimeError(
+                raise ConnectorUsageError(
                     "SqlitePool: a transaction is already open on the connection; "
                     "end it before opening a transaction scope"
                 )
@@ -228,7 +229,7 @@ class SqlitePool(DatabaseConnectionPool):
         """
         task = self._transaction_task
         if task is not None and task is asyncio.current_task():
-            raise RuntimeError(
+            raise ConnectorUsageError(
                 "SqlitePool: statement issued on the pool inside its own "
                 "transaction scope; use the handle `async with pool.transaction()` yielded"
             )

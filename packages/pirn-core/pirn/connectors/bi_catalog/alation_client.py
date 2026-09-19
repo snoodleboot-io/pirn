@@ -33,6 +33,7 @@ from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class AlationClient(ApiClient, TableSource, MetadataCatalog):
@@ -201,9 +202,9 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         if self._config is None:
             raise self._missing_config_error("AlationClient", "client")
         if self._config.base_url is None:
-            raise RuntimeError("AlationClient: config.base_url is required")
+            raise ConnectorConfigError("AlationClient: config.base_url is required")
         if self._config.refresh_token is None:
-            raise RuntimeError("AlationClient: config.refresh_token is required")
+            raise ConnectorConfigError("AlationClient: config.refresh_token is required")
         client = self._build_httpx_client(
             "alation",
             scrub_errors=True,

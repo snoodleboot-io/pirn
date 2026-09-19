@@ -27,6 +27,7 @@ from pirn.connectors.observability.prometheus_config import (
     PrometheusConfig,
 )
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class PrometheusClient(ApiClient, MetricQuery):
@@ -159,7 +160,7 @@ class PrometheusClient(ApiClient, MetricQuery):
         if self._config is None:
             raise self._missing_config_error("PrometheusClient", "client")
         if self._config.base_url is None:
-            raise RuntimeError("PrometheusClient: config.base_url is required")
+            raise ConnectorConfigError("PrometheusClient: config.base_url is required")
 
         client_headers: dict[str, str] = {}
         if self._config.bearer_token is not None:

@@ -31,6 +31,7 @@ from pirn.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class DbtArtifactsReader(MetadataCatalog):
@@ -186,7 +187,7 @@ class DbtArtifactsReader(MetadataCatalog):
 
     def _artifact_path(self, filename: str) -> str:
         if self._config is None or self._config.target_path is None:
-            raise RuntimeError(
+            raise ConnectorConfigError(
                 f"DbtArtifactsReader: config.target_path is required to read {filename} from disk"
             )
         return os.path.join(self._config.target_path, filename)

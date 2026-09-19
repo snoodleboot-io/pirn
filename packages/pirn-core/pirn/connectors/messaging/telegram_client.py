@@ -15,6 +15,7 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.messaging.telegram_config import TelegramConfig
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class TelegramClient(ApiClient):
@@ -115,7 +116,7 @@ class TelegramClient(ApiClient):
     def _bot_token(self) -> str:
         if self._config is not None and self._config.bot_token:
             return self._config.bot_token
-        raise RuntimeError("TelegramClient: no bot_token available without config")
+        raise ConnectorConfigError("TelegramClient: no bot_token available without config")
 
     async def close(self) -> None:
         if self._client is not None:

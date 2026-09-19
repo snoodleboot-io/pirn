@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pirn.exceptions.result_unwrap_error import ResultUnwrapError
+
 
 class Skipped(BaseModel):
     """A knot that was deliberately not run.
@@ -43,4 +45,4 @@ class Skipped(BaseModel):
         return True
 
     def unwrap(self) -> object:  # pragma: no cover
-        raise RuntimeError(f"unwrap() called on Skipped: {self.reason}")
+        raise ResultUnwrapError(f"unwrap() called on Skipped: {self.reason}")

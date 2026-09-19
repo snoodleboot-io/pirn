@@ -63,12 +63,12 @@ class Signer:
         construction with a per-deployment key.
 
         Raises:
-            RuntimeError: If called outside a test or CI environment
+            PirnConfigError: If called outside a test or CI environment
                 (i.e. when PIRN_ENV is not set to "test" or "ci").
         """
         env = os.environ.get("PIRN_ENV", "").lower()
         if env not in ("test", "ci"):
-            raise RuntimeError(
+            raise PirnConfigError(
                 "Signer.test_signer() must not be called in production. "
                 "Set PIRN_ENV=test or PIRN_ENV=ci to use this method in a "
                 "test or CI environment. Use Signer.from_env() for production."

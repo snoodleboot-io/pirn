@@ -15,6 +15,7 @@ import pytest
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.database_transaction import DatabaseTransaction
 from pirn.exceptions.connector_closed_error import ConnectorClosedError
+from pirn.exceptions.connector_usage_error import ConnectorUsageError
 
 pytest.importorskip("aiosqlite")
 pytest.importorskip("duckdb")
@@ -74,9 +75,9 @@ class _PoolTransactionContract:
                 assert isinstance(tx, DatabaseTransaction)
             with pytest.raises(ConnectorClosedError):
                 await tx.fetch_all("SELECT 1")
-            with pytest.raises(RuntimeError):
+            with pytest.raises(ConnectorUsageError):
                 await tx.close()
-            with pytest.raises(RuntimeError):
+            with pytest.raises(ConnectorUsageError):
                 tx.transaction()
         finally:
             await pool.close()
@@ -123,7 +124,7 @@ class TestSqlitePoolTransaction(_PoolTransactionContract):
         pool = SqlitePool(SqliteConfig(database=str(tmp_path / "t.db")))
         try:
             async with pool.transaction():
-                with pytest.raises(RuntimeError, match="use the handle"):
+                with pytest.raises(ConnectorUsageError, match="use the handle"):
                     await pool.fetch_all("SELECT 1")
         finally:
             await pool.close()
@@ -134,7 +135,7 @@ class TestSqlitePoolTransaction(_PoolTransactionContract):
             await pool.execute("CREATE TABLE t (id INTEGER)")
             connection = await pool.acquire()
             await connection.execute("BEGIN")  # a caller-owned transaction, begun by hand
-            with pytest.raises(RuntimeError, match="already open"):
+            with pytest.raises(ConnectorUsageError, match="already open"):
                 async with pool.transaction():
                     pass
         finally:

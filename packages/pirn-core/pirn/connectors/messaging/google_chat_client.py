@@ -15,6 +15,7 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.messaging.google_chat_config import GoogleChatConfig
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class GoogleChatClient(ApiClient):
@@ -83,7 +84,7 @@ class GoogleChatClient(ApiClient):
     def _webhook_url(self) -> str:
         if self._config is not None:
             return self._config.webhook_url
-        raise RuntimeError("GoogleChatClient: no webhook_url available without config")
+        raise ConnectorConfigError("GoogleChatClient: no webhook_url available without config")
 
     async def close(self) -> None:
         if self._client is not None:

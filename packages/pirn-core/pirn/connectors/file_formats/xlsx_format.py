@@ -53,13 +53,20 @@ class XlsxFormat(BatchFileFormat):
                     raise ValueError(
                         f"XlsxFormat: every column name must be a non-empty string, got {col!r}"
                     )
-        if not has_header and column_names is None:
-            raise ValueError("XlsxFormat: column_names is required when has_header=False")
+        if has_header:
+            headerless_columns: tuple[str, ...] = ()
+        else:
+            if column_names is None:
+                raise ValueError("XlsxFormat: column_names is required when has_header=False")
+            headerless_columns = tuple(column_names)
         self._sheet_name = sheet_name
         self._has_header = has_header
         self._column_names: tuple[str, ...] | None = (
             tuple(column_names) if column_names is not None else None
         )
+        # Narrowed once, at construction: headerless mode always has names (the
+        # check above), so the decode path never needs a guard it cannot reach.
+        self._headerless_columns: tuple[str, ...] = headerless_columns
 
     @property
     def name(self) -> str:
@@ -104,12 +111,7 @@ class XlsxFormat(BatchFileFormat):
                 else:
                     columns = tuple(str(cell) if cell is not None else "" for cell in header_row)
             else:
-                if self._column_names is None:
-                    raise RuntimeError(
-                        "XlsxFormat: missing column_names while "
-                        "has_header=False (should be unreachable)"
-                    )
-                columns = self._column_names
+                columns = self._headerless_columns
             records: list[Mapping[str, Any]] = []
             for row in row_iter:
                 if all(cell is None for cell in row):

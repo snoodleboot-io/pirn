@@ -33,6 +33,7 @@ from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.salesforce_config import SalesforceConfig
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class SalesforceClient(ApiClient, TableSource, RecordWriter):
@@ -92,7 +93,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
             response = await self.request("GET", cursor)
         else:
             if self._soql_query is None:
-                raise RuntimeError(
+                raise ConnectorConfigError(
                     "SalesforceClient.fetch_page: no soql_query configured and no cursor supplied"
                 )
             response = await self.request("GET", "/query", params={"q": self._soql_query})

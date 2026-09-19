@@ -10,9 +10,6 @@ from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.azure_servicebus_config import (
     AzureServiceBusConfig,
 )
-from pirn.connectors.streaming.azure_servicebus_stub_message import (
-    AzureServiceBusStubMessage,
-)
 from pirn.core.optional_dependency import OptionalDependency
 
 
@@ -150,14 +147,7 @@ class AzureServiceBusBroker(MessageBroker):
         key: bytes | None,
         headers: dict[str, bytes] | None,
     ) -> Any:
-        try:
-            servicebus = OptionalDependency.require("azure.servicebus", extra="azure-servicebus")
-        except ImportError:
-            return AzureServiceBusStubMessage(
-                body=bytes(value),
-                key=bytes(key) if key is not None else None,
-                headers=dict(headers) if headers else None,
-            )
+        servicebus = OptionalDependency.require("azure.servicebus", extra="azure-servicebus")
         message_kwargs: dict[str, Any] = {"body": bytes(value)}
         if key is not None:
             message_kwargs["session_id"] = key.decode("utf-8")

@@ -12,9 +12,11 @@ executor calls :meth:`end_run` which deletes the directory. On
 abnormal termination (SIGKILL, OOM) the directory is left behind and
 cleaned up by :meth:`sweep_abandoned` which:
 
-1. Ignores directories whose ``pirn-lock`` file is held by a live process
-   (uses ``fcntl`` advisory locking on Linux/macOS; skips lock check on
-   other platforms).
+1. Ignores directories whose ``pirn-lock`` file is held by a live process,
+   and any directory whose lock it cannot read an answer from — see
+   :class:`~pirn.core.transport.advisory_file_lock.AdvisoryFileLock`, which
+   answers "held" for every case it cannot decide, because this check gates a
+   ``shutil.rmtree``.
 2. Deletes directories whose lock file is stale and whose manifest
    timestamp is older than *max_age_hours*.
 
@@ -42,9 +44,10 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 from uuid import uuid4
 
+from pirn.core.transport.advisory_file_lock import AdvisoryFileLock
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
@@ -94,7 +97,8 @@ class FilesystemTransport(DataTransport):
         self._sweep_on_startup = sweep_on_startup
         self._registry = serializer_registry or SerializerRegistry.default()
         self._startup_swept = False
-        self._lock_handles: dict[str, Any] = {}
+        self._lock = AdvisoryFileLock()
+        self._lock_handles: dict[str, IO[str]] = {}
 
     @property
     def transport_id(self) -> str:
@@ -271,49 +275,35 @@ class FilesystemTransport(DataTransport):
             )
 
     def _acquire_lock(self, run_id: str, run_dir: Path) -> None:
-        lock_path = run_dir / self._lock_name
-        try:
-            fh = open(lock_path, "w")
-            try:
-                import fcntl
+        """Mark the run live by holding an advisory lock for its whole lifetime.
 
-                fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except ImportError:
-                pass  # Windows — skip advisory locking
-            self._lock_handles[run_id] = fh
-        except OSError as exc:
-            _log.warning("FilesystemTransport: could not acquire lock for run %s: %s", run_id, exc)
+        A lock that cannot be taken is logged, not raised: failing to *mark* a
+        run costs a directory that the sweeper will decline to delete anyway
+        (:meth:`AdvisoryFileLock.is_held` answers "held" whenever it cannot
+        prove otherwise), so the run itself is unaffected.
+        """
+        handle = self._lock.acquire(run_dir / self._lock_name)
+        if handle is None:
+            _log.warning(
+                "FilesystemTransport: run %s is not advisory-locked; its directory will "
+                "not be swept while this process lives, but a crash may leave it behind",
+                run_id,
+            )
+            return
+        self._lock_handles[run_id] = handle
 
     def _release_lock(self, run_id: str) -> None:
-        fh = self._lock_handles.pop(run_id, None)
-        if fh is None:
-            return
-        try:
-            import fcntl
+        handle = self._lock_handles.pop(run_id, None)
+        if handle is not None:
+            self._lock.release(handle)
 
-            fcntl.flock(fh, fcntl.LOCK_UN)
-        except ImportError:
-            pass
-        try:
-            fh.close()
-        except OSError:
-            pass
+    def _is_lock_held(self, lock_path: Path) -> bool:
+        """Whether a live process still holds *lock_path* — ``True`` when unknown.
 
-    @staticmethod
-    def _is_lock_held(lock_path: Path) -> bool:
-        if not lock_path.exists():
-            return False
-        try:
-            import fcntl
-
-            with open(lock_path) as fh:
-                try:
-                    fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    fcntl.flock(fh, fcntl.LOCK_UN)
-                    return False
-                except OSError:
-                    return True
-        except ImportError:
-            return False
-        except OSError:
-            return False
+        This is the gate in front of ``shutil.rmtree``, so "cannot tell" must
+        read as "held". It used to return ``False`` when ``fcntl`` was
+        unimportable (every Windows run) and when opening the lock file raised
+        ``OSError``, which had :meth:`sweep_abandoned` delete the run directory
+        of a process that was still writing into it (PIR-873).
+        """
+        return self._lock.is_held(lock_path)

@@ -35,17 +35,25 @@ class CompressedFileFormat(FileFormat):
     ``"lz4"``.
     """
 
-    _supported_codecs: ClassVar[frozenset[str]] = frozenset(
-        {"gzip", "bzip2", "zstd", "snappy", "lz4"}
-    )
+    #: The supported codecs and what builds each one. Single source of truth:
+    #: the constructor validates against these keys and :meth:`_load_codec`
+    #: reads the value, so a new codec cannot be accepted by one and unknown to
+    #: the other.
+    _codec_types: ClassVar[Mapping[str, type[Codec]]] = {
+        "gzip": GzipCodec,
+        "bzip2": Bzip2Codec,
+        "zstd": ZstdCodec,
+        "snappy": SnappyCodec,
+        "lz4": Lz4Codec,
+    }
 
     def __init__(self, inner: FileFormat, *, codec: str) -> None:
         if not isinstance(inner, FileFormat):
             raise TypeError("CompressedFileFormat: inner must be a FileFormat")
-        if codec not in self._supported_codecs:
+        if codec not in self._codec_types:
             raise ValueError(
                 f"CompressedFileFormat: codec must be one of "
-                f"{sorted(self._supported_codecs)}, got {codec!r}"
+                f"{sorted(self._codec_types)}, got {codec!r}"
             )
         self._inner = inner
         self._codec = codec
@@ -86,14 +94,4 @@ class CompressedFileFormat(FileFormat):
 
     def _load_codec(self) -> Codec:
         """Build the codec; its optional backend is imported when it runs."""
-        if self._codec == "gzip":
-            return GzipCodec()
-        if self._codec == "bzip2":
-            return Bzip2Codec()
-        if self._codec == "zstd":
-            return ZstdCodec()
-        if self._codec == "snappy":
-            return SnappyCodec()
-        if self._codec == "lz4":
-            return Lz4Codec()
-        raise RuntimeError(f"CompressedFileFormat: codec {self._codec!r} not loadable")
+        return self._codec_types[self._codec]()

@@ -32,6 +32,7 @@ from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.shape_guard import ShapeGuard
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
@@ -201,9 +202,9 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         if self._config is None:
             raise self._missing_config_error("OpenMetadataClient", "client")
         if self._config.host_url is None:
-            raise RuntimeError("OpenMetadataClient: config.host_url is required")
+            raise ConnectorConfigError("OpenMetadataClient: config.host_url is required")
         if self._config.jwt_token is None:
-            raise RuntimeError("OpenMetadataClient: config.jwt_token is required")
+            raise ConnectorConfigError("OpenMetadataClient: config.jwt_token is required")
         client = self._build_httpx_client(
             "open-metadata",
             scrub_errors=True,

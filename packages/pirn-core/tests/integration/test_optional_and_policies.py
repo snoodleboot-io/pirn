@@ -128,3 +128,9 @@ async def test_require_all_parents_synthetic_err_on_skip():
     assert not result.succeeded
     by_id = {rec.knot_id: rec for rec in result.lineage}
     assert by_id["u"].outcome == "err"
+    # The synthetic failure is typed, so a reader of the row can tell "a parent
+    # did not deliver" from an exception the knot itself raised (PIR-873).
+    record_id = by_id["u"].error_record_id
+    assert record_id is not None
+    recorded = {rec.id: rec for rec in result.exceptions}
+    assert recorded[record_id].exc_type == "RequiredParentMissingError"

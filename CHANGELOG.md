@@ -101,6 +101,110 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### No production code falls back to a test stub (PIR-873)
+
+Four modules caught the `ImportError` from their optional backend and carried on
+with a substitute. Each now lets the install hint out, and the fake that kept the
+tests offline lives in the test that needs it.
+
+| Deleted name | Replacement |
+|---|---|
+| `pirn/connectors/streaming/rabbitmq_plain_message.py::RabbitMQPlainMessage` | a fake `aio_pika` module in `tests/unit/domains/connectors/streaming/test_rabbitmq_broker.py` |
+| `pirn/connectors/streaming/azure_servicebus_stub_message.py::AzureServiceBusStubMessage` | a fake `azure.servicebus` module in `test_azure_servicebus_broker.py` |
+| `pirn/connectors/databases/bigquery_stub_job_config.py::BigqueryStubJobConfig` | a fake `google.cloud.bigquery` module in `test_bigquery_pool.py` |
+| `BrainVisionFormat._decode_fallback` (with `_parse_vhdr`, `_parse_channel_names`) | a fake `mne` module in `test_brainvision_format.py` |
+
+The first three would have handed a live broker or BigQuery client an object its
+SDK cannot read, reported as a vendor error far from the cause.
+`BrainVisionFormat`'s second decoder was worse than useless: `mne` applies each
+channel's `Resolution` factor and unit so records carry volts, while the
+header-only parser returned raw ADC integers, and nothing in the records said
+which had run — the same file decoded to different numbers depending on what
+happened to be installed.
+
+#### Scientific formats refuse instead of losing data quietly (PIR-873)
+
+- `BidsDatasetFormat` gains `validate=` (default `False`). `_validate_bids_if_available`
+  is deleted: it skipped silently when `pybids` was absent, called
+  `BIDSLayout(validate=False)` — which turns the standard's own checks off, so it
+  validated nothing even when `pybids` was installed — and downgraded a layout
+  failure to a `RuntimeWarning`. `validate=True` requires the `bids` extra
+  (naming the install hint), runs `BIDSLayout(validate=True)`, and raises
+  `ValueError` on a dataset that does not satisfy the standard. Its test module
+  no longer skips wholesale for a missing `pybids`, which is how a validator that
+  validated nothing went unnoticed.
+- `FitsFormat` decode raises instead of reporting `data: None` for an HDU whose
+  array cannot be serialised — `None` is also how it says "this HDU has no
+  data", so the loss was invisible. Encode raises on a header key that is not a
+  string instead of dropping the card. New helpers `_hdu_data_bytes` and
+  `_writable_header_cards` carry the rules, and need no `astropy` to test.
+- `SegyFormat` encode raises instead of substituting zeros for a non-bytes
+  payload, zero-padding a short trace, truncating a long one, dropping a
+  trailing partial sample, or dropping a trace-header field it could not coerce
+  (SEG-Y traces are fixed length, so a ragged record stream wrote a file that
+  looked valid and was not the data handed in). New helpers `_trace_samples` and
+  `_header_updates` carry the rules, and need no `segyio` to test.
+
+#### `AdvisoryFileLock` — the abandoned-run sweep fails safe (PIR-873)
+
+`pirn/core/transport/advisory_file_lock.py` — `AdvisoryFileLock.acquire` /
+`release` / `is_held`, `fcntl.flock` on POSIX and `msvcrt.locking` on Windows,
+taken out of `FilesystemTransport`'s three inline `import fcntl` blocks.
+
+`is_held` gates a `shutil.rmtree`, so every answer it cannot prove is **"held"**.
+`FilesystemTransport._is_lock_held` used to return `False` — "safe to delete" —
+when `import fcntl` failed (every Windows run) and when opening the lock file
+raised `OSError`, so `sweep_abandoned` could delete the run directory of a
+process still writing into it. `_acquire_lock`'s silent `except ImportError:
+pass` is likewise gone: a run that could not be marked is logged, and the sweeper
+declines to touch it rather than assuming it is dead.
+
+`typings/msvcrt/__init__.pyi` declares the byte-range locking subset
+unconditionally — typeshed gates every `msvcrt` symbol behind
+`sys.platform == "win32"`, so the Windows branch was unverifiable on a Linux
+checker, which is every machine here.
+
+#### Airbyte OAuth2 client-credentials exchange implemented (PIR-873)
+
+`AirbyteConfig` documented a `client_id` / `client_secret` pair the connector
+then refused with "OAuth2 exchange not yet implemented". `AirbyteClient` now
+performs Airbyte Cloud's client-credentials grant (`POST
+{base_url}/applications/token`) on first use when no `access_token` is
+configured, on the same pooled client, unauthenticated, once per client. The
+token is never written back onto the frozen config.
+
+#### Every connector refusal is a typed `PirnError` (PIR-873)
+
+The 54 `raise RuntimeError(...)` sites in `pirn-core` are gone. A caller could
+only catch them by catching every programming error alongside them; each now
+raises the exception that says what went wrong, and every one still subclasses
+`RuntimeError`, so an existing `except RuntimeError` handler keeps working.
+
+| Refusal | Now raises |
+|---|---|
+| a config field the call needs is unset (`base_url`, `api_key`, `target_path`, the query a paging adapter pages over) — 24 sites across `bi_catalog/`, `observability/`, `saas/`, `messaging/` | `ConnectorConfigError` |
+| no live connection to serve the statement — 17 sites in `document/` and `timeseries/` pools, via the new `DatabaseConnectionPool._not_connected_error` | `ConnectorClosedError` |
+| the call is wrong for the object (`DatabaseTransaction.close`, a nested `transaction()`, a statement issued on a pool inside its own scope) | `ConnectorUsageError` (new) |
+| an installed backend cannot do it (a `pyedflib` with no PHI-redaction setter, an injected client with no request entry-point) | `BackendCapabilityError` (new) |
+| `Err.unwrap()` / `Skipped.unwrap()` | `ResultUnwrapError` (new) |
+| the synthetic failure a `REQUIRE_ALL_PARENTS` knot records | `RequiredParentMissingError` (new) |
+| `Signer.test_signer()` called outside a test/CI env | `PirnConfigError` |
+
+`ConnectorConfigError`'s contract widens to cover "a config is present but
+missing the field this call needs", which is what most of those sites are.
+
+Three of the removed `RuntimeError`s were unreachable narrowing guards and were
+deleted rather than retyped: `CsvFormat` and `XlsxFormat` narrow their headerless
+column names once at construction, and `CompressedFileFormat` now keeps one
+`_codec_types` mapping that both the constructor's validation and `_load_codec`
+read, so a codec accepted by one and unknown to the other is unexpressible (the
+`_supported_codecs` frozenset is gone).
+
+`MixpanelClient` and `AmplitudeClient` check their config *before* importing
+their SDK, and `AmplitudeClient.request` builds its client before its event, so
+a missing `api_key` reports itself instead of an install hint for a dependency
+that would not have helped.
+
 #### Remaining engine-bypass sites closed (PIR-867)
 
 The last standing entries in `tests/specializations/base/test_no_engine_bypass.py`'s bypass ratchet — `AWAITS_CHILD_PROCESS`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and `USES_ASYNCIO_GATHER` — are now empty; `AWAITS_INVOKE` names a new sanctioned vending knot instead of the pipeline it used to flag. See `packages/pirn-core/docs/FRAMEWORK_REFERENCE.md` ("Control-flow vocabulary" and "Scheduling and concurrency") for the per-site detail.
@@ -253,6 +357,24 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 ---
 
 ### Removed
+
+#### `HttpConnector`'s own retry loop (PIR-873)
+
+| Removed name | Replacement |
+|---|---|
+| `HttpConnector(max_retries=)` | `HttpConnector(retry=KnotRetryPolicy(max_attempts=))` |
+| `HttpConnector(backoff_base=)`, `HttpConnector(backoff_cap=)` | `KnotRetryPolicy(base_delay=, max_delay=, multiplier=, jitter=)` |
+| `HttpConnector._delay_for` | `KnotRetryPolicy.delay_before_retry` |
+| `HttpConnector._always_retry` (retried every exception) | `HttpConnector._is_transient` (a retryable status or an `httpx.TransportError`) |
+| `HttpConnector._default_sleep` | `KnotRetryPolicy.run`'s own `asyncio.sleep` default |
+
+`HttpConnector.request` now performs exactly one attempt and lets
+`KnotRetryPolicy.run` schedule the rest, so an HTTP call backs off on the same
+jittered, capped, `Retry-After`-aware schedule as a knot dispatch. Two new
+narrowings come with it: only a method in `idempotent_methods` (new argument,
+RFC 9110 §9.2.2 by default) is ever retried — a `POST` that times out is no
+longer re-sent — and only a transient failure is. A retryable status that
+outlives the budget is returned, not raised.
 
 #### pirn-agents specializations: second names and stale seams (PIR-873)
 

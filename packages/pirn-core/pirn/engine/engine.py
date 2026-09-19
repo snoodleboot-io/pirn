@@ -75,6 +75,7 @@ from pirn.engine.run_scoped_subscriber import RunScopedSubscriber
 from pirn.engine.scheduling.dependency_tracker import DependencyTracker
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
+from pirn.exceptions.required_parent_missing_error import RequiredParentMissingError
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.managers.knot_state import KnotState
 from pirn.managers.rebindable_error import RebindableError
@@ -978,7 +979,9 @@ class Engine:
 
         if policy is ErrorPolicy.REQUIRE_ALL_PARENTS:
             if any_skipped or any_err:
-                err = RuntimeError(f"knot {knot.knot_id!r}: REQUIRE_ALL_PARENTS not satisfied")
+                err = RequiredParentMissingError(
+                    f"knot {knot.knot_id!r}: REQUIRE_ALL_PARENTS not satisfied"
+                )
                 rec = ctx.exceptions.record(knot.knot_id, err)
                 return Err(record=rec)
             # All parents are Ok at this point (we returned otherwise above).
