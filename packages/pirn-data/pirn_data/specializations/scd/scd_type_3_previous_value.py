@@ -51,6 +51,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class ScdType3PreviousValue(Knot):
@@ -130,10 +131,11 @@ class ScdType3PreviousValue(Knot):
         previous_suffix: Any = "_previous",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType3PreviousValue: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType3PreviousValue: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "ScdType3PreviousValue",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("ScdType3PreviousValue: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

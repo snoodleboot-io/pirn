@@ -52,31 +52,45 @@ with Tapestry() as t:
 
 ```python
 from pirn_data.specializations.scd.scd_type_2 import ScdType2
-from pirn_data.specializations.scd.scd_type_2_merge_knot import ScdType2MergeKnot
 
 with Tapestry() as t:
+    # Rows from an upstream knot, one value per column_names entry ...
     incoming = SourceKnot(_config=KnotConfig(id="source"))
-    merged   = ScdType2MergeKnot(
-        incoming=incoming,
-        pool=my_pool,
-        table="dim_customer",
-        natural_key="customer_id",
+    ScdType2(
+        rows=incoming,
+        target_pool=my_pool,
+        target_table="dim_customer",
+        primary_keys=("customer_id",),
+        column_names=("customer_id", "region", "tier"),
+        _config=KnotConfig(id="scd2"),
+    )
+
+with Tapestry() as t:
+    # ... or a query ScdType2 runs itself. Supply one or the other, never both.
+    ScdType2(
+        source_pool=my_pool,
+        source_query="SELECT customer_id, region, tier FROM stg_customer",
+        target_pool=my_pool,
+        target_table="dim_customer",
+        primary_keys=("customer_id",),
+        column_names=("customer_id", "region", "tier"),
         _config=KnotConfig(id="scd2"),
     )
 ```
 
-### Incremental merge-upsert
+### Incremental merge-upsert (SCD Type 1)
 
 ```python
-from pirn_data.specializations.incremental.merge_upsert import MergeUpsert
+from pirn_data.specializations.scd.scd_type_1 import ScdType1
 
 with Tapestry() as t:
     new_rows = SourceKnot(_config=KnotConfig(id="source"))
-    MergeUpsert(
-        data=new_rows,
-        pool=my_pool,
-        table="events",
-        key_columns=["event_id"],
+    ScdType1(
+        rows=new_rows,
+        target_pool=my_pool,
+        target_table="events",
+        primary_keys=("event_id",),
+        column_names=("event_id", "payload"),
         _config=KnotConfig(id="upsert"),
     )
 ```
@@ -85,7 +99,7 @@ with Tapestry() as t:
 
 ## Anti-patterns
 
-**Using `ScdType2MergeKnot` without a surrogate key column** — SCD Type 2 generates surrogate keys on insert. If the target table already has a primary key scheme that conflicts, the merge will produce duplicate rows.
+**Using `ScdType2` where you meant `ScdType7`** — `ScdType2` versions rows by natural key and never allocates a surrogate key, so the target table must not declare the natural key as its primary key (several versions of a key coexist). `ScdType7` is the one that allocates a surrogate key per version.
 
 **Skipping `BronzeRawIngest` and writing directly to Silver** — bronze is the immutable landing zone. Bypass it and you lose the audit trail and the ability to reprocess from raw.
 
@@ -94,7 +108,7 @@ with Tapestry() as t:
 ## Constraints and gotchas
 
 - **SCD Types 3–7 are single-table implementations.** They are less common and have specific schema requirements — read each module's docstring for the expected table structure.
-- **`MergeUpsert` requires the pool's database to support `MERGE` or `INSERT ... ON CONFLICT`.** Verified on Postgres, DuckDB, Snowflake, BigQuery. Not supported on all databases.
+- **The SCD merges use only `SELECT`, `INSERT`, `UPDATE` and `?` placeholders** — no `MERGE` and no `INSERT ... ON CONFLICT` — so they run on every pool, not just the engines that have a vendor upsert.
 - **Data Vault loaders assume a hash-key convention** — hub and satellite natural keys are SHA-256 hashed to produce the `HK_` (hub key) column. Ensure hash salting is consistent across loads.
 
 ---
@@ -106,9 +120,9 @@ with Tapestry() as t:
 | Raw ingest (bronze) | `BronzeRawIngest` |
 | Clean + validate (silver) | `SilverCleanTransform` |
 | Aggregate (gold) | `GoldAggregation` |
-| SCD Type 1 (overwrite) | `ScdType1MergeKnot` |
-| SCD Type 2 (history) | `ScdType2MergeKnot` |
-| Merge-upsert | `MergeUpsert` |
+| SCD Type 1 (overwrite) | `ScdType1` |
+| SCD Type 2 (history) | `ScdType2` |
+| SCD Type 7 (surrogate-keyed history) | `ScdType7` |
 | Snapshot append | `SnapshotTableAppender` |
 | Data Vault hub load | `DataVaultHubLoader` |
 | Data Vault satellite load | `DataVaultSatelliteLoader` |

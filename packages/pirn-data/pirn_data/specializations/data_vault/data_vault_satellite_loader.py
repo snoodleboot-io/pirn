@@ -42,6 +42,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class DataVaultSatelliteLoader(Knot):
@@ -81,16 +82,20 @@ class DataVaultSatelliteLoader(Knot):
         )
 
     @staticmethod
-    def _select_open_query(
+    def _select_open_rows_query(
         target_table: str,
         hub_hash_key_column: str,
         hash_diff_column: str,
         load_end_date_column: str,
     ) -> str:
+        """Read every open satellite row's hub key and hash diff, in one query.
+
+        One query for the whole batch rather than one per source row: the loader
+        needs the same two columns for every key it is about to consider.
+        """
         return (
-            f"SELECT {hash_diff_column} FROM {target_table} "
-            f"WHERE {hub_hash_key_column} = ? "
-            f"AND {load_end_date_column} IS NULL"
+            f"SELECT {hub_hash_key_column}, {hash_diff_column} FROM {target_table} "
+            f"WHERE {load_end_date_column} IS NULL"
         )
 
     @staticmethod
@@ -135,14 +140,11 @@ class DataVaultSatelliteLoader(Knot):
         record_source: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultSatelliteLoader: source_pool must be a DatabaseConnectionPool"
-            )
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultSatelliteLoader: target_pool must be a DatabaseConnectionPool"
-            )
+        PoolValidator.validate_pools(
+            "DataVaultSatelliteLoader",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         for label, value in (
             ("source_query", source_query),
             ("target_table", target_table),
@@ -187,47 +189,48 @@ class DataVaultSatelliteLoader(Knot):
         )
         source_rows = await source_pool.fetch_all(source_query)
         load_date = datetime.now(UTC).isoformat()
-        rows_inserted = 0
-        rows_closed = 0
+        open_rows = await target_pool.fetch_all(
+            DataVaultSatelliteLoader._select_open_rows_query(
+                target_table,
+                hub_hash_key_column,
+                hash_diff_column,
+                load_end_date_column,
+            )
+        )
+        open_diff_by_key: dict[Any, Any] = {}
+        for open_row in open_rows:
+            hub_key, open_diff = tuple(open_row)
+            open_diff_by_key[hub_key] = open_diff
+        closes: list[tuple[Any, ...]] = []
+        inserts: list[tuple[Any, ...]] = []
         for row in source_rows:
             row_dict = dict(zip(source_columns, row, strict=False))
             hub_hk = row_dict[hub_hash_key_column]
             incoming_diff = row_dict[hash_diff_column]
-            open_rows = await target_pool.fetch_all(
-                DataVaultSatelliteLoader._select_open_query(
-                    target_table,
-                    hub_hash_key_column,
-                    hash_diff_column,
-                    load_end_date_column,
-                ),
-                (hub_hk,),
-            )
-            if open_rows:
-                existing_diff = open_rows[0][0]
-                if existing_diff == incoming_diff:
+            if hub_hk in open_diff_by_key:
+                if open_diff_by_key[hub_hk] == incoming_diff:
                     continue
-                await target_pool.execute(
-                    DataVaultSatelliteLoader._close_query(
-                        target_table, hub_hash_key_column, load_end_date_column
-                    ),
-                    (load_date, hub_hk),
-                )
-                rows_closed += 1
+                closes.append((load_date, hub_hk))
             values = tuple(row_dict[c] for c in source_columns)
-            await target_pool.execute(
-                DataVaultSatelliteLoader._insert_query(
-                    target_table,
-                    source_columns,
-                    load_date_column,
-                    load_end_date_column,
-                    record_source_column,
-                ),
-                (*values, load_date, None, record_source),
-            )
-            rows_inserted += 1
+            inserts.append((*values, load_date, None, record_source))
+        close_q = DataVaultSatelliteLoader._close_query(
+            target_table, hub_hash_key_column, load_end_date_column
+        )
+        insert_q = DataVaultSatelliteLoader._insert_query(
+            target_table,
+            source_columns,
+            load_date_column,
+            load_end_date_column,
+            record_source_column,
+        )
+        async with target_pool.transaction() as transaction:
+            if closes:
+                await transaction.execute_many(close_q, closes)
+            if inserts:
+                await transaction.execute_many(insert_q, inserts)
         return {
             "succeeded": True,
             "target_table": target_table,
-            "rows_inserted": rows_inserted,
-            "rows_closed": rows_closed,
+            "rows_inserted": len(inserts),
+            "rows_closed": len(closes),
         }

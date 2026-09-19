@@ -33,6 +33,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.data_batch import DataBatch
+from pirn_data.pool_validator import PoolValidator
 
 
 class SilverCleanTransform(Knot):
@@ -136,10 +137,11 @@ class SilverCleanTransform(Knot):
             TypeError: If either pool is not a ``DatabaseConnectionPool``.
             ValueError: If any string argument is empty, or sequence arguments are empty.
         """
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("SilverCleanTransform: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("SilverCleanTransform: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "SilverCleanTransform",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("SilverCleanTransform: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

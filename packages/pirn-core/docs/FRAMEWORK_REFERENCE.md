@@ -696,7 +696,7 @@ to `ExceptionRecord`.
   import paths, no import codemod and no construction-time warning seam;
   `scripts/check_conventions.py` fails on a re-export module, a module-scope
   alias or any deprecation reference. `pirn_data`'s SCD Type-1 upsert is
-  `MergeUpsert`.
+  `ScdType1` — the one implementation of it (PIR-873).
 - **Private-in-name-only is public (PIR-872).** Classes other modules import
   are public: `Signer` (`backends/signer.py`), `CloudObjectStore`, `LazyPool`,
   `LazyClient`, `SqliteMigrations`, `RunScopedSubscriber`,

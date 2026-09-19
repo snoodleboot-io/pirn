@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -52,6 +53,18 @@ class CouchbasePool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("couchbase.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: Couchbase has none through this surface.
+
+        Couchbase's distributed ACID transactions are a separate transactions API; the
+        query surface this pool drives cannot enrol statements in one.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("Couchbase", "the N1QL query surface")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Execute a N1QL/SQL++ query; returns status string."""

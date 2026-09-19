@@ -33,6 +33,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.pool_validator import PoolValidator
+
 
 class BronzeRawIngest(Knot):
     """Ingest source rows into a bronze table with envelope metadata."""
@@ -95,10 +97,11 @@ class BronzeRawIngest(Knot):
             TypeError: If either pool is not a ``DatabaseConnectionPool``.
             ValueError: If any string argument is empty, or ``source_columns`` is empty.
         """
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("BronzeRawIngest: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("BronzeRawIngest: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "BronzeRawIngest",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("BronzeRawIngest: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

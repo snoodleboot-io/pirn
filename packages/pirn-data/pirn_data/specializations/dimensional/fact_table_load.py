@@ -36,6 +36,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.value_shape import ValueShape
 
 
@@ -105,10 +106,11 @@ class FactTableLoad(Knot):
         unknown_sk: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("FactTableLoad: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("FactTableLoad: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "FactTableLoad",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("FactTableLoad: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:
@@ -146,8 +148,7 @@ class FactTableLoad(Knot):
                     f"{label}.is_current_column", spec["is_current_column"]
                 )
             dim_pool = spec.get("dim_pool", None)
-            if dim_pool is not None and not isinstance(dim_pool, DatabaseConnectionPool):
-                raise TypeError(f"FactTableLoad: {label}.dim_pool must be a DatabaseConnectionPool")
+            PoolValidator.validate_optional_pools(f"FactTableLoad: {label}", dim_pool=dim_pool)
             validated_lookups.append(
                 {
                     "dim_table": spec["dim_table"],

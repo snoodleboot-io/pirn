@@ -55,6 +55,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.value_shape import ValueShape
 
 
@@ -169,10 +170,11 @@ class ScdType6Hybrid(Knot):
         current_flag_column: Any = "is_current",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType6Hybrid: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType6Hybrid: target_pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools(
+            "ScdType6Hybrid",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("ScdType6Hybrid: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

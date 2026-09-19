@@ -24,8 +24,8 @@ signal (this is the terminal node that assembles the final
 :class:`RaptorTree` for :class:`RaptorTreeBuilder`), not the strict "raw
 bytes in, no I/O" Assembler contract: this knot performs an atomic
 read-check-transform-write cycle against the vector store (dedup lookup,
-LLM summarization, embedding, upsert) the same way ``ScdType2``,
-``MergeUpsert`` and ``CDCDebezium`` do — the ETL exception documented in
+LLM summarization, embedding, upsert) the same way ``ScdType1``,
+``ScdType2`` and ``CDCDebezium`` do — the ETL exception documented in
 ``docs/contributing/assembler-disassembler-pattern.md`` ("Not required for
 ETL knots that perform an atomic read-transform-write cycle against a pool
 or broker"). Splitting the I/O out would break that atomicity (the dedup

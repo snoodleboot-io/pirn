@@ -271,7 +271,7 @@ class ScorePipeline(SubTapestry):
         return scored
 
 # Wrong — no inner tapestry; should be plain Knot
-class MergeUpsert(SubTapestry):
+class RowMergeKnot(SubTapestry):
     async def process(self, **_: Any) -> dict[str, Any]:
         rows = await self._source_pool.fetch_all(...)   # direct SQL, not a tapestry
         ...

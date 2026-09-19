@@ -1,9 +1,9 @@
 """``ScdType1Queries`` — parameterised SQL for the SCD Type 1 (overwrite) merge.
 
-Shared by :class:`ScdType1` and :class:`ScdType1MergeKnot`, which issue
-the same statements against a target pool. Every builder splices already-validated identifiers
-(:class:`~pirn_data.identifier_validator.IdentifierValidator`) and leaves
-values as ``?`` placeholders for the pool to bind.
+Used by :class:`~pirn_data.specializations.scd.scd_type_1.ScdType1`, the
+package's single Type 1 implementation. Every builder splices already-validated
+identifiers (:class:`~pirn_data.identifier_validator.IdentifierValidator`) and
+leaves values as ``?`` placeholders for the pool to bind.
 """
 
 from __future__ import annotations

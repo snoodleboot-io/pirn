@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.snowflake_config import SnowflakeConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.threaded_cursor_transaction import ThreadedCursorTransaction
 from pirn.core.optional_dependency import OptionalDependency
 
 
@@ -52,6 +54,8 @@ class SnowflakePool(DatabaseConnectionPool):
         self._closed = False
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
+        self._transaction_lock = asyncio.Lock()
+        self._transaction_task: asyncio.Task[Any] | None = None
 
     @property
     def config(self) -> SnowflakeConfig | None:
@@ -79,9 +83,11 @@ class SnowflakePool(DatabaseConnectionPool):
         parameters: Iterable[Any] | None = None,
     ) -> Any:
         self.reject_inline_interpolation(query)
-        client = await self._ensure_client()
-        params = list(parameters or ())
-        return await asyncio.to_thread(self._sync_execute, client, query, params)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            params = list(parameters or ())
+            return await asyncio.to_thread(self._sync_execute, client, query, params)
 
     @staticmethod
     def _sync_execute(client: Any, query: str, params: list[Any]) -> Any:
@@ -98,9 +104,11 @@ class SnowflakePool(DatabaseConnectionPool):
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
         self.reject_inline_interpolation(query)
-        client = await self._ensure_client()
-        params = list(parameters or ())
-        return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            params = list(parameters or ())
+            return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
 
     @staticmethod
     def _sync_fetch_all(client: Any, query: str, params: list[Any]) -> list[tuple[Any, ...]]:
@@ -117,9 +125,11 @@ class SnowflakePool(DatabaseConnectionPool):
         parameter_seq: Iterable[Iterable[Any]],
     ) -> Any:
         self.reject_inline_interpolation(query)
-        client = await self._ensure_client()
-        rows = [list(p) for p in parameter_seq]
-        return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            rows = [list(p) for p in parameter_seq]
+            return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
 
     @staticmethod
     def _sync_execute_many(client: Any, query: str, rows: list[Any]) -> Any:
@@ -129,6 +139,51 @@ class SnowflakePool(DatabaseConnectionPool):
             return cursor.rowcount
         finally:
             cursor.close()
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's statements as one Snowflake transaction.
+
+        Issues ``BEGIN`` on the pool's client and yields a
+        :class:`ThreadedCursorTransaction` on it. A clean exit commits; an
+        exception rolls back and propagates.
+
+        The pool holds one client, so a statement issued through the pool by
+        another task while the scope is open would silently join — and be
+        committed or rolled back with — this transaction. The scope therefore
+        holds a lock for its whole duration and the statement methods wait for
+        it; a statement issued on the pool from *inside* the scope's own task is
+        refused rather than deadlocked.
+        """
+        self._reject_statement_inside_own_transaction()
+        async with self._transaction_lock:
+            client = await self._ensure_client()
+            self._transaction_task = asyncio.current_task()
+            handle = ThreadedCursorTransaction(client, self)
+            try:
+                await asyncio.to_thread(self._sync_execute, client, "BEGIN", [])
+                try:
+                    yield handle
+                except BaseException:
+                    await asyncio.to_thread(self._sync_execute, client, "ROLLBACK", [])
+                    raise
+                await asyncio.to_thread(self._sync_execute, client, "COMMIT", [])
+            finally:
+                handle.finish()
+                self._transaction_task = None
+
+    def _reject_statement_inside_own_transaction(self) -> None:
+        """Raise when the task holding this pool's transaction scope uses the pool directly.
+
+        Waiting for the lock there would deadlock: the scope cannot end until the
+        statement returns. The statement belongs on the yielded handle.
+        """
+        task = self._transaction_task
+        if task is not None and task is asyncio.current_task():
+            raise RuntimeError(
+                "SnowflakePool: statement issued on the pool inside its own "
+                "transaction scope; use the handle `async with pool.transaction()` yielded"
+            )
 
     async def _ensure_client(self) -> Any:
         if self._closed:

@@ -31,6 +31,7 @@ from pirn.nodes.source import Source
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
+from pirn_data.pool_validator import PoolValidator
 from pirn_data.value_shape import ValueShape
 
 
@@ -80,8 +81,7 @@ class SqlSource(Source):
         source_uri: str | None = None,
         **_: Any,
     ) -> DataBatch:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("SqlSource: pool must be a DatabaseConnectionPool instance")
+        PoolValidator.validate_pools("SqlSource", pool=pool)
         if not isinstance(query, str) or not query:
             raise ValueError("SqlSource: query must be a non-empty string")
         if schema is not None and not isinstance(schema, DataSchema):

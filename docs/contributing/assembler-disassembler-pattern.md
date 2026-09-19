@@ -68,7 +68,7 @@ Assembler must sit between the connector knot and that domain knot.
 
 **Not required** for ETL knots that perform an atomic read-transform-write cycle against
 a pool or broker. These knots own their I/O by design — splitting them would break
-atomicity. Examples: `ScdType2`, `MergeUpsert`, `CDCDebezium`. See `data/specializations/`
+atomicity. Examples: `ScdType1`, `ScdType2`, `CDCDebezium`. See `data/specializations/`
 for the canonical examples.
 
 **Not required** for `data/sources/` knots (`FileSource`, `SqlSource`, `DirectorySource`)

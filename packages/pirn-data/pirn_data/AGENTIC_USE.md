@@ -88,7 +88,7 @@ pirn_data/
 │   ├── scd/                   # ScdType1/2/3/4/5/6/7, CDCDebezium, DebeziumSource  ← specializations
 │   ├── dimensional/            # DateDimGenerator, DimTableLoad, FactTableLoad, BridgeTableBuilder  ← specializations
 │   ├── data_vault/             # DataVaultHubLoader, DataVaultLinkLoader, DataVaultSatelliteLoader, DataVaultPITTableBuilder, DataVaultBridgeTableBuilder  ← specializations
-│   ├── incremental/            # SnapshotTableAppender, DbtStyleSnapshot, MergeUpsert, DeleteSafeSync, PartitionedOverwrite  ← specializations
+│   ├── incremental/            # SnapshotTableAppender, DeleteSafeSync, PartitionedOverwrite                        ← specializations
 │   ├── quality/                # RowCountAnomalyDetector, NullRateMonitor, SchemaEvolutionDetector, FreshnessCheck, ReferentialIntegrityCheck, ReconciliationDiff, StatisticalProfiler  ← specializations
 │   ├── deduplication/          # ExactDeduplicator, WindowedDeduplicator, FuzzyDeduplicator, ProbabilisticLinker  ← specializations
 │   ├── timeseries/             # TimeSeriesResampler, RollingWindowAggregator, SessionizationKnot, FunnelAnalysisKnot, CohortAggregator, LateArrivingEventHandler  ← specializations
@@ -291,8 +291,8 @@ As of mid-2026, `pyiceberg`'s Python writer does not implement merge. The method
 | Data Vault satellite load | specialisation | `DataVaultSatelliteLoader` |
 | Data Vault PIT table | specialisation | `DataVaultPITTableBuilder` |
 | Snapshot append | specialisation | `SnapshotTableAppender` |
-| dbt-style snapshot | specialisation | `DbtStyleSnapshot` |
-| Merge upsert | specialisation | `MergeUpsert` |
+| dbt-style snapshot | specialisation | `ScdType2` with `row_hash_column` |
+| Merge upsert | specialisation | `ScdType1` |
 | Row count anomaly | specialisation | `RowCountAnomalyDetector` |
 | Null rate monitor | specialisation | `NullRateMonitor` |
 | Referential integrity check | specialisation | `ReferentialIntegrityCheck` |

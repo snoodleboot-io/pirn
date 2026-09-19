@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -52,6 +53,18 @@ class CouchDBPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("couchdb.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: CouchDB has none through this surface.
+
+        CouchDB has no multi-document transaction: each document write is its own atomic
+        unit.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("CouchDB", "the aiocouch document API")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Save a document; ``query`` is the doc id, ``parameters`` is the doc dict.

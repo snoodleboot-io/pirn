@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -54,6 +55,18 @@ class CosmosDBPool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("cosmosdb.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: Cosmos DB has none through this surface.
+
+        Cosmos DB offers a transactional batch within one logical partition only, not a
+        scope spanning the arbitrary queries and upserts this pool issues.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("Cosmos DB", "the azure-cosmos container API")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Upsert an item; ``parameters`` is the item dict. Returns item id."""

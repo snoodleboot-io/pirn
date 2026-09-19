@@ -37,6 +37,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class DatabaseTableFreshnessCheck(Knot):
@@ -82,8 +83,7 @@ class DatabaseTableFreshnessCheck(Knot):
             ValueError: When max_age_seconds is not a positive integer.
             RuntimeError: When max_timestamp is NULL (table is empty).
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("DatabaseTableFreshnessCheck: pool must be a DatabaseConnectionPool")
+        PoolValidator.validate_pools("DatabaseTableFreshnessCheck", pool=pool)
         if not isinstance(monitored_table, str) or not monitored_table:
             raise ValueError(
                 "DatabaseTableFreshnessCheck: monitored_table must be a non-empty string"

@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.mysql_config import MySQLConfig
+from pirn.connectors.dbapi_cursor_transaction import DbapiCursorTransaction
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.optional_dependency import OptionalDependency
 
@@ -228,6 +230,56 @@ class MySQLPool(DatabaseConnectionPool):
         method = getattr(connection, verb, None)
         if not callable(method):
             return
+        result = method()
+        if inspect.isawaitable(result):
+            await result
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's statements as one MySQL transaction.
+
+        Checks out one connection, issues ``BEGIN`` on it through aiomysql's
+        ``Connection.begin`` and yields a :class:`DbapiCursorTransaction` bound to
+        it. A clean exit commits; an exception rolls back and propagates. The
+        connection returns to the pool either way.
+
+        Raises:
+            RuntimeError: If the connection cannot begin a transaction — a
+                stand-in injected through ``pool=`` that exposes no ``begin``.
+                Yielding anyway would hand the caller a scope whose statements
+                each auto-committed.
+        """
+        pool = await self._ensure_pool()
+        connection = await pool.acquire()
+        handle = DbapiCursorTransaction(connection, self)
+        try:
+            await self._begin_transaction(connection)
+            try:
+                yield handle
+            except BaseException:
+                await self._end_transaction(connection, "rollback")
+                raise
+            await self._end_transaction(connection, "commit")
+        finally:
+            handle.finish()
+            await pool.release(connection)
+
+    @staticmethod
+    async def _begin_transaction(connection: Any) -> None:
+        """Open a transaction on *connection*, refusing a connection that cannot.
+
+        Tolerates both sync and async ``begin``, matching this pool's handling of
+        the injectable ``pool=`` seam.
+
+        Raises:
+            RuntimeError: If *connection* exposes no callable ``begin``.
+        """
+        method = getattr(connection, "begin", None)
+        if not callable(method):
+            raise RuntimeError(
+                "MySQLPool: the connection cannot begin a transaction (no "
+                "begin()), so a transaction scope would not be atomic"
+            )
         result = method()
         if inspect.isawaitable(result):
             await result

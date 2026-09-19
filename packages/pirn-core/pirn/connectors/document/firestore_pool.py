@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -53,6 +54,19 @@ class FirestorePool(DatabaseConnectionPool):
         self._clear_credentials()
         self._closed = True
         self._logger.debug("firestore.close")
+
+    def transaction(self) -> AbstractAsyncContextManager[DatabaseConnectionPool]:
+        """Refuse an atomic scope: Firestore has none through this surface.
+
+        Firestore transactions are a retry-callback API — the body may be re-run — which
+        cannot be expressed as a scope whose statements are issued once by arbitrary
+        caller code.
+
+        Raises:
+            NotImplementedError: Always. Issue the statements individually and
+                make each one idempotent.
+        """
+        self._no_transaction_support("Firestore", "the google-cloud-firestore async client")
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Add a document to ``query`` collection; ``parameters`` is the doc dict.

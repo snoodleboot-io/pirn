@@ -41,6 +41,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.pool_validator import PoolValidator
 
 
 class DataVaultBridgeTableBuilder(Knot):
@@ -87,14 +88,11 @@ class DataVaultBridgeTableBuilder(Knot):
         hub_configs: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultBridgeTableBuilder: source_pool must be a DatabaseConnectionPool"
-            )
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultBridgeTableBuilder: target_pool must be a DatabaseConnectionPool"
-            )
+        PoolValidator.validate_pools(
+            "DataVaultBridgeTableBuilder",
+            source_pool=source_pool,
+            target_pool=target_pool,
+        )
         for label, value in (
             ("target_table", target_table),
             ("link_table", link_table),
