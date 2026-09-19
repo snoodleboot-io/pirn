@@ -117,15 +117,7 @@ is only reachable via `self._x`, that testing path is broken.
 
 All validation of input values — range checks, mutual exclusion, identifier validation,
 type coercion — belongs inside `process()` or in private helper methods called from
-`process()`. `__init__` must not guard a value that can arrive from an upstream Knot.
-
-The one exception is a value that is **fixed at construction and can never arrive from
-a parent** — `_config` itself, for instance. Refusing `_config.concurrency_group` on a
-container knot (which holds no admission slot) is only checkable at construction, and
-failing there is better than failing mid-run; `scripts/check_conventions.py` therefore
-accepts a bare `if <condition>: raise <Error>(...)` in `__init__` and nothing else that
-computes. It is not a licence to validate inputs there: the paragraph below says why
-that can never work.
+`process()`. `__init__` must not contain any guards beyond `super().__init__()`.
 
 ```python
 # Correct — validation in process()
@@ -441,6 +433,76 @@ types".
 
 ---
 
+## Rule 11 — Choose the topology before reaching for a loop
+
+A pipeline that repeats work has three shapes available. Pick by asking two questions
+about the repetition, in this order.
+
+**1. Is the number of repetitions known when the pipeline is built?**
+**2. Can any repetition be skipped?**
+
+If the count is known *and* nothing is skipped, it is **not a loop**. Wire the knots at
+build time. Then one more question decides which build-time shape:
+
+**3. Does each repetition depend on the previous one's output?**
+
+| Count known | Anything skipped | Rounds depend on each other | Shape |
+|---|---|---|---|
+| yes | no | yes | **Chain** — knot *n* takes knot *n−1* as an input |
+| yes | no | no | **Fan-out** — every knot wired as a parent of one `Aggregator` |
+| no | — | — | **`LoopSubTapestry`** — `step` / `fold` decide as the run goes |
+| yes | yes | — | **`LoopSubTapestry`** — build only what is actually attempted |
+
+### Chain — sequential dependence
+
+`RoundRobinReview` passes a draft through N reviewers, each revising the last. Every
+reviewer always runs and N is fixed at construction, so it is a chain:
+
+```python
+current: Knot | AgentResponse = response
+for index, reviewer in enumerate(reviewer_list):
+    current = ReviewerInvocation(
+        reviewer=SpecialistHandle(specialist=reviewer),
+        response=current,
+        _config=KnotConfig(id=f"review_{index}"),
+    )
+return current
+```
+
+When the pipeline needs every intermediate output rather than only the last, end the
+chain with an `Aggregator` over all the links — `PromptChainPipeline` does exactly this.
+
+### Fan-out — independent repetitions
+
+When the repetitions do not read each other's output, wire them all as parents of one
+`Aggregator`. The engine starts every sibling as its own task, so they run concurrently:
+see `ParallelSpecialistFanOut`. Sequencing independent work costs wall time for nothing,
+and with one LLM call per item that cost is the dominant one in the pipeline.
+
+### Loop — the shape is unknown until the run
+
+`LoopSubTapestry` earns its place when iterations may not happen. `CascadeLoop` stops at
+the first tier that accepts, so unrolling every tier up front would schedule knots that
+merely pass state through. That is the case a loop is for.
+
+### Why this matters beyond tidiness
+
+A loop is not a free stylistic choice. It costs one inner run per iteration, a state
+object that must be describable to the schema (so it cannot carry a `SubTapestry`), and a
+`step`/`fold` pair to maintain. It also tempts the loop class into holding its
+collaborators as instance state, which violates Rule 4 — `step` receives only the state,
+so an input declared the Rule 1 way never reaches it.
+
+### The false premise to watch for
+
+Three pipelines used a loop over a sequence that was fully known up front, each citing
+the same reason: "each step must be a real, individually-traceable knot". That is true and
+does not imply a loop — a chain of knots wired at build time is equally traceable, and
+every one of them appears in run history with its own inputs, outputs and timing. If the
+only argument for a loop is traceability, the answer is a chain or a fan-out.
+
+---
+
 ## A note on `pirn/nodes/*` and framework primitives
 
 `pirn/nodes/` (`Gate`, `SubTapestry`, `LoopSubTapestry`, `Aggregator`, `Parameter`, …) and
@@ -449,33 +511,21 @@ Several of them construct instance state directly in `__init__` (`Parameter`, fo
 example, bypasses the standard parent/config introspection entirely, because its
 `process()` signature is framework-managed rather than user-declared) — this is what
 *implements* Rules 1-7 for every other knot, so it cannot itself be written in terms of
-them without a bootstrapping paradox.
-
-This is **not** an exemption for the directory. `scripts/check_conventions.py` used to
-carry a `pirn/nodes/` path allowlist, which covered 21 files, hid 28 findings, and
-silently covered `nested_run_knot.py` — a file nobody had decided to exempt. It is
-deleted. What replaces it is a criterion the code has to satisfy: a pirn-core knot whose
-`__init__` wires itself through `Knot`'s private `_bootstrap` seam instead of
-`super().__init__(...)` is *defining* a primitive rather than being wired by the
-framework, and only then do the `__init__` rules not apply to it. `_bootstrap` is
-private, so pyright's `reportPrivateUsage` keeps the criterion inside pirn-core; a new
-file under `pirn/nodes/` that calls `super().__init__(...)` like every other knot is
-checked like every other knot. The rules about instance state, `@property` fields and
-the `process()` catch-all name still apply to all of them.
+them without a bootstrapping paradox. This is not a blanket exemption for anything under
+`pirn/nodes/`: it is why `scripts/check_conventions.py`'s AST gate carries an explicit,
+narrow allowlist for exactly these files (rules covering `__init__` purity, self-assigned
+state, and `@property` fields), reviewed the same way any other rule exception is. New
+files under `pirn/nodes/` do not inherit the allowlist automatically — extending it needs
+the same documented justification as the constructor-state exception above.
 
 The same reasoning covers the roots themselves. `Knot.__init__` is the introspection that
 turns a subclass's keyword arguments into parents, `Knot.knot_id` / `config` / `parents` /
 `config_values` / `input_names` are the framework's read-only accessors over its own
 `_mutable_` state, and `Aggregator.process(**inputs)` is the variadic fan-in whose parent
-names are given at construction rather than in a signature. `Parameter` is the same shape: the core vocabulary's named,
-typed input holder, whose whole purpose is to *be* a declared input. The gate therefore
-does not apply Rules 1, 2 (catch-all naming) and 4 to exactly three classes, named by
-fully qualified id in `KnotDesignChecker.framework_root_ids` —
-`pirn.core.knot.Knot`, `pirn.nodes.aggregator.Aggregator`, `pirn.core.parameter.Parameter`.
-Matching by file name used to be enough, so a synthetic
-`pirn/connectors/queue/source.py` with `class Source(Knot)` in it passed the gate; the id
-is the file's real dotted path, so every subclass of a root, and a same-named class
-anywhere else in core or in a domain package, is checked like any other knot.
+names are given at construction rather than in a signature. The gate therefore does not
+apply Rules 1, 2 (catch-all naming) and 4 to pirn-core's own definition of a root it keys
+on (`Knot` in `pirn/core/knot.py`, `Aggregator` in `pirn/nodes/aggregator.py`, …); every
+subclass of a root, and a same-named class anywhere else, is checked like any other knot.
 
 ---
 
@@ -487,7 +537,7 @@ Before opening a PR with a new or modified Knot:
 - [ ] `process()` parameters use the resolved value types (what each Knot produces, or `scalar_type` for `Knot | T` inputs).
 - [ ] Every input in `__init__` appears by the same name in `process()`.
 - [ ] `process()` ends with `**_: Any`.
-- [ ] `__init__` contains only `super().__init__(...)` — no validation of inputs, no `self._x = <an input>`, and nothing computed inside the `super().__init__(...)` parentheses either.
+- [ ] `__init__` contains only `super().__init__(...)` — no validation, no `self._x`.
 - [ ] All validation lives in `process()` or helpers it calls.
 - [ ] No `@property` fields exposing inputs or derived strings.
 - [ ] Opaque resources are vended by a dedicated Knot.
@@ -498,3 +548,4 @@ Before opening a PR with a new or modified Knot:
 - [ ] Module docstring has a `Math:` section with LaTeX formulae for any quantitative computation.
 - [ ] Module docstring has a `References:` section for any externally-derived algorithm, pattern, or API; alternatives cited with rationale where multiple approaches exist.
 - [ ] Optional-engine types are imported under `if TYPE_CHECKING:` and declared in `_annotation_imports` (Rule 10).
+- [ ] Repeated work uses the right topology: a chain or fan-out when the count is known at build time and nothing is skipped, a `LoopSubTapestry` only when it is not (Rule 11).

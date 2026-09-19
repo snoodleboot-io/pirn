@@ -5,7 +5,7 @@ first link runs against the initial ``task``; each subsequent link runs against
 the previous link's output. This is the simplest agentic composition — a
 deterministic pipeline of prompts with no branching — and is bounded by the number
 of steps. Each link runs as a real, individually-traceable knot via
-:class:`~pirn_agents.specializations.prompt_chaining.prompt_chain_loop.PromptChainLoop`
+:class:`~pirn.nodes.aggregator.Aggregator`
 (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`), instead of a
 hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b). Returns a typed
 :class:`PromptChainResult`.
@@ -16,20 +16,20 @@ References:
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.prompt_chaining.prompt_chain_loop import PromptChainLoop
-from pirn_agents.specializations.prompt_chaining.prompt_chain_result_extractor import (
-    PromptChainResultExtractor,
+from pirn_agents.specializations.prompt_chaining.prompt_chain_result import (
+    PromptChainResult,
 )
-from pirn_agents.specializations.prompt_chaining.prompt_chain_state import PromptChainState
+from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 
 
 class PromptChainPipeline(AgentPipeline):
@@ -77,14 +77,36 @@ class PromptChainPipeline(AgentPipeline):
                     f"PromptChainPipeline: steps[{index}] must be a str, got {type(step).__name__}"
                 )
 
-        initial = Parameter(
-            "prompt_chain_state",
-            PromptChainState,
-            default=PromptChainState(steps=step_tuple, index=0, current=task, outputs=()),
+        links: dict[str, Knot] = {}
+        current: Knot | str = task
+        for index, step in enumerate(step_tuple):
+            current = LLMChatCall(
+                prompt=current,
+                llm=llm,
+                system=step,
+                _config=KnotConfig(id=f"link_{index}"),
+            )
+            links[f"link_{index}"] = current
+        return Aggregator(
+            combine=functools.partial(PromptChainPipeline._collect, tuple(links)),
+            _config=KnotConfig(id="prompt_chain_result"),
+            **links,
         )
-        loop = PromptChainLoop(
-            llm=llm,
-            state=initial,
-            _config=KnotConfig(id="prompt_chain_loop"),
-        )
-        return PromptChainResultExtractor(state=loop, _config=KnotConfig(id="prompt_chain_result"))
+
+    @staticmethod
+    def _collect(order: tuple[str, ...], **outputs: str) -> PromptChainResult:
+        """Aggregator combine (bound to ``order`` with ``functools.partial``).
+
+        ``order`` fixes the link order, so the chain's outputs are reassembled
+        in the order the steps were declared rather than the order the parent
+        kwargs happen to arrive in.
+
+        Args:
+            order: The link keys in declaration order.
+            outputs: Each link's text, keyed by its link id.
+
+        Returns:
+            The :class:`PromptChainResult` for the whole chain.
+        """
+        collected = tuple(outputs[key] for key in order)
+        return PromptChainResult(outputs=collected, final=collected[-1])
