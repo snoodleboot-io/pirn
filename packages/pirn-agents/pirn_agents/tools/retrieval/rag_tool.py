@@ -16,11 +16,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pydantic import Field
 
-from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.tools.tool import Tool
 
 
@@ -103,7 +103,7 @@ class RagTool(Tool):
         response = await RecordedLlmCall.chat(
             knot_id=self.knot_id, llm=llm, messages=messages, model=model
         )
-        answer = RagTool._extract_text(response)
+        answer = LlmResponseText().extract(response)
         return {"question": question, "answer": answer, "sources": sources}
 
     @staticmethod
@@ -114,22 +114,3 @@ class RagTool(Tool):
             text = source.get("text") or source.get("content") or source
             lines.append(f"[{index}] {text}")
         return "\n".join(lines) if lines else "(no context retrieved)"
-
-    @staticmethod
-    def _extract_text(response: Mapping[str, Any]) -> str:
-        """Extract assistant text from a provider-neutral chat response mapping."""
-        content = response.get("content")
-        if isinstance(content, str):
-            return content
-        if JsonShape.is_list(content) and content:
-            first = content[0]
-            if JsonShape.is_mapping(first):
-                text = first.get("text")
-                if isinstance(text, str):
-                    return text
-            if isinstance(first, str):
-                return first
-        text = response.get("text")
-        if isinstance(text, str):
-            return text
-        return str(response)

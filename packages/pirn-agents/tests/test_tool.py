@@ -137,3 +137,38 @@ class TestToolIsAKnotClass(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             call = Adder(left=1, _config=KnotConfig(id="c"))
         call._clear_credentials()  # must not raise
+
+
+class TestArgumentValidationIsolatesBrokenSchemaFragments(unittest.TestCase):
+    """One unbuildable property must not disable validation of the others (PIR-873).
+
+    ``validate_arguments`` used to build every property's validator in one
+    call and fall back to ``{}`` on any error, so a single malformed fragment
+    silently switched off argument type-checking for the whole tool.
+    """
+
+    @staticmethod
+    def _factory() -> ToolFactory:
+        """A declaration whose ``right`` fragment has a mistyped ``minLength``."""
+        return ToolFactory(
+            Adder,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "left": {"type": "integer"},
+                    "right": {"type": "string", "minLength": "nope"},
+                },
+                "required": ["left"],
+            },
+        )
+
+    def test_a_mistyped_argument_is_still_refused_next_to_a_broken_fragment(self) -> None:
+        detail = self._factory().validate_arguments({"left": "twelve"})
+        assert detail == {"left": "expected:integer,got:str"}
+
+    def test_an_argument_whose_own_fragment_cannot_be_validated_is_refused(self) -> None:
+        detail = self._factory().validate_arguments({"left": 1, "right": "x"})
+        assert detail == {"right": "unvalidatable_schema:TypeError"}
+
+    def test_a_broken_fragment_nobody_supplied_a_value_for_is_not_an_error(self) -> None:
+        assert self._factory().validate_arguments({"left": 1}) == {}

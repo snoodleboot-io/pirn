@@ -409,7 +409,7 @@ jobs:
             "packages/pirn-agents[${{ matrix.extra }}]"
           /tmp/extra/bin/python -c "import importlib.metadata as m, sys; v = m.version('pirn-core'); want = sys.argv[1]; assert v == want, (v, want)" \
             "$(python3 scripts/workspace_packages.py version pirn-core)"
-          /tmp/extra/bin/python -c "import pirn_agents; print(pirn_agents.available_extras())"
+          /tmp/extra/bin/python -c "from pirn_agents.capability_probe import CapabilityProbe; print(CapabilityProbe().available_extras())"
 
   # ===========================================================================
   # Unified cross-domain suite (SCD-24 AC#3): install every package from the

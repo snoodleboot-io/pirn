@@ -5,7 +5,8 @@ Algorithm:
     2. Validate input types at process time.
     3. Build a two-message prompt: system reflection instruction + user response content.
     4. Call ``llm.chat`` with the prompt messages.
-    5. Extract plain text from the raw response mapping.
+    5. Extract plain text through ``LlmResponseText``, which raises when the
+       response carries none.
     6. Normalise to lower case; return ``True`` if it starts with ``"yes"`` or ``"y "``.
 
 
@@ -20,9 +21,10 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -88,32 +90,7 @@ class ReflectionCheck(Knot):
             },
             {"role": "user", "content": response.data},
         )
-        raw = await llm.chat(messages=wire_messages)
-        text = self._extract_text(raw)
+        raw = await RecordedLlmCall.chat(knot_id=self.knot_id, llm=llm, messages=wire_messages)
+        text = LlmResponseText().extract(raw)
         normalised = text.strip().lower()
         return normalised.startswith("yes") or normalised.startswith("y ")
-
-    def _extract_text(self, raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        text = self._text_from_mapping(raw)
-        if text is not None:
-            return text
-        raise TypeError(
-            f"ReflectionCheck: cannot extract text from response of type {type(raw).__name__}"
-        )
-
-    def _text_from_mapping(self, raw: Any) -> str | None:
-        """Return the text carried by a chat-completion mapping, or ``None``."""
-        if not JsonShape.is_dict(raw):
-            return None
-        content = raw.get("content")
-        if isinstance(content, str):
-            return content
-        if JsonShape.is_list(content) and content:
-            first = content[0]
-            if JsonShape.is_dict(first):
-                text = first.get("text")
-                if isinstance(text, str):
-                    return text
-        return None

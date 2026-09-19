@@ -1,4 +1,14 @@
-"""``SqlQueryTool`` — run a read-only, row-capped SQL query via a bound connector."""
+"""``SqlQueryTool`` — run a read-only, row-capped SQL query via a bound connector.
+
+Whether the statement may mutate is not an input: it is the class
+(:class:`~pirn_agents.tools.sql.read_write_sql_query_tool.ReadWriteSqlQueryTool`
+is the one that may write).  ``read_only`` used to be a ``Knot | bool`` input
+defaulting to ``True``, which made the guard part of the tool's model-facing
+declaration: any call not built through ``bind`` could carry
+``read_only: false`` and the model's own statement would then run unguarded.
+A policy that must not be driven by a knot's output is a ``ClassVar`` on
+distinct classes (PIR-817, ``docs/contributing/knot-design-rules.md`` Rule 4).
+"""
 
 from __future__ import annotations
 
@@ -19,13 +29,20 @@ class SqlQueryTool(Tool):
 
     tool_name: ClassVar[str] = "sql_query"
 
+    #: The write policy is the class, never an input (PIR-817): this tool is
+    #: read-only and
+    #: :class:`~pirn_agents.tools.sql.read_write_sql_query_tool.ReadWriteSqlQueryTool`
+    #: is the one subclass that may run a mutating statement.  A knot input is
+    #: a graph edge some other knot's output — here, output derived from model
+    #: text — could drive, and it is part of the declaration the model reads.
+    _read_only: ClassVar[bool] = True
+
     def __init__(
         self,
         *,
         query: Knot | str,
         connector: Knot | SqlConnector,
         parameters: Knot | Sequence[Any] | None = None,
-        read_only: Knot | bool = True,
         max_rows: Knot | int = 1000,
         _config: KnotConfig,
         **kwargs: Any,
@@ -34,7 +51,6 @@ class SqlQueryTool(Tool):
             query=query,
             connector=connector,
             parameters=parameters,
-            read_only=read_only,
             max_rows=max_rows,
             _config=_config,
             **kwargs,
@@ -48,7 +64,6 @@ class SqlQueryTool(Tool):
             list[Any] | None,
             Field(description="Optional positional bind parameters for the query."),
         ] = None,
-        read_only: bool = True,
         max_rows: int = 1000,
         **_: Any,
     ) -> Mapping[str, Any]:
@@ -59,9 +74,6 @@ class SqlQueryTool(Tool):
             connector: The :class:`SqlConnector` executing the query; bound
                 once with ``SqlQueryTool.bind(connector=...)``.
             parameters: Optional positional bind parameters.
-            read_only: When ``True`` (default), reject any non-SELECT statement.
-                Bound policy: a pipeline author decides once whether the tool
-                may mutate; the declaration hides it from the model.
             max_rows: Maximum number of rows returned; extra rows are dropped
                 and the result is flagged truncated.
 
@@ -76,7 +88,7 @@ class SqlQueryTool(Tool):
             raise ValueError(f"sql_query: max_rows must be positive, got {max_rows}")
         if not query:
             raise ValueError("sql_query: 'query' must be a non-empty string")
-        if read_only:
+        if self._read_only:
             ReadOnlySqlGuard().assert_read_only(query)
         columns, rows = await connector.execute(query, list(parameters) if parameters else None)
         row_list = list(rows)

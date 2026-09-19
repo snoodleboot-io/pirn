@@ -4,8 +4,8 @@ ADR "agents speaks core" WS3 part 4: ``store`` is now a real
 :class:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore`
 (backed by real ``InMemoryHistory``/``InMemoryDataStore``), not a
 :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` double — dedup
-reads ``latest_output_hash`` directly, a surface ``MemoryStore`` does not
-expose.
+reads through ``get``, which is the only read that treats a deleted fact as
+absent.
 """
 
 from __future__ import annotations
@@ -110,3 +110,63 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
         result = await k({"response": AgentResponse(content="x"), "llm": llm, "store": "bad"})
         assert isinstance(result, Err)
         assert result.record.exc_type == "ValidationError"
+
+
+class TestDeletedFactsCanBeWrittenAgain(unittest.IsolatedAsyncioTestCase):
+    """PIR-873: dedup keyed on ``latest_output_hash``, so a delete was permanent.
+
+    A tombstone is an ordinary write and therefore has an ordinary content hash,
+    so ``latest_output_hash`` was never ``None`` again once a fact had been
+    deleted, and the fact could never be re-learned.
+    """
+
+    async def test_a_deleted_fact_is_upserted_again(self) -> None:
+        # Arrange — learn the fact, then forget it.
+        store = _make_store()
+        knot = _make_knot()
+        response = AgentResponse(content="water boils at 100C")
+        first = await knot.process(
+            response=response,
+            llm=StubLLMProvider(["water boils at 100C"]),
+            store=store,
+            fact_extraction_prompt="Extract facts:",
+        )
+        assert first == 1
+        key = ContentHasher.hash("water boils at 100C")
+        await store.delete(namespace="semantic-memory", key=key)
+        assert await store.get(namespace="semantic-memory", key=key) is None
+
+        # Act — the same fact arrives again.
+        second = await knot.process(
+            response=response,
+            llm=StubLLMProvider(["water boils at 100C"]),
+            store=store,
+            fact_extraction_prompt="Extract facts:",
+        )
+
+        # Assert — it is re-learned, and readable again.
+        assert second == 1
+        assert await store.get(namespace="semantic-memory", key=key) is not None
+
+    async def test_a_live_fact_is_still_deduplicated(self) -> None:
+        # Arrange
+        store = _make_store()
+        knot = _make_knot()
+        response = AgentResponse(content="water boils at 100C")
+        await knot.process(
+            response=response,
+            llm=StubLLMProvider(["water boils at 100C"]),
+            store=store,
+            fact_extraction_prompt="Extract facts:",
+        )
+
+        # Act
+        again = await knot.process(
+            response=response,
+            llm=StubLLMProvider(["water boils at 100C"]),
+            store=store,
+            fact_extraction_prompt="Extract facts:",
+        )
+
+        # Assert
+        assert again == 0

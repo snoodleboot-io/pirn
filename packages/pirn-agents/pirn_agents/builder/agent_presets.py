@@ -52,23 +52,6 @@ class AgentPresets:
     #: Directory holding each preset's saved core pipeline document.
     _presets_dir: ClassVar[Path] = Path(__file__).parent / "presets"
 
-    #: Fallback shape, used only when the optional ``yaml`` extra (PyYAML) is
-    #: not installed. ``AgentPresets`` is a base-install feature and must not
-    #: gain a hard dependency the rest of the package does not need just
-    #: because its shape now lives in a YAML file --
-    #: ``tests/builder/test_agent_presets.py`` asserts these equal what each
-    #: preset's saved document actually says, so the two cannot silently drift.
-    _fallback_pattern: ClassVar[dict[str, str]] = {
-        "research": "react",
-        "rag_chat": "naive_rag",
-        "coding": "react",
-    }
-    _fallback_options: ClassVar[dict[str, dict[str, int]]] = {
-        "research": {"max_iterations": 6},
-        "rag_chat": {"top_k": 5},
-        "coding": {"max_iterations": 8},
-    }
-
     @classmethod
     def _preset_spec(cls, name: str) -> AgentSpec:
         """Return the named preset's shape (pattern name + default options).
@@ -76,16 +59,17 @@ class AgentPresets:
         Reads ``pirn_agents/builder/presets/<name>.yaml``; ``name`` must be one
         of :meth:`names`.
 
+        A hard-coded copy of every preset's pattern and options used to sit
+        beside this, reached by ``except ImportError`` "when the optional ``yaml``
+        extra is not installed". PyYAML is not optional: ``pyyaml>=6.0`` is an
+        unconditional dependency of ``pirn-core``, which ``pirn-agents`` requires,
+        so the branch was unreachable and the copy was a second source of truth
+        for the presets that a test had to keep in step (PIR-873).
+
         Raises:
-            KeyError: If the ``yaml`` extra is unavailable and ``name`` has no
-                entry in ``_fallback_pattern``/``_fallback_options``.
+            FileNotFoundError: If the preset's saved document is missing.
         """
-        try:
-            return AgentSpecLoader.from_path(cls._presets_dir / f"{name}.yaml")
-        except ImportError:
-            return AgentSpec(
-                pattern=cls._fallback_pattern[name], options=cls._fallback_options[name]
-            )
+        return AgentSpecLoader.from_path(cls._presets_dir / f"{name}.yaml")
 
     @classmethod
     def names(cls) -> tuple[str, ...]:

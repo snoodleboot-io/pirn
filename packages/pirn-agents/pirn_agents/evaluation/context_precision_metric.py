@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.evaluation.binary_verdict_parser import BinaryVerdictParser
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.rag_sample import RagSample
@@ -25,8 +28,20 @@ class ContextPrecisionMetric:
     chunk retrieved).
     """
 
-    def __init__(self, *, judge: LLMProvider) -> None:
+    #: Identity this helper's provider calls are reported under when the
+    #: caller does not name the knot it runs inside.  A helper is not a
+    #: knot, so there is no ``self.knot_id`` to read, and core has no
+    #: ambient accessor by design — but a provider call still has to be
+    #: observable on the run's emitters (ADR WS4a, PIR-873).
+    _default_call_id: ClassVar[str] = "context_precision_metric"
+
+    def __init__(self, *, judge: LLMProvider, knot_id: str | None = None) -> None:
         """Store the judge provider used to rule each context relevant.
+
+        Args:
+            judge: The provider consulted for each retrieved context.
+            knot_id: The enclosing knot's id, reported with every judge
+                call; defaults to :attr:`_default_call_id`.
 
         Raises:
             TypeError: If ``judge`` is not an :class:`LLMProvider`.
@@ -36,6 +51,7 @@ class ContextPrecisionMetric:
                 f"ContextPrecisionMetric: judge must be an LLMProvider, got {type(judge).__name__}"
             )
         self._judge = judge
+        self._knot_id = knot_id or type(self)._default_call_id
         self._verdict_parser = BinaryVerdictParser()
 
     async def evaluate(self, sample: RagSample) -> MetricResult:
@@ -53,8 +69,10 @@ class ContextPrecisionMetric:
             return MetricResult(name="context_precision", score=0.0, detail={"contexts": 0})
         relevances: list[bool] = []
         for ctx in sample.contexts:
-            reply = await self._judge.chat(
-                [
+            reply = await RecordedLlmCall.chat(
+                knot_id=self._knot_id,
+                llm=self._judge,
+                messages=(
                     {
                         "role": "user",
                         "content": (
@@ -62,8 +80,8 @@ class ContextPrecisionMetric:
                             "Answer 'yes' or 'no'.\n"
                             f"Question: {sample.query}\n\nContext: {ctx}"
                         ),
-                    }
-                ]
+                    },
+                ),
             )
             relevances.append(self._verdict_parser.parse(str(reply.get("content", ""))))
         hits = 0

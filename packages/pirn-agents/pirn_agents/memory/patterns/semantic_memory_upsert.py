@@ -46,6 +46,7 @@ from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.memory.management.memory_record import MemoryRecord
@@ -111,7 +112,11 @@ class SemanticMemoryUpsert(Knot):
             )
         instruction = type(self)._fact_extraction_prompt.resolve(fact_extraction_prompt)
         prompt = f"{instruction}\n\nText: {response.data}\n\nReturn one fact per line."
-        raw = await llm.chat([{"role": "user", "content": prompt}])
+        raw = await RecordedLlmCall.chat(
+            knot_id=self.knot_id,
+            llm=llm,
+            messages=({"role": "user", "content": prompt},),
+        )
         text = LlmResponseText().extract(raw)
         facts: list[str] = []
         for raw_line in text.splitlines():
@@ -129,9 +134,12 @@ class SemanticMemoryUpsert(Knot):
         upserted = 0
         for fact in facts:
             key = ContentHasher.hash(fact)
-            already_recorded = (
-                await store.latest_output_hash(namespace=namespace, key=key) is not None
-            )
+            # ``get`` and not ``latest_output_hash``: a deleted fact still has a
+            # lineage row and therefore still has a hash, so the hash test read
+            # every tombstoned fact as "already recorded" and the fact could
+            # never be written again (PIR-873).  ``get`` is the one read that
+            # treats a tombstone as absent.
+            already_recorded = await store.get(namespace=namespace, key=key) is not None
             if not already_recorded:
                 now = datetime.now(UTC)
                 record = MemoryRecord(

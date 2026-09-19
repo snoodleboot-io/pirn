@@ -7,6 +7,16 @@ call), provider-neutral prompting, and typed F1 result shapes.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Any
+
+import pytest
+
+from pirn_agents.exceptions.unreadable_llm_response_error import (
+    UnreadableLlmResponseError,
+)
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.retrieval.retriever_tool import RetrieverTool
 from pirn_agents.tools.tool_call import ToolCall
@@ -19,6 +29,38 @@ async def _store_with(docs: list[dict[str, str]]) -> StubMemoryStore:
     for i, doc in enumerate(docs):
         await store.store(f"k{i}", doc)
     return store
+
+
+class _UnreadableLLMProvider(LLMProvider):
+    """A provider whose reply matches no chat-completion shape the codebase knows.
+
+    Implements :class:`LLMProvider` directly rather than subclassing a stub, so
+    it stays outside the ``BaseLLMProvider`` content-identity hierarchy.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[list[Mapping[str, Any]]] = []
+
+    async def chat(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> Mapping[str, Any]:
+        self.calls.append([dict(m) for m in messages])
+        return {"choices": [{"message": {"content": "The sky is blue."}}]}
+
+    def stream_chat(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> AsyncIterator[StreamDelta]:
+        raise NotImplementedError("_UnreadableLLMProvider does not stream")
 
 
 class TestRetrieverTool:
@@ -53,6 +95,13 @@ class TestRetrieverTool:
 
 
 class TestRagTool:
+    async def test_an_unreadable_response_fails_instead_of_answering_with_a_repr(self) -> None:
+        """PIR-873: ``str(response)`` used to be handed back as the RAG answer."""
+        store = await _store_with([{"text": "The sky is blue."}])
+        tool = RagTool.bind(store=store, llm=_UnreadableLLMProvider(), top_k=3)
+        with pytest.raises(UnreadableLlmResponseError):
+            await ToolRunner.value(tool, {"question": "What color is the sky?"})
+
     async def test_composes_retrieval_and_generation(self) -> None:
         store = await _store_with([{"text": "The sky is blue."}])
         llm = StubLLMProvider(["The sky is blue."])

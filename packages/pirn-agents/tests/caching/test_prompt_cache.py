@@ -170,11 +170,12 @@ class TestEviction:
 
         # The bound is enforced by the underlying InMemoryDataStore: "one" is
         # not still cached from the first call, so it recomputes a 3rd time.
-        # (`asize()`'s own `_keys` bookkeeping only discovers a store-side
-        # eviction on the next *read* of the evicted key, exactly like
-        # InMemoryResultCache/SemanticResultCache's identical `_keys` mirror
-        # — so it is not asserted here without such a read.)
         assert calls[0] == 3
+        # And the reported size is what the store holds, not how many keys were
+        # ever written: the tracked key set is pruned against the store after
+        # every write (PIR-873), so no read of the evicted key is needed to
+        # discover the eviction. See test_bounded_caches_do_not_leak.py.
+        assert await cache.asize() == 1
 
 
 async def _resolved(value: int) -> int:

@@ -47,13 +47,13 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import hashlib
 import inspect
 import re
 from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from inspect import iscoroutinefunction
 from typing import Any, ClassVar, Self, TypeGuard
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.json_schema_type_builder import JsonSchemaTypeBuilder
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -504,7 +504,11 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         Required names absent are ``"missing_required"``; names the
         declaration does not know are ``"unexpected_property"`` (a knot
         accepts only declared inputs); a value the property's adapter refuses
-        is ``"expected:<type>,got:<python type>"``.  Empty when valid.
+        is ``"expected:<type>,got:<python type>"``.  A supplied argument whose
+        own schema fragment cannot be turned into a validator at all is
+        ``"unvalidatable_schema:<error>"`` — it is refused rather than waved
+        through, and one such fragment no longer disables validation of the
+        other properties.  Empty when valid.
         """
         if not isinstance(arguments, Mapping):
             return {"arguments": "expected:object"}
@@ -522,10 +526,10 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
             for key in arguments:
                 if key not in properties:
                     detail.setdefault(str(key), "unexpected_property")
-        try:
-            adapters = JsonSchemaTypeBuilder.input_adapters(schema)
-        except Exception:
-            adapters = {}
+        adapters, unvalidatable = self._argument_adapters(schema, properties)
+        for name, reason in unvalidatable.items():
+            if name in arguments:
+                detail.setdefault(str(name), reason)
         for key, value in arguments.items():
             if key in detail:
                 continue
@@ -554,13 +558,53 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         return detail
 
     @staticmethod
+    def _argument_adapters(
+        schema: Mapping[str, Any], properties: Any
+    ) -> tuple[dict[str, TypeAdapter[Any]], dict[str, str]]:
+        """Build one validator per declared property, isolating the ones that fail.
+
+        ``JsonSchemaTypeBuilder.input_adapters`` builds the whole mapping in a
+        single comprehension, so one unbuildable fragment — a bound keyword of
+        the wrong JSON type, a ``$ref`` that does not resolve, a shape pydantic
+        cannot schema — raises and takes every other property's validator with
+        it.  This builds them one at a time through the same core seam
+        (``python_type`` + ``TypeAdapter``) and reports the failures, so a
+        broken fragment costs validation of that one property and nothing
+        else, and a value for it is refused instead of waved through.
+
+        Returns:
+            ``(adapters, unvalidatable)`` — validators by property name, and
+            ``{name: "unvalidatable_schema:<error type>"}`` for the properties
+            whose fragment could not be turned into one.
+        """
+        adapters: dict[str, TypeAdapter[Any]] = {}
+        unvalidatable: dict[str, str] = {}
+        if not JsonShape.is_mapping(properties):
+            return adapters, unvalidatable
+        for name, fragment in properties.items():
+            try:
+                adapters[str(name)] = TypeAdapter(
+                    JsonSchemaTypeBuilder.python_type(fragment, root=schema)
+                )
+            except (TypeError, ValueError, RecursionError, PydanticSchemaGenerationError) as exc:
+                unvalidatable[str(name)] = f"unvalidatable_schema:{type(exc).__name__}"
+        return adapters, unvalidatable
+
+    @staticmethod
     def knot_id_for(call_id: str) -> str:
-        """The knot id a call runs under: ``call_id`` when it is a valid id, else a hash of it."""
+        """The knot id a call runs under: ``call_id`` when it is a valid id, else a hash of it.
+
+        The hash goes through :class:`~pirn.core.content_hasher.ContentHasher`,
+        the workspace's one content-addressing seam, rather than a bare
+        ``hashlib.sha256`` of the string (PIR-873); its ``sha256:`` prefix is
+        dropped and the digest truncated so the id stays short and inside the
+        character set ``KnotConfig.id`` allows.
+        """
         try:
             KnotConfig(id=call_id)
         except ValueError:
-            digest = hashlib.sha256(str(call_id).encode("utf-8")).hexdigest()[:16]
-            return f"call-{digest}"
+            digest = ContentHasher.hash(str(call_id)).removeprefix("sha256:")
+            return f"call-{digest[:16]}"
         return call_id
 
     def for_call(

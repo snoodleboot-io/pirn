@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import unittest
+from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
+from pirn_agents.exceptions.unreadable_llm_response_error import (
+    UnreadableLlmResponseError,
+)
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.memory.patterns.semantic_fact_extractor import (
     SemanticFactExtractor,
 )
@@ -23,6 +30,38 @@ def _make_knot() -> SemanticFactExtractor:
             fact_extraction_prompt="Extract facts:",
             _config=KnotConfig(id="sfe"),
         )
+
+
+class _UnreadableLLMProvider(LLMProvider):
+    """A provider whose reply matches no chat-completion shape the codebase knows.
+
+    Implements :class:`LLMProvider` directly rather than subclassing a stub, so
+    it stays outside the ``BaseLLMProvider`` content-identity hierarchy.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[list[Mapping[str, Any]]] = []
+
+    async def chat(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> Mapping[str, Any]:
+        self.calls.append([dict(m) for m in messages])
+        return {"choices": [{"message": {"content": "The sky is blue."}}]}
+
+    def stream_chat(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> AsyncIterator[StreamDelta]:
+        raise NotImplementedError("_UnreadableLLMProvider does not stream")
 
 
 class TestSemanticFactExtractorProcess(unittest.IsolatedAsyncioTestCase):
@@ -47,6 +86,17 @@ class TestSemanticFactExtractorProcess(unittest.IsolatedAsyncioTestCase):
         msgs = [AgentMessage(role="user", content="hi")]
         facts = await k.process(messages=msgs, llm=llm, fact_extraction_prompt="Extract:")
         assert facts == []
+
+    async def test_an_unreadable_reply_fails_instead_of_inventing_facts(self) -> None:
+        """PIR-873: the repr of an unreadable reply was split into lines and stored as facts."""
+        k = _make_knot()
+        msgs = [AgentMessage(role="user", content="hi")]
+        with self.assertRaises(UnreadableLlmResponseError):
+            await k.process(
+                messages=msgs,
+                llm=_UnreadableLLMProvider(),
+                fact_extraction_prompt="Extract:",
+            )
 
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()
