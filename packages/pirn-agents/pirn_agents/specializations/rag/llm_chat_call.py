@@ -16,8 +16,8 @@ Algorithm:
        outcome through
        :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
        (ADR agents-speaks-core WS4a/WS5b).
-    5. Extract and return the text content from the raw response via
-       ``_extract_text``.
+    5. Extract and return the text content from the raw response via the
+       shared :class:`~pirn_agents.specializations.llm_response_text.LlmResponseText`.
 
 References:
     - pirn-native implementation; no external algorithm reference.
@@ -26,7 +26,6 @@ References:
 from __future__ import annotations
 
 import time
-from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -34,6 +33,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class LLMChatCall(Knot):
@@ -116,20 +116,4 @@ class LLMChatCall(Knot):
             ok=True,
             latency=time.perf_counter() - start,
         )
-        return self._extract_text(response)
-
-    @staticmethod
-    def _extract_text(raw: Mapping[str, Any] | str) -> str:
-        match raw:
-            case str():
-                return raw
-            case {"content": str() as content}:
-                return content
-            case {"content": [{"text": str() as text}, *_]}:
-                return text
-            case {"content": [str() as first, *_]}:
-                return first
-            case {"text": str() as text}:
-                return text
-            case _:
-                return str(raw)
+        return LlmResponseText().extract(response)

@@ -159,7 +159,7 @@ class SelfRAGPipeline(AgentPipeline):
             return RAGResponseBuilder(answer=answer, _config=KnotConfig(id="response"))
 
         # The draft is always a string: `outputs.get("draft", "")` defaults to
-        # one and `LLMChatCall` returns `_extract_text`'s str. The old
+        # one and `LLMChatCall` returns `LlmResponseText.extract`'s str. The old
         # `finish_reason="length"` fallback for a non-str draft was therefore
         # unreachable, and no test covered it; the coercion is kept so the
         # behaviour is identical on every reachable path.

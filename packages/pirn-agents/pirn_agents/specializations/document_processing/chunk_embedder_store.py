@@ -13,7 +13,7 @@ Algorithm:
     1. Receive resolved ``chunks``, ``source``, ``embedder``, and ``store``.
     2. When ``chunks`` is empty, return a ``Parameter`` defaulting to ``0``
        — an ``Aggregator`` requires at least one parent.
-    3. Derive a deterministic ``doc_id`` from ``source`` via SHA-256 (first 16 hex chars).
+    3. Derive a deterministic ``doc_id`` from ``source`` via core's ``ContentHasher``.
     4. Call ``embedder.embed(chunks)`` in one batch.
     5. Validate vector count matches chunk count.
     6. Build one ``ChunkStoreWrite`` per ``{doc_id}:{index}`` key and wire
@@ -21,10 +21,11 @@ Algorithm:
        chunk count.
 
 Math:
-    doc_id = SHA-256(source.encode("utf-8"))[:16]
+    doc_id = ContentHasher.hash(source, strict=True)
 
 References:
-    - Python hashlib documentation for SHA-256.
+    - :class:`pirn.core.content_hasher.ContentHasher` — the one hashing path
+      every pirn domain agrees on.
 
 Internal API.
 """
@@ -32,9 +33,9 @@ Internal API.
 from __future__ import annotations
 
 import functools
-import hashlib
 from typing import Any
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -131,5 +132,4 @@ class ChunkEmbedderStore(AgentPipeline):
 
     @staticmethod
     def _derive_doc_id(source: str) -> str:
-        digest = hashlib.sha256(source.encode("utf-8")).hexdigest()
-        return digest[:16]
+        return ContentHasher.hash(source, strict=True)

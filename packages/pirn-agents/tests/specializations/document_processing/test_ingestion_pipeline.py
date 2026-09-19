@@ -158,7 +158,39 @@ class TestIngestionPipelineEndToEnd(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         report = run.outputs["ingest"]
         assert report.documents_processed == 1  # only d2 succeeded
-        assert report.errors == (("d1", "boom"),)
+        assert report.errors == (("d1", "ValueError: boom"),)
+
+    async def test_a_failed_document_is_recorded_with_its_traceback(self) -> None:
+        """PIR-873: the ETL raises and the engine records it, instead of ``str(exc)``.
+
+        ``DocumentIngest`` used to catch everything and return an errored
+        ``DocumentOutcome``, so the failed document was written to history as a
+        *successful* knot whose value happened to carry a message: no exception
+        type, no traceback, nothing to debug from. It now raises, the engine
+        records an ``ExceptionRecord``, and ``DocumentIngestFold`` builds the
+        outcome from that ``Err``.
+        """
+        store = _DictMemoryStore()
+        upserter = IncrementalUpserter(store=store, embedder=StubEmbeddingProvider(dimension=3))
+        with Tapestry() as tap:
+            IngestionPipeline(
+                source_connector=_StubSource(_docs()),
+                loader=_ExplodingLoader(fail_source_id="d1"),
+                chunking_strategy=FixedSizeChunkingStrategy(chunk_size=8, chunk_overlap=0),
+                upserter=upserter,
+                _config=KnotConfig(id="ingest"),
+            )
+        run = await tap.run(RunRequest())
+        assert run.succeeded
+        records = [
+            record
+            for child in await tap.history.children_of(run.run_id)
+            for grandchild in await tap.history.children_of(child.run_id)
+            for record in grandchild.exceptions
+        ]
+        assert [record.exc_type for record in records] == ["ValueError"]
+        assert 'raise ValueError("boom")' in records[0].traceback_text
+        assert records[0].knot_id == "ingest_0"
 
     async def test_serial_concurrency_still_processes_all(self) -> None:
         store = _DictMemoryStore()

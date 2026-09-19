@@ -1,4 +1,4 @@
-"""``UnionSubQuestionHits`` — Reduce ``combine`` target unioning hits."""
+"""``UnionSubQuestionHits`` — ``Aggregator`` combine target unioning hits."""
 
 from __future__ import annotations
 
@@ -7,7 +7,23 @@ from typing import Any
 
 
 class UnionSubQuestionHits:
-    """Reduce ``combine`` target: union per-sub-question hits, deduplicated."""
+    """``Aggregator`` combine target: union per-sub-question hits, deduplicated."""
+
+    @staticmethod
+    def aggregate(
+        count: int, **searches: tuple[str, list[Mapping[str, Any]]]
+    ) -> list[Mapping[str, Any]]:
+        """Union the fan-out's per-sub-question searches in sub-question order.
+
+        Args:
+            count: How many ``search_{i}`` parents the aggregator has.
+            **searches: Each ``SubQuestionSearch``'s ``(sub_question, hits)``
+                pair, keyed ``search_{i}``.
+
+        Returns:
+            The deduplicated hits, in first-seen order.
+        """
+        return UnionSubQuestionHits.combine([searches[f"search_{index}"] for index in range(count)])
 
     @staticmethod
     def combine(items: list[tuple[str, list[Mapping[str, Any]]]]) -> list[Mapping[str, Any]]:

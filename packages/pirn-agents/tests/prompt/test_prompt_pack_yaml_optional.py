@@ -47,6 +47,13 @@ class _BlockYamlFinder(MetaPathFinder):
         target: ModuleType | None = None,
     ) -> ModuleSpec | None:
         if fullname == "yaml" or fullname.startswith("yaml."):
+            # ``ModuleNotFoundError`` with ``name`` set is exactly what the real
+            # import system raises for a distribution that is not installed, and
+            # ``OptionalDependency.require`` keys its install hint on that
+            # ``name``. A bare ``ImportError`` (no ``name``) is the shape of a
+            # failure raised from *inside* an installed module, which
+            # ``require`` deliberately lets through unchanged — so the old
+            # double asserted the hint was missing rather than that it is given.
             raise ModuleNotFoundError(f"No module named {fullname!r}", name=fullname)
         return None
 

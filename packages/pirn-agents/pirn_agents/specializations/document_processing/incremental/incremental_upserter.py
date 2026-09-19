@@ -17,10 +17,10 @@ keeps its key and is never re-embedded.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import time
 from collections.abc import Callable, Sequence
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -169,8 +169,8 @@ class IncrementalUpserter(PirnOpaqueValue):
 
     @staticmethod
     def _hash(text: str) -> str:
-        """Return the SHA-256 hex digest of a chunk's text."""
-        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+        """Return core's canonical content hash of a chunk's text."""
+        return ContentHasher.hash(text, strict=True)
 
     @staticmethod
     def _manifest_key(doc_id: str) -> str:

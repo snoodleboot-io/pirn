@@ -2,8 +2,10 @@
 
 Wraps ``python-docx`` (imported as ``docx``, lazily through
 :meth:`~pirn.core.optional_dependency.OptionalDependency.require`). Joins every paragraph's text into one
-normalized :class:`LoadedDocument`. Embedded images and complex objects are out
-of scope until F15 (see :class:`Loader`).
+normalized :class:`LoadedDocument`. This loader extracts paragraph text only;
+embedded images and other binary objects are framed as content blocks by
+:class:`~pirn_agents.specializations.document_processing.loaders.media_loader.MediaLoader`,
+which the caller applies to those bytes directly.
 """
 
 from __future__ import annotations
