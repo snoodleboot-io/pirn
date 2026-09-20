@@ -79,6 +79,16 @@ class KnotDesignChecker:
             # purpose is to *be* a declared input, so the spec it is constructed with is
             # exposed through read-only accessors rather than arriving in process().
             "pirn.core.parameter.Parameter",
+            # Branch vends one BranchOutput per branch name at construction, because a
+            # pipeline author wires ``branch["name"]`` into downstream knots while the
+            # graph is being built — before any run exists for process() to run in.
+            # Those outputs are graph structure, not results (PIR-873).
+            "pirn.nodes.branch.branch.Branch",
+            # Reduce derives its own form by introspecting ``combine``'s signature, the
+            # same variadic fan-in bootstrapping Aggregator above is exempt for: the
+            # callable's arity is what decides whether the fold is whole or pairwise,
+            # and nothing downstream can declare that for it (PIR-873).
+            "pirn.nodes.reduce_.Reduce",
         }
     )
     _fan_in_node_names: ClassVar[frozenset[str]] = frozenset(

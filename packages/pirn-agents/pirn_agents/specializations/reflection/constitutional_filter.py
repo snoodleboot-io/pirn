@@ -117,12 +117,12 @@ class ConstitutionalFilter(AgentPipeline):
                 current_content=response.data,
                 attempts=0,
                 compliant=False,
+                llm=llm,
+                evaluation_system=type(self)._evaluation_system.resolve(),
+                max_revisions=max_revisions,
             ),
         )
         loop = ConstitutionalFilterLoop(
-            llm=llm,
-            evaluation_system=type(self)._evaluation_system.resolve(),
-            max_revisions=max_revisions,
             state=initial,
             _config=KnotConfig(id="constitutional_loop"),
         )
