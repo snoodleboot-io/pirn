@@ -102,6 +102,23 @@ class SourceShapes:
         {"signature", "get_type_hints", "get_annotations"}
     )
     _hashing_modules: ClassVar[frozenset[str]] = frozenset({"hashlib", "xxhash", "blake3", "mmh3"})
+    #: The types ``pirn.core.run_context_vars.RunContextVars`` publishes ambiently.
+    #: A ``ContextVar`` of one of these is a second copy of the run's own state.
+    _core_ambient_types: ClassVar[frozenset[str]] = frozenset(
+        {
+            "Tapestry",
+            "RunHistory",
+            "Emitter",
+            "EmitterErrorPolicy",
+            "DataStore",
+            "DataTransport",
+            "RunNesting",
+            "ExecutionPlane",
+            "TapestryStore",
+            "ConcurrencyLimits",
+            "Admission",
+        }
+    )
     _keyed_readers: ClassVar[frozenset[str]] = frozenset({"get", "pop", "setdefault"})
     _collection_adders: ClassVar[frozenset[str]] = frozenset({"append", "add", "appendleft"})
     #: Core's published inner-run seam (``SubTapestry._run_inner``). A core
@@ -383,10 +400,51 @@ class SourceShapes:
 
     @staticmethod
     def constructs_context_var(node: ast.AST) -> bool:
-        """Whether ``node`` constructs a ``ContextVar``."""
-        return any(
-            isinstance(sub, ast.Call) and SourceShapes.call_name(sub) == "ContextVar"
+        """Whether ``node`` keeps ambient state core already publishes.
+
+        Core's ``RunContextVars`` is the run's ambient state and ``RunNesting`` /
+        ``ExecutionPlane`` are read from it; a second variable carrying the same
+        thing can disagree with core's, and the depth, admission and value-plane
+        guards read core's.
+
+        The rival is decided by *what the variable carries*, not by the fact of a
+        ``ContextVar`` (PIR-874). Core publishes the tapestry, run id, history,
+        emitters and their error policy, the data store, the transport, the
+        nesting frame, the execution plane, the extensible store and the
+        dispatching knot id — a variable annotated to carry one of those is a
+        second copy of it. A variable carrying something core does *not* publish
+        is not: a flag saying a container is reporting the current call, or a
+        policy of the package's own, has no core counterpart to disagree with.
+
+        An *unannotated* ``ContextVar`` fires as well. The rule cannot tell what it
+        carries, and this package annotates its class attributes, so saying what a
+        variable holds is what earns it a judgement on what it holds.
+        """
+        declared: list[ast.AnnAssign] = [
+            sub
             for sub in ast.walk(node)
+            if isinstance(sub, ast.AnnAssign)
+            and "ContextVar" in SourceShapes._names_in(sub.annotation)
+        ]
+        if any(
+            SourceShapes._names_in(sub.annotation) & SourceShapes._core_ambient_types
+            for sub in declared
+        ):
+            return True
+        annotated_values = {id(sub.value) for sub in declared if sub.value is not None}
+        return any(
+            isinstance(sub, ast.Call)
+            and SourceShapes.call_name(sub) == "ContextVar"
+            and id(sub) not in annotated_values
+            for sub in ast.walk(node)
+        )
+
+    @staticmethod
+    def _names_in(annotation: ast.expr) -> frozenset[str]:
+        """Return every identifier mentioned in ``annotation``."""
+        return frozenset(
+            {inner.id for inner in ast.walk(annotation) if isinstance(inner, ast.Name)}
+            | {inner.attr for inner in ast.walk(annotation) if isinstance(inner, ast.Attribute)}
         )
 
     @staticmethod

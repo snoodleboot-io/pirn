@@ -137,6 +137,24 @@ class TestCoreSeamDetectorsFire(unittest.TestCase):
 
     # -- nesting guard ------------------------------------------------------------
 
+    def test_rule_nesting_fires_on_a_core_ambient_type(self) -> None:
+        """A variable carrying core's own limits is a second copy of the plane's."""
+        assert self._is_shadow(
+            "nesting",
+            "class Cap:\n"
+            "    _current: ClassVar[ContextVar[ConcurrencyLimits | None]] = ContextVar(\n"
+            "        'cap', default=None\n"
+            "    )\n",
+        )
+
+    def test_rule_nesting_ignores_a_variable_core_does_not_publish(self) -> None:
+        """A flag about event attribution has no core counterpart to disagree with."""
+        assert not self._is_shadow(
+            "nesting",
+            "class Reporter:\n"
+            "    _reported: ClassVar[ContextVar[bool]] = ContextVar('reported', default=False)\n",
+        )
+
     def test_rule_nesting_fires_on_a_private_context_var(self) -> None:
         assert self._is_shadow(
             "nesting",
