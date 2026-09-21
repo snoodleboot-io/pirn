@@ -696,6 +696,55 @@ class Knot:
         return cls._input_annotations(sig, cls._process_hints(sig))
 
     @classmethod
+    def declares_input(cls, name: str) -> bool:
+        """Whether ``process()`` declares a parameter called ``name``.
+
+        The one answer to "can this knot be given this input", so a caller never
+        re-derives the signature with ``inspect``: a second derivation can
+        disagree with the one ``validate_io`` uses (PIR-874). A schema-declared
+        class answers from its schema; a class with a ``**kwargs`` catch-all
+        still answers ``False`` for a name it does not name, because the
+        catch-all is ``**_`` and discards.
+
+        Args:
+            name: The parameter name to look for.
+
+        Returns:
+            ``True`` when ``name`` is a declared input of this knot.
+        """
+        declared = cls.declared_input_schema()
+        if declared is not None:
+            properties = declared.get("properties", {})
+            return name in properties
+        try:
+            return name in cls._declared_input_names(cls._process_signature())
+        except (TypeError, ValueError):
+            return False
+
+    @classmethod
+    def process_defaults(cls) -> dict[str, Any]:
+        """Name -> default for every declared ``process()`` input that has one.
+
+        The defaults as written, not as JSON: :meth:`input_json_schema` records
+        only the JSON-serialisable ones and omits Knot-typed and opaque-value
+        inputs altogether, so a caller that needs the real values — to fill in a
+        constructor, say — reads them here rather than introspecting the
+        signature a second time (PIR-874).
+
+        Returns:
+            The declared inputs that carry a default, in declaration order.
+        """
+        if cls.declared_input_schema() is not None:
+            return {}
+        sig = cls._process_signature()
+        declared = cls._declared_input_names(sig)
+        return {
+            name: parameter.default
+            for name, parameter in sig.parameters.items()
+            if name in declared and parameter.default is not inspect.Parameter.empty
+        }
+
+    @classmethod
     def input_json_schema(cls) -> dict[str, Any]:
         """Return the JSON schema of this knot's ``process()`` inputs.
 

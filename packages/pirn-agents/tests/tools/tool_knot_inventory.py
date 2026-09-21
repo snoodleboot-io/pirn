@@ -44,6 +44,14 @@ class ToolKnotInventory:
         implement an inherited seam rather than adding a verb. "Does work" is
         :meth:`~tests.source_shapes.SourceShapes.effectful_methods`: the method
         awaits a collaborator, directly or through a private helper of its own.
+
+        A ``@staticmethod`` is not a verb of the knot. It takes no instance, so
+        nothing can drive *this knot* through it; it is a helper that
+        ``.claude/conventions/languages/python.md`` requires to live on a class
+        rather than at module scope, and excluding module functions while
+        flagging the same function once moved would make that rule unsatisfiable
+        (PIR-874). A second verb is something a caller can invoke *on a knot*
+        instead of running it.
         """
         methods = SourceShapes.methods_of(node)
         effectful = SourceShapes.effectful_methods(methods)
@@ -55,6 +63,16 @@ class ToolKnotInventory:
             and name != "process"
             and name in effectful
             and name not in overrides
+            and not ToolKnotInventory._is_static(method)
+        )
+
+    @staticmethod
+    def _is_static(method: ast.AsyncFunctionDef | ast.FunctionDef) -> bool:
+        """Whether ``method`` is decorated ``@staticmethod``."""
+        return any(
+            (isinstance(decorator, ast.Name) and decorator.id == "staticmethod")
+            or (isinstance(decorator, ast.Attribute) and decorator.attr == "staticmethod")
+            for decorator in method.decorator_list
         )
 
     @staticmethod

@@ -47,7 +47,6 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import inspect
 import re
 from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from inspect import iscoroutinefunction
@@ -471,15 +470,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
 
     def _process_defaults(self) -> dict[str, Any]:
         """Name -> default for every ``process()`` parameter that declares one."""
-        if self.knot_class.declared_input_schema() is not None:
-            return {}
-        return {
-            name: parameter.default
-            for name, parameter in inspect.signature(self.knot_class.process).parameters.items()
-            if parameter.default is not inspect.Parameter.empty
-            and parameter.kind
-            not in (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL)
-        }
+        return self.knot_class.process_defaults()
 
     def resolve_arguments(self, arguments: Mapping[str, Any]) -> dict[str, Any]:
         """Return *arguments* with a lone ReAct-style alias moved onto the primary parameter."""

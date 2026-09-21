@@ -20,8 +20,14 @@ from __future__ import annotations
 import ast
 import unittest
 
+from pirn.core.knot import Knot
+
 from tests.agents_source_index import AgentsSourceIndex
 from tests.core_seams.core_seam_shadow_inventory import CoreSeamShadowInventory
+
+
+class _SubjectKnot(Knot):
+    """A knot subject for the rule tests; only its type is used."""
 
 
 class TestNoClassShadowsACoreSeam(unittest.TestCase):
@@ -78,6 +84,7 @@ class TestCoreSeamDetectorsFire(unittest.TestCase):
             "class Runner:\n"
             "    async def run(self, thunk):\n"
             "        return await asyncio.wait_for(thunk(), timeout=self._budget)\n",
+            subject=_SubjectKnot,
         )
 
     def test_rule_retry_timeout_fires_on_a_renamed_retry_loop(self) -> None:
@@ -92,6 +99,32 @@ class TestCoreSeamDetectorsFire(unittest.TestCase):
             "            except RuntimeError:\n"
             "                await asyncio.sleep(self._backoff)\n"
             "        raise RuntimeError('exhausted')\n",
+            subject=_SubjectKnot,
+        )
+
+    def test_rule_retry_timeout_ignores_a_non_knot_bounding_its_own_resource(self) -> None:
+        """A PirnOpaqueValue has no KnotConfig, so it cannot write knot policy elsewhere.
+
+        ``KnotConfig.timeout`` raises in the awaiting task and leaves a spawned
+        process running; killing the process group is the backend's own job.
+        """
+        assert not self._is_shadow(
+            "retry_timeout",
+            "class SubprocessBackend:\n"
+            "    async def run(self, command, timeout):\n"
+            "        async with asyncio.timeout(timeout):\n"
+            "            return await self._proc.communicate()\n",
+        )
+
+    def test_rule_retry_timeout_still_fires_on_a_knot_with_the_same_shape(self) -> None:
+        """The exemption is the subject, not the shape: a knot writing it is still a shadow."""
+        assert self._is_shadow(
+            "retry_timeout",
+            "class Caller:\n"
+            "    async def process(self, command, timeout, **_):\n"
+            "        async with asyncio.timeout(timeout):\n"
+            "            return await self._work()\n",
+            subject=_SubjectKnot,
         )
 
     def test_rule_retry_timeout_ignores_a_declared_policy(self) -> None:
@@ -130,6 +163,35 @@ class TestCoreSeamDetectorsFire(unittest.TestCase):
         assert self._is_shadow(
             "input_schema",
             "class Deriver:\n    def schema_for(self, fn):\n        return get_type_hints(fn)\n",
+        )
+
+    def test_rule_input_schema_ignores_reading_a_constructor(self) -> None:
+        """Constructor parameters are wiring (Rule 1); no input schema describes them."""
+        assert not self._is_shadow(
+            "input_schema",
+            "class Descriptor:\n"
+            "    def parameters(self, knot_class):\n"
+            "        return signature(knot_class.__init__).parameters\n",
+        )
+
+    def test_rule_input_schema_ignores_publishing_a_signature(self) -> None:
+        """A decorator building the process signature is not deriving inputs from one."""
+        assert not self._is_shadow(
+            "input_schema",
+            "class Decorator:\n"
+            "    def wrap(self, fn):\n"
+            "        parameters = list(signature(fn).parameters.values())\n"
+            "        process.__signature__ = Signature(parameters)\n"
+            "        return process\n",
+        )
+
+    def test_rule_input_schema_still_fires_on_a_rival_derivation(self) -> None:
+        """The exclusions are narrow: deriving inputs from process is still a shadow."""
+        assert self._is_shadow(
+            "input_schema",
+            "class Rival:\n"
+            "    def inputs(self, knot_class):\n"
+            "        return get_type_hints(knot_class.process)\n",
         )
 
     def test_rule_input_schema_ignores_asking_the_knot(self) -> None:
@@ -225,9 +287,15 @@ class TestCoreSeamDetectorsFire(unittest.TestCase):
             "        return out\n",
         )
 
-    def test_rule_async_loop_step_fires_on_a_loop_built_fan_out(self) -> None:
-        """One run, but its nodes declared one at a time from a Python loop."""
-        assert self._is_shadow(
+    def test_rule_async_loop_step_ignores_a_loop_built_fan_out(self) -> None:
+        """One run whose nodes a loop declared is the fan-out Rule 11 prescribes.
+
+        This asserted the opposite until PIR-874. Every build-time topology — the
+        chain, the fan-out — is constructed by a Python loop, so firing here
+        forbade the shape the rules require. The defect is a run *per item*, which
+        the next test pins.
+        """
+        assert not self._is_shadow(
             "async_loop_step",
             "class Batcher:\n"
             "    async def process(self, calls, **_):\n"
@@ -238,6 +306,21 @@ class TestCoreSeamDetectorsFire(unittest.TestCase):
             "            Aggregator(_config=KnotConfig(id='results'), **per_call)\n"
             "        run = await self._run_inner(inner)\n"
             "        return run.outputs['results']\n",
+        )
+
+    def test_rule_async_loop_step_fires_on_one_run_per_item(self) -> None:
+        """A run awaited inside the loop: N unrelated runs, iteration owned by the class."""
+        assert self._is_shadow(
+            "async_loop_step",
+            "class Stepper:\n"
+            "    async def process(self, calls, **_):\n"
+            "        results = []\n"
+            "        for call in calls:\n"
+            "            with Tapestry() as inner:\n"
+            "                self._call_knot(call)\n"
+            "            run = await self._run_inner(inner)\n"
+            "            results.append(run.outputs['call'])\n"
+            "        return results\n",
         )
 
     def test_rule_async_loop_step_ignores_a_declared_graph(self) -> None:

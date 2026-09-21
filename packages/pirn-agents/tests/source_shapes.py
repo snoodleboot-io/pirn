@@ -391,12 +391,54 @@ class SourceShapes:
 
     @staticmethod
     def introspects_signature(node: ast.AST) -> bool:
-        """Whether ``node`` derives parameters from a callable's signature or hints."""
+        """Whether ``node`` builds a second answer to a knot's declared inputs.
+
+        The seam is ``Knot.input_json_schema``, which derives the declared inputs
+        from ``process()``; reaching for ``signature`` / ``get_type_hints`` /
+        ``get_annotations`` builds a rival that can disagree with it.
+
+        Two acts are not that, and are excluded by what they do rather than by
+        who does them (PIR-874):
+
+        * introspecting ``__init__`` asks about *wiring*, which Rule 1 puts in the
+          constructor and no input schema describes;
+        * a class that publishes a ``__signature__`` is *constructing* the
+          signature the seam later reads — a decorator turning a plain function
+          into a knot's ``process`` — rather than deriving inputs from one.
+        """
+        if SourceShapes._publishes_signature(node):
+            return False
         return any(
             isinstance(sub, ast.Call)
             and SourceShapes.call_name(sub) in SourceShapes._signature_calls
+            and not SourceShapes._targets_constructor(sub)
             for sub in ast.walk(node)
         )
+
+    @staticmethod
+    def _targets_constructor(call: ast.Call) -> bool:
+        """Whether ``call``'s first argument names ``__init__``."""
+        if not call.args:
+            return False
+        target = call.args[0]
+        return isinstance(target, ast.Attribute) and target.attr == "__init__"
+
+    @staticmethod
+    def _publishes_signature(node: ast.AST) -> bool:
+        """Whether ``node`` assigns a ``__signature__``, i.e. builds one to be read."""
+        for sub in ast.walk(node):
+            if not isinstance(sub, ast.Assign):
+                continue
+            for target in sub.targets:
+                if isinstance(target, ast.Attribute) and target.attr == "__signature__":
+                    return True
+                if (
+                    isinstance(target, ast.Subscript)
+                    and isinstance(target.slice, ast.Constant)
+                    and target.slice.value == "__signature__"
+                ):
+                    return True
+        return False
 
     @staticmethod
     def imports_hashing(tree: ast.AST) -> frozenset[str]:
@@ -582,25 +624,33 @@ class SourceShapes:
 
     @staticmethod
     def steps_inner_run_by_hand(node: ast.ClassDef) -> bool:
-        """Whether a method both loops over run-time data and awaits core's inner-run seam.
+        """Whether a method awaits core's inner-run seam from *inside* a loop.
 
-        See the module docstring: whether the run sits inside the loop (one
-        engine round trip per item) or the loop builds the run's nodes (N
-        siblings declared by hand), the iteration belongs to the class rather
-        than to core's awaitable loop step.
+        One engine round trip per item is the defect: the items' lineage becomes
+        N unrelated runs and the iteration belongs to the class rather than to
+        core's awaitable loop step.
+
+        A loop that only *builds* the nodes of a single run is not this. That is
+        the chain and fan-out shape knot-design-rules Rule 11 prescribes, and
+        ``ParallelSpecialistFanOut`` documents: N siblings declared at build time
+        and executed by one run. Every build-time topology is constructed by a
+        loop, so firing on that would forbid the shape the rules require
+        (PIR-874).
         """
         for method in SourceShapes.methods_of(node).values():
-            runs_inner = any(
-                isinstance(sub, ast.Await)
-                and isinstance(sub.value, ast.Call)
-                and SourceShapes.self_method_called(sub.value) == SourceShapes._inner_run_seam
+            loops = (
+                sub
                 for sub in ast.walk(method)
+                if isinstance(sub, ast.For | ast.AsyncFor | ast.While)
             )
-            loops = any(
-                isinstance(sub, ast.For | ast.AsyncFor | ast.While) for sub in ast.walk(method)
-            )
-            if runs_inner and loops:
-                return True
+            for loop in loops:
+                if any(
+                    isinstance(inner, ast.Await)
+                    and isinstance(inner.value, ast.Call)
+                    and SourceShapes.self_method_called(inner.value) == SourceShapes._inner_run_seam
+                    for inner in ast.walk(loop)
+                ):
+                    return True
         return False
 
     @staticmethod

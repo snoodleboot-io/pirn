@@ -31,10 +31,9 @@ from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanne
 from pirn_agents.specializations.plan_react.plan_react_result_extractor import (
     PlanReActResultExtractor,
 )
-from pirn_agents.specializations.react.react_loop import ReActLoop
+from pirn_agents.specializations.plan_react.plan_react_step_loop import PlanReActStepLoop
+from pirn_agents.specializations.plan_react.plan_react_step_state import PlanReActStepState
 from pirn_agents.tools.tool_factory import ToolFactory
-from pirn_agents.types.messaging.agent_message import AgentMessage
-from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class PlanReActPipeline(AgentPipeline):
@@ -99,25 +98,20 @@ class PlanReActPipeline(AgentPipeline):
         plan = plan_result.outputs["pr_plan"]
         steps = tuple(plan.steps[:max_steps]) or (task,)
 
-        step_responses: list[AgentResponse] = []
-        for index, step in enumerate(steps):
-            with Tapestry() as step_inner:
-                loop = ReActLoop(
-                    messages=(AgentMessage(role="user", content=step),),
-                    llm=llm,
-                    tools=tool_tuple,
-                    max_iterations=max_iterations,
-                    _config=KnotConfig(id=f"pr_react_{index}"),
-                )
-            run_result = await self._run_inner(step_inner)
-            response = run_result.outputs[loop.knot_id]
-            if isinstance(response, AgentResponse):
-                step_responses.append(response)
-            else:
-                step_responses.append(AgentResponse(content=str(response)))
-
+        # Core owns the iteration: one run with one traceable iteration per step,
+        # rather than a round trip and an unrelated run for each (Rule 11;
+        # PIR-874). The steps stay sequential because their ReAct loops call
+        # tools, whose side effects must not interleave.
+        loop = PlanReActStepLoop(
+            state=PlanReActStepState(
+                steps=steps,
+                llm=llm,
+                tools=tool_tuple,
+                max_iterations=max_iterations,
+            ),
+            _config=KnotConfig(id="plan_react_steps"),
+        )
         return PlanReActResultExtractor(
-            plan=steps,
-            step_responses=tuple(step_responses),
+            state=loop,
             _config=KnotConfig(id="plan_react_result"),
         )

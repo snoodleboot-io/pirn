@@ -38,15 +38,25 @@ class CoreSeamShadowInventory:
     """Discovers ``pirn_agents`` classes that carry a WS0 core seam's shape."""
 
     @staticmethod
-    def shadows_retry_or_timeout(_subject: type, node: ast.ClassDef) -> bool:
-        """Whether the class bounds time or retries by hand.
+    def shadows_retry_or_timeout(subject: type, node: ast.ClassDef) -> bool:
+        """Whether the knot bounds time or retries by hand.
 
         ``KnotConfig(timeout=)`` raises ``KnotTimeoutError`` and
         ``KnotConfig(retry=)`` runs a ``KnotRetryPolicy`` under core's
         ``GovernedDispatch``. A hand-rolled ``wait_for``/``timeout``, or a loop
         that swallows an exception and goes round again, is the same policy
         written where the run cannot see it.
+
+        Only a knot can shadow this seam, because only a knot has a
+        ``KnotConfig`` to declare the policy on. A ``PirnOpaqueValue`` bounding
+        an operating-system resource it owns — ``SubprocessSandboxBackend``
+        killing a process group whose child would otherwise outlive the run — is
+        not writing knot policy elsewhere, and ``KnotConfig.timeout`` could not
+        do that job: it raises in the awaiting task and leaves the process alive
+        (PIR-873).
         """
+        if not issubclass(subject, Knot):
+            return False
         return SourceShapes.bounds_time_by_hand(node) or SourceShapes.has_retry_loop(node)
 
     @staticmethod
