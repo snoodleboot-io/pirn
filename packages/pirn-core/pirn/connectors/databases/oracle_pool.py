@@ -109,7 +109,6 @@ class OraclePool(DatabaseConnectionPool):
         # AND ``%s``-style markers (which would mask a port from another
         # dialect's client).
         self._scrubber = DsnScrubber()
-        self._logger = logging.getLogger(self.__class__.__module__)
         self._transaction_lock = asyncio.Lock()
         self._transaction_task: asyncio.Task[Any] | None = None
 

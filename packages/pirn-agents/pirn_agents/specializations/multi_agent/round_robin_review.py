@@ -82,11 +82,18 @@ class RoundRobinReview(AgentPipeline):
         if not reviewer_list:
             raise ValueError("RoundRobinReview: reviewers must be a non-empty sequence")
 
-        current: Knot | AgentResponse = response
-        for index, reviewer in enumerate(reviewer_list):
-            current = ReviewerInvocation(
+        # The first link takes the draft; each later one takes the link before it.
+        # Built this way the sink is a ReviewerInvocation by construction, so the
+        # declared ``Knot`` return needs no cast (reviewer_list is non-empty).
+        sink = ReviewerInvocation(
+            reviewer=SpecialistHandle(specialist=reviewer_list[0]),
+            response=response,
+            _config=KnotConfig(id="review_0"),
+        )
+        for index, reviewer in enumerate(reviewer_list[1:], start=1):
+            sink = ReviewerInvocation(
                 reviewer=SpecialistHandle(specialist=reviewer),
-                response=current,
+                response=sink,
                 _config=KnotConfig(id=f"review_{index}"),
             )
-        return current
+        return sink

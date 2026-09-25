@@ -1,7 +1,7 @@
 """``PlanReActStepState`` — the value threaded through the plan-step ReAct loop.
 
 A :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`, not a plain frozen
-dataclass, because it carries the live ``Tool`` objects each step's loop may
+dataclass, because it carries the live ``ToolFactory`` objects each step's loop may
 call. A knot is not describable to pydantic, so a plain state holding tools
 cannot be validated at the loop's boundary at all; the mixin is core's answer for
 exactly that — "frozen dataclass wrappers with non-pydantic fields" — and
@@ -23,7 +23,7 @@ from typing import Any
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -45,7 +45,7 @@ class PlanReActStepState(PirnOpaqueValue):
 
     steps: tuple[str, ...]
     llm: LLMProvider
-    tools: tuple[Tool, ...]
+    tools: tuple[ToolFactory, ...]
     max_iterations: int
     responses: tuple[AgentResponse, ...] = ()
     index: int = 0
