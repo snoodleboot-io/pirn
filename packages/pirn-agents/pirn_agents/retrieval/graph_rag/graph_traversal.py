@@ -107,8 +107,8 @@ class GraphTraversal(Knot):
 
         return Subgraph(nodes=tuple(nodes.values()), edges=tuple(edges.values()))
 
+    @staticmethod
     async def shortest_path(
-        self,
         source_id: str,
         target_id: str,
         store: GraphStore,
@@ -117,6 +117,10 @@ class GraphTraversal(Knot):
         edge_types: Sequence[str] | None = None,
     ) -> list[str] | None:
         """Return the shortest node-id path from ``source_id`` to ``target_id``.
+
+        A ``@staticmethod``: it never reads the instance, so it is a helper on the
+        class rather than a second way to drive the knot — ``process()`` stays the
+        only verb (PIR-874).
 
         A bounded breadth-first path query: it explores at most ``max_depth`` hops
         with ``max_fanout`` neighbors per node and returns the first (hence

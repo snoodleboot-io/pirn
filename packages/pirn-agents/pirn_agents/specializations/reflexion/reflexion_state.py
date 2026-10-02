@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
 
 
@@ -31,3 +33,8 @@ class ReflexionState:
     final_answer: str
     succeeded: bool
     index: int
+    task: str
+    llm: LLMProvider
+    memory: MemoryStore
+    max_iterations: int
+    memory_namespace: str

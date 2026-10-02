@@ -12,18 +12,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import precommit_pyright  # noqa: E402
-import precommit_ruff  # noqa: E402
+from gatekit.package_root_locator import PackageRootLocator
+from precommit_pyright import PrecommitPyright
+from precommit_ruff import PrecommitRuff
 
 
 def test_package_root_finds_dist_directory() -> None:
     path = Path("/repo/packages/pirn-agents/pirn_agents/tool/toolset.py")
-    assert precommit_ruff.package_root(path) == Path("/repo/packages/pirn-agents")
+    assert PackageRootLocator.locate(path) == Path("/repo/packages/pirn-agents")
 
 
 def test_package_root_none_outside_packages_tree() -> None:
     path = Path("/repo/scripts/check_conventions.py")
-    assert precommit_ruff.package_root(path) is None
+    assert PackageRootLocator.locate(path) is None
 
 
 def test_group_by_package_splits_by_distribution() -> None:
@@ -33,7 +34,7 @@ def test_group_by_package_splits_by_distribution() -> None:
         "packages/pirn-core/tests/unit/test_x.py",
         "scripts/check_conventions.py",
     ]
-    groups, unmatched = precommit_ruff.group_by_package(files)
+    groups, unmatched = PrecommitRuff.group_by_package(files)
     assert unmatched == ["scripts/check_conventions.py"]
     core_root = Path("packages/pirn-core").resolve()
     signal_root = Path("packages/pirn-signal").resolve()
@@ -48,24 +49,24 @@ def test_unique_package_roots_deduplicates() -> None:
         "packages/pirn-core/pirn/backends/disk.py",
         "packages/pirn-signal/pirn_signal/__init__.py",
     ]
-    roots, unmatched = precommit_pyright.unique_package_roots(files)
+    roots, unmatched = PrecommitPyright.unique_package_roots(files)
     assert unmatched == []
     assert roots == [Path("packages/pirn-core").resolve(), Path("packages/pirn-signal").resolve()]
 
 
 def test_unique_package_roots_reports_unmatched() -> None:
-    roots, unmatched = precommit_pyright.unique_package_roots(["scripts/check_conventions.py"])
+    roots, unmatched = PrecommitPyright.unique_package_roots(["scripts/check_conventions.py"])
     assert roots == []
     assert unmatched == ["scripts/check_conventions.py"]
 
 
-def test_main_usage_error_without_mode(capsys) -> None:
-    assert precommit_ruff.main([]) == 2
+def test_main_usage_error_without_mode() -> None:
+    assert PrecommitRuff.main([]) == 2
 
 
-def test_main_usage_error_with_bad_mode(capsys) -> None:
-    assert precommit_ruff.main(["lint", "file.py"]) == 2
+def test_main_usage_error_with_bad_mode() -> None:
+    assert PrecommitRuff.main(["lint", "file.py"]) == 2
 
 
 def test_pyright_main_usage_error_without_files() -> None:
-    assert precommit_pyright.main([]) == 2
+    assert PrecommitPyright.main([]) == 2

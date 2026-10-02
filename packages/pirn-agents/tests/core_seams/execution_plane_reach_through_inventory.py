@@ -1,86 +1,55 @@
-"""``ExecutionPlaneReachThroughInventory`` — find every ``pirn_agents`` site that
-configures an inner run by writing a ``Tapestry``'s private fields.
+"""``ExecutionPlaneReachThroughInventory`` — every site that configures another
+object by writing its private state.
 
-The "agents speaks core" ADR (2026-09-13), WS0b, makes an inner run inherit
-the enclosing run's *execution plane* — its dispatcher, its admission gate
-(and therefore its ``ConcurrencyLimits``), its ``AdmissionObserver``s, its
-replay posture and its identity resolver — the way ``SubTapestry._run_inner``
-already forwards the history, the data store, the transport and the emitters.
-Before that seam existed, the only way a ``SubTapestry`` subclass could point
-its inner run at a particular dispatcher or group cap was to reach into the
-inner tapestry and assign ``tapestry._dispatcher`` / ``tapestry._concurrency``
-/ ``tapestry._admission_observers`` directly (WS4b's ``MapAgent``
-``_apply_run_settings`` was the one site that did).  Those writes are what
-this inventory burns down: with the seam in place the same effect is
-``SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)`` or
-the overridable ``_inner_dispatcher`` / ``_inner_concurrency`` /
-``_inner_admission_observers`` hooks, and a run started with none of them
-simply inherits the enclosing run's plane.
+The "agents speaks core" ADR (WS0b) makes an inner run inherit the enclosing
+run's *execution plane* — dispatcher, admission gate and its
+``ConcurrencyLimits``, ``AdmissionObserver``s, replay posture, identity
+resolver — the way ``SubTapestry._run_inner`` already forwards the history, the
+data store, the transport and the emitters. Before that seam existed, the only
+way to point an inner run at a particular dispatcher or group cap was to reach
+into the inner tapestry and assign ``tapestry._dispatcher`` /
+``tapestry._concurrency`` / ``tapestry._admission_observers`` directly. With the
+seam in place the same effect is ``_run_inner(dispatcher=, concurrency=,
+admission_observers=)`` or the overridable ``_inner_*`` hooks, and a run started
+with none of them simply inherits the enclosing plane.
 
-Shared by ``test_execution_plane_reach_through.py`` (the frozen ratchet
-asserted by exact equality) and by nothing else.
-
-Detection is a source-only AST pass: an ``ast.Attribute`` whose ``attr`` is one
-of the private ``Tapestry`` execution fields and whose value is *not* ``self``
-or ``cls`` — a class's own ``self._history`` is its own business; a write or
-read of ``tapestry._history`` is the reach-through.  Both reads and writes
-count: reading a private field to *decide* how to configure the inner run is
-the same coupling as writing one.
+The detector is the *shape*, not a field list. The version this replaced held a
+frozen set of eleven ``Tapestry`` field names, which answers only for the fields
+someone thought to write down: a twelfth private field, or the same reach-through
+against any other object, went unseen. What is actually wrong is assigning a
+``_private`` attribute on an object that is not your own — configuring something
+by reaching past its surface — so that is what is detected, on any attribute and
+any receiver. ``self``, ``cls``, ``super()``, the enclosing class, and a local
+derived from ``self`` in the same scope (``clone = copy.copy(self)``) are the
+object's own state and are never reach-throughs.
 """
 
 from __future__ import annotations
 
 import ast
-from pathlib import Path
-from typing import ClassVar
 
-import pirn_agents
+from tests.agents_source_index import AgentsSourceIndex
+from tests.source_shapes import SourceShapes
 
 
 class ExecutionPlaneReachThroughInventory:
-    """Discovers ``pirn_agents`` sites that touch a tapestry's private execution fields."""
-
-    #: The private ``Tapestry`` fields that make up a run's execution plane and
-    #: its observability wiring.  ``SubTapestry._run_inner`` and
-    #: ``IterationChainKnot`` forward every one of them; downstream code has
-    #: no business assigning them.
-    PRIVATE_TAPESTRY_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "_dispatcher",
-            "_concurrency",
-            "_admission_observers",
-            "_max_nesting_depth",
-            "_identity_resolver",
-            "_history",
-            "_data_store",
-            "_transport",
-            "_emitters",
-            "_emitter_error_policy",
-            "_traceback_filter",
-        }
-    )
+    """Discovers ``pirn_agents`` sites that assign another object's private state."""
 
     @staticmethod
-    def _is_own_reference(value: ast.expr) -> bool:
-        """Whether *value* is ``self`` or ``cls`` — a class touching its own state."""
-        return isinstance(value, ast.Name) and value.id in {"self", "cls"}
+    def reach_throughs_in(tree: ast.AST) -> dict[str, frozenset[str]]:
+        """Return ``{enclosing scope: {assigned target, ...}}`` for one parsed module.
 
-    @classmethod
-    def is_reach_through(cls, node: ast.AST) -> bool:
-        """Whether *node* reads or writes a private execution field of another object."""
-        if not isinstance(node, ast.Attribute):
-            return False
-        if node.attr not in cls.PRIVATE_TAPESTRY_FIELDS:
-            return False
-        return not cls._is_own_reference(node.value)
-
-    @classmethod
-    def reach_throughs_in(cls, tree: ast.AST) -> set[str]:
-        """Return the enclosing-scope names (``ClassName`` or ``<module>``) with a reach-through."""
-        found: set[str] = set()
-        for scope_name, scope in cls._scopes(tree):
-            if any(cls.is_reach_through(node) for node in ast.walk(scope)):
-                found.add(scope_name)
+        The scope is the top-level class's name, or ``<module>`` for anything
+        written outside one.
+        """
+        own_names = frozenset(
+            node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
+        )
+        found: dict[str, frozenset[str]] = {}
+        for scope_name, scope in ExecutionPlaneReachThroughInventory._scopes(tree):
+            writes = SourceShapes.foreign_private_writes(scope, own_names)
+            if writes:
+                found[scope_name] = writes
         return found
 
     @staticmethod
@@ -98,16 +67,13 @@ class ExecutionPlaneReachThroughInventory:
         scopes.append(("<module>", rest))
         return scopes
 
-    @classmethod
-    def discover(cls) -> frozenset[str]:
-        """Return ``{"relative/path.py::Scope", ...}`` over ``pirn_agents``."""
-        root = Path(pirn_agents.__path__[0])
-        found: set[str] = set()
-        for path in sorted(root.rglob("*.py")):
-            if any(part in {"tests", "__pycache__"} for part in path.parts):
-                continue
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            relative = path.relative_to(root).as_posix()
-            for scope_name in cls.reach_throughs_in(tree):
-                found.add(f"{relative}::{scope_name}")
-        return frozenset(found)
+    @staticmethod
+    def discover() -> dict[str, frozenset[str]]:
+        """Return ``{"relative/path.py::Scope": {assigned target, ...}}`` over ``pirn_agents``."""
+        found: dict[str, frozenset[str]] = {}
+        for relative, tree in AgentsSourceIndex.modules().items():
+            for scope_name, writes in (
+                ExecutionPlaneReachThroughInventory.reach_throughs_in(tree)
+            ).items():
+                found[f"{relative}::{scope_name}"] = writes
+        return found

@@ -16,15 +16,13 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, Iterable
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.oracle_config import OracleConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.threaded_cursor_transaction import ThreadedCursorTransaction
 from pirn.core.optional_dependency import OptionalDependency
-
-_logger = logging.getLogger(__name__)
 
 
 class OraclePool(DatabaseConnectionPool):
@@ -90,6 +88,8 @@ class OraclePool(DatabaseConnectionPool):
     — while the read path still commits nothing.
     """
 
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
+
     def __init__(
         self,
         config: OracleConfig | None = None,
@@ -109,7 +109,6 @@ class OraclePool(DatabaseConnectionPool):
         # AND ``%s``-style markers (which would mask a port from another
         # dialect's client).
         self._scrubber = DsnScrubber()
-        self._logger = logging.getLogger(self.__class__.__module__)
         self._transaction_lock = asyncio.Lock()
         self._transaction_task: asyncio.Task[Any] | None = None
 
@@ -313,7 +312,7 @@ class OraclePool(DatabaseConnectionPool):
         except Exception:
             # Any driver error reading the flag means the same thing here: the
             # client cannot answer, so ownership is undecidable.
-            _logger.warning(
+            OraclePool._logger.warning(
                 "OraclePool: reading transaction_in_progress raised; treating as undecidable",
                 exc_info=True,
             )

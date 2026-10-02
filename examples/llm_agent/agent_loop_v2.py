@@ -271,9 +271,7 @@ def plan_next_actions(ctx: SessionContext) -> list[PlannedAction]:
     if any(w in task for w in ["calculat", "percent", "interest", "cost", "plan"]):
         actions.append(PlannedAction("planner", "compute"))
 
-    if any(
-        w in task for w in ["write", "draft", "email", "report", "summarise", "summary"]
-    ):
+    if any(w in task for w in ["write", "draft", "email", "report", "summarise", "summary"]):
         actions.append(PlannedAction("llm_task", "draft"))
 
     if any(w in task for w in ["weather", "forecast", "advisory"]):
@@ -316,9 +314,7 @@ def _seed_messages(ctx: SessionContext, system: str) -> tuple[AgentMessage, ...]
 class LLMTaskRunner(SubTapestry):
     """ContextBuilder → LLMCall → OutputParser inner pipeline."""
 
-    async def process(
-        self, ctx: SessionContext, action: PlannedAction, **_: Any
-    ) -> Knot:
+    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
         msgs = _seed_messages(
             ctx,
             system="You are a helpful assistant. Answer the user's question clearly and concisely.",
@@ -337,9 +333,7 @@ class LLMTaskRunner(SubTapestry):
 class ReActRunner(SubTapestry):
     """ReActLoop inner pipeline — reason + act with stub tools."""
 
-    async def process(
-        self, ctx: SessionContext, action: PlannedAction, **_: Any
-    ) -> Knot:
+    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
         msgs = _seed_messages(
             ctx,
             system=(
@@ -387,9 +381,7 @@ class PlannerRunner(SubTapestry):
     step string from the ``Plan`` before passing it to ``ToolRouter``.
     """
 
-    async def process(
-        self, ctx: SessionContext, action: PlannedAction, **_: Any
-    ) -> Knot:
+    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
         msgs = _seed_messages(
             ctx,
             system=(
@@ -405,9 +397,7 @@ class PlannerRunner(SubTapestry):
             _config=KnotConfig(id="msgs"),
         )
         context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))
-        plan_k = Planner(
-            context=context_k, llm=_PLANNER_LLM, _config=KnotConfig(id="plan")
-        )
+        plan_k = Planner(context=context_k, llm=_PLANNER_LLM, _config=KnotConfig(id="plan"))
         step_k = _PlanFirstStep(plan=plan_k, _config=KnotConfig(id="step"))
         router_k = ToolRouter(
             step=step_k,
@@ -433,9 +423,7 @@ class AgentPlanner(Knot):
     """
 
     async def process(self, ctx: SessionContext, **_: Any) -> SessionContext:
-        new_ctx = ctx.evolve(
-            iteration=ctx.iteration + 1, msg_iteration=ctx.msg_iteration + 1
-        )
+        new_ctx = ctx.evolve(iteration=ctx.iteration + 1, msg_iteration=ctx.msg_iteration + 1)
         actions = plan_next_actions(new_ctx)
 
         store = Tapestry.current_store()
@@ -520,9 +508,7 @@ class AgentDecider(Knot):
         enough = len(msg_steps) >= 2 and rng.random() < 0.55
 
         if synthesised or enough or new_ctx.msg_iteration >= MAX_ITERATIONS_PER_MSG:
-            best = max(
-                step_results, key=lambda s: len(s.response.data), default=None
-            )
+            best = max(step_results, key=lambda s: len(s.response.data), default=None)
             summary = best.response.data[:120] if best else "Completed."
             new_ctx = new_ctx.evolve(
                 responses=(*new_ctx.responses, summary),
@@ -562,9 +548,7 @@ class _SessionFinalizer(Knot):
 # ----------------------------------------------------------------- tapestry
 
 
-def build_tapestry(
-    *, initial_ctx: SessionContext | None = None, history=None
-) -> Tapestry:
+def build_tapestry(*, initial_ctx: SessionContext | None = None, history=None) -> Tapestry:
     t = Tapestry(history=history)
     seed_ctx = initial_ctx or make_session()
     t.store.register(
@@ -615,18 +599,14 @@ async def main() -> None:
 
     if not result.succeeded:
         exc = result.exceptions[0] if result.exceptions else None
-        print(
-            f"FAILED: {exc.knot_id if exc else '?'}: {exc.message[:120] if exc else ''}"
-        )
+        print(f"FAILED: {exc.knot_id if exc else '?'}: {exc.message[:120] if exc else ''}")
         history.close()
         return
 
     final: SessionContext = result.outputs[SESSION_COMPLETE_ID]
     print(f"{len(final.messages)} messages · {final.iteration} total iterations\n")
 
-    for i, (msg, response) in enumerate(
-        zip(final.messages, final.responses, strict=True)
-    ):
+    for i, (msg, response) in enumerate(zip(final.messages, final.responses, strict=True)):
         msg_steps = [s for s in final.scratchpad if s.msg_idx == i]
         steps_summary = "  ".join(
             f"{_TYPE_ICON.get(s.action_type, '·')}{s.name}" for s in msg_steps

@@ -14,11 +14,14 @@ mean every review was silently discarded, see PIR-769).
 Algorithm
 ---------
 1. Validate inputs.
-2. Drive the reviewer sequence with a :class:`RoundRobinLoop`
-   (``LoopSubTapestry``): each round is one real, individually-traceable
-   ``ReviewerInvocation`` knot rather than a step inside a hand-rolled Python
-   ``for`` loop (ADR agents-speaks-core WS5a).
-3. Extract the final revised response with :class:`RoundRobinResponseExtractor`.
+2. Wire one :class:`ReviewerInvocation` knot per reviewer at build time, each
+   taking the previous invocation as its ``response`` input, so the engine owns
+   the ordering and every round is individually traceable (ADR
+   agents-speaks-core WS5a, revised by PIR-873). Every reviewer always runs and
+   the count is fixed at construction, so there is nothing for a
+   ``LoopSubTapestry`` to decide; a loop here only added a state object, an
+   inner run per round, and inputs held on the loop instance.
+3. Return the last invocation as the sink: its output is the final response.
 
 Math
 ----
@@ -35,14 +38,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent.round_robin_loop import RoundRobinLoop
-from pirn_agents.specializations.multi_agent.round_robin_response_extractor import (
-    RoundRobinResponseExtractor,
-)
-from pirn_agents.specializations.multi_agent.round_robin_state import RoundRobinState
+from pirn_agents.specializations.multi_agent.reviewer_invocation import ReviewerInvocation
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -72,8 +71,9 @@ class RoundRobinReview(AgentPipeline):
             reviewers: A non-empty sequence of SubTapestry reviewer agents.
 
         Returns:
-            The sink knot whose output is the AgentResponse produced by the
-            last reviewer in the sequence.
+            The last reviewer's :class:`ReviewerInvocation`, whose output is the
+            final revised response. Each reviewer takes the previous one as its
+            ``response`` input, so the engine owns the ordering.
 
         Raises:
             ValueError: If reviewers is empty.
@@ -82,17 +82,18 @@ class RoundRobinReview(AgentPipeline):
         if not reviewer_list:
             raise ValueError("RoundRobinReview: reviewers must be a non-empty sequence")
 
-        initial = Parameter(
-            "rrr_state",
-            RoundRobinState,
-            default=RoundRobinState(response=response, index=0),
+        # The first link takes the draft; each later one takes the link before it.
+        # Built this way the sink is a ReviewerInvocation by construction, so the
+        # declared ``Knot`` return needs no cast (reviewer_list is non-empty).
+        sink = ReviewerInvocation(
+            reviewer=SpecialistHandle(specialist=reviewer_list[0]),
+            response=response,
+            _config=KnotConfig(id="review_0"),
         )
-        loop = RoundRobinLoop(
-            reviewers=reviewer_list,
-            state=initial,
-            _config=KnotConfig(id="rrr_loop"),
-        )
-        return RoundRobinResponseExtractor(
-            state=loop,
-            _config=KnotConfig(id="final"),
-        )
+        for index, reviewer in enumerate(reviewer_list[1:], start=1):
+            sink = ReviewerInvocation(
+                reviewer=SpecialistHandle(specialist=reviewer),
+                response=sink,
+                _config=KnotConfig(id=f"review_{index}"),
+            )
+        return sink

@@ -30,9 +30,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.check import Check
 
 
-class SentenceConfidenceMonitor(Knot):
+class SentenceConfidenceMonitor(Check):
     """Report whether a sentence's confidence is below the retrieval threshold."""
 
     def __init__(

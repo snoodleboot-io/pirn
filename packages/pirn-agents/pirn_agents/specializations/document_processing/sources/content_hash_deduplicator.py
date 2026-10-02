@@ -1,38 +1,35 @@
 """``ContentHashDeduplicator`` — content-address dedup shared by all connectors (F25-S3).
 
 A tiny stateful helper that both source connectors run each fetched object
-through before yielding it: it hashes the bytes (SHA-256 by default) and skips
-any object whose hash it has already seen, so identical content is never
-re-ingested regardless of which key or URL it arrived under.
+through before yielding it: it hashes the bytes through core's
+:meth:`~pirn.core.content_hasher.ContentHasher.hash` and skips any object whose
+hash it has already seen, so identical content is never re-ingested regardless of
+which key or URL it arrived under.
+
+The digest is core's, not a private ``hashlib`` call: one definition of content
+identity across the workspace, so a dedup key and a lineage key for the same
+bytes agree (PIR-874). The configurable ``algorithm`` argument is gone with it —
+nothing passed anything but the default, and a per-instance algorithm is exactly
+the second definition this removes.
 """
 
 from __future__ import annotations
 
-import hashlib
-
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 class ContentHashDeduplicator(PirnOpaqueValue):
     """Track seen content hashes and report whether bytes are newly seen."""
 
-    def __init__(self, *, algorithm: str = "sha256") -> None:
-        """Initialise an empty deduplicator.
-
-        Args:
-            algorithm: A :mod:`hashlib` algorithm name used to hash content.
-
-        Raises:
-            ValueError: If ``algorithm`` is not available in :mod:`hashlib`.
-        """
-        if algorithm not in hashlib.algorithms_available:
-            raise ValueError(f"ContentHashDeduplicator: unknown hash algorithm {algorithm!r}")
-        self._algorithm = algorithm
+    def __init__(self) -> None:
+        """Initialise an empty deduplicator."""
         self._seen: set[str] = set()
 
-    def digest(self, data: bytes) -> str:
-        """Return the hex digest of ``data`` under the configured algorithm."""
-        return hashlib.new(self._algorithm, bytes(data)).hexdigest()
+    @staticmethod
+    def digest(data: bytes) -> str:
+        """Return core's content hash of ``data``."""
+        return ContentHasher.hash(bytes(data))
 
     def is_new(self, data: bytes) -> bool:
         """Return whether ``data`` is unseen, recording its hash when it is.

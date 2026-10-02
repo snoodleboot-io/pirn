@@ -433,6 +433,76 @@ types".
 
 ---
 
+## Rule 11 — Choose the topology before reaching for a loop
+
+A pipeline that repeats work has three shapes available. Pick by asking two questions
+about the repetition, in this order.
+
+**1. Is the number of repetitions known when the pipeline is built?**
+**2. Can any repetition be skipped?**
+
+If the count is known *and* nothing is skipped, it is **not a loop**. Wire the knots at
+build time. Then one more question decides which build-time shape:
+
+**3. Does each repetition depend on the previous one's output?**
+
+| Count known | Anything skipped | Rounds depend on each other | Shape |
+|---|---|---|---|
+| yes | no | yes | **Chain** — knot *n* takes knot *n−1* as an input |
+| yes | no | no | **Fan-out** — every knot wired as a parent of one `Aggregator` |
+| no | — | — | **`LoopSubTapestry`** — `step` / `fold` decide as the run goes |
+| yes | yes | — | **`LoopSubTapestry`** — build only what is actually attempted |
+
+### Chain — sequential dependence
+
+`RoundRobinReview` passes a draft through N reviewers, each revising the last. Every
+reviewer always runs and N is fixed at construction, so it is a chain:
+
+```python
+current: Knot | AgentResponse = response
+for index, reviewer in enumerate(reviewer_list):
+    current = ReviewerInvocation(
+        reviewer=SpecialistHandle(specialist=reviewer),
+        response=current,
+        _config=KnotConfig(id=f"review_{index}"),
+    )
+return current
+```
+
+When the pipeline needs every intermediate output rather than only the last, end the
+chain with an `Aggregator` over all the links — `PromptChainPipeline` does exactly this.
+
+### Fan-out — independent repetitions
+
+When the repetitions do not read each other's output, wire them all as parents of one
+`Aggregator`. The engine starts every sibling as its own task, so they run concurrently:
+see `ParallelSpecialistFanOut`. Sequencing independent work costs wall time for nothing,
+and with one LLM call per item that cost is the dominant one in the pipeline.
+
+### Loop — the shape is unknown until the run
+
+`LoopSubTapestry` earns its place when iterations may not happen. `CascadeLoop` stops at
+the first tier that accepts, so unrolling every tier up front would schedule knots that
+merely pass state through. That is the case a loop is for.
+
+### Why this matters beyond tidiness
+
+A loop is not a free stylistic choice. It costs one inner run per iteration, a state
+object that must be describable to the schema (so it cannot carry a `SubTapestry`), and a
+`step`/`fold` pair to maintain. It also tempts the loop class into holding its
+collaborators as instance state, which violates Rule 4 — `step` receives only the state,
+so an input declared the Rule 1 way never reaches it.
+
+### The false premise to watch for
+
+Three pipelines used a loop over a sequence that was fully known up front, each citing
+the same reason: "each step must be a real, individually-traceable knot". That is true and
+does not imply a loop — a chain of knots wired at build time is equally traceable, and
+every one of them appears in run history with its own inputs, outputs and timing. If the
+only argument for a loop is traceability, the answer is a chain or a fan-out.
+
+---
+
 ## A note on `pirn/nodes/*` and framework primitives
 
 `pirn/nodes/` (`Gate`, `SubTapestry`, `LoopSubTapestry`, `Aggregator`, `Parameter`, …) and
@@ -478,3 +548,4 @@ Before opening a PR with a new or modified Knot:
 - [ ] Module docstring has a `Math:` section with LaTeX formulae for any quantitative computation.
 - [ ] Module docstring has a `References:` section for any externally-derived algorithm, pattern, or API; alternatives cited with rationale where multiple approaches exist.
 - [ ] Optional-engine types are imported under `if TYPE_CHECKING:` and declared in `_annotation_imports` (Rule 10).
+- [ ] Repeated work uses the right topology: a chain or fan-out when the count is known at build time and nothing is skipped, a `LoopSubTapestry` only when it is not (Rule 11).

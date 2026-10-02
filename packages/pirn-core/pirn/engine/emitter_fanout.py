@@ -26,7 +26,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine.emitter_subscriber import EmitterSubscriber
@@ -38,11 +38,11 @@ if TYPE_CHECKING:
     from pirn.emitters.emitter import Emitter
     from pirn.managers.status_event import StatusEvent
 
-_log = logging.getLogger(__name__)
-
 
 class EmitterFanout:
     """Stateless helpers that fan a run's events out to its emitters."""
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     @staticmethod
     def handle_emitter_error(
@@ -55,7 +55,7 @@ class EmitterFanout:
         if policy is EmitterErrorPolicy.IGNORE:
             return
         if policy is EmitterErrorPolicy.WARN:
-            _log.warning("emitter %r failed on %s: %s", emitter, event_type, exc)
+            EmitterFanout._log.warning("emitter %r failed on %s: %s", emitter, event_type, exc)
             return
         # RAISE
         raise exc

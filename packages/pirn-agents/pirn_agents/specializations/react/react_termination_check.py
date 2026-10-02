@@ -33,12 +33,13 @@ from typing import Any, TypeGuard
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.check import Check
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
-class ReActTerminationCheck(Knot):
+class ReActTerminationCheck(Check):
     """Stops the ReAct loop on a final-answer marker or iteration cap."""
 
     _final_answer_marker: str = "Final Answer:"

@@ -61,19 +61,18 @@ _EXPECTED_EXCLUSIONS = frozenset(
         "pirn_agents.specializations.rag.iterative_retrieval_loop.IterativeRetrievalLoop",
         # Internal stage: the loop body RoundRobinReview drives internally
         # (ADR agents-speaks-core WS5a).
-        "pirn_agents.specializations.multi_agent.round_robin_loop.RoundRobinLoop",
         # Internal stage: the loop body AgenticRagPipeline drives internally (PIR-856).
         "pirn_agents.specializations.rag.agentic_rag_loop.AgenticRagLoop",
         # Internal stage: the loop body RetryOnParseFailure drives internally
         # (ADR agents-speaks-core WS5a).
         "pirn_agents.specializations.structured_output.retry_on_parse_failure_loop"
         ".RetryOnParseFailureLoop",
-        # Internal stage: the loop body SelfAskPipeline drives internally
-        # (ADR agents-speaks-core WS5b).
-        "pirn_agents.specializations.self_ask.self_ask_loop.SelfAskLoop",
-        # Internal stage: the loop body PromptChainPipeline drives internally
-        # (ADR agents-speaks-core WS5b).
-        "pirn_agents.specializations.prompt_chaining.prompt_chain_loop.PromptChainLoop",
+        # Internal stage: the loop body PlanReActPipeline drives internally
+        # (PIR-874 replaced its hand-rolled per-step loop with this).
+        "pirn_agents.specializations.plan_react.plan_react_step_loop.PlanReActStepLoop",
+        # Internal stage: the loop body LatsSearch drives internally
+        # (PIR-874 replaced its hand-rolled while-frontier loop with this).
+        "pirn_agents.specializations.lats.lats_step_loop.LatsStepLoop",
         # Internal stage: the loop body ConstitutionalFilter drives internally
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.reflection.constitutional_filter_loop"
@@ -301,11 +300,10 @@ def test_the_excluded_bases_are_bases_and_the_internal_stages_are_driven_interna
             "pirn_agents.specializations.rag.iterative_retrieval_loop.IterativeRetrievalLoop",
             "pirn_agents.specializations.rag.agentic_rag_loop.AgenticRagLoop",
             "pirn_agents.specializations.routing.candidate_attempt.CandidateAttempt",
-            "pirn_agents.specializations.multi_agent.round_robin_loop.RoundRobinLoop",
             "pirn_agents.specializations.structured_output.retry_on_parse_failure_loop"
             ".RetryOnParseFailureLoop",
-            "pirn_agents.specializations.self_ask.self_ask_loop.SelfAskLoop",
-            "pirn_agents.specializations.prompt_chaining.prompt_chain_loop.PromptChainLoop",
+            "pirn_agents.specializations.plan_react.plan_react_step_loop.PlanReActStepLoop",
+            "pirn_agents.specializations.lats.lats_step_loop.LatsStepLoop",
             "pirn_agents.specializations.reflection.constitutional_filter_loop"
             ".ConstitutionalFilterLoop",
             "pirn_agents.specializations.structured_output.json_extractor_loop.JsonExtractorLoop",

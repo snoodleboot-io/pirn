@@ -5,9 +5,13 @@ Internal API. See ``pydantic_validator_loop.py``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic import BaseModel
+
+from pirn_agents.llm.llm_provider import LLMProvider
 
 
 @dataclass(frozen=True)
@@ -32,3 +36,8 @@ class PydanticValidatorState:
     validated: BaseModel | None
     last_error: str
     attempts: int
+    prompt: str
+    llm: LLMProvider
+    schema: Mapping[str, Any]
+    model_class: type[BaseModel]
+    max_retries: int

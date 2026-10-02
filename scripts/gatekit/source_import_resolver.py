@@ -97,9 +97,7 @@ class SourceImportResolver:
             return False
         return True
 
-    def _class_has(
-        self, source: Path, cls: ast.ClassDef, rest: list[str], depth: int
-    ) -> bool:
+    def _class_has(self, source: Path, cls: ast.ClassDef, rest: list[str], depth: int) -> bool:
         members = self._body_bindings(cls.body)
         member = members.get(rest[0])
         if member is not None:
@@ -137,9 +135,7 @@ class SourceImportResolver:
     def _body_bindings(cls, body: list[ast.stmt]) -> dict[str, ast.stmt]:
         bindings: dict[str, ast.stmt] = {}
         for statement in body:
-            if isinstance(
-                statement, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
-            ):
+            if isinstance(statement, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
                 bindings[statement.name] = statement
             elif isinstance(statement, ast.Assign):
                 for target in statement.targets:

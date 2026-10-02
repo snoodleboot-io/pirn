@@ -1,55 +1,24 @@
-"""Guard: a ``Knot`` must run its work through the engine, not bypass it inline.
+"""Guard: a ``Knot`` runs its work through the engine, never inline.
 
-A `SubTapestry` promises the engine's guarantees — a `Result` per knot, run
-history, lineage, determinism, replay. It delivers them only if `process()`
-*declares an inner graph and returns its sink*. A `process()` that computes the
-answer in Python and hands back a knot wrapping the finished value satisfies the
-type signature and delivers none of it. The same failure mode has narrower
-cousins on any `Knot`: awaiting a tool's `invoke()` or an LLM's `chat()`
-directly, fanning calls out with `asyncio.gather` instead of the engine's own
-concurrent scheduling, or retrying with a hand-rolled `while True` instead of
-core's `KnotConfig(retry=)` / `KnotRetryPolicy.run()` — each one produces a value with no lineage row, no
-`Ok|Err|Skipped`, and nothing the engine can schedule, cache, or replay.
+A ``Knot`` promises an ``Ok | Err | Skipped`` per call, a lineage row,
+determinism, replay, scheduling and cancellation — for work the engine runs.
+Work the knot does itself gets none of it, while still type-checking: "do the
+work" and "declare a graph that does the work" look identical from the call
+site, which is the whole problem.
 
-The two shapes are indistinguishable by inspection, which is the actual problem:
-"do the work" and "build a pipeline that does the work" look the same from the
-call site. See PIR-731 (the original three checks) and PIR-856 (the four
-added here, and the walk widening from "`SubTapestry` under `specializations/`"
-to "every `Knot` in `pirn_agents`" — a bypass is a property of `process()`,
-not of where the class lives).
+There is no allowlist here, and there is nothing to regenerate. The previous
+version froze seven inventories of known bypasses by exact equality and shipped
+a script that recomputed them from the current tree — which made every new
+bypass self-approving, and (because all seven keyed on names: ``process``,
+``chat``, ``complete``, ``invoke``, ``search``, ``while True``) let every
+bypass written with different names through while the ratchet stayed green.
+A repository-wide re-audit found the bypasses these assertions now report.
 
-`SubTapestry.__call__` already enforces the easy half of the SubTapestry-shaped
-bypass at runtime — the sink must be a `Knot`, and must be registered in the
-inner tapestry. That check cannot see a closure over a precomputed value,
-because a closure over a precomputed value *is* a registered `Knot`. The seven
-static checks below cover what runtime enforcement cannot.
-
-## Why this is a ratchet, not a clean assertion
-
-Fixing a bypass is a per-knot design job — WS7 did five, PIR-856 did three
-more (`ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`), and
-`ParallelToolExecutor` runs one tool knot per call under an `Aggregator` with
-core's `GovernedDispatch` owning per-call retry backoff and timeout — so the
-guard freezes the inventory by exact equality, and every set is now empty.
-
-The allowlists are asserted by **exact equality**, deliberately:
-
-* adding a bypass fails, because the finding is not in the list;
-* fixing one *without* updating the list also fails, because the list still
-  names it.
-
-The second half is what keeps the list from rotting into a lie. When you fix a
-knot, delete its line and watch this test go green.
-
-**Other lanes reduce this inventory concurrently.** Regenerate the allowlists
-from the current tree with:
-
-.. code-block:: shell
-
-    python -m tests.specializations.base.regen_bypass_allowlist
-
-run from the package root (``packages/pirn-agents``); paste its output over
-the seven constants below.
+Each assertion below is therefore the rule itself: **no knot carries this
+shape**. A knot that does fails here until it is fixed, never until it is
+listed. :class:`TestBypassDetectorsFire` proves each detector fires on the
+shape it names, so an empty finding means an empty tree and not a blind
+detector.
 """
 
 from __future__ import annotations
@@ -57,380 +26,214 @@ from __future__ import annotations
 import ast
 import unittest
 
+from tests.agents_source_index import AgentsSourceIndex
 from tests.specializations.base.bypass_inventory import BypassInventory
 
-# --- known bypasses, frozen ------------------------------------------------
-# Regenerate with: python -m tests.specializations.base.regen_bypass_allowlist
 
-#: `await <child>.process(...)` — runs a child pipeline's body directly instead
-#: of wiring it as a knot, so the child contributes no Result and no lineage.
-#: PIR-769 fixed four of these in multi_agent/; PIR-856 widened the walk beyond
-#: `specializations/` and found one more pre-existing instance under
-#: `retrieval/` (`HybridGraphRetriever`, awaiting its `traversal` knot's
-#: `process()` directly because a bare `Knot` subclass used as a *value* type
-#: made `Knot._build_adapters` raise). PIR-867 fixed it: `traversal` is wired
-#: as a genuine upstream parent now. Kept as a `frozenset()` assertion so a
-#: future instance regresses loudly.
-AWAITS_CHILD_PROCESS: frozenset[str] = frozenset()
-
-#: Returns a `Source` defined inside `process()` that closes over an
-#: already-computed value. The engine then "runs" a graph of one knot whose job
-#: is to hand back an answer Python already had. Empty: `LatsSearch` was the
-#: last member — see `LatsResultExtractor` (ADR agents-speaks-core WS5b).
-#: Kept as an assertion (not deleted) so a future inline `Source` regresses
-#: loudly.
-RETURNS_INLINE_SOURCE: frozenset[str] = frozenset()
-
-#: `with Tapestry():` opened and never run. Its only effect is to stop the knots
-#: built inside it leaking into the outer graph — so those knots are constructed,
-#: never executed, and invisible. Empty: `LatsSearch` was the last member — its
-#: proposer call now runs through `self._run_inner(...)`, per iteration, like
-#: the rest of the package's nested-resolve pipelines (ADR agents-speaks-core
-#: WS5b). Kept as an assertion so a future unrun `Tapestry()` regresses loudly.
-UNRUN_TAPESTRY: frozenset[str] = frozenset()
-
-#: `await <x>.invoke(...)` awaited directly rather than through a dedicated
-#: vending knot whose sole job is to make the call. `tools/tool_invocation.py::ToolInvocation`
-#: doesn't even trip this detector (it wires the tool as a knot the engine
-#: runs via `process()`, never touching `.invoke()` itself), so it isn't
-#: listed. PIR-856 fixed three call sites (`ParallelToolCaller`, `ToolChain`,
-#: `ReActStepExecutor`). PIR-872 removed the last one: a cascade tier is a model
-#: call, so `CascadeTier` carries an `LLMProvider` and `AttemptTier` wires the
-#: shared `LLMChatCall` knot for it — `CascadeTier.invoke` and its
-#: `_TierInvocation` wrapper are deleted. Kept as a `frozenset()` assertion so a
-#: future instance regresses loudly.
-AWAITS_INVOKE: frozenset[str] = frozenset()
-
-#: `asyncio.gather(...)` used to fan calls out by hand instead of letting the
-#: engine schedule N sibling knots concurrently (the `Aggregator` fan-out
-#: shape; see `tools/tool_invocation.py`'s module docstring). PIR-867 fixed
-#: the three that predated this lane: `HybridRetriever`'s dense/lexical arms
-#: and `ChunkEmbedderStore`'s per-chunk writes are each their own knot wired
-#: into an `Aggregator`; `IngestionRunner`'s per-document ETL is too, with a
-#: `ConcurrencyLimits` group cap (`MapAgent`'s lever) replacing the hand-held
-#: `asyncio.Semaphore`. Kept as a `frozenset()` assertion so a future
-#: instance regresses loudly.
-USES_ASYNCIO_GATHER: frozenset[str] = frozenset()
-
-#: A `for`/`while` loop whose body directly awaits an LLM or tool call
-#: (`.chat(`, `.complete(`, `.invoke(`, `.search(`) instead of the engine
-#: fanning sibling knots out or a `LoopSubTapestry` iterating them. PIR-867
-#: fixed the three that remained: `ChunkTranslator`/`FactClaimVerifier` fan
-#: out one knot per independent item into an `Aggregator`; `PlanExecutor`'s
-#: steps genuinely depend on prior results, so it wired a `LoopSubTapestry`
-#: (`PlanStepLoop`) instead. Kept as a `frozenset()` assertion so a future
-#: instance regresses loudly.
-LOOP_AWAITS_LLM_OR_TOOL_CALL: frozenset[str] = frozenset()
-
-#: A literal `while True:` retry loop instead of composing core's `KnotRetryPolicy.run()`
-#: (PIR-856 retrofitted the four `pirn_agents`-owned instances that existed
-#: before this ticket; this is what remains).
-#: PIR-872: the last member, `ConversationMemoryPruner`, was never a retry — its
-#: `while True` was a pruning loop, now written with its real condition.
-HAND_ROLLED_WHILE_TRUE_RETRY: frozenset[str] = frozenset()
-
-
-class TestNoNewEngineBypass(unittest.TestCase):
-    """Freeze the bypass inventory. Exact equality in both directions."""
+class TestNoKnotBypassesTheEngine(unittest.TestCase):
+    """Every knot's work goes through the engine. Asserted, not inventoried."""
 
     def setUp(self) -> None:
-        self.pipelines = BypassInventory.discover_process_methods()
+        self.found = BypassInventory.discover()
 
     def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
-        assert len(self.pipelines) >= 200, len(self.pipelines)
+        """A guard that scans nothing passes for the wrong reason."""
+        assert len(AgentsSourceIndex.knots()) >= 200, len(AgentsSourceIndex.knots())
 
-    def test_awaiting_a_child_process_is_frozen(self) -> None:
-        found = {
-            label
-            for label, proc in self.pipelines.items()
-            if BypassInventory.awaits_child_process(proc)
-        }
-        assert found == AWAITS_CHILD_PROCESS, {
-            "new bypasses": sorted(found - AWAITS_CHILD_PROCESS),
-            "fixed — remove from AWAITS_CHILD_PROCESS": sorted(AWAITS_CHILD_PROCESS - found),
-        }
+    def test_no_knot_awaits_a_collaborator_in_a_loop_or_fan_out(self) -> None:
+        found = self.found["collaborator_await_out_of_band"]
+        assert found == frozenset(), sorted(found)
 
-    def test_returning_an_inline_source_is_frozen(self) -> None:
-        found = {
-            label
-            for label, proc in self.pipelines.items()
-            if BypassInventory.returns_inline_source(proc)
-        }
-        assert found == RETURNS_INLINE_SOURCE, {
-            "new bypasses": sorted(found - RETURNS_INLINE_SOURCE),
-            "fixed — remove from RETURNS_INLINE_SOURCE": sorted(RETURNS_INLINE_SOURCE - found),
-        }
+    def test_no_knot_bounds_time_or_retries_by_hand(self) -> None:
+        found = self.found["hand_rolled_time_bound_or_retry"]
+        assert found == frozenset(), sorted(found)
 
-    def test_unrun_tapestries_are_frozen(self) -> None:
-        found = {
-            label
-            for label, proc in self.pipelines.items()
-            if BypassInventory.opens_unrun_tapestry(proc)
-        }
-        assert found == UNRUN_TAPESTRY, {
-            "new bypasses": sorted(found - UNRUN_TAPESTRY),
-            "fixed — remove from UNRUN_TAPESTRY": sorted(UNRUN_TAPESTRY - found),
-        }
+    def test_no_knot_holds_its_own_concurrency_budget(self) -> None:
+        found = self.found["own_concurrency_budget"]
+        assert found == frozenset(), sorted(found)
 
-    def test_awaiting_invoke_directly_is_frozen(self) -> None:
-        found = {
-            label for label, proc in self.pipelines.items() if BypassInventory.awaits_invoke(proc)
-        }
-        assert found == AWAITS_INVOKE, {
-            "new bypasses": sorted(found - AWAITS_INVOKE),
-            "fixed — remove from AWAITS_INVOKE": sorted(AWAITS_INVOKE - found),
-        }
-
-    def test_using_asyncio_gather_is_frozen(self) -> None:
-        found = {
-            label
-            for label, proc in self.pipelines.items()
-            if BypassInventory.uses_asyncio_gather(proc)
-        }
-        assert found == USES_ASYNCIO_GATHER, {
-            "new bypasses": sorted(found - USES_ASYNCIO_GATHER),
-            "fixed — remove from USES_ASYNCIO_GATHER": sorted(USES_ASYNCIO_GATHER - found),
-        }
-
-    def test_looped_llm_or_tool_calls_are_frozen(self) -> None:
-        found = {
-            label
-            for label, proc in self.pipelines.items()
-            if BypassInventory.loop_awaits_llm_or_tool_call(proc)
-        }
-        assert found == LOOP_AWAITS_LLM_OR_TOOL_CALL, {
-            "new bypasses": sorted(found - LOOP_AWAITS_LLM_OR_TOOL_CALL),
-            "fixed — remove from LOOP_AWAITS_LLM_OR_TOOL_CALL": sorted(
-                LOOP_AWAITS_LLM_OR_TOOL_CALL - found
-            ),
-        }
-
-    def test_hand_rolled_while_true_retries_are_frozen(self) -> None:
-        found = {
-            label
-            for label, proc in self.pipelines.items()
-            if BypassInventory.hand_rolled_while_true_retry(proc)
-        }
-        assert found == HAND_ROLLED_WHILE_TRUE_RETRY, {
-            "new bypasses": sorted(found - HAND_ROLLED_WHILE_TRUE_RETRY),
-            "fixed — remove from HAND_ROLLED_WHILE_TRUE_RETRY": sorted(
-                HAND_ROLLED_WHILE_TRUE_RETRY - found
-            ),
-        }
+    def test_no_knot_paces_itself_by_a_clock(self) -> None:
+        found = self.found["clock_pacing"]
+        assert found == frozenset(), sorted(found)
 
 
-class TestDetectorsAreDiscriminating(unittest.TestCase):
-    """The detectors must fire on the shapes they name, and not on clean code.
+class TestBypassDetectorsFire(unittest.TestCase):
+    """Each detector fires on the shape it names, and not on the engine's own shapes.
 
-    Without these, an allowlist that matches a detector which silently stopped
-    working would still be green — the failure mode a ratchet is most prone to.
+    A rule that finds nothing because it *can* find nothing is the failure
+    mode a ratchet is most prone to, so every rule above is pinned here
+    against a synthetic knot that carries the shape and one that does not.
     """
 
     @staticmethod
-    def _process_of(source: str) -> ast.AST:
-        tree = ast.parse(source)
-        cls = next(n for n in ast.walk(tree) if isinstance(n, ast.ClassDef))
-        return next(
-            n
-            for n in cls.body
-            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef) and n.name == "process"
-        )
+    def _class_of(source: str) -> ast.ClassDef:
+        return next(node for node in ast.parse(source).body if isinstance(node, ast.ClassDef))
 
-    CLEAN = """
-class P:
-    async def process(self, x, **_):
-        a = Alpha(value=x, _config=KnotConfig(id="a"))
-        return Beta(source=a, _config=KnotConfig(id="b"))
+    _clean = """
+class CleanPipeline:
+    async def process(self, calls, **_):
+        per_call = {}
+        for index, call in enumerate(calls):
+            per_call[f"c{index}"] = ToolInvocation(call=call, _config=KnotConfig(id=f"i{index}"))
+        return Aggregator(combine=self._merge, _config=KnotConfig(id="agg"), **per_call)
 """
 
-    def test_clean_pipeline_trips_nothing(self) -> None:
-        proc = self._process_of(self.CLEAN)
-        assert not BypassInventory.awaits_child_process(proc)
-        assert not BypassInventory.returns_inline_source(proc)
-        assert not BypassInventory.opens_unrun_tapestry(proc)
-        assert not BypassInventory.awaits_invoke(proc)
-        assert not BypassInventory.uses_asyncio_gather(proc)
-        assert not BypassInventory.loop_awaits_llm_or_tool_call(proc)
-        assert not BypassInventory.hand_rolled_while_true_retry(proc)
+    def test_a_knot_that_declares_a_graph_trips_nothing(self) -> None:
+        node = self._class_of(self._clean)
+        assert not BypassInventory.awaits_collaborator_out_of_band(node)
+        assert not BypassInventory.bounds_or_retries_by_hand(node)
+        assert not BypassInventory.holds_own_concurrency_budget(node)
+        assert not BypassInventory.paces_itself_by_clock(node)
 
-    def test_awaiting_self_process_is_allowed(self) -> None:
-        """Recursion into one's own `process` is not a bypass."""
-        proc = self._process_of(
-            "class P:\n    async def process(self, **_):\n        return await self.process()\n"
+    # -- collaborator await out of band --------------------------------------
+
+    def test_rule_collaborator_await_fires_on_a_loop_that_awaits_a_store(self) -> None:
+        """The shape the name-keyed version missed entirely: ``store``, not ``chat``."""
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, store, facts, **_):\n"
+            "        for fact in facts:\n"
+            "            await store.store(fact.key, fact.payload)\n"
+            "        return len(facts)\n"
         )
-        assert not BypassInventory.awaits_child_process(proc)
+        assert BypassInventory.awaits_collaborator_out_of_band(node)
 
-    def test_awaiting_a_child_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, child, **_):\n"
-            "        return await child.process(x=1)\n"
-        )
-        assert BypassInventory.awaits_child_process(proc)
-
-    def test_returned_inline_source_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, **_):\n"
-            "        v = compute()\n"
-            "        class _R(Source):\n"
-            "            async def process(self, **_):\n"
-            "                return v\n"
-            "        return _R(_config=KnotConfig(id='r'))\n"
-        )
-        assert BypassInventory.returns_inline_source(proc)
-
-    def test_inline_source_that_seeds_a_graph_is_allowed(self) -> None:
-        """It is the *returned* sink that matters, not the class's existence."""
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, **_):\n"
-            "        class _Seed(Source):\n"
-            "            async def process(self, **_):\n"
-            "                return 0\n"
-            "        seed = _Seed(_config=KnotConfig(id='s'))\n"
-            "        return Real(state=seed, _config=KnotConfig(id='r'))\n"
-        )
-        assert not BypassInventory.returns_inline_source(proc)
-
-    def test_unrun_tapestry_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, **_):\n"
-            "        with Tapestry():\n"
-            "            Alpha(_config=KnotConfig(id='a'))\n"
-            "        return Beta(_config=KnotConfig(id='b'))\n"
-        )
-        assert BypassInventory.opens_unrun_tapestry(proc)
-
-    def test_a_tapestry_passed_to_run_inner_is_allowed(self) -> None:
-        """The sanctioned shape: resolve a value, then build the rest from it."""
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, **_):\n"
-            "        with Tapestry() as inner:\n"
-            "            Alpha(_config=KnotConfig(id='a'))\n"
-            "        result = await self._run_inner(inner)\n"
-            "        return Beta(v=result.outputs['a'], _config=KnotConfig(id='b'))\n"
-        )
-        assert not BypassInventory.opens_unrun_tapestry(proc)
-
-    def test_awaiting_invoke_directly_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, tool, call, **_):\n"
-            "        result = await tool.invoke(call.arguments)\n"
-            "        return result\n"
-        )
-        assert BypassInventory.awaits_invoke(proc)
-
-    def test_wiring_a_tool_invocation_knot_is_allowed(self) -> None:
-        """The sanctioned shape: build the knot, do not call the tool by hand."""
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, tool, call, **_):\n"
-            "        return ToolInvocation(tool=tool, call=call, _config=KnotConfig(id='inv'))\n"
-        )
-        assert not BypassInventory.awaits_invoke(proc)
-
-    def test_asyncio_gather_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, items, **_):\n"
-            "        return await asyncio.gather(*(f(i) for i in items))\n"
-        )
-        assert BypassInventory.uses_asyncio_gather(proc)
-
-    def test_bare_imported_gather_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, items, **_):\n"
-            "        return await gather(*(f(i) for i in items))\n"
-        )
-        assert BypassInventory.uses_asyncio_gather(proc)
-
-    def test_aggregator_fan_out_does_not_trip_gather(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, **kwargs):\n"
-            "        return Aggregator(combine=self._merge, _config=KnotConfig(id='agg'), **kwargs)\n"
-        )
-        assert not BypassInventory.uses_asyncio_gather(proc)
-
-    def test_loop_awaiting_a_tool_call_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, tools, args, **_):\n"
+    def test_rule_collaborator_await_fires_outside_process_too(self) -> None:
+        """Moving the loop into a helper does not launder it."""
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, store, keys, **_):\n"
+            "        return await self._load_all(store, keys)\n"
+            "    async def _load_all(self, store, keys):\n"
             "        out = []\n"
-            "        for tool in tools:\n"
-            "            out.append(await tool.invoke(args))\n"
+            "        for key in keys:\n"
+            "            out.append(await store.retrieve(key))\n"
             "        return out\n"
         )
-        assert BypassInventory.loop_awaits_llm_or_tool_call(proc)
+        assert BypassInventory.awaits_collaborator_out_of_band(node)
 
-    def test_loop_awaiting_an_llm_chat_call_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, llm, prompts, **_):\n"
-            "        out = []\n"
-            "        while prompts:\n"
-            "            out.append(await llm.chat(prompts.pop()))\n"
-            "        return out\n"
+    def test_rule_collaborator_await_fires_on_a_gather_of_collaborator_calls(self) -> None:
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, store, keys, **_):\n"
+            "        return await asyncio.gather(store.get(keys[0]), store.get(keys[1]))\n"
         )
-        assert BypassInventory.loop_awaits_llm_or_tool_call(proc)
+        assert BypassInventory.awaits_collaborator_out_of_band(node)
 
-    def test_loop_building_per_item_knots_is_allowed(self) -> None:
-        """Constructing N knots for the engine to fan out is not re-issuing the call."""
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, calls, **_):\n"
-            "        per_call = {}\n"
-            "        for i, call in enumerate(calls):\n"
-            "            per_call[f'c{i}'] = ToolInvocation(tool=call.tool, call=call, _config=KnotConfig(id=f'inv{i}'))\n"
-            "        return Aggregator(combine=self._merge, _config=KnotConfig(id='agg'), **per_call)\n"
+    def test_rule_collaborator_await_ignores_a_loop_building_per_item_knots(self) -> None:
+        """Declaring N knots for the engine to run is the sanctioned shape."""
+        node = self._class_of(self._clean)
+        assert not BypassInventory.awaits_collaborator_out_of_band(node)
+
+    def test_rule_collaborator_await_ignores_a_single_awaited_call(self) -> None:
+        """One call, awaited once, is not a hand-rolled fan-out."""
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, store, key, **_):\n"
+            "        return await store.retrieve(key)\n"
         )
-        assert not BypassInventory.loop_awaits_llm_or_tool_call(proc)
+        assert not BypassInventory.awaits_collaborator_out_of_band(node)
 
-    def test_loop_awaiting_an_unrelated_method_is_allowed(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
+    # -- hand-rolled time bound / retry ---------------------------------------
+
+    def test_rule_time_bound_fires_on_a_hand_rolled_wait_for(self) -> None:
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, thunk, **_):\n"
+            "        return await asyncio.wait_for(thunk(), timeout=5)\n"
+        )
+        assert BypassInventory.bounds_or_retries_by_hand(node)
+
+    def test_rule_retry_fires_on_a_loop_that_swallows_and_goes_round_again(self) -> None:
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, thunk, **_):\n"
+            "        for _attempt in range(3):\n"
+            "            try:\n"
+            "                return await thunk()\n"
+            "            except RuntimeError:\n"
+            "                pass\n"
+            "        return None\n"
+        )
+        assert BypassInventory.bounds_or_retries_by_hand(node)
+
+    def test_rule_retry_fires_on_a_while_loop_retry_without_the_word_true(self) -> None:
+        """The version this replaced matched the literal ``while True:`` only."""
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, thunk, **_):\n"
+            "        remaining = 3\n"
+            "        while remaining:\n"
+            "            try:\n"
+            "                return await thunk()\n"
+            "            except RuntimeError:\n"
+            "                remaining -= 1\n"
+            "        return None\n"
+        )
+        assert BypassInventory.bounds_or_retries_by_hand(node)
+
+    def test_rule_retry_ignores_a_loop_that_skips_bad_items(self) -> None:
+        node = self._class_of(
+            "class W:\n"
             "    async def process(self, items, **_):\n"
             "        out = []\n"
             "        for item in items:\n"
-            "            out.append(await item.close())\n"
+            "            try:\n"
+            "                out.append(parse(item))\n"
+            "            except ValueError:\n"
+            "                continue\n"
             "        return out\n"
         )
-        assert not BypassInventory.loop_awaits_llm_or_tool_call(proc)
+        assert not BypassInventory.bounds_or_retries_by_hand(node)
 
-    def test_while_true_retry_trips(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
+    def test_rule_time_bound_ignores_a_declared_knot_timeout(self) -> None:
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, call, **_):\n"
+            "        return Inner(call=call, _config=KnotConfig(id='i', timeout=5.0))\n"
+        )
+        assert not BypassInventory.bounds_or_retries_by_hand(node)
+
+    # -- own concurrency budget ------------------------------------------------
+
+    def test_rule_concurrency_budget_fires_on_a_private_semaphore(self) -> None:
+        node = self._class_of(
+            "class W:\n    def __init__(self, n):\n        self._gate = asyncio.Semaphore(n)\n"
+        )
+        assert BypassInventory.holds_own_concurrency_budget(node)
+
+    def test_rule_concurrency_budget_fires_on_a_renamed_semaphore(self) -> None:
+        node = self._class_of(
+            "class W:\n    def _pool(self, key):\n        return BackpressureSemaphore(key)\n"
+        )
+        assert BypassInventory.holds_own_concurrency_budget(node)
+
+    def test_rule_concurrency_budget_ignores_the_engines_group_cap(self) -> None:
+        node = self._class_of(
+            "class W:\n"
+            "    def limits(self):\n"
+            "        return ConcurrencyLimits(groups={'tools': 8})\n"
+        )
+        assert not BypassInventory.holds_own_concurrency_budget(node)
+
+    # -- clock pacing ------------------------------------------------------------
+
+    def test_rule_clock_pacing_fires_on_a_hand_rolled_token_bucket(self) -> None:
+        node = self._class_of(
+            "class W:\n"
+            "    async def _admit(self):\n"
+            "        now = time.monotonic()\n"
+            "        if now < self._next_at:\n"
+            "            await asyncio.sleep(self._next_at - now)\n"
+        )
+        assert BypassInventory.paces_itself_by_clock(node)
+
+    def test_rule_clock_pacing_ignores_reading_a_clock_to_record_latency(self) -> None:
+        node = self._class_of(
+            "class W:\n"
             "    async def process(self, thunk, **_):\n"
-            "        attempt = 0\n"
-            "        while True:\n"
-            "            try:\n"
-            "                return await thunk()\n"
-            "            except Exception:\n"
-            "                attempt += 1\n"
+            "        started = time.monotonic()\n"
+            "        value = await thunk()\n"
+            "        return value, time.monotonic() - started\n"
         )
-        assert BypassInventory.hand_rolled_while_true_retry(proc)
-
-    def test_retry_policy_run_does_not_trip_while_true(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, thunk, policy, **_):\n"
-            "        return await policy.run(thunk)\n"
-        )
-        assert not BypassInventory.hand_rolled_while_true_retry(proc)
-
-    def test_a_bounded_while_loop_does_not_trip_while_true(self) -> None:
-        proc = self._process_of(
-            "class P:\n"
-            "    async def process(self, items, **_):\n"
-            "        i = 0\n"
-            "        while i < len(items):\n"
-            "            i += 1\n"
-            "        return i\n"
-        )
-        assert not BypassInventory.hand_rolled_while_true_retry(proc)
+        assert not BypassInventory.paces_itself_by_clock(node)
