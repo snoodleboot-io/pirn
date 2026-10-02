@@ -11,6 +11,7 @@ index resolves bases exactly as it does in the workspace.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,7 +25,17 @@ from gatekit.convention_scan import ConventionScan
 from gatekit.knot_design_checker import KnotDesignChecker
 from gatekit.suppression_rule_catalog import SuppressionRuleCatalog
 
-_ruff = str(Path(__file__).resolve().parents[2] / ".venv" / "bin" / "ruff")
+# Prefer the repo's own venv so a local run uses the pinned ruff, but fall back to
+# whatever is on PATH: CI installs the pins into the container and has no .venv, so
+# hardcoding that path made every test here fail with FileNotFoundError (PIR-874).
+# `test_a_missing_ruff_is_an_error_not_a_pass` covers the absent case explicitly, so
+# resolving to None here would hide a real "no ruff anywhere" into that test's
+# territory — skip instead, loudly.
+_venv_ruff = Path(__file__).resolve().parents[2] / ".venv" / "bin" / "ruff"
+_ruff = str(_venv_ruff) if _venv_ruff.exists() else (shutil.which("ruff") or "")
+pytestmark = pytest.mark.skipif(
+    not _ruff, reason="ruff is neither in the repo venv nor on PATH; install the pinned ruff"
+)
 
 
 def _framework(repo: Path) -> Path:
