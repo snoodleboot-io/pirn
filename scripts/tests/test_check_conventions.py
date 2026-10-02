@@ -278,12 +278,35 @@ def test_gate_base_is_resolved_and_pytest_suites_are_not_gates(tmp_path: Path) -
 
 
 def test_only_the_named_framework_roots_are_exempt(tmp_path: Path) -> None:
-    """The exemption is a qualified class id, not a file name anywhere in core."""
+    """The exemption is a qualified class id, not a file name anywhere in core.
+
+    The set is asserted whole so growing it is deliberate. Each id is the
+    framework's own definition of a primitive the rules describe, so the rules
+    cannot apply to it without a bootstrapping paradox:
+
+    * ``Knot`` — its ``__init__`` *is* the introspection that turns a subclass's
+      kwargs into parents.
+    * ``Aggregator`` — the variadic fan-in whose parents are named at
+      construction rather than in a signature.
+    * ``Parameter`` — the named, typed input holder whose whole purpose is to be
+      a declared input.
+    * ``Branch`` — vends one ``BranchOutput`` per branch name at construction,
+      because an author wires ``branch["name"]`` while the graph is built, before
+      any run exists for ``process()`` to run in (PIR-873).
+    * ``Reduce`` — reads ``combine``'s arity to decide whether the fold is whole
+      or pairwise; nothing downstream can declare that for it (PIR-873).
+
+    Branch and Reduce were covered by the deleted path allowlist until they moved
+    from ``Knot``'s private ``_bootstrap`` seam to the public constructor, which
+    is the evidence this gate reads.
+    """
     assert KnotDesignChecker.framework_root_ids == frozenset(
         {
             "pirn.core.knot.Knot",
             "pirn.nodes.aggregator.Aggregator",
             "pirn.core.parameter.Parameter",
+            "pirn.nodes.branch.branch.Branch",
+            "pirn.nodes.reduce_.Reduce",
         }
     )
     impostor = (
