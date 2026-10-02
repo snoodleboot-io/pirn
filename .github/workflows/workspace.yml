@@ -520,9 +520,18 @@ jobs:
         # is missing or matches nothing, so a future miswiring fails loudly
         # instead of passing vacuously. Stdlib-only — no install needed.
         run: python scripts/check_no_import_forwarding.py packages/ examples/ scripts/
+      - name: Install the pinned linters the suppression rule needs (PIR-874)
+        # This gate stopped being stdlib-only when it gained the rule that every
+        # `# pyright: ignore[...]` and `# noqa: ...` must name a real rule. The
+        # catalog reads pyright's DiagnosticRule names from the installed package
+        # and ruff's codes from `ruff rule --all`, and treats a missing tool as an
+        # error rather than a pass — so without them the gate exits 2 and the job
+        # fails for the wrong reason. Same pins as the lint job, for the same
+        # determinism: an unpinned linter reddens unrelated pull requests.
+        run: python -m pip install --no-cache-dir 'ruff==0.15.22' 'pyright==1.1.411'
       - name: House-convention AST gate (PIR-856)
-        # Stdlib-only, source-only (packages/*/pirn*/**/*.py; tests/ excluded).
-        # No baseline: any finding of any rule fails.
+        # Source-only (packages/*/pirn*/**/*.py; tests/ excluded). No baseline:
+        # any finding of any rule fails. Needs the linters installed above.
         run: >
           python scripts/check_conventions.py
           packages/pirn-core/pirn packages/pirn-agents/pirn_agents
