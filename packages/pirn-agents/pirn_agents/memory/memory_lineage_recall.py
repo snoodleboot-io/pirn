@@ -32,21 +32,23 @@ form namespace a writer knot already stamps into
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
+from pirn.nodes.nested_run_knot import NestedRunKnot
+from pirn.tapestry import Tapestry
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.management.memory_record import MemoryRecord
-
-if TYPE_CHECKING:
-    from pirn.core.knot_lineage import KnotLineage
+from pirn_agents.memory.recalled_lineage_record import RecalledLineageRecord
 
 
-class MemoryLineageRecall(Retriever):
+class MemoryLineageRecall(Retriever, NestedRunKnot):
     """Recall every :class:`MemoryRecord` a writer knot has produced, via lineage."""
 
     def __init__(
@@ -77,6 +79,13 @@ class MemoryLineageRecall(Retriever):
         **_: Any,
     ) -> list[MemoryRecord]:
         """Return every ``MemoryRecord`` recorded for ``writer_knot_id``, oldest first.
+
+        The lineage query is one call. Fetching the values those rows name is N
+        calls, so each is its own
+        :class:`~pirn_agents.memory.recalled_lineage_record.RecalledLineageRecord`
+        in an inner run — a read gets a ``Result``, a retry, a timeout and a
+        lineage row of its own instead of being one turn of a Python loop
+        (Rule 11; PIR-874).
 
         ``history``/``data_store`` are typed ``Any`` here (validated by hand
         below) rather than ``RunHistory``/``DataStore``: neither core type
@@ -128,25 +137,40 @@ class MemoryLineageRecall(Retriever):
                 f"MemoryLineageRecall: tag_filter must be a Mapping or None, "
                 f"got {type(tag_filter).__name__}"
             )
-        rows: list[KnotLineage] = await history.query_lineage_by_knot_id(writer_knot_id)
-        records: list[MemoryRecord] = []
-        for row in rows:
-            if row.outcome != "ok" or row.output_hash is None:
-                continue
-            try:
-                value = await data_store.get(row.output_hash)
-            except KeyError:
-                continue
-            if not isinstance(value, MemoryRecord):
-                continue
-            if tag_filter is not None and not self._matches(value, tag_filter):
-                continue
-            records.append(value)
-        return records
+        rows = await history.query_lineage_by_knot_id(writer_knot_id)
+        hashes = [
+            row.output_hash for row in rows if row.outcome == "ok" and row.output_hash is not None
+        ]
+        if not hashes:
+            return []
+        with Tapestry() as inner:
+            store_node = Parameter(
+                "data_store", DataStore, default=data_store, _config=KnotConfig(id="data_store")
+            )
+            per_row: dict[str, Knot] = {
+                f"row_{index}": RecalledLineageRecord(
+                    data_store=store_node,
+                    output_hash=output_hash,
+                    tag_filter=tag_filter,
+                    _config=KnotConfig(id=f"row_{index}"),
+                )
+                for index, output_hash in enumerate(hashes)
+            }
+            Aggregator(
+                combine=MemoryLineageRecall._in_row_order,
+                _config=KnotConfig(id="recalled"),
+                **per_row,
+            )
+        run = await self._run_inner(inner)
+        return run.outputs["recalled"]
 
     @staticmethod
-    def _matches(record: MemoryRecord, tag_filter: Mapping[str, Any]) -> bool:
-        """True if every ``tag_filter`` entry is present and equal in ``record.tags``."""
-        return all(
-            record.data.tags.get(key, object()) == value for key, value in tag_filter.items()
-        )
+    def _in_row_order(**rows: MemoryRecord | None) -> list[MemoryRecord]:
+        """Put the per-row fetches back in lineage order, dropping the gaps.
+
+        Keys are ``row_<index>``; sorting on the index rather than on the
+        mapping's order keeps the result independent of how the engine happened
+        to schedule the reads.
+        """
+        ordered = sorted(rows.items(), key=lambda item: int(item[0].removeprefix("row_")))
+        return [record for _key, record in ordered if record is not None]
