@@ -58,8 +58,8 @@ class DeduplicatedSemanticFact(Knot):
         store: KeyedLineageStore,
         stored_at: datetime,
         **_: Any,
-    ) -> bool:
-        """Upsert ``fact`` and report whether this call is the one that wrote it.
+    ) -> str | None:
+        """Upsert ``fact`` and return the key it was written under, or ``None``.
 
         Args:
             fact: The candidate fact text; its content hash is its identity.
@@ -70,8 +70,9 @@ class DeduplicatedSemanticFact(Knot):
                 every fact of one extraction shares it.
 
         Returns:
-            ``True`` if the fact was written, ``False`` if it was already on
-            record.
+            The key the fact was written under, or ``None`` when it was already
+            on record. A key rather than a ``bool`` because a knot whose output
+            is a bare verdict is core's ``Check`` role, and this one does work.
         """
         key = ContentHasher.hash(fact)
         # ``get`` and not ``latest_output_hash``: a deleted fact still has a
@@ -80,7 +81,7 @@ class DeduplicatedSemanticFact(Knot):
         # never be written again (PIR-873).  ``get`` is the one read that
         # treats a tombstone as absent.
         if await store.get(namespace=namespace, key=key) is not None:
-            return False
+            return None
         record = MemoryRecord(
             id=f"fact:{key}",
             kind="semantic",
@@ -89,4 +90,4 @@ class DeduplicatedSemanticFact(Knot):
             created_at=stored_at,
         )
         await store.put(namespace=namespace, key=key, value=record.to_payload())
-        return True
+        return key

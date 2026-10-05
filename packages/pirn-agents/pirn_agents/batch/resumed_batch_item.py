@@ -22,7 +22,7 @@ from pirn.core.knot_config import KnotConfig
 
 
 class ResumedBatchItem(Knot):
-    """Report whether an item's knot id already has a successful lineage row."""
+    """Report an item's knot id when it already has a successful lineage row."""
 
     def __init__(
         self,
@@ -34,8 +34,8 @@ class ResumedBatchItem(Knot):
     ) -> None:
         super().__init__(history=history, item_id=item_id, _config=_config, **kwargs)
 
-    async def process(self, history: Any, item_id: str, **_: Any) -> bool:
-        """Return whether ``item_id`` ran successfully before.
+    async def process(self, history: Any, item_id: str, **_: Any) -> str | None:
+        """Return ``item_id`` when it ran successfully before, else ``None``.
 
         ``history`` is typed ``Any`` rather than ``RunHistory`` for the reason
         ``MapAgent.process`` documents for ``dispatcher``: the core base carries
@@ -47,7 +47,9 @@ class ResumedBatchItem(Knot):
             item_id: The item's knot id, ``<batch_id>:<key>``.
 
         Returns:
-            ``True`` if any recorded invocation of ``item_id`` was ``ok``.
+            ``item_id`` if any recorded invocation of it was ``ok``, else
+            ``None``. The id rather than a ``bool`` because a knot whose output
+            is a bare verdict is core's ``Check`` role, and this one is a read.
         """
         rows = await history.query_lineage_by_knot_id(item_id)
-        return any(row.outcome == "ok" for row in rows)
+        return item_id if any(row.outcome == "ok" for row in rows) else None

@@ -3,6 +3,9 @@
 The per-fact knot behind :class:`SemanticMemoryUpsert`'s fan-out (PIR-874). It
 owns both halves of one fact's upsert — the dedup read and the conditional
 write — so that each is a lineage row of its own.
+
+It returns the key it wrote rather than a ``bool``: a knot whose output is a
+bare pass/fail verdict is core's ``Check`` role, and this one does work.
 """
 
 from __future__ import annotations
@@ -42,21 +45,21 @@ class TestDeduplicatedSemanticFact(unittest.IsolatedAsyncioTestCase):
     async def test_writes_a_fact_that_is_not_on_record(self) -> None:
         store = _make_store()
         knot = _make_knot(store, "the kettle is on")
+        key = ContentHasher.hash("the kettle is on")
         written = await knot.process(
             fact="the kettle is on",
             namespace=_NAMESPACE,
             store=store,
             stored_at=_STORED_AT,
         )
-        assert written is True
-        key = ContentHasher.hash("the kettle is on")
+        assert written == key
         stored = await store.get(namespace=_NAMESPACE, key=key)
         assert stored is not None
         assert stored["content"] == "the kettle is on"
         assert stored["kind"] == "semantic"
         assert stored["provenance"]["source"] == "semantic_memory_upsert"
 
-    async def test_reports_false_without_writing_when_already_on_record(self) -> None:
+    async def test_reports_none_without_writing_when_already_on_record(self) -> None:
         store = _make_store()
         key = ContentHasher.hash("already known")
         await store.put(namespace=_NAMESPACE, key=key, value={"content": "already known"})
@@ -67,7 +70,7 @@ class TestDeduplicatedSemanticFact(unittest.IsolatedAsyncioTestCase):
             store=store,
             stored_at=_STORED_AT,
         )
-        assert written is False
+        assert written is None
         rows = await store.history.query_lineage_by_knot_id(
             KeyedLineageStore.identity(_NAMESPACE, key)
         )
@@ -99,4 +102,4 @@ class TestDeduplicatedSemanticFact(unittest.IsolatedAsyncioTestCase):
         written = await knot.process(
             fact="forgotten", namespace=_NAMESPACE, store=store, stored_at=_STORED_AT
         )
-        assert written is True
+        assert written == key

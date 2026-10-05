@@ -522,29 +522,26 @@ class MapAgent(NestedRunKnot):
                 **per_item,
             )
         run = await self._run_inner(probe)
-        already_ran: tuple[bool, ...] = run.outputs[MapAgent._probes_id]
+        already_ran: tuple[str | None, ...] = run.outputs[MapAgent._probes_id]
         return {
             index: BatchItemResult(
                 index=index,
                 key=keys[index],
-                outcome=Skipped(
-                    reason="resumed",
-                    detail={"knot_id": MapAgent._item_knot_id(batch_id, keys[index])},
-                ),
+                outcome=Skipped(reason="resumed", detail={"knot_id": item_id}),
             )
-            for index in range(len(keys))
-            if already_ran[index]
+            for index, item_id in enumerate(already_ran)
+            if item_id is not None
         }
 
     @staticmethod
-    def _in_item_order(**probes: bool) -> tuple[bool, ...]:
+    def _in_item_order(**probes: str | None) -> tuple[str | None, ...]:
         """Put the per-item probes back in input order.
 
         Keys are ``probe_<index>``; sorting on the index rather than on the
         mapping's order is what keeps resumed items yielded in input order.
         """
         ordered = sorted(probes.items(), key=lambda item: int(item[0].removeprefix("probe_")))
-        return tuple(already_ran for _key, already_ran in ordered)
+        return tuple(item_id for _key, item_id in ordered)
 
     @staticmethod
     def _build_graph(

@@ -171,6 +171,6 @@ class SemanticMemoryUpsert(NestedRunKnot):
         return run.outputs["upserted"]
 
     @staticmethod
-    def _count_written(**facts: bool) -> int:
-        """Count the per-fact knots that reported a write rather than a duplicate."""
-        return sum(1 for written in facts.values() if written)
+    def _count_written(**facts: str | None) -> int:
+        """Count the per-fact knots that returned a key rather than ``None``."""
+        return sum(1 for key in facts.values() if key is not None)
