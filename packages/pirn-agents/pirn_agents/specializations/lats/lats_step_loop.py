@@ -9,6 +9,13 @@ when the graph is built.
 It replaces a hand-rolled ``while frontier:`` that awaited ``_run_inner`` once per
 expansion, so every expansion's lineage sat in its own unrelated run (PIR-874).
 
+Each round's tapestry proposes the actions *and* scores them: the candidates are
+only known once the proposer has run, so the per-candidate fan-out lives in
+:class:`~pirn_agents.specializations.lats.lats_child_scorer.LatsChildScorer`
+downstream of it.  ``afold`` is then pure bookkeeping — it was awaiting the value
+model once per child, which gave the whole round one lineage row for N scoring
+calls (Rule 11; PIR-874).
+
 Where the accounting lives
 --------------------------
 ``astep`` returning ``None`` ends the loop *without* a fold, so anything it
@@ -36,15 +43,16 @@ from pirn.tapestry import Tapestry
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.lats.lats_action_proposer import LatsActionProposer
-from pirn_agents.specializations.lats.lats_node import LatsNode
+from pirn_agents.specializations.lats.lats_child_scorer import LatsChildScorer
 from pirn_agents.specializations.lats.lats_search_state import LatsSearchState
 
 
 class LatsStepLoop(AgentLoopPipeline[LatsSearchState]):
     """Expand the frontier's best node each round until the budget or frontier ends."""
 
-    #: Per-iteration knot id (Rule: no module-level constants).
+    #: Per-iteration knot ids (Rule: no module-level constants).
     _propose_id: ClassVar[str] = "propose"
+    _score_id: ClassVar[str] = "score_children"
 
     @staticmethod
     def advance(state: LatsSearchState) -> LatsSearchState:
@@ -97,43 +105,47 @@ class LatsStepLoop(AgentLoopPipeline[LatsSearchState]):
         if node is None:
             return None
         with Tapestry() as iteration:
-            LatsActionProposer(
+            proposer = LatsActionProposer(
                 task=state.task,
                 llm=state.llm,
                 trajectory=node.trajectory,
                 _config=KnotConfig(id=type(self)._propose_id),
+            )
+            LatsChildScorer(
+                task=state.task,
+                value_model=state.value_model,
+                actions=proposer,
+                trajectory=node.trajectory,
+                depth=node.depth,
+                _config=KnotConfig(id=type(self)._score_id),
             )
         return iteration, state
 
     async def afold(self, state: LatsSearchState, result: RunResult) -> LatsSearchState:
         """Queue the expanded node's children, then select the next node.
 
+        Pure bookkeeping: the round's tapestry has already proposed the actions
+        and scored each of them (see ``LatsChildScorer``), so nothing here
+        awaits a collaborator.
+
         Args:
             state: State as ``astep`` returned it.
-            result: The round's run result, whose proposer output is the actions.
+            result: The round's run result, whose scorer output is the children.
 
         Returns:
             A state with the children queued, ``best`` updated, and the next node
             selected (or the search ended).
         """
-        node = state.expanding
-        if node is None:
+        if state.expanding is None:
             return state
-        actions: Any = result.outputs[type(self)._propose_id]
+        children: Any = result.outputs[type(self)._score_id]
         frontier = list(state.frontier)
         best = state.best
         sequence = state.sequence
-        for action in actions:
-            child_trajectory = (*node.trajectory, action)
-            child_value = await state.value_model.score(state.task, child_trajectory)
-            child = LatsNode(
-                trajectory=child_trajectory,
-                value=child_value,
-                depth=node.depth + 1,
-            )
+        for child in children:
             if child.value > best.value:
                 best = child
-            heapq.heappush(frontier, (-child_value, sequence, child))
+            heapq.heappush(frontier, (-child.value, sequence, child))
             sequence += 1
         queued = state.with_fields(frontier=tuple(frontier), best=best, sequence=sequence)
         return LatsStepLoop.advance(queued)
