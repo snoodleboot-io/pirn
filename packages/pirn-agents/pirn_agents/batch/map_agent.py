@@ -82,6 +82,7 @@ from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrenc
 from pirn_agents.batch.batch_item_result import BatchItemResult
 from pirn_agents.batch.batch_item_streamer import BatchItemStreamer
 from pirn_agents.batch.map_item import MapItem
+from pirn_agents.batch.resumed_batch_item import ResumedBatchItem
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
 
 
@@ -90,6 +91,10 @@ class MapAgent(NestedRunKnot):
 
     #: A failed item is an ``Err`` its aggregator receives, not this knot's failure.
     _inner_failures_reach_sink: ClassVar[bool] = True
+
+    #: Resume-probe knot ids (Rule: no module-level constants).
+    _probe_prefix: ClassVar[str] = "probe_"
+    _probes_id: ClassVar[str] = "probes"
 
     def __init__(
         self,
@@ -213,7 +218,7 @@ class MapAgent(NestedRunKnot):
         resolved_retry = MapAgent._resolve_retry(retry, retries)
         if concurrency_controller is not None:
             concurrency_controller.bind_to_group(concurrency_group)
-        resumed = await MapAgent._resume_lookup(item_list, batch_id, key_fn, resolved_history)
+        resumed = await self._resume_lookup(item_list, batch_id, key_fn, resolved_history)
         live_items = len(item_list) - len(resumed)
         with Tapestry() as inner:
             sink = MapAgent._build_graph(
@@ -329,7 +334,7 @@ class MapAgent(NestedRunKnot):
         batch_id = (
             base_batch_id if checkpoint_scope is None else f"{base_batch_id}:{checkpoint_scope}"
         )
-        resumed = await MapAgent._resume_lookup(items, batch_id, key_fn, history)
+        resumed = await self._resume_lookup(items, batch_id, key_fn, history)
         for index in sorted(resumed):
             yield resumed[index]
 
@@ -468,28 +473,78 @@ class MapAgent(NestedRunKnot):
             raise TypeError(f"MapAgent: key_fn must return a non-empty str, got {key!r}")
         return key
 
-    @staticmethod
     async def _resume_lookup(
+        self,
         items: list[Any],
         batch_id: str,
         key_fn: Callable[[Any], str] | None,
         history: RunHistory | None,
     ) -> dict[int, BatchItemResult]:
-        """Return ``{index: BatchItemResult(Skipped)}`` for items already ``Ok`` in *history*."""
-        if history is None:
+        """Return ``{index: BatchItemResult(Skipped)}`` for items already ``Ok`` in *history*.
+
+        One :class:`~pirn_agents.batch.resumed_batch_item.ResumedBatchItem` per
+        item in an inner run, rather than a ``for`` loop awaiting history N
+        times: each probe gets its own ``Result``, retry, timeout and lineage
+        row, and the engine runs them together (Rule 11; PIR-874). This run
+        precedes the item graph because its answer decides that graph's shape.
+
+        Args:
+            items: The batch's items, in input order.
+            batch_id: The batch id the item knot ids are built from.
+            key_fn: The per-item key function, or ``None`` for the index.
+            history: The history to probe, or ``None`` to resume nothing.
+
+        Returns:
+            ``{index: BatchItemResult(Skipped(reason="resumed"))}`` for every
+            item whose knot id already has a successful row.
+
+        Raises:
+            SubTapestryError: If any probe failed.
+        """
+        if history is None or not items:
             return {}
-        resumed: dict[int, BatchItemResult] = {}
-        for index, item in enumerate(items):
-            key = MapAgent._key_for(key_fn, index, item)
-            item_id = MapAgent._item_knot_id(batch_id, key)
-            rows = await history.query_lineage_by_knot_id(item_id)
-            if any(row.outcome == "ok" for row in rows):
-                resumed[index] = BatchItemResult(
-                    index=index,
-                    key=key,
-                    outcome=Skipped(reason="resumed", detail={"knot_id": item_id}),
+        keys = [MapAgent._key_for(key_fn, index, item) for index, item in enumerate(items)]
+        with Tapestry() as probe:
+            history_node = Parameter(
+                "history", RunHistory, default=history, _config=KnotConfig(id="history")
+            )
+            per_item: dict[str, Knot] = {
+                f"{MapAgent._probe_prefix}{index}": ResumedBatchItem(
+                    history=history_node,
+                    item_id=MapAgent._item_knot_id(batch_id, key),
+                    _config=KnotConfig(id=f"{MapAgent._probe_prefix}{index}"),
                 )
-        return resumed
+                for index, key in enumerate(keys)
+            }
+            Aggregator(
+                combine=MapAgent._in_item_order,
+                _config=KnotConfig(id=MapAgent._probes_id),
+                **per_item,
+            )
+        run = await self._run_inner(probe)
+        already_ran: tuple[bool, ...] = run.outputs[MapAgent._probes_id]
+        return {
+            index: BatchItemResult(
+                index=index,
+                key=keys[index],
+                outcome=Skipped(
+                    reason="resumed",
+                    detail={"knot_id": MapAgent._item_knot_id(batch_id, keys[index])},
+                ),
+            )
+            for index in range(len(keys))
+            if already_ran[index]
+        }
+
+    @staticmethod
+    def _in_item_order(**probes: bool) -> tuple[bool, ...]:
+        """Put the per-item probes back in input order.
+
+        Keys are ``probe_<index>``; sorting on the index rather than on the
+        mapping's order is what keeps resumed items yielded in input order.
+        """
+        ordered = sorted(probes.items(), key=lambda item: int(item[0].removeprefix("probe_")))
+        return tuple(already_ran for _key, already_ran in ordered)
 
     @staticmethod
     def _build_graph(

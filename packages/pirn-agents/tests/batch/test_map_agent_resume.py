@@ -4,13 +4,24 @@ Resume-after-crash is now a ``RunHistory`` lineage query: an item's knot id
 is ``item:<batch_id>:<key>``, so passing the same ``history=`` to a fresh
 ``MapAgent`` makes a re-run skip any item whose id already has an ``Ok``
 lineage row. No checkpoint store is written or read.
+
+Since PIR-874 the probe itself is a graph: one
+:class:`~pirn_agents.batch.resumed_batch_item.ResumedBatchItem` per item in an
+inner run that precedes the item graph, because its answer decides that graph's
+shape. The behaviour below is unchanged by that; the probe's own lineage rows
+are pinned on the engine path, which is where an inner run inherits the
+enclosing run's history — ``_run_inner`` takes no history override, so a
+standalone ``run()``'s probe rows go to whatever history was ambient when the
+knot was constructed.
 """
 
 from __future__ import annotations
 
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.core.skipped import Skipped
+from pirn.tapestry import Tapestry
 
 from pirn_agents.batch.map_agent import MapAgent
 from tests.batch.batch_doubles import StubAgent
@@ -187,3 +198,65 @@ async def test_checkpoint_scope_isolates_resume_state() -> None:
     ]
     assert second_agent.calls == ["x"]
     assert results[0].succeeded
+
+
+async def test_each_resume_probe_is_its_own_knot() -> None:
+    """PIR-874: the probe was a ``for`` loop awaiting history N times.
+
+    However many items a batch resumed over, the run recorded one lineage row
+    for the lot. Each probe is a knot now, so the run sees them — asserted on
+    the engine path, where the inner run inherits the enclosing run's history.
+    """
+    history = InMemoryHistory()
+    with Tapestry(history=history) as first:
+        MapAgent(
+            run_item=StubAgent(),
+            items=["a", "b", "c"],
+            _config=KnotConfig(id="map"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
+        )
+        assert (await first.run(RunRequest())).succeeded
+    # Even a first run probes: three items, three probe knots, nothing resumed.
+    assert [
+        len(await history.query_lineage_by_knot_id(f"probe_{index}")) for index in range(3)
+    ] == [1, 1, 1]
+
+    # The second run probes all three items before building its item graph.
+    with Tapestry(history=history) as second:
+        MapAgent(
+            run_item=StubAgent(),
+            items=["a", "b", "c"],
+            _config=KnotConfig(id="map"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
+        )
+        result = await second.run(RunRequest())
+    assert result.succeeded, result.exceptions
+    assert all(isinstance(item.outcome, Skipped) for item in result.outputs["map"])
+
+    # Two runs, so two probe rows per item — one per run, each its own knot.
+    probes = [await history.query_lineage_by_knot_id(f"probe_{index}") for index in range(3)]
+    assert [len(rows) for rows in probes] == [2, 2, 2]
+    assert all(row.outcome == "ok" for rows in probes for row in rows)
+
+
+async def test_an_empty_batch_runs_no_probe() -> None:
+    """No items, no probe run: ``Aggregator`` needs a parent."""
+    history = InMemoryHistory()
+
+    results = await _drain(
+        MapAgent(
+            run_item=StubAgent(),
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
+        ),
+        [],
+    )
+
+    assert results == []
+    assert await history.query_lineage_by_knot_id("probe_0") == []

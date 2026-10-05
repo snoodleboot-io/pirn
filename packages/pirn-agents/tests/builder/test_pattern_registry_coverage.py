@@ -73,6 +73,11 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # Internal stage: the loop body LatsSearch drives internally
         # (PIR-874 replaced its hand-rolled while-frontier loop with this).
         "pirn_agents.specializations.lats.lats_step_loop.LatsStepLoop",
+        # Internal stage: the level body RaptorAssembler drives internally
+        # (PIR-874 replaced its hand-rolled while-level loop with this). Its
+        # state carries the live provider and embedder, which only the
+        # assembler can supply.
+        "pirn_agents.specializations.rag.indexing.raptor_level_loop.RaptorLevelLoop",
         # Internal stage: the loop body ConstitutionalFilter drives internally
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.reflection.constitutional_filter_loop"
@@ -304,6 +309,7 @@ def test_the_excluded_bases_are_bases_and_the_internal_stages_are_driven_interna
             ".RetryOnParseFailureLoop",
             "pirn_agents.specializations.plan_react.plan_react_step_loop.PlanReActStepLoop",
             "pirn_agents.specializations.lats.lats_step_loop.LatsStepLoop",
+            "pirn_agents.specializations.rag.indexing.raptor_level_loop.RaptorLevelLoop",
             "pirn_agents.specializations.reflection.constitutional_filter_loop"
             ".ConstitutionalFilterLoop",
             "pirn_agents.specializations.structured_output.json_extractor_loop.JsonExtractorLoop",

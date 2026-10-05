@@ -446,12 +446,18 @@ build time. Then one more question decides which build-time shape:
 
 **3. Does each repetition depend on the previous one's output?**
 
+And when the count is *not* known at build time, one question separates the two cases
+that look alike:
+
+**4. Is the count known once the run reaches this knot, or only as the rounds go?**
+
 | Count known | Anything skipped | Rounds depend on each other | Shape |
 |---|---|---|---|
-| yes | no | yes | **Chain** — knot *n* takes knot *n−1* as an input |
-| yes | no | no | **Fan-out** — every knot wired as a parent of one `Aggregator` |
-| no | — | — | **`LoopSubTapestry`** — `step` / `fold` decide as the run goes |
-| yes | yes | — | **`LoopSubTapestry`** — build only what is actually attempted |
+| at build time | no | yes | **Chain** — knot *n* takes knot *n−1* as an input |
+| at build time | no | no | **Fan-out** — every knot wired as a parent of one `Aggregator` |
+| at run time | — | no | **Run-time fan-out** — a `NestedRunKnot` building N knots in an inner run |
+| only as rounds go | — | yes | **`LoopSubTapestry`** — `step` / `fold` decide as the run goes |
+| at build time | yes | — | **`LoopSubTapestry`** — build only what is actually attempted |
 
 ### Chain — sequential dependence
 
@@ -479,11 +485,73 @@ When the repetitions do not read each other's output, wire them all as parents o
 see `ParallelSpecialistFanOut`. Sequencing independent work costs wall time for nothing,
 and with one LLM call per item that cost is the dominant one in the pipeline.
 
+### Run-time fan-out — N independent repetitions, N known only at run time
+
+The row most often read wrong. "The count is not known at build time" is **not** by
+itself a reason to loop: a knot that receives a list and must do one independent thing per
+element knows N the moment it runs, and a loop would serialise work that has no reason to
+be sequential.
+
+The shape is a `NestedRunKnot` whose `process()` builds one knot per element in an inner
+tapestry and awaits one `_run_inner`:
+
+```python
+with Tapestry() as inner:
+    store_node = Parameter("store", MemoryStore, default=store, _config=KnotConfig(id="store"))
+    per_fact = {
+        f"fact_{index}": StoredSemanticFact(
+            fact=fact, store=store_node, _config=KnotConfig(id=f"fact_{index}")
+        )
+        for index, fact in enumerate(facts)
+    }
+    Aggregator(combine=_count_keys, _config=KnotConfig(id="written"), **per_fact)
+run = await self._run_inner(inner)
+return run.outputs["written"]
+```
+
+`SemanticFactWriter`, `EmbeddingIndexer`, `MemoryLineageRecall` and `MapAgent`'s resume
+probe are all this shape. Each repetition gets its own `Result`, retry, timeout and
+lineage row, and the engine runs them together.
+
+Two things to get right:
+
+- **The collaborator becomes a `Parameter` node**, not a captured constant, so it is one
+  graph node the siblings share.
+- **Order comes from the key, not from the mapping.** The `Aggregator`'s `combine`
+  receives `{"item_0": …, "item_1": …}` and must sort on the parsed index. Anything
+  order-sensitive downstream — a running cap, "the first match wins", a position-addressed
+  id — is otherwise decided by whichever call finished first.
+
+That second point is where converting a sequential loop actually changes behaviour, so
+check for it: `SemanticMemoryUpsert`'s dedup silently relied on turn *n*'s write being
+visible to turn *n+1*'s read, which concurrency breaks. Collapse the duplicates before
+building the knots instead.
+
+### Fan-out downstream of a producer — N known only mid-round
+
+When the elements come from a knot in the *same* round — an LLM proposes candidates, then
+each candidate is scored — the fan-out cannot be declared when that round's tapestry is
+built. Put a `NestedRunKnot` downstream of the producer and let it open the fan-out over
+what the producer returned: `LatsChildScorer` takes the proposer's actions as an input and
+scores each in an inner run. The alternative, folding the scores in `afold`, puts N
+collaborator calls outside the engine again.
+
 ### Loop — the shape is unknown until the run
 
-`LoopSubTapestry` earns its place when iterations may not happen. `CascadeLoop` stops at
-the first tier that accepts, so unrolling every tier up front would schedule knots that
-merely pass state through. That is the case a loop is for.
+`LoopSubTapestry` earns its place when iterations may not happen, or when round *n+1*'s
+work is decided by round *n*'s results. `CascadeLoop` stops at the first tier that
+accepts, so unrolling every tier up front would schedule knots that merely pass state
+through. `GraphTraversalLoop`'s next frontier is whatever the last hop discovered, and
+`RaptorLevelLoop`'s next level clusters the level below it. Those are the cases a loop is
+for — and note that each still fans its *within-round* work out, because a round's
+per-node queries are independent of each other even though the rounds are not.
+
+A loop's `step` and `fold` run **outside** the round's tapestry. Anything they await is
+therefore invisible to the run, which makes them the favourite hiding place for the very
+bypass the loop was adopted to remove: `ReflexionLoop` read its reflections in `astep` and
+`LatsStepLoop` scored its children in `afold`, so a correctly-shaped loop still gave the
+whole round one lineage row for N calls. If `step` or `fold` awaits a collaborator, that
+call belongs in the round's tapestry as a knot.
 
 ### Why this matters beyond tidiness
 
@@ -548,4 +616,4 @@ Before opening a PR with a new or modified Knot:
 - [ ] Module docstring has a `Math:` section with LaTeX formulae for any quantitative computation.
 - [ ] Module docstring has a `References:` section for any externally-derived algorithm, pattern, or API; alternatives cited with rationale where multiple approaches exist.
 - [ ] Optional-engine types are imported under `if TYPE_CHECKING:` and declared in `_annotation_imports` (Rule 10).
-- [ ] Repeated work uses the right topology: a chain or fan-out when the count is known at build time and nothing is skipped, a `LoopSubTapestry` only when it is not (Rule 11).
+- [ ] Repeated work uses the right topology: a chain or fan-out at build time, a run-time fan-out in a `NestedRunKnot` when N is known only once the knot runs, a `LoopSubTapestry` only when rounds depend on each other or may be skipped — and nothing a loop's `step`/`fold` awaits is a collaborator (Rule 11).

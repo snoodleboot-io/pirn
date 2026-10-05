@@ -100,7 +100,29 @@ class _CountingStore(InMemoryVectorStore):
 
 
 class TestRaptorPerSummaryLineage(unittest.IsolatedAsyncioTestCase):
-    """Each cluster summary is its own knot in a nested run (PIR-872)."""
+    """Each cluster summary is its own knot, and the levels are one chained run.
+
+    Run shape asserted below::
+
+        asm                         the assembler's own row
+          levels                    the one inner run it opens
+            level_1, level_2        iteration knots of the RaptorLevelLoop
+              <prefix>:N:i, vectors one summary knot per cluster, one embed knot
+
+
+    PIR-872 gave every cluster summary its own knot. PIR-874 then replaced the
+    ``while`` loop that started a *separate* nested run per level with a single
+    ``RaptorLevelLoop`` run whose iterations are the levels — so level 2's rows
+    are chained to level 1's instead of sitting in an unrelated run — and made
+    each level's embedding call a knot rather than an ``await``.
+    """
+
+    @staticmethod
+    async def _levels(history: InMemoryHistory, run_id: str) -> list[Any]:
+        """Return the per-level runs under the assembler's single climb run."""
+        (inner,) = await history.children_of(run_id)
+        (loop,) = await history.children_of(inner.run_id)
+        return list(await history.children_of(loop.run_id))
 
     @staticmethod
     async def _assemble(
@@ -127,23 +149,62 @@ class TestRaptorPerSummaryLineage(unittest.IsolatedAsyncioTestCase):
         # Act
         result, history = await self._assemble(store, llm)
 
-        # Assert: two levels -> two inner runs, 2 + 1 summary knots, one upsert.
+        # Assert: one inner run for the whole climb, 2 + 1 summary knots across
+        # its two level iterations, one upsert.
         assert result.succeeded, result.exceptions
         tree = result.outputs["asm"]
         prefix = f"raptor:{tree.content_hash}"
-        children = await history.children_of(result.run_id)
-        assert [child.parent_knot_id for child in children] == ["asm", "asm"]
-        summary_ids = [
-            [row.knot_id for row in child.lineage if row.knot_id.startswith(prefix)]
-            for child in children
-        ]
-        assert sorted(summary_ids[0]) == [f"{prefix}:1:0", f"{prefix}:1:1"]
-        assert summary_ids[1] == [f"{prefix}:2:0"]
+        (climb,) = await history.children_of(result.run_id)
+        assert climb.parent_knot_id == "asm"
         (row,) = [r for r in result.lineage if r.knot_id == "asm"]
-        assert row.extra["inner_run_ids"] == [child.run_id for child in children]
+        assert row.extra["inner_run_id"] == climb.run_id
+        # Every summary knot is named after the node it produces, and both
+        # levels' summaries are rows of iterations of this one climb.
+        summary_ids = sorted(
+            lineage.knot_id
+            for level in await self._levels(history, result.run_id)
+            for lineage in level.lineage
+            if lineage.knot_id.startswith(prefix)
+        )
+        assert summary_ids == [f"{prefix}:1:0", f"{prefix}:1:1", f"{prefix}:2:0"]
         assert len(llm.calls) == 3
         assert store.upserts == 1
         assert tree.node_count == 7
+
+    async def test_each_level_is_an_iteration_of_one_run(self) -> None:
+        """Levels are chained, not unrelated: one climb run, one child per level."""
+        store = _CountingStore(embedder=StubEmbeddingProvider(dimension=4))
+        llm = StubLLMProvider(["summary text"], repeat_last=True)
+
+        result, history = await self._assemble(store, llm)
+
+        assert result.succeeded, result.exceptions
+        (climb,) = await history.children_of(result.run_id)
+        (loop,) = await history.children_of(climb.run_id)
+        assert [row.knot_id for row in loop.lineage] == [
+            "level_1",
+            "level_2",
+            "__loop_terminal__",
+        ]
+        levels = await self._levels(history, result.run_id)
+        assert len(levels) == 2
+        assert all(level.succeeded for level in levels)
+
+    async def test_each_level_embeds_through_a_knot(self) -> None:
+        """The per-level ``embed`` was an await in the loop; it is a knot now."""
+        store = _CountingStore(embedder=StubEmbeddingProvider(dimension=4))
+        llm = StubLLMProvider(["summary text"], repeat_last=True)
+
+        result, history = await self._assemble(store, llm)
+
+        assert result.succeeded, result.exceptions
+        embeddings = [
+            lineage.knot_id
+            for level in await self._levels(history, result.run_id)
+            for lineage in level.lineage
+            if lineage.knot_id == "vectors"
+        ]
+        assert embeddings == ["vectors", "vectors"]
 
     async def test_a_reused_tree_starts_no_inner_run(self) -> None:
         store = _CountingStore(embedder=StubEmbeddingProvider(dimension=4))

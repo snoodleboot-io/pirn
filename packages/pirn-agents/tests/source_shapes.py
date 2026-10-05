@@ -15,7 +15,15 @@ is the authoritative wording):
   counts only when ``m`` is a sibling method that itself (transitively) awaits
   a collaborator, so a helper cannot launder the call. ``asyncio.*`` module
   calls and inherited ``self``/``super()`` methods (``self._run_inner``, the
-  engine's own inner-run seam) are not collaborators.
+  engine's own inner-run seam) are not collaborators, and neither is a method
+  on **async plumbing the same scope constructed** — ``await queue.get()``
+  where ``queue = asyncio.Queue()`` a few lines up, or ``await t.run(...)``
+  where ``t = Tapestry(...)``. A collaborator is something the knot *delegates
+  work to*, and it arrives from outside: a parameter, state, or ``self``.
+  Awaiting a queue this scope made is awaiting delivery of results the engine
+  already produced, and awaiting a tapestry this scope made is *using* the
+  engine, not bypassing it. The qualifier is the local construction, not the
+  name — an injected collaborator called ``queue`` still counts.
 * **fan-out collaborator await** — a collaborator call handed to one of those
   fan-out primitives (``gather(store.put(a), store.put(b))``): the same calls
   a loop would await, one scheduling layer further from the engine.
@@ -183,28 +191,68 @@ class SourceShapes:
         return None
 
     @staticmethod
-    def is_collaborator_call(call: ast.Call, effectful_siblings: frozenset[str]) -> bool:
+    def is_collaborator_call(
+        call: ast.Call,
+        effectful_siblings: frozenset[str],
+        plumbing: frozenset[str] = frozenset(),
+    ) -> bool:
         """Whether awaiting ``call`` awaits some other object's work.
 
         See the module docstring: ``self.m()`` only when ``m`` is an effectful
-        sibling; ``asyncio.<fn>()`` never.
+        sibling; ``asyncio.<fn>()`` never; and a method on a name in
+        ``plumbing`` never, because the scope built that object itself out of
+        ``asyncio``/``Tapestry`` rather than being handed it.
         """
         own = SourceShapes.self_method_called(call)
         if own is not None:
             return own in effectful_siblings
         func = call.func
-        return not (
-            isinstance(func, ast.Attribute)
-            and isinstance(func.value, ast.Name)
-            and func.value.id == "asyncio"
-        )
+        if not isinstance(func, ast.Attribute) or not isinstance(func.value, ast.Name):
+            return True
+        return func.value.id != "asyncio" and func.value.id not in plumbing
+
+    #: Framework types whose locally constructed instances are plumbing, not
+    #: collaborators: awaiting a ``Tapestry`` this scope built *is* the engine
+    #: running. ``asyncio``'s own primitives are recognised by their module.
+    _plumbing_types: ClassVar[frozenset[str]] = frozenset({"Tapestry"})
+
+    @staticmethod
+    def async_plumbing_names(scope: ast.AST) -> frozenset[str]:
+        """Return the names ``scope`` binds to async plumbing it constructed itself.
+
+        A name assigned from ``asyncio.<Anything>()`` or from one of
+        :attr:`_plumbing_types`. Only this scope's own assignments count, so a
+        collaborator arriving as a parameter or off ``self`` is never mistaken
+        for plumbing however it is named.
+        """
+        names: set[str] = set()
+        for sub in SourceShapes.scoped_walk(scope):
+            if isinstance(sub, ast.Assign):
+                targets: list[ast.expr] = list(sub.targets)
+            elif isinstance(sub, ast.AnnAssign):
+                targets = [sub.target]
+            else:
+                continue
+            if not isinstance(sub.value, ast.Call) or not SourceShapes._builds_plumbing(sub.value):
+                continue
+            names.update(target.id for target in targets if isinstance(target, ast.Name))
+        return frozenset(names)
+
+    @staticmethod
+    def _builds_plumbing(call: ast.Call) -> bool:
+        """Whether ``call`` constructs an ``asyncio`` primitive or a framework container."""
+        func = call.func
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            return func.value.id == "asyncio"
+        return isinstance(func, ast.Name) and func.id in SourceShapes._plumbing_types
 
     @staticmethod
     def _awaits_collaborator(node: ast.AST, effectful_siblings: frozenset[str]) -> bool:
+        plumbing = SourceShapes.async_plumbing_names(node)
         return any(
             isinstance(sub, ast.Await)
             and isinstance(sub.value, ast.Call)
-            and SourceShapes.is_collaborator_call(sub.value, effectful_siblings)
+            and SourceShapes.is_collaborator_call(sub.value, effectful_siblings, plumbing)
             for sub in ast.walk(node)
         )
 
@@ -232,6 +280,7 @@ class SourceShapes:
         inside a loop and fanned out elsewhere is not awaited by the loop.
         """
         for scope in SourceShapes.scopes(node):
+            plumbing = SourceShapes.async_plumbing_names(scope)
             for loop in SourceShapes.scoped_walk(scope):
                 if not isinstance(
                     loop,
@@ -248,7 +297,9 @@ class SourceShapes:
                     if (
                         isinstance(inner, ast.Await)
                         and isinstance(inner.value, ast.Call)
-                        and SourceShapes.is_collaborator_call(inner.value, effectful_siblings)
+                        and SourceShapes.is_collaborator_call(
+                            inner.value, effectful_siblings, plumbing
+                        )
                     ):
                         return True
         return False
@@ -297,17 +348,44 @@ class SourceShapes:
         calls a loop would, one scheduling layer further from the engine, so
         it is the same shape as a loop that awaits them.
         """
-        for sub in ast.walk(node):
-            if not isinstance(sub, ast.Call) or not SourceShapes._is_fan_out_call(sub):
-                continue
-            handed: list[ast.AST] = [*sub.args, *(keyword.value for keyword in sub.keywords)]
-            for argument in handed:
-                for inner in ast.walk(argument):
-                    if isinstance(inner, ast.Call) and SourceShapes.is_collaborator_call(
-                        inner, effectful_siblings
-                    ):
-                        return True
+        for scope in SourceShapes.scopes(node):
+            plumbing = SourceShapes.async_plumbing_names(scope)
+            for sub in SourceShapes.scoped_walk(scope):
+                if not isinstance(sub, ast.Call) or not SourceShapes._is_fan_out_call(sub):
+                    continue
+                handed: list[ast.expr] = [*sub.args, *(keyword.value for keyword in sub.keywords)]
+                for argument in handed:
+                    for inner in SourceShapes._handed_calls(argument):
+                        if SourceShapes.is_collaborator_call(inner, effectful_siblings, plumbing):
+                            return True
         return False
+
+    @staticmethod
+    def _handed_calls(argument: ast.expr) -> Iterator[ast.Call]:
+        """Yield the call(s) ``argument`` hands to a fan-out primitive, as coroutines.
+
+        Only the *awaitable* an argument evaluates to counts, not every call
+        nested anywhere inside it: ``gather(store.put(a))`` hands a coroutine,
+        while ``create_task(t.run(RunRequest(x), observers=Own.build(y)))``
+        hands one coroutine whose arguments happen to be constructed by calls.
+        Walking the whole argument made those arguments look like fanned-out
+        collaborator work (PIR-874).
+
+        Unwraps the forms that still hand over coroutines: ``*splat``, a
+        list/tuple/set of them, a comprehension producing them, and a
+        redundant ``await``.
+        """
+        if isinstance(argument, ast.Starred):
+            yield from SourceShapes._handed_calls(argument.value)
+        elif isinstance(argument, ast.List | ast.Tuple | ast.Set):
+            for element in argument.elts:
+                yield from SourceShapes._handed_calls(element)
+        elif isinstance(argument, ast.ListComp | ast.SetComp | ast.GeneratorExp):
+            yield from SourceShapes._handed_calls(argument.elt)
+        elif isinstance(argument, ast.Await):
+            yield from SourceShapes._handed_calls(argument.value)
+        elif isinstance(argument, ast.Call):
+            yield argument
 
     @staticmethod
     def _is_fan_out_call(call: ast.Call) -> bool:

@@ -134,6 +134,96 @@ class CleanPipeline:
         )
         assert not BypassInventory.awaits_collaborator_out_of_band(node)
 
+    # -- what the rule deliberately does not count ----------------------------
+    #
+    # Both narrowings below were added for ``MapAgent`` (PIR-874) and are the
+    # risky kind: an exclusion that is too broad makes the ratchet blind, which
+    # is the failure mode this whole file exists to prevent. Each is therefore
+    # pinned twice — once that the excluded shape passes, once that the shape it
+    # resembles still fires.
+
+    def test_rule_collaborator_await_ignores_a_queue_this_scope_built(self) -> None:
+        """Draining a queue the scope made is receiving results, not doing work.
+
+        ``MapAgent.run`` streams each item's result off an ``asyncio.Queue`` an
+        emitter fills while the engine runs the items. The engine did the work;
+        the loop collects it.
+        """
+        node = self._class_of(
+            "class W:\n"
+            "    async def run(self, items):\n"
+            "        queue = asyncio.Queue()\n"
+            "        while True:\n"
+            "            settled = await queue.get()\n"
+            "            if settled is None:\n"
+            "                break\n"
+            "            yield settled\n"
+        )
+        assert not BypassInventory.awaits_collaborator_out_of_band(node)
+
+    def test_rule_collaborator_await_still_fires_on_an_injected_queue(self) -> None:
+        """The qualifier is the local construction, not the name ``queue``."""
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, queue, keys, **_):\n"
+            "        out = []\n"
+            "        for _key in keys:\n"
+            "            out.append(await queue.get())\n"
+            "        return out\n"
+        )
+        assert BypassInventory.awaits_collaborator_out_of_band(node)
+
+    def test_rule_collaborator_await_ignores_a_tapestry_this_scope_built(self) -> None:
+        """Awaiting a tapestry the scope built is *using* the engine."""
+        node = self._class_of(
+            "class W:\n"
+            "    async def run(self, items):\n"
+            "        for _item in items:\n"
+            "            inner = Tapestry()\n"
+            "            result = await inner.run(RunRequest())\n"
+            "            yield result\n"
+        )
+        assert not BypassInventory.awaits_collaborator_out_of_band(node)
+
+    def test_rule_fan_out_ignores_values_constructed_inside_the_handed_call(self) -> None:
+        """Only the coroutine handed over counts, not calls in its arguments.
+
+        ``create_task(t.run(RunRequest(c), admission_observers=Own.build(o)))``
+        hands the engine one run; ``RunRequest`` and the observer list are
+        arguments to it, not fanned-out collaborator work.
+        """
+        node = self._class_of(
+            "class W:\n"
+            "    async def run(self, items):\n"
+            "        run_tapestry = Tapestry()\n"
+            "        task = asyncio.create_task(\n"
+            "            run_tapestry.run(RunRequest(concurrency=None),"
+            " admission_observers=W._observers(()))\n"
+            "        )\n"
+            "        await task\n"
+        )
+        assert not BypassInventory.awaits_collaborator_out_of_band(node)
+
+    def test_rule_fan_out_still_fires_on_a_splatted_comprehension_of_calls(self) -> None:
+        """``gather(*[store.put(x) for x in xs])`` is the shape, splat and all."""
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, store, items, **_):\n"
+            "        return await asyncio.gather(*[store.put(item) for item in items])\n"
+        )
+        assert BypassInventory.awaits_collaborator_out_of_band(node)
+
+    def test_rule_fan_out_still_fires_on_a_task_group_handed_a_collaborator(self) -> None:
+        node = self._class_of(
+            "class W:\n"
+            "    async def process(self, store, items, **_):\n"
+            "        async with asyncio.TaskGroup() as group:\n"
+            "            for item in items:\n"
+            "                group.create_task(store.put(item))\n"
+            "        return len(items)\n"
+        )
+        assert BypassInventory.awaits_collaborator_out_of_band(node)
+
     # -- hand-rolled time bound / retry ---------------------------------------
 
     def test_rule_time_bound_fires_on_a_hand_rolled_wait_for(self) -> None:
