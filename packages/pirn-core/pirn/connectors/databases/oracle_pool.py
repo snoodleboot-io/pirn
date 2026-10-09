@@ -23,6 +23,7 @@ from pirn.connectors.databases.oracle_config import OracleConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.threaded_cursor_transaction import ThreadedCursorTransaction
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.connector_usage_error import ConnectorUsageError
 
 
 class OraclePool(DatabaseConnectionPool):
@@ -252,14 +253,14 @@ class OraclePool(DatabaseConnectionPool):
         refused rather than deadlocked.
 
         Raises:
-            RuntimeError: If a transaction is already open on the client — one a
+            ConnectorUsageError: If a transaction is already open on the client — one a
                 caller began by hand is theirs to end, not this scope's.
         """
         self._reject_statement_inside_own_transaction()
         async with self._transaction_lock:
             client = await self._ensure_client()
             if self._transaction_in_progress(client):
-                raise RuntimeError(
+                raise ConnectorUsageError(
                     "OraclePool: a transaction is already open on the client; "
                     "end it before opening a transaction scope"
                 )
@@ -284,7 +285,7 @@ class OraclePool(DatabaseConnectionPool):
         """
         task = self._transaction_task
         if task is not None and task is asyncio.current_task():
-            raise RuntimeError(
+            raise ConnectorUsageError(
                 "OraclePool: statement issued on the pool inside its own "
                 "transaction scope; use the handle `async with pool.transaction()` yielded"
             )
