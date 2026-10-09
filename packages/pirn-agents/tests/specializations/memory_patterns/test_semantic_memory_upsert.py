@@ -17,6 +17,7 @@ from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.content_hasher import ContentHasher
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.patterns.semantic_memory_upsert import (
@@ -96,6 +97,49 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
         response = AgentResponse(content="")
         count = await k.process(response=response, llm=llm, store=store)
         assert count == 0
+
+    async def test_one_extraction_naming_a_fact_twice_writes_it_once(self) -> None:
+        """PIR-874: the per-fact dedup reads run concurrently, so repeats collapse first.
+
+        The sequential loop this replaced got this right by accident — the first
+        turn's write was visible to the second turn's read. Two concurrent knots
+        for one identity would both read "absent" and both write, so repeats are
+        removed from the candidate list before the knots are built.
+        """
+        k = _make_knot()
+        store = _make_store()
+        llm = StubLLMProvider(["- repeated\n- repeated\n- distinct"])
+        response = AgentResponse(content="x")
+        count = await k.process(response=response, llm=llm, store=store)
+        assert count == 2
+        rows = await store.history.query_lineage_by_knot_id(
+            KeyedLineageStore.identity("semantic-memory", ContentHasher.hash("repeated"))
+        )
+        assert len(rows) == 1
+
+    async def test_each_fact_gets_its_own_lineage_row(self) -> None:
+        """The point of the fan-out: N upserts are N knots, not one opaque loop.
+
+        Run as a real graph so the inner run inherits a history this test holds —
+        the per-fact rows are *knot* lineage in the enclosing run's history, a
+        different ledger from the ``KeyedLineageStore``'s own.
+        """
+        history = InMemoryHistory()
+        store = _make_store()
+        llm = StubLLMProvider(["- one\n- two\n- three"])
+        with Tapestry(history=history) as tapestry:
+            SemanticMemoryUpsert(
+                response=AgentResponse(content="x"),
+                llm=llm,
+                store=store,
+                _config=KnotConfig(id="upsert"),
+            )
+            result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["upsert"] == 3
+        rows = [await history.query_lineage_by_knot_id(f"fact_{index}") for index in range(3)]
+        assert [len(row) for row in rows] == [1, 1, 1]
+        assert all(row[0].outcome == "ok" for row in rows)
 
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()

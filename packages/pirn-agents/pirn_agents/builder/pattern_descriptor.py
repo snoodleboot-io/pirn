@@ -167,14 +167,23 @@ class PatternDescriptor:
             ImportError: If zero, or more than one, class of that name is
                 registered under the ``pirn`` library with the auto-fill
                 label — the latter can only mean this codebase's own
-                registry-uniqueness invariant was violated elsewhere.
+                registry-uniqueness invariant was violated elsewhere. A name
+                whose module cannot be imported counts as zero: the registry
+                holds it, but there is no class to build.
         """
+        # ``Entry.class_def`` is a property that imports the entry's module on
+        # first read and yields ``None`` when that import fails (sweet_tea
+        # 0.2.114+, the lazy registry of SWE-9). The ``None`` guard comes
+        # *last* on purpose: the cheap key/library/label tests run first, so
+        # only a matching entry is ever resolved — leading with the guard would
+        # import every module in the registry on every lookup.
         matches = [
-            entry.class_def
+            class_def
             for entry in Registry.entries()
             if entry.key == self.class_name.lower()
             and entry.library == self._auto_fill_library
             and entry.label == self._auto_fill_label
+            and (class_def := entry.class_def) is not None
         ]
         if not matches:
             raise ImportError(

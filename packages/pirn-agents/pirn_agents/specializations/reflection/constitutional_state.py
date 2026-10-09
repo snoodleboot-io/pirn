@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pirn_agents.llm.llm_provider import LLMProvider
+
 
 @dataclass(frozen=True)
 class ConstitutionalState:
@@ -28,3 +30,6 @@ class ConstitutionalState:
     current_content: str
     attempts: int
     compliant: bool
+    llm: LLMProvider
+    evaluation_system: str
+    max_revisions: int

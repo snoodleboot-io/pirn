@@ -5,8 +5,11 @@ Internal API. See ``retry_on_parse_failure_loop.py``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+
+from pirn_agents.llm.llm_provider import LLMProvider
 
 
 @dataclass(frozen=True)
@@ -33,3 +36,7 @@ class RetryState:
     succeeded: bool
     last_error: str
     attempts: int
+    original_prompt: str
+    llm: LLMProvider
+    parser: Callable[[str], Any]
+    max_retries: int

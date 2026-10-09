@@ -1,0 +1,15 @@
+# Ruff configuration for the runnable examples in `examples/`.
+#
+# This monorepo has no root config on purpose (every package carries its own
+# `pyproject.toml`), which left `examples/` and `scripts/` on ruff's built-in
+# defaults — an 88-column formatter against a 100-column codebase, so
+# `ruff format --check examples` failed while no CI job ran it (PIR-873). This
+# file and `scripts/ruff.toml` give the shared trees the same settings every
+# package uses, and `.github/workflows/workspace.yml` now checks both on every
+# pull request.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]

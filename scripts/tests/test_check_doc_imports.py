@@ -9,11 +9,17 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from check_doc_imports import CheckDocImports  # noqa: E402  # scripts dir is put on sys.path first
-from gatekit.doc_finding import DocFinding  # noqa: E402  # scripts dir is put on sys.path first
-from gatekit.doc_import_auditor import DocImportAuditor  # noqa: E402  # scripts dir is put on sys.path first
-from gatekit.markdown_file_collector import MarkdownFileCollector  # noqa: E402  # scripts dir is put on sys.path first
-from gatekit.source_import_resolver import SourceImportResolver  # noqa: E402  # scripts dir is put on sys.path first
+from check_doc_imports import CheckDocImports  # scripts dir is put on sys.path first
+from gatekit.doc_finding import DocFinding  # scripts dir is put on sys.path first
+from gatekit.doc_import_auditor import (
+    DocImportAuditor,  # scripts dir is put on sys.path first
+)
+from gatekit.markdown_file_collector import (
+    MarkdownFileCollector,  # scripts dir is put on sys.path first
+)
+from gatekit.source_import_resolver import (
+    SourceImportResolver,  # scripts dir is put on sys.path first
+)
 
 
 def _fake_repo(tmp_path: Path) -> Path:
@@ -23,9 +29,7 @@ def _fake_repo(tmp_path: Path) -> Path:
     (core / "__init__.py").write_text("")
     (core / "core" / "__init__.py").write_text("")
     (core / "core" / "knot.py").write_text(
-        "class Knot:\n"
-        "    retries: int = 0\n\n"
-        "    async def process(self) -> None: ...\n"
+        "class Knot:\n    retries: int = 0\n\n    async def process(self) -> None: ...\n"
     )
     (core / "core" / "factory.py").write_text(
         "from pirn.core.knot import Knot\n\n"
@@ -60,9 +64,7 @@ def test_resolvable_imports_have_no_findings(tmp_path: Path) -> None:
 
 
 def test_missing_module_is_reported_with_its_line(tmp_path: Path) -> None:
-    findings = _audit(
-        tmp_path, _python_block("x = 1\nfrom pirn.core.gone import Thing\n")
-    )
+    findings = _audit(tmp_path, _python_block("x = 1\nfrom pirn.core.gone import Thing\n"))
     assert [(f.line, f.rule) for f in findings] == [(5, "doc_unresolved_import")]
     assert "pirn.core.gone" in findings[0].detail
 
@@ -84,15 +86,11 @@ def test_unknown_pirn_root_is_reported(tmp_path: Path) -> None:
 
 
 def test_submodule_import_from_package_resolves(tmp_path: Path) -> None:
-    assert (
-        _audit(tmp_path, _python_block("from pirn.core import knot, factory\n")) == []
-    )
+    assert _audit(tmp_path, _python_block("from pirn.core import knot, factory\n")) == []
 
 
 def test_syntax_error_block_is_reported(tmp_path: Path) -> None:
-    findings = _audit(
-        tmp_path, _python_block("x = 1\nresult = run(a=1, 2)\n", tag="py")
-    )
+    findings = _audit(tmp_path, _python_block("x = 1\nresult = run(a=1, 2)\n", tag="py"))
     assert [(f.line, f.rule) for f in findings] == [(5, "doc_code_block_syntax")]
 
 
@@ -108,10 +106,7 @@ def test_pycon_prompts_still_check_imports(tmp_path: Path) -> None:
 
 
 def test_non_python_block_is_ignored(tmp_path: Path) -> None:
-    assert (
-        _audit(tmp_path, _python_block("from pirn.gone import X ->\n", tag="bash"))
-        == []
-    )
+    assert _audit(tmp_path, _python_block("from pirn.gone import X ->\n", tag="bash")) == []
 
 
 def test_untagged_block_with_pirn_import_is_checked(tmp_path: Path) -> None:
@@ -190,9 +185,7 @@ def test_import_of_undefined_class_is_still_reported(tmp_path: Path) -> None:
     """The self-taught exemption is narrow: a document that imports a class it
     never defines anywhere in its own text is making a bare claim about
     repository contents, and that claim must still resolve."""
-    findings = _audit(
-        tmp_path, _python_block("from pirn_widgets.widget import Widget\n")
-    )
+    findings = _audit(tmp_path, _python_block("from pirn_widgets.widget import Widget\n"))
     assert [f.rule for f in findings] == ["doc_unresolved_import"]
     assert "pirn_widgets.widget" in findings[0].detail
 

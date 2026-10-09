@@ -30,8 +30,6 @@ from pirn.core.shape_guard import ShapeGuard
 from pirn.core.unhashable_error import UnhashableError
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
-_logger = logging.getLogger(__name__)
-
 
 class ContentHasher:
     """Stateless utility computing stable content hashes for lineage joins.
@@ -39,6 +37,8 @@ class ContentHasher:
     Exposed as static methods so call sites do not need to instantiate the
     hasher — mirrors :class:`pirn.engine.shed.cycle_detector.CycleDetector`.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     #: Cache to avoid rebuilding ``TypeAdapter`` per ``_canonicalise`` call.
     #: Constructing a TypeAdapter walks the type and builds a schema/validator
@@ -211,7 +211,7 @@ class ContentHasher:
             except Exception:
                 # Fall through to the container/Mapping/Sequence branches
                 # below; if those also fail we end up at ``UnhashableError``.
-                _logger.warning(
+                ContentHasher._logger.warning(
                     "ContentHasher: TypeAdapter.dump_python failed for %s; "
                     "falling back to container/repr canonicalisation",
                     value_type,

@@ -8,12 +8,14 @@ Algorithm
 ---------
 1. Validate inputs.
 2. Build a prompt from ``fact_extraction_prompt`` and ``response.data``.
-3. Call the LLM and parse one fact per line.
-4. For each fact, check whether it is already recorded (see "Dedup" below).
-5. If not, ``store.put`` a typed
-   :class:`~pirn_agents.memory.management.memory_record.MemoryRecord` payload;
-   increment the counter.
-6. Return the total count of upserted facts.
+3. Call the LLM and parse one fact per line, collapsing repeats.
+4. Declare one
+   :class:`~pirn_agents.memory.patterns.deduplicated_semantic_fact.DeduplicatedSemanticFact`
+   per candidate and run them as an inner tapestry: each checks whether its
+   fact is already recorded (see "Dedup" below) and, if not, ``store.put`` s a
+   typed :class:`~pirn_agents.memory.management.memory_record.MemoryRecord`
+   payload.
+5. Return the count of knots that reported a write.
 
 Dedup (ADR "agents speaks core" WS3 part 4)
 --------------------------------------------
@@ -42,21 +44,23 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
-from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
+from pirn.nodes.nested_run_knot import NestedRunKnot
+from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.management.memory_provenance import MemoryProvenance
-from pirn_agents.memory.management.memory_record import MemoryRecord
+from pirn_agents.memory.patterns.deduplicated_semantic_fact import DeduplicatedSemanticFact
 from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class SemanticMemoryUpsert(Knot):
+class SemanticMemoryUpsert(NestedRunKnot):
     """Extract facts from an AgentResponse, deduplicate, and upsert to semantic memory."""
 
     _fact_extraction_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -130,25 +134,43 @@ class SemanticMemoryUpsert(Knot):
             if cleaned:
                 facts.append(cleaned)
 
+        # One extraction can name the same fact twice. The dedup reads below run
+        # concurrently, so two knots for one identity would both see "absent"
+        # and both write; collapsing repeats here makes the outcome the same as
+        # the sequential loop's, and cheaper (no store round-trip for a repeat).
+        unique_facts = list(dict.fromkeys(facts))
+        if not unique_facts:
+            return 0
+        # One knot per candidate fact, run together: each dedup read and each
+        # write gets its own Result, retry, timeout and lineage row, and the
+        # engine schedules them rather than a Python loop awaiting the store N
+        # times (Rule 11; PIR-874). The extraction call above is one request, so
+        # it stays as it is.
         namespace = type(self)._namespace
-        upserted = 0
-        for fact in facts:
-            key = ContentHasher.hash(fact)
-            # ``get`` and not ``latest_output_hash``: a deleted fact still has a
-            # lineage row and therefore still has a hash, so the hash test read
-            # every tombstoned fact as "already recorded" and the fact could
-            # never be written again (PIR-873).  ``get`` is the one read that
-            # treats a tombstone as absent.
-            already_recorded = await store.get(namespace=namespace, key=key) is not None
-            if not already_recorded:
-                now = datetime.now(UTC)
-                record = MemoryRecord(
-                    id=f"fact:{key}",
-                    kind="semantic",
-                    content=fact,
-                    provenance=MemoryProvenance(source="semantic_memory_upsert", timestamp=now),
-                    created_at=now,
+        stored_at = datetime.now(UTC)
+        with Tapestry() as inner:
+            store_node = Parameter(
+                "store", KeyedLineageStore, default=store, _config=KnotConfig(id="store")
+            )
+            per_fact: dict[str, Knot] = {
+                f"fact_{index}": DeduplicatedSemanticFact(
+                    fact=fact,
+                    namespace=namespace,
+                    store=store_node,
+                    stored_at=stored_at,
+                    _config=KnotConfig(id=f"fact_{index}"),
                 )
-                await store.put(namespace=namespace, key=key, value=record.to_payload())
-                upserted += 1
-        return upserted
+                for index, fact in enumerate(unique_facts)
+            }
+            Aggregator(
+                combine=SemanticMemoryUpsert._count_written,
+                _config=KnotConfig(id="upserted"),
+                **per_fact,
+            )
+        run = await self._run_inner(inner)
+        return run.outputs["upserted"]
+
+    @staticmethod
+    def _count_written(**facts: str | None) -> int:
+        """Count the per-fact knots that returned a key rather than ``None``."""
+        return sum(1 for key in facts.values() if key is not None)

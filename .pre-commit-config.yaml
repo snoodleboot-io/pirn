@@ -21,6 +21,14 @@
 # files, so they run over all seven unconditionally whenever a matching file
 # changed (`pass_filenames: false`) — both are pure-AST and fast. The
 # no-import-forwarding hook uses a layout-independent pattern and always ran.
+#
+# Shared-tree note (PIR-873): every hook above matches `^packages/…` only, so a commit
+# touching just `docs/`, `examples/` or `scripts/` ran nothing here — the same hole the
+# CI workflow had (a docs/examples-only PR skipped every gate job and the aggregator
+# went green anyway). The last two hooks close the local half: the documentation
+# import gate and ruff over the two shared trees, which carry their own
+# `scripts/ruff.toml` / `examples/ruff.toml` and are checked from INSIDE each tree for
+# the same cwd-relative first-party-classification reason as the per-package wrapper.
 repos:
   - repo: local
     hooks:
@@ -77,6 +85,30 @@ repos:
         language: system
         files: (^|/)__init__\.py$
         exclude: ^(tests|examples)/
+
+      - id: check-doc-imports
+        name: documentation imports resolve
+        # Same invocation as the `workspace-gates` CI job. Stdlib-only and static
+        # (nothing is imported); it reads the markdown AND the package source, so a
+        # source rename must re-run it, not just a markdown edit.
+        entry: >
+          python scripts/check_doc_imports.py
+          AGENTIC_USE.md AGENTIC_USE_SPEC.md README.md docs examples/README.md packages
+        language: system
+        pass_filenames: false
+        files: (\.md$|^packages/[^/]+/pirn)
+
+      - id: ruff-shared-trees
+        name: ruff (scripts/ and examples/, each from inside)
+        # `scripts/` and `examples/` have no package pyproject, so the per-package
+        # wrapper above never covers them; they carry their own ruff.toml. Run from
+        # INSIDE each tree — ruff's first-party import classification is cwd-relative
+        # and this repo has no root config (PIR-760).
+        entry: bash -c 'set -e; (cd scripts && ruff check . && ruff format --check .); (cd examples && ruff check . && ruff format --check .)'
+        language: system
+        types: [python]
+        pass_filenames: false
+        files: ^(scripts|examples)/
 
       - id: stamp-agentic-use-version
         name: stamp AGENTIC_USE.md major version

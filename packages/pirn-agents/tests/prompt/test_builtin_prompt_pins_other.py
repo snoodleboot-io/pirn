@@ -142,12 +142,18 @@ class MemoryPatternPromptPins(unittest.IsolatedAsyncioTestCase):
         # directly (ADR agents-speaks-core WS3 part 4), a surface StubMemoryStore
         # (a plain MemoryStore double) does not expose.
         store = KeyedLineageStore(history=InMemoryHistory(), data_store=InMemoryDataStore())
-        knot = _bare(SemanticMemoryUpsert)
-        await knot.process(
-            response=AgentResponse(content="body"),
-            llm=llm,
-            store=store,
-        )
+        # Constructed and run for real rather than through ``_bare``: the knot
+        # now fans its per-fact writes out into an inner run (PIR-874), and
+        # ``NestedRunKnot`` needs the construction-time capture ``_bare``'s
+        # ``__new__`` skips.
+        with Tapestry() as tapestry:
+            SemanticMemoryUpsert(
+                response=AgentResponse(content="body"),
+                llm=llm,
+                store=store,
+                _config=KnotConfig(id="upsert"),
+            )
+        await tapestry.run(RunRequest())
         assert llm.calls[0][0]["content"] == (
             "Extract key facts from the following text.\n\nText: body\n\nReturn one fact per line."
         )

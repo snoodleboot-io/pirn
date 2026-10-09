@@ -11,9 +11,10 @@ Algorithm:
     1. Hash the leaf corpus; if a ``:meta`` marker already exists, return the
        stored tree (reused, no LLM calls).
     2. Level 0: embed the leaf chunks, one node each.
-    3. While more than one node remains and the level budget is not spent:
-       cluster consecutive nodes into groups of ``cluster_size``, summarize each
-       group with the LLM, embed the summaries, and make them the next level.
+    3. Climb: a ``RaptorLevelLoop`` iteration per level, each clustering
+       consecutive nodes into groups of ``cluster_size``, summarizing every
+       group with the LLM (one knot per cluster) and embedding the summaries
+       (one knot), until a single root remains or the level budget is spent.
     4. Upsert all nodes plus a ``:meta`` marker (holding counts, excluded from
        retrieval) and return the :class:`RaptorTree`.
 
@@ -31,21 +32,27 @@ ETL knots that perform an atomic read-transform-write cycle against a pool
 or broker"). Splitting the I/O out would break that atomicity (the dedup
 short-circuit and the final upsert must see a consistent store).
 
-Per-summary lineage (PIR-872). It is also a
-:class:`~pirn.nodes.nested_run_knot.NestedRunKnot`: each level's cluster
-summaries run as a nested run — one
+Per-level and per-summary lineage (PIR-872, PIR-874). It is also a
+:class:`~pirn.nodes.nested_run_knot.NestedRunKnot`, and it opens **one** inner
+run holding a
+:class:`~pirn_agents.specializations.rag.indexing.raptor_level_loop.RaptorLevelLoop`
+whose iterations are the levels. Inside a level, one
 :class:`~pirn_agents.specializations.rag.indexing.raptor_summary.RaptorSummary`
-per cluster, joined in cluster order by an
-:class:`~pirn.nodes.aggregator.Aggregator` — so every LLM summary call has its
-own lineage row (knot id ``<prefix>:<level>:<index>``, the id of the node it
-produces), ``Result``, and admission through the enclosing run's gate, and the
-level's clusters are summarized concurrently. The inner runs inherit the
-enclosing run's history, emitters, value plane and execution plane; this
-knot's own row names every inner run (``extra["inner_run_ids"]``). The dedup
-short-circuit still returns before any inner run starts, and the single final
-upsert still happens once, after the last level. As a container this knot
-holds no admission slot of its own (its summary leaves take them), so it may
-not declare a ``concurrency_group``.
+per cluster fans out (joined in cluster order by an
+:class:`~pirn.nodes.aggregator.Aggregator`) and one
+:class:`~pirn_agents.specializations.rag.indexing.embedded_texts.EmbeddedTexts`
+sits downstream of them. So every LLM summary call has its own lineage row
+(knot id ``<prefix>:<level>:<index>``, the id of the node it produces),
+``Result``, and admission through the enclosing run's gate; the level's
+clusters are summarized concurrently; and the embedding call is a knot rather
+than an ``await`` the run cannot see. The version this replaced ran a ``while``
+loop that started a *separate* nested run per level, so level 2's rows had no
+connection to level 1's. The inner run inherits the enclosing run's history,
+emitters, value plane and execution plane; this knot's own row names it
+(``extra["inner_run_ids"]``). The dedup short-circuit still returns before the
+inner run starts, and the single final upsert still happens once, after the
+last level. As a container this knot holds no admission slot of its own (its
+leaves take them), so it may not declare a ``concurrency_group``.
 
 References:
     - Sarthi et al., "RAPTOR" (ICLR 2024): https://arxiv.org/abs/2401.18059
@@ -53,14 +60,12 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.assembler import Assembler
 from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
-from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.nested_run_knot import NestedRunKnot
 from pirn.tapestry import Tapestry
 
@@ -68,13 +73,17 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
+from pirn_agents.specializations.rag.indexing.raptor_level_loop import RaptorLevelLoop
+from pirn_agents.specializations.rag.indexing.raptor_level_state import RaptorLevelState
 from pirn_agents.specializations.rag.indexing.raptor_node import RaptorNode
-from pirn_agents.specializations.rag.indexing.raptor_summary import RaptorSummary
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 
 
 class RaptorAssembler(Assembler, NestedRunKnot):
     """Recursively cluster + summarize leaves into a stored RAPTOR tree."""
+
+    #: Inner-run knot id for the level climb (Rule: no module-level constants).
+    _climb_id: ClassVar[str] = "levels"
 
     def __init__(
         self,
@@ -147,39 +156,33 @@ class RaptorAssembler(Assembler, NestedRunKnot):
             )
         if not chunks:
             return RaptorTree(content_hash=content_hash, node_count=0, level_count=0, reused=False)
-        records: list[VectorRecord] = []
         leaf_vectors = await embedder.embed(list(chunks))
-        current: list[RaptorNode] = []
-        for index, chunk in enumerate(chunks):
-            node = RaptorNode.create(
+        leaves = tuple(
+            RaptorNode.create(
                 id=f"{prefix}:0:{index}", level=0, text=chunk, vector=leaf_vectors[index]
             )
-            current.append(node)
-            records.append(self._record(node))
-        node_count = len(current)
-        level = 0
-        while len(current) > 1 and level < max_levels:
-            level += 1
-            clusters = [
-                tuple(node.text for node in current[start : start + cluster_size])
-                for start in range(0, len(current), cluster_size)
-            ]
-            ids = [f"{prefix}:{level}:{index}" for index in range(len(clusters))]
-            summaries = await self._summarize_level(llm, clusters, ids)
-            summary_vectors = await embedder.embed(summaries)
-            next_level: list[RaptorNode] = []
-            for position, node_id in enumerate(ids):
-                node = RaptorNode.create(
-                    id=node_id,
-                    level=level,
-                    text=summaries[position],
-                    vector=summary_vectors[position],
-                )
-                next_level.append(node)
-                records.append(self._record(node))
-            current = next_level
-            node_count += len(current)
-        level_count = level + 1
+            for index, chunk in enumerate(chunks)
+        )
+        # Core owns the level climb: one run whose iterations are the levels, so
+        # level 2's summaries are chained to level 1's and every embedding call
+        # is a knot (Rule 11; PIR-874). The dedup short-circuit above has already
+        # returned, and the single upsert below still happens once, after it.
+        built = await self._climb(
+            RaptorLevelState(
+                llm=llm,
+                embedder=embedder,
+                prefix=prefix,
+                cluster_size=cluster_size,
+                max_levels=max_levels,
+                level=0,
+                current=leaves,
+                nodes=leaves,
+            )
+        )
+        current = list(built.current)
+        node_count = len(built.nodes)
+        level_count = built.level + 1
+        records: list[VectorRecord] = [self._record(node) for node in built.nodes]
         records.append(
             VectorRecord.create(
                 id=f"{prefix}:meta",
@@ -211,40 +214,24 @@ class RaptorAssembler(Assembler, NestedRunKnot):
             document=node.text,
         )
 
-    async def _summarize_level(
-        self, llm: LLMProvider, clusters: list[tuple[str, ...]], ids: list[str]
-    ) -> list[str]:
-        """Summarize one level's clusters as a nested run, one knot per cluster.
+    async def _climb(self, seeded: RaptorLevelState) -> RaptorLevelState:
+        """Run the level climb as one inner run and return its final state.
+
+        One ``_run_inner`` for the whole climb, not one per level: a
+        :class:`~pirn_agents.specializations.rag.indexing.raptor_level_loop.RaptorLevelLoop`
+        iteration is a level, so every level's summaries and embedding belong to
+        the same run and are chained to the level below.
 
         Args:
-            llm: The provider summarizing each cluster.
-            clusters: Each cluster's node texts, in tree order.
-            ids: The id of the summary node each cluster produces; also the
-                id of the knot that summarizes it.
+            seeded: The state holding the leaf level.
 
         Returns:
-            The summaries, in cluster order.
+            The state after the last level, carrying every node built.
 
         Raises:
-            SubTapestryError: If any cluster's summary call failed.
+            SubTapestryError: If any level's summary or embedding call failed.
         """
         with Tapestry() as inner:
-            provider = Parameter("llm", LLMProvider, default=llm, _config=KnotConfig(id="llm"))
-            per_cluster: dict[str, Knot] = {
-                f"summary_{index}": RaptorSummary(
-                    texts=texts, llm=provider, _config=KnotConfig(id=ids[index])
-                )
-                for index, texts in enumerate(clusters)
-            }
-            Aggregator(
-                combine=RaptorAssembler._in_cluster_order,
-                _config=KnotConfig(id="summaries"),
-                **per_cluster,
-            )
+            RaptorLevelLoop(state=seeded, _config=KnotConfig(id=type(self)._climb_id))
         run = await self._run_inner(inner)
-        return run.outputs["summaries"]
-
-    @staticmethod
-    def _in_cluster_order(**summaries: str) -> list[str]:
-        """Order the per-cluster summaries by their ``summary_<index>`` key."""
-        return [summaries[f"summary_{index}"] for index in range(len(summaries))]
+        return run.outputs[type(self)._climb_id]

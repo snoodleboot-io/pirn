@@ -8,11 +8,11 @@ being hashed by value.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
@@ -58,6 +58,6 @@ class SourceDocument(PirnOpaqueValue):
         return cls(
             source_id=source_id,
             data=bytes(data),
-            content_hash=hashlib.sha256(bytes(data)).hexdigest(),
+            content_hash=ContentHasher.hash(bytes(data)),
             metadata=dict(metadata) if metadata is not None else {},
         )

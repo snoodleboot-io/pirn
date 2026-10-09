@@ -26,15 +26,13 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
-
-_log = logging.getLogger(__name__)
 
 
 class ObjectStoreTransport(DataTransport):
@@ -57,6 +55,8 @@ class ObjectStoreTransport(DataTransport):
         Registry of type→serialiser mappings.  Defaults to
         :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`.
     """
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -141,7 +141,7 @@ class ObjectStoreTransport(DataTransport):
                     return True
             return False
         except Exception:
-            _log.warning(
+            ObjectStoreTransport._log.warning(
                 "ObjectStoreTransport: listing key %r raised; reporting as not found",
                 handle.key,
                 exc_info=True,
@@ -153,7 +153,7 @@ class ObjectStoreTransport(DataTransport):
         if not keys:
             return
         if not success and self._keep_on_failure:
-            _log.info(
+            ObjectStoreTransport._log.info(
                 "ObjectStoreTransport: retaining %d key(s) for failed run %s "
                 "(keep_on_failure=True)",
                 len(keys),
@@ -167,7 +167,7 @@ class ObjectStoreTransport(DataTransport):
             except Exception as exc:
                 errors.append(f"{key!r}: {exc}")
         if errors:
-            _log.warning(
+            ObjectStoreTransport._log.warning(
                 "ObjectStoreTransport: failed to delete %d key(s) for run %s: %s",
                 len(errors),
                 run_id,

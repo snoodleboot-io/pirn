@@ -68,17 +68,16 @@ class RAGPromptBuilder(Knot):
             retrieved: The retrieved memory entries, or a knot producing them.
             _config: The knot configuration.
             instruction: The instruction line prepended to the context block.
-                ``None`` (the default) resolves :attr:`_instruction` *here*, at
-                construction time, rather than when this signature is evaluated
-                at import — so a prompt pack loaded during application start-up
-                still takes effect, and no ``PromptBinding`` ever escapes as a
-                parameter default where a ``str`` is expected.
+                ``None`` (the default) leaves :attr:`_instruction` to be resolved
+                in ``process()``, so a prompt pack loaded during application
+                start-up still takes effect and no ``PromptBinding`` ever escapes
+                as a parameter default where a ``str`` is expected.
             **kwargs: Forwarded to :class:`Knot`.
         """
         super().__init__(
             query=query,
             retrieved=retrieved,
-            instruction=(type(self)._instruction.resolve() if instruction is None else instruction),
+            instruction=instruction,
             _config=_config,
             **kwargs,
         )
@@ -87,7 +86,7 @@ class RAGPromptBuilder(Knot):
         self,
         query: str,
         retrieved: list[Mapping[str, Any]],
-        instruction: str,
+        instruction: str | None,
         **_: Any,
     ) -> str:
         """Combine the query and retrieved context entries into a formatted LLM prompt string.
@@ -96,6 +95,7 @@ class RAGPromptBuilder(Knot):
             query: The user query appended after the context block.
             retrieved: The list of retrieved memory entry Mappings to include as context.
             instruction: The instruction line prepended to the context block.
+                ``None`` resolves the bound built-in at run time.
 
         Returns:
             A fully-formatted prompt string ready for an LLM chat call.
@@ -104,7 +104,8 @@ class RAGPromptBuilder(Knot):
             TypeError: If query is not a string or any retrieved entry is not a Mapping.
             ValueError: If instruction is empty.
         """
-        if not isinstance(instruction, str) or not instruction:
+        resolved = type(self)._instruction.resolve() if instruction is None else instruction
+        if not isinstance(resolved, str) or not resolved:
             raise ValueError("RAGPromptBuilder: instruction must be a non-empty string")
         rendered_hits: list[str] = []
         for index, hit in enumerate(retrieved):
@@ -120,5 +121,5 @@ class RAGPromptBuilder(Knot):
         else:
             context_block = "(no context retrieved)"
         return type(self)._prompt_layout.render(
-            {"instruction": instruction, "context_block": context_block, "query": query}
+            {"instruction": resolved, "context_block": context_block, "query": query}
         )

@@ -19,6 +19,7 @@ from pirn.connectors.databases.mysql_config import MySQLConfig
 from pirn.connectors.dbapi_cursor_transaction import DbapiCursorTransaction
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.connector_usage_error import ConnectorUsageError
 
 
 class MySQLPool(DatabaseConnectionPool):
@@ -244,7 +245,7 @@ class MySQLPool(DatabaseConnectionPool):
         connection returns to the pool either way.
 
         Raises:
-            RuntimeError: If the connection cannot begin a transaction — a
+            ConnectorUsageError: If the connection cannot begin a transaction — a
                 stand-in injected through ``pool=`` that exposes no ``begin``.
                 Yielding anyway would hand the caller a scope whose statements
                 each auto-committed.
@@ -272,11 +273,11 @@ class MySQLPool(DatabaseConnectionPool):
         the injectable ``pool=`` seam.
 
         Raises:
-            RuntimeError: If *connection* exposes no callable ``begin``.
+            ConnectorUsageError: If *connection* exposes no callable ``begin``.
         """
         method = getattr(connection, "begin", None)
         if not callable(method):
-            raise RuntimeError(
+            raise ConnectorUsageError(
                 "MySQLPool: the connection cannot begin a transaction (no "
                 "begin()), so a transaction scope would not be atomic"
             )

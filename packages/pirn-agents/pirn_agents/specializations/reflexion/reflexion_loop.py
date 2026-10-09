@@ -14,26 +14,32 @@ real parent/child knots in one tapestry the engine actually runs.
 (see that check's docstring), so a successful attempt never pays for it —
 the same escalation-stops-here shape ``AttemptTier`` uses.
 
-Memory I/O (``retrieve`` the accumulated reflections before building the
-iteration, ``store`` a new one after) is not an LLM/tool call, so it runs in
-``astep``/``afold`` themselves, the same way the module docstring's own
-example runs "a budget check against a remote meter" there.
+Memory I/O.  Reading the accumulated reflections back is N store calls, so each
+is a :class:`~pirn_agents.specializations.reflexion.recalled_reflection.RecalledReflection`
+*inside* the iteration's tapestry, feeding the actor through an
+:class:`~pirn.nodes.aggregator.Aggregator` — one lineage row, ``Result``, retry
+and timeout per read, instead of a ``for`` loop in ``astep`` the run cannot see
+(Rule 11; PIR-874).  Writing the new reflection stays in ``afold``: it is one
+call, and it happens after the iteration has finished.
 
 Internal API. See PIR-856.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.reflexion.evaluation_feedback import EvaluationFeedback
+from pirn_agents.specializations.reflexion.recalled_reflection import RecalledReflection
 from pirn_agents.specializations.reflexion.reflexion_actor import ReflexionActor
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
 from pirn_agents.specializations.reflexion.reflexion_evaluator import ReflexionEvaluator
@@ -52,30 +58,16 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
     _actor_id: ClassVar[str] = "actor"
     _evaluator_id: ClassVar[str] = "evaluator"
     _reflect_id: ClassVar[str] = "reflect"
-
-    def __init__(
-        self,
-        *,
-        task: str,
-        llm: LLMProvider,
-        memory: MemoryStore,
-        max_iterations: int,
-        memory_namespace: str,
-        **kwargs: Any,
-    ) -> None:
-        self._task = task
-        self._llm = llm
-        self._memory = memory
-        self._max_iterations = max_iterations
-        self._memory_namespace = memory_namespace
-        super().__init__(**kwargs)
+    _reflection_prefix: ClassVar[str] = "reflection_"
 
     async def astep(self, state: ReflexionState) -> tuple[Tapestry, ReflexionState] | None:
         """Build the next iteration, or return None once accepted or exhausted.
 
-        Reads back every reflection written by an earlier iteration (memory
-        I/O, not an LLM/tool call) before building the actor/evaluator/
-        reflector graph.
+        Every reflection an earlier iteration wrote is read by its own knot
+        inside the iteration's tapestry; the actor's ``reflections`` input is
+        the aggregator over them. The first iteration has no keys, and
+        ``Aggregator`` needs at least one parent, so it is handed the empty
+        tuple directly.
 
         Args:
             state: Accumulated state from the previous ``afold``.
@@ -84,22 +76,42 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
             The iteration's tapestry paired with ``state``, or ``None`` once
             ``state.succeeded`` or ``state.index`` has reached the cap.
         """
-        if state.succeeded or state.index >= self._max_iterations:
+        if state.succeeded or state.index >= state.max_iterations:
             return None
 
-        reflections = await self._read_reflections(state.reflection_keys)
         iteration = Tapestry()
         with iteration:
+            reflections: Knot | tuple[str, ...] = ()
+            if state.reflection_keys:
+                memory_node = Parameter(
+                    "memory",
+                    MemoryStore,
+                    default=state.memory,
+                    _config=KnotConfig(id="memory"),
+                )
+                per_key: dict[str, Knot] = {
+                    f"{self._reflection_prefix}{index}": RecalledReflection(
+                        memory=memory_node,
+                        key=key,
+                        _config=KnotConfig(id=f"{self._reflection_prefix}{index}"),
+                    )
+                    for index, key in enumerate(state.reflection_keys)
+                }
+                reflections = Aggregator(
+                    combine=ReflexionLoop._in_key_order,
+                    _config=KnotConfig(id="reflections"),
+                    **per_key,
+                )
             actor = ReflexionActor(
-                task=self._task,
-                llm=self._llm,
+                task=state.task,
+                llm=state.llm,
                 reflections=reflections,
                 _config=KnotConfig(id=self._actor_id),
             )
             evaluator = ReflexionEvaluator(
-                task=self._task,
+                task=state.task,
                 answer=actor,
-                llm=self._llm,
+                llm=state.llm,
                 _config=KnotConfig(id=self._evaluator_id),
             )
             should_reflect = ShouldReflectCheck(
@@ -110,10 +122,10 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
             )
             feedback = EvaluationFeedback(evaluation=evaluator, _config=KnotConfig(id="feedback"))
             ReflexionReflector(
-                task=self._task,
+                task=state.task,
                 answer=gated_answer,
                 feedback=feedback,
-                llm=self._llm,
+                llm=state.llm,
                 _config=KnotConfig(id=self._reflect_id),
             )
         return iteration, state
@@ -138,6 +150,11 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
                 ReflexionAttempt(answer=answer, success=True, feedback="", reflection=""),
             )
             return ReflexionState(
+                task=state.task,
+                llm=state.llm,
+                memory=state.memory,
+                max_iterations=state.max_iterations,
+                memory_namespace=state.memory_namespace,
                 reflection_keys=state.reflection_keys,
                 attempts=attempts,
                 final_answer=answer,
@@ -146,8 +163,8 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
             )
 
         reflection = result.outputs[self._reflect_id]
-        key = f"{self._memory_namespace}:{state.index}"
-        await self._memory.store(key, {"text": reflection})
+        key = f"{state.memory_namespace}:{state.index}"
+        await state.memory.store(key, {"text": reflection})
         attempts = (
             *state.attempts,
             ReflexionAttempt(
@@ -155,6 +172,11 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
             ),
         )
         return ReflexionState(
+            task=state.task,
+            llm=state.llm,
+            memory=state.memory,
+            max_iterations=state.max_iterations,
+            memory_namespace=state.memory_namespace,
             reflection_keys=(*state.reflection_keys, key),
             attempts=attempts,
             final_answer=answer,
@@ -166,13 +188,16 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
         """Name each iteration for run history."""
         return f"iteration_{idx}"
 
-    async def _read_reflections(self, keys: tuple[str, ...]) -> tuple[str, ...]:
-        """Read back every previously written reflection from the memory store."""
-        texts: list[str] = []
-        for key in keys:
-            entry = await self._memory.retrieve(key)
-            if entry is not None:
-                text = entry.get("text")
-                if isinstance(text, str):
-                    texts.append(text)
-        return tuple(texts)
+    @staticmethod
+    def _in_key_order(**reflections: str | None) -> tuple[str, ...]:
+        """Put the per-key reads back in the order the keys were written.
+
+        Keys are ``reflection_<index>``; sorting on the index rather than on the
+        mapping's order keeps the prompt the actor sees independent of how the
+        engine happened to schedule the reads. A key with nothing behind it
+        contributes nothing, as the loop it replaced did.
+        """
+        ordered = sorted(
+            reflections.items(), key=lambda item: int(item[0].removeprefix("reflection_"))
+        )
+        return tuple(text for _key, text in ordered if text is not None)

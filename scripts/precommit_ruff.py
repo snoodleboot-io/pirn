@@ -34,61 +34,67 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import ClassVar
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_RUFF = _REPO_ROOT / ".venv" / "bin" / "ruff"
-
-
-def package_root(path: Path) -> Path | None:
-    """The ``packages/<dist>/`` directory *path* lives under, or ``None``."""
-    parts = path.resolve().parts
-    for index, part in enumerate(parts):
-        if part == "packages" and index + 1 < len(parts):
-            return Path(*parts[: index + 2])
-    return None
+from gatekit.package_root_locator import PackageRootLocator
 
 
-def group_by_package(files: list[str]) -> tuple[dict[Path, list[str]], list[str]]:
-    """Split *files* into {package_root: [file, ...]} plus any unmatched files."""
-    groups: dict[Path, list[str]] = {}
-    unmatched: list[str] = []
-    for f in files:
-        root = package_root(Path(f))
-        if root is None:
-            unmatched.append(f)
-        else:
-            groups.setdefault(root, []).append(f)
-    return groups, unmatched
+class PrecommitRuff:
+    """Run ``ruff`` once per workspace package the staged files belong to."""
 
+    _repo_root: ClassVar[Path] = Path(__file__).resolve().parents[1]
+    _ruff_path: ClassVar[Path] = Path(__file__).resolve().parents[1] / ".venv" / "bin" / "ruff"
+    _modes: ClassVar[tuple[str, ...]] = ("check", "format")
 
-def main(argv: list[str]) -> int:
-    if len(argv) < 2 or argv[0] not in ("check", "format"):
-        print("usage: precommit_ruff.py <check|format> <file>...", file=sys.stderr)
-        return 2
+    @staticmethod
+    def group_by_package(files: list[str]) -> tuple[dict[Path, list[str]], list[str]]:
+        """Split *files* into {package_root: [file, ...]} plus any unmatched files."""
+        groups: dict[Path, list[str]] = {}
+        unmatched: list[str] = []
+        for name in files:
+            root = PackageRootLocator.locate(Path(name))
+            if root is None:
+                unmatched.append(name)
+            else:
+                groups.setdefault(root, []).append(name)
+        return groups, unmatched
 
-    mode, files = argv[0], argv[1:]
-    groups, unmatched = group_by_package(files)
+    @staticmethod
+    def main(argv: list[str]) -> int:
+        """Run ruff for every package group in *argv*; return the worst exit code."""
+        if len(argv) < 2 or argv[0] not in PrecommitRuff._modes:
+            print("usage: precommit_ruff.py <check|format> <file>...", file=sys.stderr)
+            return 2
 
-    for f in unmatched:
-        print(f"precommit_ruff.py: {f} is not under packages/<dist>/ — skipping", file=sys.stderr)
+        mode, files = argv[0], argv[1:]
+        groups, unmatched = PrecommitRuff.group_by_package(files)
 
-    ruff = str(_RUFF) if _RUFF.exists() else "ruff"
-    exit_code = 0
-    for pkg_root, pkg_files in sorted(groups.items()):
-        config = pkg_root / "pyproject.toml"
-        if not config.exists():
-            print(f"precommit_ruff.py: {config} not found — skipping {pkg_files}", file=sys.stderr)
-            exit_code = 2
-            continue
-        cmd = [ruff, mode, "--config", str(config)]
-        if mode == "check":
-            cmd.append("--fix")
-        cmd.extend(pkg_files)
-        result = subprocess.run(cmd)
-        exit_code = exit_code or result.returncode
+        for name in unmatched:
+            print(
+                f"precommit_ruff.py: {name} is not under packages/<dist>/ — skipping",
+                file=sys.stderr,
+            )
 
-    return exit_code
+        ruff = str(PrecommitRuff._ruff_path) if PrecommitRuff._ruff_path.exists() else "ruff"
+        exit_code = 0
+        for pkg_root, pkg_files in sorted(groups.items()):
+            config = pkg_root / "pyproject.toml"
+            if not config.exists():
+                print(
+                    f"precommit_ruff.py: {config} not found — skipping {pkg_files}",
+                    file=sys.stderr,
+                )
+                exit_code = 2
+                continue
+            cmd = [ruff, mode, "--config", str(config)]
+            if mode == "check":
+                cmd.append("--fix")
+            cmd.extend(pkg_files)
+            result = subprocess.run(cmd)
+            exit_code = exit_code or result.returncode
+
+        return exit_code
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(PrecommitRuff.main(sys.argv[1:]))

@@ -20,13 +20,14 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.check import Check
 
 from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class SafetyCheck(Knot):
+class SafetyCheck(Check):
     """Returns ``True`` when ``message.content`` matches no deny pattern.
 
     ``deny_patterns`` is a sequence of regex strings; a match against
