@@ -17,15 +17,36 @@ defined and whatever it is called.
 Types core owns, and builtins, do not resolve in the agents index and are core's
 business; a knot that returns another knot is declaring a graph, not handing back
 a value.
+
+Two further things a knot hands back are not *values crossing a boundary*, and
+both are recognised by shape rather than by name (PIR-873):
+
+* a **vended collaborator** — a ``PirnOpaqueValue`` that declares ``async``
+  methods is something a knot *calls*, not data it carries. Rule 6's vending
+  knots (``LLMProviderKnot``, ``MemoryStoreKnot``, …) exist to thread exactly
+  these through the graph, because ``Parameter`` is a graph root and cannot
+  accept an upstream knot. A ``Payload`` wrapping a live provider would frame
+  no data.
+* a **loop's state** — the ``S`` of a ``LoopSubTapestry[S]`` in this package.
+  It crosses a boundary only between iterations of one loop, which the engine
+  already records per iteration; the frame would describe plumbing.
+
+Neither exemption is a list. The first is "has an ``async def``" — and the
+separation is total: every collaborator among the findings declares one, and
+every data type declares none. The second is read off the loops' own generic
+parameters, so a state type stops being exempt the moment its loop is deleted.
 """
 
 from __future__ import annotations
 
 import ast
+import inspect
+import typing
 
 from pirn.core.knot import Knot
 from pirn.core.payload import Payload
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 
 from tests.agents_source_index import AgentsSourceIndex
 from tests.source_shapes import SourceShapes
@@ -70,9 +91,50 @@ class KnotOutputTypes:
     def is_boundary_value(subject: type) -> bool:
         """Whether ``subject`` is a value that crosses a knot boundary.
 
-        A ``Knot`` is a graph node the engine runs, not a value handed back.
+        A ``Knot`` is a graph node the engine runs, not a value handed back; a
+        collaborator is something a knot calls; a loop's state is plumbing the
+        engine already records per iteration. See the module docstring.
         """
-        return not issubclass(subject, Knot)
+        if issubclass(subject, Knot):
+            return False
+        if KnotOutputTypes.is_collaborator(subject):
+            return False
+        return subject not in KnotOutputTypes.loop_state_types()
+
+    @staticmethod
+    def is_collaborator(subject: type) -> bool:
+        """Whether ``subject`` is something a knot *calls* rather than data it carries.
+
+        A ``PirnOpaqueValue`` declaring an ``async`` method anywhere in its MRO:
+        a provider, a store, a connector, a backend. Data has no ``async``
+        methods, so the shapes do not overlap.
+        """
+        if not issubclass(subject, PirnOpaqueValue):
+            return False
+        return any(
+            inspect.iscoroutinefunction(member)
+            for klass in subject.__mro__
+            if klass is not object
+            for member in vars(klass).values()
+        )
+
+    @staticmethod
+    def loop_state_types() -> frozenset[type]:
+        """Return every ``S`` threaded by a ``LoopSubTapestry[S]`` in this package.
+
+        Read off the loops' own generic parameters, so a state type stops being
+        exempt as soon as nothing threads it.
+        """
+        states: set[type] = set()
+        for entry in AgentsSourceIndex.classes().values():
+            subject = entry[0] if isinstance(entry, tuple) else entry
+            if not (isinstance(subject, type) and issubclass(subject, LoopSubTapestry)):
+                continue
+            for base in getattr(subject, "__orig_bases__", ()):
+                states.update(
+                    argument for argument in typing.get_args(base) if isinstance(argument, type)
+                )
+        return frozenset(states)
 
     @staticmethod
     def is_payload_or_frame(subject: type) -> bool:

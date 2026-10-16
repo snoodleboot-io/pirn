@@ -192,3 +192,93 @@ class TestKnotOutputDetectorFires(unittest.TestCase):
             KnotOutputTypes.offending_outputs_of(node, self._index(_ConversationPayload))
             == frozenset()
         )
+
+
+class TestTheTwoExemptionsAreShapes(unittest.TestCase):
+    """The collaborator and loop-state exemptions, pinned in both directions.
+
+    Each is the risky kind: an exemption that is too broad empties the ratchet,
+    which is the failure mode its predecessor died of. So each is pinned twice —
+    once that the exempt shape passes, once that the shape it resembles still
+    fires — and once more that the two shapes do not overlap in this package.
+    """
+
+    # -- vended collaborators -------------------------------------------------
+
+    def test_an_opaque_value_with_an_async_method_is_a_collaborator(self) -> None:
+        class _Store(PirnOpaqueValue):
+            async def retrieve(self, key: str) -> str | None:
+                raise NotImplementedError
+
+        assert KnotOutputTypes.is_collaborator(_Store)
+        assert not KnotOutputTypes.is_boundary_value(_Store)
+
+    def test_an_async_method_on_a_base_still_counts(self) -> None:
+        """The annotation may name a concrete whose interface declares the calls."""
+
+        class _Base(PirnOpaqueValue):
+            async def search(self, query: str) -> list[str]:
+                raise NotImplementedError
+
+        class _Concrete(_Base):
+            """Overrides nothing; it is still something a knot calls."""
+
+        assert KnotOutputTypes.is_collaborator(_Concrete)
+
+    def test_an_opaque_value_without_async_methods_is_still_a_value(self) -> None:
+        """Data is a ``PirnOpaqueValue`` too — being opaque is not an exemption."""
+
+        class _Message(PirnOpaqueValue):
+            role: str
+            content: str
+
+        assert not KnotOutputTypes.is_collaborator(_Message)
+        assert KnotOutputTypes.is_boundary_value(_Message)
+
+    def test_a_plain_class_with_an_async_method_is_not_exempt(self) -> None:
+        """The exemption is for ``PirnOpaqueValue`` collaborators, not any async thing."""
+
+        class _NotOpaque:
+            async def go(self) -> None:
+                return None
+
+        assert not KnotOutputTypes.is_collaborator(_NotOpaque)
+
+    # -- loop state -----------------------------------------------------------
+
+    def test_the_loop_states_are_read_off_the_loops(self) -> None:
+        """Not a list: every state comes from some ``LoopSubTapestry[S]``."""
+        states = KnotOutputTypes.loop_state_types()
+        assert len(states) >= 15, len(states)
+        names = {state.__name__ for state in states}
+        # A sample across unrelated pattern families, each threaded by its own loop.
+        assert {"TraversalState", "CascadeChainState", "ReflexionState"} <= names
+
+    def test_a_loop_state_is_not_a_boundary_value(self) -> None:
+        from pirn_agents.retrieval.graph_rag.traversal_state import TraversalState
+
+        assert not KnotOutputTypes.is_boundary_value(TraversalState)
+
+    def test_a_state_shaped_type_no_loop_threads_is_still_a_value(self) -> None:
+        """``RunState`` is named like state and is not: it is a caller's read model.
+
+        This is the case that makes the exemption a shape rather than a naming
+        convention — it would have slipped through a ``*State`` suffix rule.
+        """
+        from pirn_agents.sessions.run_state import RunState
+
+        assert RunState not in KnotOutputTypes.loop_state_types()
+        assert KnotOutputTypes.is_boundary_value(RunState)
+
+    # -- the exemptions do not overlap ---------------------------------------
+
+    def test_no_collaborator_is_a_loop_state_and_no_loop_state_is_a_collaborator(
+        self,
+    ) -> None:
+        """Two independent shapes; an overlap would mean one is doing the other's work."""
+        collaborators = {
+            subject
+            for subject in KnotOutputTypes.loop_state_types()
+            if KnotOutputTypes.is_collaborator(subject)
+        }
+        assert collaborators == set(), sorted(c.__name__ for c in collaborators)
