@@ -39,7 +39,7 @@ import json
 import types as _types
 import weakref
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Any, ClassVar, Union, cast, get_args, get_origin, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -1174,7 +1174,11 @@ class Knot:
                 if ann is not Any or name in hints
             }
 
-        ret: object = hints.get("return", sig.return_annotation)
+        # ``Any`` rather than ``object``: pydantic 2.14 narrowed ``TypeAdapter``'s
+        # parameter to ``TypeForm[T]``, which ``object`` no longer satisfies under
+        # pyright strict. ``hints`` already yields ``Any``; this only stops the
+        # ``Signature.empty`` fallback widening it to ``object`` (PIR-874).
+        ret: Any = hints.get("return", sig.return_annotation)
         _is_knot_type = (
             ret is not inspect.Signature.empty
             and ret is not None
@@ -1183,7 +1187,7 @@ class Knot:
         output_adapter: TypeAdapter[Any] | None = (
             None
             if ret is inspect.Signature.empty or ret is None or _is_knot_type
-            else TypeAdapter(ret)
+            else TypeAdapter(cast(Any, ret))
         )
         return input_adapters, output_adapter
 
