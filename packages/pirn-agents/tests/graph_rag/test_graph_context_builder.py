@@ -13,6 +13,7 @@ from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 def _make_builder() -> GraphContextBuilder:
@@ -34,16 +35,17 @@ def _subgraph() -> Subgraph:
 class TestGraphContextBuilder(unittest.IsolatedAsyncioTestCase):
     async def test_builds_agent_message(self) -> None:
         builder = _make_builder()
-        messages = await builder.process(subgraph=_subgraph())
-        assert len(messages) == 1
-        message = messages[0]
+        result = await builder.process(subgraph=_subgraph())
+        assert isinstance(result, ConversationPayload)
+        assert len(result.data) == 1
+        message = result.data[0]
         assert isinstance(message, AgentMessage)
         assert message.role == "system"
         assert message.name == "graph_context"
 
     async def test_content_is_stable_and_sorted(self) -> None:
         builder = _make_builder()
-        content = (await builder.process(subgraph=_subgraph()))[0].content
+        content = (await builder.process(subgraph=_subgraph())).data[0].content
         # Nodes are rendered sorted by id (a before b) for cache-stable output.
         assert content.index("a (Person)") < content.index("b (Company)")
         assert "name=Ada" in content
@@ -52,12 +54,12 @@ class TestGraphContextBuilder(unittest.IsolatedAsyncioTestCase):
     async def test_custom_role_and_name(self) -> None:
         builder = _make_builder()
         messages = await builder.process(subgraph=_subgraph(), role="user", name="kg")
-        assert messages[0].role == "user"
-        assert messages[0].name == "kg"
+        assert messages.data[0].role == "user"
+        assert messages.data[0].name == "kg"
 
     async def test_empty_subgraph_renders_none_markers(self) -> None:
         builder = _make_builder()
-        content = (await builder.process(subgraph=Subgraph(nodes=(), edges=())))[0].content
+        content = (await builder.process(subgraph=Subgraph(nodes=(), edges=()))).data[0].content
         assert "Entities:\n- (none)" in content
         assert "Relations:\n- (none)" in content
 

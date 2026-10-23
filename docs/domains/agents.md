@@ -171,8 +171,8 @@ Knots that sit at the boundary between raw user input and the typed agent pipeli
 
 | Knot | Description |
 |------|-------------|
-| `MessageParser` | Coerces raw strings, mappings, `AgentMessage` instances, or sequences of these into a `tuple[AgentMessage, ...]`. Fails fast on untyped input so nothing unverified enters the pipeline. |
-| `ContextBuilder` | Assembles a tuple of messages plus an optional system prompt into a `ConversationPayload`. If `system_prompt` is provided it is prepended as a `system`-role message. |
+| `MessageParser` | Coerces raw strings, mappings, `AgentMessage` instances, or sequences of these into a `ConversationPayload`. Fails fast on untyped input so nothing unverified enters the pipeline. |
+| `ContextBuilder` | Takes a `ConversationPayload` and an optional system prompt and derives a `ConversationPayload` from it, keeping its frame. If `system_prompt` is provided it is prepended as a `system`-role message. |
 | `IntentClassifier` | Uses an `LLMProvider` to classify the user's intent from the current context. Returns a string label. |
 
 ### `generation/`

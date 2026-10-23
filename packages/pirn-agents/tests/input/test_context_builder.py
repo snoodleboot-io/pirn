@@ -32,13 +32,17 @@ _MESSAGES = (
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_builds_context_without_system_prompt(self) -> None:
         k = _make_knot()
-        ctx: ConversationPayload = await k.process(messages=_MESSAGES, system_prompt=None)
+        ctx: ConversationPayload = await k.process(
+            messages=ConversationPayload(_MESSAGES), system_prompt=None
+        )
         assert isinstance(ctx, ConversationPayload)
         assert len(ctx.data) == 2
 
     async def test_prepends_system_prompt(self) -> None:
         k = _make_knot()
-        ctx: ConversationPayload = await k.process(messages=_MESSAGES, system_prompt="Be helpful.")
+        ctx: ConversationPayload = await k.process(
+            messages=ConversationPayload(_MESSAGES), system_prompt="Be helpful."
+        )
         assert ctx.data[0].role == "system"
         assert ctx.data[0].content == "Be helpful."
         assert len(ctx.data) == 3
@@ -47,14 +51,14 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         with self.assertRaisesRegex(TypeError, "system_prompt"):
             await k.process(
-                messages=(),
+                messages=ConversationPayload(),
                 system_prompt=42,  # type: ignore[arg-type]
             )
 
     async def test_rejects_empty_system_prompt(self) -> None:
         k = _make_knot()
         with self.assertRaisesRegex(ValueError, "non-empty"):
-            await k.process(messages=(), system_prompt="")
+            await k.process(messages=ConversationPayload(), system_prompt="")
 
     async def test_rejects_non_sequence_messages(self) -> None:
         k = _make_knot()

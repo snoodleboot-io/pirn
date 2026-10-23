@@ -12,6 +12,7 @@ from pirn_agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 def _msg(content: str, role: str = "user") -> AgentMessage:
@@ -32,8 +33,9 @@ class TestInputMessageScrubberProcess(unittest.IsolatedAsyncioTestCase):
     async def test_passes_clean_messages(self) -> None:
         k = _make_knot()
         result = await k.process(messages=[_msg("hello world")], deny_patterns=[], pii_patterns=[])
-        assert len(result) == 1
-        assert result[0].content == "hello world"
+        assert isinstance(result, ConversationPayload)
+        assert len(result.data) == 1
+        assert result.data[0].content == "hello world"
 
     async def test_redacts_pii_pattern(self) -> None:
         k = _make_knot()
@@ -42,8 +44,8 @@ class TestInputMessageScrubberProcess(unittest.IsolatedAsyncioTestCase):
             deny_patterns=[],
             pii_patterns=[r"\S+@\S+\.\S+"],
         )
-        assert "<redacted>" in result[0].content
-        assert "user@example.com" not in result[0].content
+        assert "<redacted>" in result.data[0].content
+        assert "user@example.com" not in result.data[0].content
 
     async def test_raises_for_deny_pattern_match(self) -> None:
         k = _make_knot()
@@ -75,4 +77,5 @@ class TestInputMessageScrubberProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         out = result.outputs["ims"]
-        assert len(out) == 1
+        assert isinstance(out, ConversationPayload)
+        assert len(out.data) == 1

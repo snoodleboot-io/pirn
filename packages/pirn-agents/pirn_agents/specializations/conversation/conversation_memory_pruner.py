@@ -35,6 +35,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class ConversationMemoryPruner(Knot):
@@ -55,7 +56,7 @@ class ConversationMemoryPruner(Knot):
         messages: Sequence[AgentMessage],
         token_budget: int = 50,
         **_: Any,
-    ) -> list[AgentMessage]:
+    ) -> ConversationPayload:
         """Prune oldest non-system messages until the history fits within token_budget.
 
         Args:
@@ -63,8 +64,9 @@ class ConversationMemoryPruner(Knot):
             token_budget: Maximum total character count allowed after pruning.
 
         Returns:
-            A pruned list of AgentMessage objects that fits within the token budget,
-            always preserving system messages.
+            A ConversationPayload (data plus a ConversationFrame; ADR agents-speaks-core
+            WS6b; PIR-874) holding the pruned AgentMessage list that fits within the token
+            budget, always preserving system messages.
 
         Raises:
             TypeError: If any element is not an AgentMessage instance.
@@ -87,7 +89,7 @@ class ConversationMemoryPruner(Knot):
         while total > token_budget and prunable_index is not None:
             total -= len(result.pop(prunable_index).content)
             prunable_index = self._oldest_prunable(result)
-        return result
+        return ConversationPayload(result)
 
     @staticmethod
     def _oldest_prunable(messages: Sequence[AgentMessage]) -> int | None:

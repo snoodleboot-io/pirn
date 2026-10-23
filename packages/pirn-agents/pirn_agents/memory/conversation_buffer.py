@@ -21,6 +21,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class ConversationBuffer(Knot):
@@ -53,7 +54,7 @@ class ConversationBuffer(Knot):
         history: Sequence[AgentMessage],
         max_size: int,
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
+    ) -> ConversationPayload:
         """Append new_message to the history and return the trimmed conversation window.
 
         Args:
@@ -62,7 +63,8 @@ class ConversationBuffer(Knot):
             max_size: Maximum number of messages to keep; older entries are dropped.
 
         Returns:
-            A tuple of the most recent messages up to max_size.
+            A ConversationPayload whose data is the tuple of the most recent messages up to
+            max_size (data plus a ConversationFrame; ADR agents-speaks-core WS6b; PIR-874).
 
         Raises:
             TypeError: If new_message or history elements are not AgentMessage instances.
@@ -85,5 +87,5 @@ class ConversationBuffer(Knot):
             )
         ordered = (*tuple(history), new_message)
         if len(ordered) <= max_size:
-            return ordered
-        return ordered[-max_size:]
+            return ConversationPayload(ordered)
+        return ConversationPayload(ordered[-max_size:])

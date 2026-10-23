@@ -93,14 +93,16 @@ from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 @KnotFactory.knot
-async def _constant_messages(value: tuple[AgentMessage, ...]) -> tuple[AgentMessage, ...]:
+async def _constant_messages(value: tuple[AgentMessage, ...]) -> ConversationPayload:
     """Terminal for a branch that needs no tool call: the value is already final.
 
     A knot rather than a plain early return: ``process()`` must return the
     sink of an inner pipeline now, so every branch — including the ones with
-    nothing left to compute — needs a graph node to return.
+    nothing left to compute — needs a graph node to return. The window is a
+    ``ConversationPayload``, as every value crossing a knot boundary is (ADR
+    agents-speaks-core WS6b; PIR-874).
     """
-    return value
+    return ConversationPayload(value)
 
 
 @KnotFactory.knot
@@ -110,7 +112,7 @@ async def _observation_assembler(
     call_id: str,
     action_name: str,
     outcome: Ok[Any] | Err | Skipped,
-) -> tuple[AgentMessage, ...]:
+) -> ConversationPayload:
     """Terminal: turn the tool knot's ``Result`` into the step's messages.
 
     Wired with ``RECEIVE_ERRORS`` so ``outcome`` is the call's raw
@@ -123,7 +125,7 @@ async def _observation_assembler(
         else (view.error or f"Tool {action_name!r} failed with no message.")
     )
     observation = AgentMessage(role="tool", content=content, tool_call_id=call_id, name=action_name)
-    return (thought, tool_call_message, observation)
+    return ConversationPayload((thought, tool_call_message, observation))
 
 
 class ReActStepExecutor(AgentPipeline):

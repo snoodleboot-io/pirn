@@ -59,6 +59,7 @@ from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 MAX_ITERATIONS_PER_MSG = 4
 MAX_TOTAL_ITERATIONS = 20
@@ -321,8 +322,8 @@ class LLMTaskRunner(SubTapestry):
         )
         msgs_param = Parameter(
             "messages",
-            tuple,
-            default=msgs,
+            ConversationPayload,
+            default=ConversationPayload(msgs),
             _config=KnotConfig(id="msgs"),
         )
         context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))
@@ -392,8 +393,8 @@ class PlannerRunner(SubTapestry):
         )
         msgs_param = Parameter(
             "messages",
-            tuple,
-            default=msgs,
+            ConversationPayload,
+            default=ConversationPayload(msgs),
             _config=KnotConfig(id="msgs"),
         )
         context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))

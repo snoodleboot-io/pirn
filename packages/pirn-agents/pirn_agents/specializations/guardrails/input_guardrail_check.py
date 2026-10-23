@@ -3,7 +3,7 @@
 A :class:`SubTapestry` wrapping :class:`InputMessageScrubber`. Scans
 incoming :class:`AgentMessage`s for prompt-injection deny patterns
 (raises :class:`ValueError` on a match) and redacts PII matches.
-Returns the cleaned tuple of messages so downstream knots can wire
+Returns the scrubber's :class:`ConversationPayload` of cleaned messages so downstream knots can wire
 straight onto this knot's output.
 
 Deny-pattern checking runs synchronously *before* the inner tapestry
@@ -23,8 +23,8 @@ Algorithm:
     3. Run an inner :class:`Tapestry` containing a single
        :class:`InputMessageScrubber` with ``deny_patterns=()`` and
        ``pii_patterns`` forwarded from the caller.
-    4. Return the cleaned tuple of :class:`AgentMessage` instances produced
-       by the inner scrubber.
+    4. Return the :class:`ConversationPayload` of cleaned :class:`AgentMessage`
+       instances produced by the inner scrubber.
 
 
 References:
@@ -84,7 +84,8 @@ class InputGuardrailCheck(AgentPipeline):
             messages: The sequence of agent messages to validate and scrub.
 
         Returns:
-            A tuple of cleaned AgentMessage instances with PII redacted.
+            A ConversationPayload of cleaned AgentMessage instances with PII redacted
+            (the scrubber's output; ADR agents-speaks-core WS6b; PIR-874).
 
         Raises:
             TypeError: If any element of messages is not an AgentMessage.

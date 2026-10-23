@@ -19,6 +19,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class GraphContextBuilder(Knot):
@@ -40,7 +41,7 @@ class GraphContextBuilder(Knot):
         role: str = "system",
         name: str = "graph_context",
         **_: Any,
-    ) -> list[AgentMessage]:
+    ) -> ConversationPayload:
         """Render ``subgraph`` into a single-element list of context messages.
 
         Args:
@@ -49,11 +50,12 @@ class GraphContextBuilder(Knot):
             name: The message ``name`` tagging it as graph context.
 
         Returns:
-            A one-element list holding the rendered context
-            :class:`AgentMessage`.
+            A :class:`ConversationPayload` whose data is a one-element tuple holding the
+            rendered context :class:`AgentMessage` (data plus a ConversationFrame; ADR
+            agents-speaks-core WS6b; PIR-874).
         """
         content = self._render(subgraph)
-        return [AgentMessage(role=role, content=content, name=name)]
+        return ConversationPayload((AgentMessage(role=role, content=content, name=name),))
 
     @staticmethod
     def _render(subgraph: Subgraph) -> str:

@@ -3,14 +3,14 @@
 Inner stage knot used by :class:`WorkingMemoryPipeline`. Reads the
 existing window stored under ``"working:<session_id>"`` (if any),
 appends ``new_message``, trims to ``max_size`` items, and writes the
-result back. Returns the trimmed tuple of messages.
+result back. Returns a ``ConversationPayload`` whose data is the trimmed tuple of messages.
 
 Algorithm
 ---------
 1. Validate inputs.
 2. Retrieve existing window from ``store`` under key ``working:<session_id>``.
 3. Append ``new_message``; trim to the last ``max_size`` elements.
-4. Persist the updated window and return it as a tuple.
+4. Persist the updated window and return it as a ``ConversationPayload``.
 
 Math
 ----
@@ -32,6 +32,7 @@ from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.memory.memory_writer_base import MemoryWriterBase
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class WorkingMemoryWindowWriter(MemoryWriterBase):
@@ -63,7 +64,7 @@ class WorkingMemoryWindowWriter(MemoryWriterBase):
         store: MemoryStore,
         max_size: int = 20,
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
+    ) -> ConversationPayload:
         """Append new_message to the stored session window, trim to max_size, persist, and return the window.
 
         Args:
@@ -73,7 +74,9 @@ class WorkingMemoryWindowWriter(MemoryWriterBase):
             max_size: Maximum number of messages to retain in the window.
 
         Returns:
-            A tuple of the most recent AgentMessage entries after trimming to max_size.
+            A ConversationPayload whose data is the tuple of the most recent AgentMessage
+            entries after trimming to max_size (data plus a ConversationFrame; ADR
+            agents-speaks-core WS6b; PIR-874).
 
         Raises:
             ValueError: If session_id is not a non-empty string or max_size is not a positive int.
@@ -105,4 +108,4 @@ class WorkingMemoryWindowWriter(MemoryWriterBase):
             key,
             {"session_id": session_id, "messages": list(combined)},
         )
-        return combined
+        return ConversationPayload(combined)

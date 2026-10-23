@@ -73,6 +73,7 @@ from pirn_agents.specializations.react.react_termination_check import (
 )
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class ReActLoop(AgentPipeline):
@@ -132,11 +133,13 @@ class ReActLoop(AgentPipeline):
                 raise TypeError(
                     f"ReActLoop: tools[{index}] must be a Tool, got {type(candidate).__name__}"
                 ) from exc
-        seed_messages = tuple(messages)
+        # The transcript threads through the unrolled chain as a ConversationPayload
+        # (ADR agents-speaks-core WS6b): the seed is the first window, and every
+        # accumulator derives the next from it, so the frame travels with it.
         seed = Parameter(
-            "seed_messages",
-            tuple[AgentMessage, ...],
-            default=seed_messages,
+            "seed",
+            ConversationPayload,
+            default=ConversationPayload(tuple(messages)),
             _config=KnotConfig(id="seed"),
         )
         running_messages: Knot = seed

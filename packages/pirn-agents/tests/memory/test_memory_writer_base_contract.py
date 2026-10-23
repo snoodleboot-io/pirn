@@ -27,6 +27,7 @@ from pirn_agents.memory.patterns.working_memory_window_writer import (
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.conftest import StubMemoryStore
 from tests.memory_management.conftest import make_record
 
@@ -155,9 +156,10 @@ class TestConcreteRoundTrips(unittest.IsolatedAsyncioTestCase):
             max_size=5,
         )
         # Assert
-        assert isinstance(window, tuple)
-        assert len(window) == 1
-        assert window[0].content == "first"
+        assert isinstance(window, ConversationPayload)
+        assert isinstance(window.data, tuple)
+        assert len(window.data) == 1
+        assert window.data[0].content == "first"
 
 
 if __name__ == "__main__":

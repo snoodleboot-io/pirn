@@ -32,8 +32,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class ReActResponseExtractor(Knot):
@@ -52,19 +52,19 @@ class ReActResponseExtractor(Knot):
 
     async def process(
         self,
-        messages: tuple[AgentMessage, ...] | list[AgentMessage],
+        messages: ConversationPayload,
         **_: Any,
     ) -> AgentResponse:
         """Extract the final assistant message and return it as an AgentResponse.
 
         Args:
-            messages: The accumulated message transcript from the ReAct loop.
+            messages: The transcript the ReAct loop accumulated, as a ``ConversationPayload``.
 
         Returns:
             An AgentResponse whose content is the last assistant message; finish_reason is
             'stop' when a Final Answer marker is found, otherwise 'length'.
         """
-        ordered = tuple(messages)
+        ordered = messages.data
         for message in reversed(ordered):
             if message.role == "assistant":
                 content = message.content

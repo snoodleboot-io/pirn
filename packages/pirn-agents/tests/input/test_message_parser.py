@@ -10,6 +10,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.input.message_parser import MessageParser
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 def _make_knot() -> MessageParser:
@@ -26,15 +27,16 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_string_becomes_user_message(self) -> None:
         k = _make_knot()
         out = await k.process(raw_input="hello world")
-        assert isinstance(out, tuple) and len(out) == 1
-        assert out[0].role == "user"
-        assert out[0].content == "hello world"
+        assert isinstance(out, ConversationPayload)
+        assert len(out.data) == 1
+        assert out.data[0].role == "user"
+        assert out.data[0].content == "hello world"
 
     async def test_mapping_with_role(self) -> None:
         k = _make_knot()
         out = await k.process(raw_input={"role": "assistant", "content": "hi there"})
-        assert out[0].role == "assistant"
-        assert out[0].content == "hi there"
+        assert out.data[0].role == "assistant"
+        assert out.data[0].content == "hi there"
 
     async def test_sequence_of_mixed_items(self) -> None:
         k = _make_knot()
@@ -45,11 +47,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 "plain string",
             )
         )
-        assert len(out) == 3
-        assert out[0].role == "user"
-        assert out[1].role == "assistant"
-        assert out[2].role == "user"
-        assert out[2].content == "plain string"
+        assert len(out.data) == 3
+        assert out.data[0].role == "user"
+        assert out.data[1].role == "assistant"
+        assert out.data[2].role == "user"
+        assert out.data[2].content == "plain string"
 
     async def test_rejects_unknown_type(self) -> None:
         k = _make_knot()

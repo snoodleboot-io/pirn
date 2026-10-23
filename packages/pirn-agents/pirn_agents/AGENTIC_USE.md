@@ -60,7 +60,7 @@ pirn_agents/
 ├── tools/tool_call.py           ToolCall              — LLM-requested tool invocation
 ├── tools/tool_result.py         ToolResult            — the model-facing view of a ToolCall's Result
 ├── input/
-│   ├── message_parser.py        MessageParser         — raw input → AgentMessage tuple
+│   ├── message_parser.py        MessageParser         — raw input → ConversationPayload
 │   ├── context_builder.py       ContextBuilder        — messages + system_prompt → ConversationPayload
 │   └── intent_classifier.py     IntentClassifier      — context → intent label string
 ├── generation/

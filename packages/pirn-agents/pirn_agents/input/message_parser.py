@@ -28,6 +28,7 @@ from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.types.content.content_block import ContentBlock
 from pirn_agents.types.content.message_content import MessageContent
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class MessageParser(Knot):
@@ -46,14 +47,16 @@ class MessageParser(Knot):
         self,
         raw_input: Any,
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
+    ) -> ConversationPayload:
         """Parse raw text or mapping input into a tuple of AgentMessage instances.
 
         Args:
             raw_input: Raw input to parse; may be a string, mapping, AgentMessage, or sequence thereof.
 
         Returns:
-            A non-empty tuple of AgentMessage instances derived from the input.
+            A ConversationPayload whose data is the non-empty tuple of AgentMessage instances
+            derived from the input (data plus a ConversationFrame; ADR agents-speaks-core
+            WS6b; PIR-874).
 
         Raises:
             TypeError: If raw_input is not a recognised type.
@@ -65,7 +68,7 @@ class MessageParser(Knot):
             raise ValueError(
                 "MessageParser: raw_input produced zero messages; input must be non-empty"
             )
-        return parsed
+        return ConversationPayload(parsed)
 
     def _coerce_to_iterable(self, raw_input: Any) -> Sequence[Any]:
         if isinstance(raw_input, AgentMessage):

@@ -4,7 +4,7 @@ Inner stage knot used by :class:`InputGuardrailCheck`. Walks each
 incoming :class:`AgentMessage`, rejects any whose ``content`` matches
 one of the deny patterns (raising :class:`ValueError`), and replaces
 PII matches with ``"<redacted>"`` literal substitutes. Returns the
-cleaned tuple of messages.
+cleaned messages as a :class:`ConversationPayload`.
 
 Algorithm:
     1. Compile all ``deny_patterns`` and ``pii_patterns`` strings via
@@ -39,6 +39,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class InputMessageScrubber(Knot):
@@ -70,14 +71,16 @@ class InputMessageScrubber(Knot):
         deny_patterns: Sequence[str] = (),
         pii_patterns: Sequence[str] = (),
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
+    ) -> ConversationPayload:
         """Validate each message against deny patterns and redact PII matches, returning cleaned messages.
 
         Args:
             messages: The sequence of agent messages to validate and redact.
 
         Returns:
-            A tuple of AgentMessage instances with PII redacted and deny patterns checked.
+            A ConversationPayload whose data is the tuple of AgentMessage instances with PII
+            redacted and deny patterns checked (data plus a ConversationFrame; ADR
+            agents-speaks-core WS6b; PIR-874).
 
         Raises:
             TypeError: If any element of messages is not an AgentMessage.
@@ -124,7 +127,7 @@ class InputMessageScrubber(Knot):
                     created_at=message.created_at,
                 )
             )
-        return tuple(cleaned)
+        return ConversationPayload(tuple(cleaned))
 
     @staticmethod
     def _first_deny_match(
