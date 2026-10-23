@@ -18,6 +18,6 @@ class TestRankedMemory(unittest.TestCase):
             importance=0.4,
         )
         audit = ranked._pirn_audit_dict()
-        assert audit["record"] == "r1"
+        assert audit["record"]["id"] == "r1"
         assert audit["score"] == 1.5
         assert audit["relevance"] == 0.5

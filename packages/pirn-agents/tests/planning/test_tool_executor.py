@@ -19,6 +19,7 @@ from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.planning.routed_tool_call import RoutedToolCall
 from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
@@ -27,8 +28,8 @@ from tests.conftest import StubTool
 
 def _make_knot(tools: tuple) -> ToolExecutor:
     @KnotFactory.knot
-    async def _c() -> ToolCall:
-        return ToolCall(tool_name="search", arguments={}, call_id="c1")
+    async def _c() -> RoutedToolCall:
+        return _routed(ToolCall(tool_name="search", arguments={}, call_id="c1"))
 
     with Tapestry():
         upstream = _c(_config=KnotConfig(id="c"))
@@ -38,12 +39,17 @@ def _make_knot(tools: tuple) -> ToolExecutor:
 _CALL = ToolCall(tool_name="search", arguments={"q": "x"}, call_id="c1")
 
 
+def _routed(call: ToolCall) -> RoutedToolCall:
+    """Wrap a call the way ``ToolRouter`` hands one over."""
+    return RoutedToolCall(call, step="use search", candidates=(call.tool_name,))
+
+
 async def _execute(tools: tuple) -> ToolResult:
     """Run a ToolExecutor over ``_CALL`` through the engine and return its output."""
 
     @KnotFactory.knot
-    async def _call_source() -> ToolCall:
-        return _CALL
+    async def _call_source() -> RoutedToolCall:
+        return _routed(_CALL)
 
     with Tapestry() as tapestry:
         upstream = _call_source(_config=KnotConfig(id="c"))
@@ -81,7 +87,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         search = StubTool(name="search")
         k = _make_knot((search,))
         with self.assertRaisesRegex(ValueError, "non-empty"):
-            await k.process(call=_CALL, tools=())
+            await k.process(call=_routed(_CALL), tools=())
 
     async def test_rejects_non_tool_call(self) -> None:
         search = StubTool(name="search")
@@ -96,8 +102,8 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
 
     async def test_the_invocation_gets_its_own_lineage_row(self) -> None:
         @KnotFactory.knot
-        async def _call_source() -> ToolCall:
-            return _CALL
+        async def _call_source() -> RoutedToolCall:
+            return _routed(_CALL)
 
         with Tapestry() as tapestry:
             upstream = _call_source(_config=KnotConfig(id="c"))

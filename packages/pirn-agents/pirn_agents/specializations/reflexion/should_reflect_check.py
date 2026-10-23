@@ -42,4 +42,4 @@ class ShouldReflectCheck(Check):
         Returns:
             ``True`` when ``evaluation.success`` is ``False``.
         """
-        return not evaluation.success
+        return not evaluation.metadata.success

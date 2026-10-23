@@ -20,6 +20,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.toolset import Toolset
 from tests.benchmarks.conftest import BenchmarkRecorder
 
@@ -53,7 +54,7 @@ async def test_tool_executor_throughput(benchmark_recorder: BenchmarkRecorder) -
 
     with Tapestry() as tapestry:
         ParallelToolExecutor(
-            tool_calls=calls,
+            tool_calls=ToolCallBatch(calls),
             toolset=toolset,
             max_concurrency=n,
             _config=KnotConfig(id="pte-bench-harness"),
@@ -62,7 +63,7 @@ async def test_tool_executor_throughput(benchmark_recorder: BenchmarkRecorder) -
     run = await tapestry.run(RunRequest())
     elapsed = time.perf_counter() - start
     assert run.succeeded, run.exceptions
-    results = run.outputs["pte-bench-harness"]
+    results = run.outputs["pte-bench-harness"].data
 
     assert all(r.status == "ok" for r in results)
     serial = n * per_call

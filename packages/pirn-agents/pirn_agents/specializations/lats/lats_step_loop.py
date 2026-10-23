@@ -83,7 +83,7 @@ class LatsStepLoop(AgentLoopPipeline[LatsSearchState]):
                 )
             _neg_value, _sequence, node = heapq.heappop(frontier)
             expanded += 1
-            if node.depth < state.max_depth:
+            if node.metadata.depth < state.max_depth:
                 return state.with_fields(
                     frontier=tuple(frontier), expanding=node, nodes_expanded=expanded
                 )
@@ -108,15 +108,15 @@ class LatsStepLoop(AgentLoopPipeline[LatsSearchState]):
             proposer = LatsActionProposer(
                 task=state.task,
                 llm=state.llm,
-                trajectory=node.trajectory,
+                trajectory=node.data,
                 _config=KnotConfig(id=type(self)._propose_id),
             )
             LatsChildScorer(
                 task=state.task,
                 value_model=state.value_model,
                 actions=proposer,
-                trajectory=node.trajectory,
-                depth=node.depth,
+                trajectory=node.data,
+                depth=node.metadata.depth,
                 _config=KnotConfig(id=type(self)._score_id),
             )
         return iteration, state
@@ -143,9 +143,9 @@ class LatsStepLoop(AgentLoopPipeline[LatsSearchState]):
         best = state.best
         sequence = state.sequence
         for child in children:
-            if child.value > best.value:
+            if child.metadata.value > best.metadata.value:
                 best = child
-            heapq.heappush(frontier, (-child.value, sequence, child))
+            heapq.heappush(frontier, (-child.metadata.value, sequence, child))
             sequence += 1
         queued = state.with_fields(frontier=tuple(frontier), best=best, sequence=sequence)
         return LatsStepLoop.advance(queued)

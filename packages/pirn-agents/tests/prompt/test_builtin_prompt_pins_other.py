@@ -78,7 +78,9 @@ from pirn_agents.specializations.structured_output.yaml_extractor_attempt import
 from pirn_agents.specializations.tool_use.tool_selector import ToolSelector
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_result_batch import ToolResultBatch
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
@@ -513,7 +515,12 @@ class ReWooPromptPins(unittest.IsolatedAsyncioTestCase):
         knot = _bare(ReWooSynthesizer)
         call = ToolCall(tool_name="search", arguments={"input": "x"}, call_id="c0")
         result = ToolResult(call_id="c0", outcome=Ok(value="found"))
-        await knot.process(goal="find", plan=(call,), results=(result,), llm=llm)
+        await knot.process(
+            goal="find",
+            plan=ToolCallBatch((call,)),
+            results=ToolResultBatch((result,), max_concurrency=8, timeout=None),
+            llm=llm,
+        )
         assert llm.calls[0][0]["content"] == (
             "You are a solver. Using only the tool evidence below, write the "
             "final answer to the goal. Be concise and do not call any more tools."

@@ -36,6 +36,7 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.tapestry import Tapestry
 
+from pirn_agents.retrieval.graph_rag.node_expansion import NodeExpansion
 from pirn_agents.retrieval.graph_rag.node_neighbors import NodeNeighbors
 from pirn_agents.retrieval.graph_rag.traversal_state import TraversalState
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
@@ -127,7 +128,7 @@ class GraphTraversalLoop(LoopSubTapestry[TraversalState]):
 
     @staticmethod
     def _by_frontier_position(
-        **expansions: tuple[GraphNeighbor, ...],
+        **expansions: NodeExpansion,
     ) -> tuple[tuple[GraphNeighbor, ...], ...]:
         """Put each node's neighbors back at its position in the frontier.
 
@@ -136,4 +137,4 @@ class GraphTraversalLoop(LoopSubTapestry[TraversalState]):
         scheduling.
         """
         ordered = sorted(expansions.items(), key=lambda item: int(item[0].removeprefix("expand_")))
-        return tuple(neighbors for _key, neighbors in ordered)
+        return tuple(expansion.data for _key, expansion in ordered)

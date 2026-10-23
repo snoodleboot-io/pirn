@@ -32,7 +32,9 @@ from pirn.tapestry import Tapestry
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_result_batch import ToolResultBatch
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -109,11 +111,14 @@ async def _run(
 ) -> tuple[tuple[ToolResult, ...], RunResult, Tapestry]:
     with Tapestry() as t:
         ParallelToolExecutor(
-            tool_calls=calls, toolset=toolset, _config=KnotConfig(id="pte"), **ctor
+            tool_calls=ToolCallBatch(calls),
+            toolset=toolset,
+            _config=KnotConfig(id="pte"),
+            **ctor,
         )
     run = await t.run(RunRequest())
     assert run.succeeded, run.exceptions
-    return run.outputs["pte"], run, t
+    return run.outputs["pte"].data, run, t
 
 
 async def _inner_rows(t: Tapestry, run: RunResult) -> dict[str, Any]:
@@ -149,13 +154,16 @@ async def test_concurrency_cap_wired_from_an_upstream_knot_is_applied() -> None:
     with Tapestry() as t:
         cap = Parameter("cap", int, default=1, _config=KnotConfig(id="cap"))
         ParallelToolExecutor(
-            tool_calls=calls, toolset=toolset, max_concurrency=cap, _config=KnotConfig(id="pte")
+            tool_calls=ToolCallBatch(calls),
+            toolset=toolset,
+            max_concurrency=cap,
+            _config=KnotConfig(id="pte"),
         )
     run = await t.run(RunRequest())
 
     assert run.succeeded, run.exceptions
     assert counter.peak == 1
-    assert all(r.status == "ok" for r in run.outputs["pte"])
+    assert all(r.status == "ok" for r in run.outputs["pte"].data)
 
 
 async def test_failure_isolation() -> None:
@@ -302,14 +310,54 @@ async def test_empty_batch_declares_no_unused_concurrency_group() -> None:
 async def test_rejects_non_tool_call() -> None:
     with Tapestry():
         executor = ParallelToolExecutor(
-            tool_calls=[], toolset=Toolset(), _config=KnotConfig(id="pte", validate_io=False)
+            tool_calls=ToolCallBatch([]),
+            toolset=Toolset(),
+            _config=KnotConfig(id="pte", validate_io=False),
         )
+    bad_batch = ToolCallBatch([])
+    bad_batch._data = ("not-a-call",)  # type: ignore[assignment]
     with pytest.raises(TypeError):
         await executor.process(
-            tool_calls=["not-a-call"],  # type: ignore[list-item]
+            tool_calls=bad_batch,
             toolset=Toolset(),
             max_concurrency=8,
         )
+
+
+async def test_rejects_bare_sequence_of_calls() -> None:
+    with Tapestry():
+        executor = ParallelToolExecutor(
+            tool_calls=ToolCallBatch([]),
+            toolset=Toolset(),
+            _config=KnotConfig(id="pte", validate_io=False),
+        )
+    with pytest.raises(TypeError):
+        await executor.process(
+            tool_calls=[],  # type: ignore[arg-type]
+            toolset=Toolset(),
+            max_concurrency=8,
+        )
+
+
+async def test_output_is_a_result_batch_framed_with_the_budgets() -> None:
+    toolset = _named(["t"])
+    calls = [ToolCall(tool_name="t", arguments={}, call_id="c1")]
+    with Tapestry() as t:
+        ParallelToolExecutor(
+            tool_calls=ToolCallBatch(calls),
+            toolset=toolset,
+            max_concurrency=3,
+            timeout=2.0,
+            _config=KnotConfig(id="pte"),
+        )
+    run = await t.run(RunRequest())
+    batch = run.outputs["pte"]
+
+    assert isinstance(batch, ToolResultBatch)
+    assert batch.metadata.attempted == 1
+    assert batch.metadata.succeeded == 1
+    assert batch.metadata.max_concurrency == 3
+    assert batch.metadata.timeout == 2.0
 
 
 async def test_rejects_non_toolset() -> None:
@@ -317,11 +365,13 @@ async def test_rejects_non_toolset() -> None:
     # (ReWooPipeline), so process() carries its own isinstance guard.
     with Tapestry():
         executor = ParallelToolExecutor(
-            tool_calls=[], toolset=Toolset(), _config=KnotConfig(id="pte", validate_io=False)
+            tool_calls=ToolCallBatch([]),
+            toolset=Toolset(),
+            _config=KnotConfig(id="pte", validate_io=False),
         )
     with pytest.raises(TypeError):
         await executor.process(
-            tool_calls=[],
+            tool_calls=ToolCallBatch([]),
             toolset=["not-a-toolset"],  # type: ignore[arg-type]
             max_concurrency=8,
         )
@@ -331,7 +381,9 @@ async def test_cancellation_propagates_and_cancels_inflight() -> None:
     toolset = _named(["slow"])
     calls = [ToolCall(tool_name="slow", arguments={"latency": 5.0}, call_id="c1")]
     with Tapestry() as t:
-        ParallelToolExecutor(tool_calls=calls, toolset=toolset, _config=KnotConfig(id="pte"))
+        ParallelToolExecutor(
+            tool_calls=ToolCallBatch(calls), toolset=toolset, _config=KnotConfig(id="pte")
+        )
 
     task = asyncio.ensure_future(t.run(RunRequest()))
     await asyncio.sleep(0.1)  # let the call start and block on its sleep

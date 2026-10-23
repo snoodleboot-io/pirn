@@ -38,13 +38,13 @@ async def test_a_fast_item_is_yielded_before_a_slow_sibling_finishes() -> None:
 
     # Assert
     assert not release.is_set()
-    assert first.key == "1"
+    assert first.metadata.key == "1"
     assert first.succeeded
     assert first.output == "done:fast"
 
     release.set()
     rest = [result async for result in stream]
-    assert [r.key for r in rest] == ["0"]
+    assert [r.metadata.key for r in rest] == ["0"]
     assert rest[0].output == "done:slow"
 
 
@@ -68,13 +68,13 @@ async def test_every_item_is_yielded_exactly_once_in_completion_order() -> None:
     results = []
     async for result in runner.run([0, 1, 2, 3]):
         results.append(result)
-        following = int(result.key) - 1
+        following = int(result.metadata.key) - 1
         if following >= 0:
             released[following].set()
 
-    assert sorted(r.key for r in results) == ["0", "1", "2", "3"]
+    assert sorted(r.metadata.key for r in results) == ["0", "1", "2", "3"]
     assert order == ["3", "2", "1", "0"]
-    assert [r.key for r in results] == order
+    assert [r.metadata.key for r in results] == order
 
 
 async def test_a_failed_item_streams_with_its_exception_record_and_attempts() -> None:
@@ -91,12 +91,12 @@ async def test_a_failed_item_streams_with_its_exception_record_and_attempts() ->
 
     (only,) = [result async for result in runner.run(["x"])]
 
-    assert isinstance(only.outcome, Err)
+    assert isinstance(only.data, Err)
     assert only.exception is not None
     assert only.exception.exc_type == "ValueError"
     assert only.exception.knot_id == "item:fail:0"
     # The lineage row carries the attempt count the Aggregator join could not.
-    assert only.attempts == 2
+    assert only.metadata.attempts == 2
 
 
 async def test_resumed_items_are_yielded_first_and_not_re_run() -> None:
@@ -130,8 +130,8 @@ async def test_resumed_items_are_yielded_first_and_not_re_run() -> None:
     results = await asyncio.wait_for(_drain(second_runner, ["a", "b", "c"]), timeout=5)
 
     # Assert: the two resumed items come first as SKIPPED, the new one ran.
-    assert all(isinstance(r.outcome, Skipped) for r in results[:2])
-    assert results[2].key == "2"
+    assert all(isinstance(r.data, Skipped) for r in results[:2])
+    assert results[2].metadata.key == "2"
     assert results[2].succeeded
     assert calls.count("c") == 1
     assert len(calls) == 3
@@ -155,7 +155,7 @@ async def test_closing_the_stream_early_cancels_the_run() -> None:
     )
     stream = runner.run(["slow", "fast"])
     first = await asyncio.wait_for(stream.__anext__(), timeout=5)
-    assert first.key == "1"
+    assert first.metadata.key == "1"
 
     await stream.aclose()
 

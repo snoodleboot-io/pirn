@@ -41,8 +41,8 @@ class TestLlmJudge(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         verdict = run.outputs["j"]
         assert isinstance(verdict, JudgeVerdict)
-        assert verdict.score == 7.0
-        assert "needs more detail" in verdict.feedback
+        assert verdict.metadata.score == 7.0
+        assert "needs more detail" in verdict.data
 
     async def test_clamps_and_defaults_score(self) -> None:
         with Tapestry():

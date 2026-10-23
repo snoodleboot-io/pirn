@@ -4,7 +4,7 @@ A frozen, hashable value naming the entity and relation types the
 :class:`~pirn_agents.retrieval.graph_rag.entity_relation_extractor.EntityRelationExtractor`
 is allowed to emit. It shapes the extraction prompt (so the LLM knows the closed
 vocabulary) and is used to validate the decoded
-:class:`~pirn_agents.retrieval.graph_rag.extraction_result.ExtractionResult`, rejecting any
+:class:`~pirn_agents.retrieval.graph_rag.extracted_graph.ExtractedGraph`, rejecting any
 out-of-schema entity or relation type.
 """
 

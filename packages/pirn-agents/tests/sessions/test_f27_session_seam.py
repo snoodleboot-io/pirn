@@ -54,6 +54,6 @@ class TestF27SessionSeam:
         # Assert — the F14 session identity keyed the F27 profile update, and the
         # subject-scoped storage key stays session-independent (profiles persist
         # across sessions).
-        assert profile.session_ids == ("sess-42",)
-        assert profile.fields == {"greeted": True}
+        assert profile.metadata.session_ids == ("sess-42",)
+        assert profile.data == {"greeted": True}
         assert await profile_store.get(namespace="profile", key="profile:user:u1") is not None

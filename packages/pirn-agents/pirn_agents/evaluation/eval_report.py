@@ -55,7 +55,7 @@ class EvalReport(PirnOpaqueValue):
         totals: dict[str, float] = {}
         counts: dict[str, int] = {}
         for result in self.results:
-            for name, score in result.metrics.items():
+            for name, score in result.data.items():
                 totals[name] = totals.get(name, 0.0) + score
                 counts[name] = counts.get(name, 0) + 1
         return {name: totals[name] / counts[name] for name in totals}
@@ -67,7 +67,7 @@ class EvalReport(PirnOpaqueValue):
     @property
     def passed(self) -> bool:
         """Whether every case with a verdict passed (vacuously ``True`` if none)."""
-        return all(r.passed for r in self.results if r.passed is not None)
+        return all(r.metadata.passed for r in self.results if r.metadata.passed is not None)
 
     def to_json(self, *, indent: int | None = 2) -> str:
         """Serialise the report (results + aggregate) to a stable JSON string."""

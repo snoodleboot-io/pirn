@@ -35,6 +35,7 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.tapestry import Tapestry
 
+from pirn_agents.retrieval.graph_rag.node_expansion import NodeExpansion
 from pirn_agents.retrieval.graph_rag.node_neighbors import NodeNeighbors
 from pirn_agents.retrieval.graph_rag.path_search_state import PathSearchState
 from pirn_agents.retrieval.graph_stores.graph_neighbor import GraphNeighbor
@@ -126,7 +127,7 @@ class ShortestPathLoop(LoopSubTapestry[PathSearchState]):
 
     @staticmethod
     def _by_frontier_position(
-        **extensions: tuple[GraphNeighbor, ...],
+        **extensions: NodeExpansion,
     ) -> tuple[tuple[GraphNeighbor, ...], ...]:
         """Put each path's neighbors back at its position in the frontier.
 
@@ -135,4 +136,4 @@ class ShortestPathLoop(LoopSubTapestry[PathSearchState]):
         independent of scheduling.
         """
         ordered = sorted(extensions.items(), key=lambda item: int(item[0].removeprefix("extend_")))
-        return tuple(neighbors for _key, neighbors in ordered)
+        return tuple(expansion.data for _key, expansion in ordered)

@@ -114,10 +114,10 @@ class TestCheapFirst:
             )
         outcome = await _run(t)
 
-        assert outcome.value == "A"
-        assert outcome.chosen == "cheap"
-        assert outcome.escalated is False
-        assert outcome.attempted == ("cheap",)  # strong never invoked
+        assert outcome.data == "A"
+        assert outcome.metadata.chosen == "cheap"
+        assert outcome.metadata.escalated is False
+        assert outcome.metadata.attempted == ("cheap",)  # strong never invoked
         assert _prompts_sent(tiers[1]) == []
 
     async def test_each_attempted_tier_is_an_llm_call_knot_with_its_own_lineage(self) -> None:
@@ -148,10 +148,10 @@ class TestCheapFirst:
             )
         outcome = await _run(t)
 
-        assert outcome.value == "B"
-        assert outcome.chosen == "strong"
-        assert outcome.escalated is True
-        assert outcome.attempted == ("cheap", "strong")
+        assert outcome.data == "B"
+        assert outcome.metadata.chosen == "strong"
+        assert outcome.metadata.escalated is True
+        assert outcome.metadata.attempted == ("cheap", "strong")
 
     async def test_failure_escalates(self) -> None:
         tiers = [_failing_tier("cheap"), _tier("strong", "B", min_confidence=0.5)]
@@ -164,8 +164,8 @@ class TestCheapFirst:
             )
         outcome = await _run(t)
 
-        assert outcome.chosen == "strong"
-        assert any("failed" in d for d in outcome.decisions)
+        assert outcome.metadata.chosen == "strong"
+        assert any("failed" in d for d in outcome.metadata.decisions)
 
     async def test_all_low_confidence_returns_best_effort(self) -> None:
         tiers = [_tier("cheap", "A", min_confidence=0.9), _tier("strong", "B", min_confidence=0.9)]
@@ -178,9 +178,9 @@ class TestCheapFirst:
             )
         outcome = await _run(t)
 
-        assert outcome.succeeded is False
-        assert outcome.chosen == "strong"  # last tier's best-effort output
-        assert outcome.value == "B"
+        assert outcome.metadata.succeeded is False
+        assert outcome.metadata.chosen == "strong"  # last tier's best-effort output
+        assert outcome.data == "B"
 
 
 class TestObservability:
@@ -195,8 +195,8 @@ class TestObservability:
             )
         outcome = await _run(t)
 
-        assert "cheap: low confidence=0.2 -> escalate" in outcome.decisions
-        assert "strong: accepted (confidence=1.0)" in outcome.decisions
+        assert "cheap: low confidence=0.2 -> escalate" in outcome.metadata.decisions
+        assert "strong: accepted (confidence=1.0)" in outcome.metadata.decisions
 
 
 class TestSpendCapInteraction:
@@ -218,8 +218,8 @@ class TestSpendCapInteraction:
         outcome = await _run(t)
 
         # cheap spent 0.5; escalating to strong (1.0 more) would breach the 1.0 cap
-        assert outcome.chosen == "cheap"
-        assert any("downshift" in d for d in outcome.decisions)
+        assert outcome.metadata.chosen == "cheap"
+        assert any("downshift" in d for d in outcome.metadata.decisions)
         assert meter.cost == pytest.approx(0.5)
 
     async def test_abort_raises_budget_breach(self) -> None:
@@ -275,5 +275,5 @@ class TestSpendCapInteraction:
             )
         outcome = await _run(t)
 
-        assert outcome.succeeded is True
+        assert outcome.metadata.succeeded is True
         assert meter.cost == pytest.approx(2.0)

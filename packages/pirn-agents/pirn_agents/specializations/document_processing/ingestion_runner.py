@@ -179,13 +179,13 @@ class IngestionRunner(AgentPipeline):
         errors: list[tuple[str, str]] = list(source_errors)
         for index in range(count):
             outcome = outcomes[f"doc_{index}"]
-            if outcome.error is not None:
-                errors.append((outcome.source_id, outcome.error))
+            if outcome.metadata.error is not None:
+                errors.append((outcome.data, outcome.metadata.error))
                 continue
             processed += 1
-            embedded += outcome.embedded
-            unchanged += outcome.unchanged
-            removed += outcome.removed
+            embedded += outcome.metadata.embedded
+            unchanged += outcome.metadata.unchanged
+            removed += outcome.metadata.removed
         return IngestionReport(
             documents_processed=processed,
             chunks_embedded=embedded,

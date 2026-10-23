@@ -48,7 +48,7 @@ class TestReflexionEvaluator(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         out = run.outputs["ev"]
         assert isinstance(out, ReflexionEvaluation)
-        assert out.success is True
+        assert out.metadata.success is True
 
     async def test_fail_carries_feedback(self) -> None:
         llm = StubLLMProvider(["FAIL: too short"])
@@ -56,8 +56,8 @@ class TestReflexionEvaluator(unittest.IsolatedAsyncioTestCase):
             ReflexionEvaluator(task="q", answer="a", llm=llm, _config=KnotConfig(id="ev"))
         run = await t.run(RunRequest())
         out = run.outputs["ev"]
-        assert out.success is False
-        assert out.feedback == "too short"
+        assert out.metadata.success is False
+        assert out.data == "too short"
 
 
 class TestReflexionReflector(unittest.IsolatedAsyncioTestCase):

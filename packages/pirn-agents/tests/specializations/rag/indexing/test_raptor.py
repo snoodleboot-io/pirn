@@ -52,10 +52,10 @@ class TestRaptor(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["summary text"], repeat_last=True)
         tree = await _build(store, embedder, llm)
         assert isinstance(tree, RaptorTree)
-        assert tree.reused is False
+        assert tree.metadata.reused is False
         # 4 leaves + 2 + 1 summaries across 3 levels.
-        assert tree.level_count >= 2
-        assert tree.node_count > 4
+        assert tree.metadata.level_count >= 2
+        assert tree.metadata.node_count > 4
 
     async def test_rebuild_is_reused_without_llm_calls(self) -> None:
         embedder = StubEmbeddingProvider(dimension=4)
@@ -65,8 +65,8 @@ class TestRaptor(unittest.IsolatedAsyncioTestCase):
         calls_after_first = len(llm.calls)
         assert calls_after_first > 0
         second = await _build(store, embedder, llm)
-        assert second.reused is True
-        assert second.content_hash == first.content_hash
+        assert second.metadata.reused is True
+        assert second.metadata.content_hash == first.metadata.content_hash
         # No new summary calls on the content-addressed rebuild.
         assert len(llm.calls) == calls_after_first
 
@@ -76,7 +76,7 @@ class TestRaptor(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["summary text"], repeat_last=True)
         await _build(store, embedder, llm)
         leaf = await store.get(
-            "raptor:" + (await _build(store, embedder, llm)).content_hash + ":0:0"
+            "raptor:" + (await _build(store, embedder, llm)).metadata.content_hash + ":0:0"
         )
         assert leaf is not None and leaf.document is not None
         results = await _retriever().process(
@@ -153,7 +153,7 @@ class TestRaptorPerSummaryLineage(unittest.IsolatedAsyncioTestCase):
         # its two level iterations, one upsert.
         assert result.succeeded, result.exceptions
         tree = result.outputs["asm"]
-        prefix = f"raptor:{tree.content_hash}"
+        prefix = f"raptor:{tree.metadata.content_hash}"
         (climb,) = await history.children_of(result.run_id)
         assert climb.parent_knot_id == "asm"
         (row,) = [r for r in result.lineage if r.knot_id == "asm"]
@@ -169,7 +169,7 @@ class TestRaptorPerSummaryLineage(unittest.IsolatedAsyncioTestCase):
         assert summary_ids == [f"{prefix}:1:0", f"{prefix}:1:1", f"{prefix}:2:0"]
         assert len(llm.calls) == 3
         assert store.upserts == 1
-        assert tree.node_count == 7
+        assert tree.metadata.node_count == 7
 
     async def test_each_level_is_an_iteration_of_one_run(self) -> None:
         """Levels are chained, not unrelated: one climb run, one child per level."""
@@ -213,7 +213,7 @@ class TestRaptorPerSummaryLineage(unittest.IsolatedAsyncioTestCase):
 
         result, history = await self._assemble(store, llm)
 
-        assert result.outputs["asm"].reused is True
+        assert result.outputs["asm"].metadata.reused is True
         assert await history.children_of(result.run_id) == []
         assert store.upserts == 1
 

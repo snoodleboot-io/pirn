@@ -161,7 +161,7 @@ class RankedRecall(Knot):
             )
             for index in range(len(records))
         ]
-        ranked.sort(key=lambda item: (-item.score, item.record.data.id))
+        ranked.sort(key=lambda item: (-item.metadata.score, item.data.data.id))
         return ranked
 
     @staticmethod

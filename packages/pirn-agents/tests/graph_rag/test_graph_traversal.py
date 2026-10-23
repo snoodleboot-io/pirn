@@ -21,6 +21,7 @@ from pirn_agents.retrieval.graph_rag.graph_shortest_path import GraphShortestPat
 from pirn_agents.retrieval.graph_rag.graph_traversal import GraphTraversal
 from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
 from pirn_agents.retrieval.graph_rag.traversal_budget import TraversalBudget
+from pirn_agents.retrieval.graph_rag.traversal_result import TraversalResult
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 from pirn_agents.retrieval.graph_stores.in_memory_graph_store import InMemoryGraphStore
@@ -59,7 +60,9 @@ async def _traverse(
         )
         result = await tapestry.run(RunRequest())
     assert result.succeeded, result.exceptions
-    return result.outputs["traverse"]
+    traversed = result.outputs["traverse"]
+    assert isinstance(traversed, TraversalResult)
+    return traversed.data
 
 
 async def _shortest_path(

@@ -47,6 +47,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.retrieval.graph_rag.graph_traversal_loop import GraphTraversalLoop
 from pirn_agents.retrieval.graph_rag.seed_graph_node import SeedGraphNode
+from pirn_agents.retrieval.graph_rag.seed_lookup import SeedLookup
 from pirn_agents.retrieval.graph_rag.seeded_traversal_state import SeededTraversalState
 from pirn_agents.retrieval.graph_rag.traversal_budget import TraversalBudget
 from pirn_agents.retrieval.graph_rag.traversal_subgraph import TraversalSubgraph
@@ -142,7 +143,7 @@ class GraphTraversal(SubTapestry):
         return TraversalSubgraph(state=traversed, _config=KnotConfig(id=type(self)._subgraph_id))
 
     @staticmethod
-    def _in_seed_order(**seeds: GraphNode | None) -> tuple[GraphNode | None, ...]:
+    def _in_seed_order(**seeds: SeedLookup) -> tuple[GraphNode | None, ...]:
         """Put the seed reads back in the order the ids were given.
 
         The node budget is applied in seed order by
@@ -150,4 +151,4 @@ class GraphTraversal(SubTapestry):
         on which read finished first.
         """
         ordered = sorted(seeds.items(), key=lambda item: int(item[0].removeprefix("seed_")))
-        return tuple(node for _key, node in ordered)
+        return tuple(lookup.data for _key, lookup in ordered)

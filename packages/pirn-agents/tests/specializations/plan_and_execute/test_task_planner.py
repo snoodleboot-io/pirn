@@ -27,26 +27,26 @@ class TestTaskPlannerProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot(llm)
         plan = await k.process(goal="Write an article about AI.", llm=llm)
         assert isinstance(plan, Plan)
-        assert plan.steps == ("Research the topic", "Write outline", "Draft article")
+        assert plan.data == ("Research the topic", "Write outline", "Draft article")
 
     async def test_stores_raw_response_as_rationale(self) -> None:
         raw = "1. Step one\n2. Step two"
         llm = StubLLMProvider([raw])
         k = _make_knot(llm)
         plan = await k.process(goal="Do something.", llm=llm)
-        assert plan.rationale == raw
+        assert plan.metadata.rationale == raw
 
     async def test_handles_paren_numbered_list(self) -> None:
         llm = StubLLMProvider(["1) First\n2) Second"])
         k = _make_knot(llm)
         plan = await k.process(goal="goal", llm=llm)
-        assert plan.steps == ("First", "Second")
+        assert plan.data == ("First", "Second")
 
     async def test_empty_response_yields_empty_steps(self) -> None:
         llm = StubLLMProvider(["No numbered steps here."])
         k = _make_knot(llm)
         plan = await k.process(goal="goal", llm=llm)
-        assert plan.steps == ()
+        assert plan.data == ()
 
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["1. step"])
@@ -74,4 +74,4 @@ class TestTaskPlannerProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         plan = result.outputs["planner"]
         assert isinstance(plan, Plan)
-        assert plan.steps == ("Research the topic", "Write outline", "Draft article")
+        assert plan.data == ("Research the topic", "Write outline", "Draft article")

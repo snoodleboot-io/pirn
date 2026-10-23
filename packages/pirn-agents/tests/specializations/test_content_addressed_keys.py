@@ -115,8 +115,8 @@ class TestRaptorTreeKeys(unittest.IsolatedAsyncioTestCase):
         result = await tapestry.run(RunRequest())
         assert result.succeeded, result.exceptions
         tree = result.outputs["raptor"]
-        assert tree.content_hash == ContentHasher.hash(chunks, strict=True)
-        assert await store.get(f"raptor:{tree.content_hash}:meta") is not None
+        assert tree.metadata.content_hash == ContentHasher.hash(chunks, strict=True)
+        assert await store.get(f"raptor:{tree.metadata.content_hash}:meta") is not None
 
 
 if __name__ == "__main__":

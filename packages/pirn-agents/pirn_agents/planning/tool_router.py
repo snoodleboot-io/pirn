@@ -24,6 +24,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.interfaces.router import Router
+from pirn_agents.planning.routed_tool_call import RoutedToolCall
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
 
@@ -57,15 +58,17 @@ class ToolRouter(Router):
         step: str,
         tools: Sequence[ToolFactory],
         **_: Any,
-    ) -> ToolCall:
-        """Match the plan step to a registered tool and return the corresponding ToolCall.
+    ) -> RoutedToolCall:
+        """Match the plan step to a registered tool and return the routed call.
 
         Args:
             step: The plan step text to match against registered tool names.
             tools: The registered capabilities to search by name substring.
 
         Returns:
-            A ToolCall targeting the first tool whose name appears in the step.
+            A :class:`RoutedToolCall` whose ``data`` targets the first tool whose
+            name appears in the step, and whose frame records the step and the
+            tools it was chosen from (PIR-874).
 
         Raises:
             TypeError: If tools contains something that is not a tool capability.
@@ -79,13 +82,15 @@ class ToolRouter(Router):
         if not isinstance(step, str) or not step:
             raise ValueError(f"ToolRouter: step must be a non-empty string, got {step!r}")
         step_lower = step.lower()
+        candidates = tuple(factory.name for factory in factories)
         for factory in factories:
             if factory.name.lower() in step_lower:
-                return ToolCall(
+                call = ToolCall(
                     tool_name=factory.name,
                     arguments={"step": step},
                     call_id=f"call-{uuid.uuid4().hex[:12]}",
                 )
+                return RoutedToolCall(call, step=step, candidates=candidates)
         raise ValueError(
             f"ToolRouter: step {step!r} does not reference any registered "
             f"tool {[factory.name for factory in factories]!r}"

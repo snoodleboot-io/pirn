@@ -37,42 +37,42 @@ class TestTrigger(unittest.IsolatedAsyncioTestCase):
     async def test_below_threshold_is_no_op(self) -> None:
         compactor = SummaryMemoryCompactor(summarizer=StubSummarizer())
         result = await compactor.compact(_request(_ITEMS, budget=100))
-        assert result.triggered is False
-        assert result.retained == _ITEMS
-        assert result.evicted == ()
-        assert result.summary == ""
-        assert result.summary_item is None
+        assert result.metadata.triggered is False
+        assert result.data == _ITEMS
+        assert result.metadata.evicted == ()
+        assert result.metadata.summary == ""
+        assert result.metadata.summary_item is None
 
     async def test_above_threshold_summarizes_oldest(self) -> None:
         summarizer = StubSummarizer()
         compactor = SummaryMemoryCompactor(summarizer=summarizer)
         result = await compactor.compact(_request(_ITEMS, budget=6))
-        assert result.triggered is True
+        assert result.metadata.triggered is True
         # Oldest two turns are evicted in oldest-first order.
-        assert [i.content for i in result.evicted] == ["a a a a", "b b b b"]
+        assert [i.content for i in result.metadata.evicted] == ["a a a a", "b b b b"]
         assert summarizer.summarize_calls == [("a a a a", "b b b b")]
         # Summary replaces the evicted block in place; newest turn survives.
-        assert [i.content for i in result.retained] == ["SUMMARY[2]", "c c c c"]
+        assert [i.content for i in result.data] == ["SUMMARY[2]", "c c c c"]
 
     async def test_summary_item_is_pinned(self) -> None:
         compactor = SummaryMemoryCompactor(summarizer=StubSummarizer())
         result = await compactor.compact(_request(_ITEMS, budget=6))
-        assert result.summary_item is not None
-        assert result.summary_item.pinned is True
-        assert result.summary_item.kind == "summary"
+        assert result.metadata.summary_item is not None
+        assert result.metadata.summary_item.pinned is True
+        assert result.metadata.summary_item.kind == "summary"
 
     async def test_reports_token_deltas(self) -> None:
         compactor = SummaryMemoryCompactor(summarizer=StubSummarizer())
         result = await compactor.compact(_request(_ITEMS, budget=6))
-        assert result.tokens_before == 12
+        assert result.metadata.tokens_before == 12
         # "SUMMARY[2]" (1 token) + "c c c c" (4 tokens).
-        assert result.tokens_after == 5
+        assert result.metadata.tokens_after == 5
 
     async def test_accepts_context_budget(self) -> None:
         compactor = SummaryMemoryCompactor(summarizer=StubSummarizer())
         budget = ContextBudget(max_tokens=6)
         result = await compactor.compact(_request(_ITEMS, budget=budget))
-        assert result.triggered is True
+        assert result.metadata.triggered is True
 
 
 class TestPinnedPreservation(unittest.IsolatedAsyncioTestCase):
@@ -84,9 +84,9 @@ class TestPinnedPreservation(unittest.IsolatedAsyncioTestCase):
         )
         compactor = SummaryMemoryCompactor(summarizer=StubSummarizer())
         result = await compactor.compact(_request(items, budget=6))
-        contents = [i.content for i in result.retained]
+        contents = [i.content for i in result.data]
         assert "a a a a" in contents
-        assert all(i.content != "a a a a" for i in result.evicted)
+        assert all(i.content != "a a a a" for i in result.metadata.evicted)
 
     async def test_all_pinned_is_no_op_even_over_budget(self) -> None:
         items = (
@@ -95,8 +95,8 @@ class TestPinnedPreservation(unittest.IsolatedAsyncioTestCase):
         )
         compactor = SummaryMemoryCompactor(summarizer=StubSummarizer())
         result = await compactor.compact(_request(items, budget=2))
-        assert result.triggered is False
-        assert result.retained == items
+        assert result.metadata.triggered is False
+        assert result.data == items
 
 
 class TestMemoryIntegration(unittest.IsolatedAsyncioTestCase):

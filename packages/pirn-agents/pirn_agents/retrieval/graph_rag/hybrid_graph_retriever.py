@@ -2,7 +2,7 @@
 
 A :class:`Knot` that produces a single ranked context by combining two arms:
 
-* **graph arm** — the :class:`Subgraph` produced by an upstream, fully-wired
+* **graph arm** — the :class:`TraversalResult` produced by an upstream, fully-wired
   :class:`~pirn_agents.retrieval.graph_rag.graph_traversal.GraphTraversal` knot
   (its own ``store``/``budget``/``start_ids``/``direction``/``edge_types`` are
   bound when *that* knot is constructed), ranked by proximity (BFS order);
@@ -19,12 +19,12 @@ arm alone, still returning RRF-scored hits so the output shape is identical.
 Algorithm:
     1. The engine resolves ``traversal`` — an upstream
        :class:`~pirn_agents.retrieval.graph_rag.graph_traversal.GraphTraversal`
-       knot — into its :class:`Subgraph` output *before* this knot's
+       knot — into its :class:`TraversalResult` output *before* this knot's
        ``process()`` runs, exactly like any other parent. There is no
        call-time re-invocation of the traversal here (PIR-867): the graph arm
        is a genuine graph edge, not a value threaded through by hand.
     2. Validate ``top_k`` / ``candidate_multiplier``.
-    3. Extract the graph-arm ranking from ``traversal.node_ids()``.
+    3. Extract the graph-arm ranking from ``traversal.data.node_ids()``.
     4. When no usable ``embedding_index`` is supplied, fuse the single
        graph-arm ranking (a no-op fusion that keeps the output shape uniform)
        and return the top ``top_k`` hits.
@@ -64,7 +64,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.retrieval.graph_rag.graph_traversal import GraphTraversal
 from pirn_agents.retrieval.graph_rag.node_embedding_index import NodeEmbeddingIndex
-from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
+from pirn_agents.retrieval.graph_rag.traversal_result import TraversalResult
 from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
 from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 
@@ -98,7 +98,7 @@ class HybridGraphRetriever(HybridRetrieverBase[list[Mapping[str, Any]]]):
     async def process(
         self,
         query_text: str,
-        traversal: Subgraph,
+        traversal: TraversalResult,
         embedding_index: NodeEmbeddingIndex | None = None,
         top_k: int = 5,
         candidate_multiplier: int = 4,
@@ -109,7 +109,7 @@ class HybridGraphRetriever(HybridRetrieverBase[list[Mapping[str, Any]]]):
 
         Args:
             query_text: The query embedded for the vector arm.
-            traversal: The graph arm's already-resolved :class:`Subgraph`
+            traversal: The graph arm's already-resolved :class:`TraversalResult`
                 (the output of the upstream ``GraphTraversal`` knot).
             embedding_index: Optional vector arm; when ``None`` or empty the
                 retriever falls back to graph-only ranking.
@@ -131,7 +131,7 @@ class HybridGraphRetriever(HybridRetrieverBase[list[Mapping[str, Any]]]):
                 f"got {candidate_multiplier!r}"
             )
 
-        graph_ids = traversal.node_ids()
+        graph_ids = traversal.data.node_ids()
 
         if not self._vector_enabled(embedding_index):
             # Clean graph-only fallback: RRF over the single graph ranking keeps

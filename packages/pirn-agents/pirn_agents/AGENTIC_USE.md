@@ -435,7 +435,7 @@ Three knots in `specializations/plan_and_execute/` decompose a high-level goal i
 **Key points:**
 - `PlanExecutor` runs steps sequentially inside its own loop — it is not a `LoopSubTapestry`. All steps share the same `LLMProvider` call context.
 - `PlanRevisor` is optional. Use it when you want the agent to self-correct a stalled plan rather than failing the whole pipeline.
-- `TaskPlanner` parses numbered lines (`1. step one`) from the LLM response. Lines starting with `#` are treated as rationale and excluded from `Plan.steps`.
+- `TaskPlanner` parses numbered lines (`1. step one`) from the LLM response. Lines starting with `#` are treated as rationale (`Plan.metadata.rationale`) and excluded from the steps (`Plan.data`).
 
 ```python
 from pirn.core.knot_config import KnotConfig

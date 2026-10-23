@@ -72,8 +72,8 @@ class LatsSearchState(PirnOpaqueValue):
             "task": self.task,
             "max_depth": self.max_depth,
             "frontier_size": len(self.frontier),
-            "best_value": self.best.value,
-            "best_depth": self.best.depth,
+            "best_value": self.best.metadata.value,
+            "best_depth": self.best.metadata.depth,
             "nodes_expanded": self.nodes_expanded,
             "budget_exhausted": self.budget_exhausted,
         }

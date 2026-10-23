@@ -56,7 +56,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import dataclasses
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
 from typing import Any, ClassVar
 
@@ -260,12 +259,14 @@ class MapAgent(NestedRunKnot):
         result: BatchItemResult, batch_id: str, rows: Mapping[str, KnotLineage]
     ) -> BatchItemResult:
         """``result`` with the attempt count and latency its item's lineage row recorded."""
-        row = rows.get(MapAgent._item_knot_id(batch_id, result.key))
-        if row is None or isinstance(result.outcome, Skipped):
+        row = rows.get(MapAgent._item_knot_id(batch_id, result.metadata.key))
+        if row is None or isinstance(result.data, Skipped):
             return result
         attempts = row.extra.get("attempts", 1)
-        return dataclasses.replace(
-            result,
+        return BatchItemResult(
+            index=result.metadata.index,
+            key=result.metadata.key,
+            outcome=result.data,
             attempts=attempts if isinstance(attempts, int) else 1,
             latency=row.duration_ms / 1000.0,
         )

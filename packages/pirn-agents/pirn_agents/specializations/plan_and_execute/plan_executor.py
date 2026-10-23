@@ -10,7 +10,7 @@ rather than a hand-rolled ``for`` loop awaiting ``llm.chat`` directly
 Algorithm:
     1. Receive the resolved ``plan`` (:class:`Plan`) and ``llm`` (:class:`LLMProvider`).
     2. Seed a :class:`~pirn_agents.specializations.plan_and_execute.plan_step_state.PlanStepState`
-       from ``plan.steps`` and build the iteration loop.
+       from ``plan.data`` and build the iteration loop.
     3. Wire :class:`~pirn_agents.specializations.plan_and_execute.plan_execution_result.PlanExecutionResult`
        over the loop's final state and return it as the sink.
 
@@ -68,7 +68,7 @@ class PlanExecutor(AgentPipeline):
             becomes this knot's output.
         """
         loop = PlanStepLoop(
-            state=PlanStepState(steps=tuple(plan.steps), llm=llm),
+            state=PlanStepState(steps=plan.data, llm=llm),
             _config=KnotConfig(id="loop"),
         )
         return PlanExecutionResult(state=loop, _config=KnotConfig(id="result"))

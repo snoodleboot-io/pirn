@@ -96,7 +96,7 @@ class PlanReActPipeline(AgentPipeline):
             TaskPlanner(goal=task, llm=llm, _config=KnotConfig(id="pr_plan"))
         plan_result = await self._run_inner(plan_inner)
         plan = plan_result.outputs["pr_plan"]
-        steps = tuple(plan.steps[:max_steps]) or (task,)
+        steps = tuple(plan.data[:max_steps]) or (task,)
 
         # Core owns the iteration: one run with one traceable iteration per step,
         # rather than a round trip and an unrelated run for each (Rule 11;

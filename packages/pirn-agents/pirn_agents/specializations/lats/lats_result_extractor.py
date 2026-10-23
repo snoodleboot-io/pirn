@@ -46,8 +46,8 @@ class LatsResultExtractor(Knot):
         nodes_expanded = state.nodes_expanded
         budget_exhausted = state.budget_exhausted
         return LatsResult(
-            best_trajectory=best.trajectory,
-            best_value=best.value,
+            best_trajectory=best.data,
+            best_value=best.metadata.value,
             nodes_expanded=nodes_expanded,
             budget_exhausted=budget_exhausted,
         )

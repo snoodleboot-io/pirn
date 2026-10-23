@@ -109,7 +109,7 @@ class TestLatsChildScorer(unittest.IsolatedAsyncioTestCase):
             trajectory=(),
             depth=0,
         )
-        assert [child.trajectory[-1] for child in children] == ["bb", "aa", "cc"]
+        assert [child.data[-1] for child in children] == ["bb", "aa", "cc"]
 
     async def test_no_actions_opens_no_inner_run(self) -> None:
         """``Aggregator`` needs a parent, so an empty proposal short-circuits."""
@@ -154,4 +154,4 @@ class TestProposedOrderIsRestored(unittest.TestCase):
             for index in range(12)
         }
         ordered = LatsChildScorer._in_proposed_order(**children)
-        assert [child.trajectory[0] for child in ordered] == [f"a{index}" for index in range(12)]
+        assert [child.data[0] for child in ordered] == [f"a{index}" for index in range(12)]

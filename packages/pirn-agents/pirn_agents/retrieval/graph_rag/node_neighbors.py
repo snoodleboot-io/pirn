@@ -22,7 +22,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.retrieval.graph_stores.graph_neighbor import GraphNeighbor
+from pirn_agents.retrieval.graph_rag.node_expansion import NodeExpansion
 from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
 
 
@@ -58,8 +58,8 @@ class NodeNeighbors(Knot):
         limit: int,
         edge_types: Sequence[str] | None = None,
         **_: Any,
-    ) -> tuple[GraphNeighbor, ...]:
-        """Return ``node_id``'s neighbors in the given direction.
+    ) -> NodeExpansion:
+        """Return ``node_id``'s neighbors in the given direction, as a :class:`NodeExpansion`.
 
         Args:
             store: The graph store traversed.
@@ -69,7 +69,8 @@ class NodeNeighbors(Knot):
             edge_types: Optional whitelist of edge types to traverse.
 
         Returns:
-            The neighbors the store returned, in its order.
+            A :class:`NodeExpansion` whose ``data`` is the neighbors the store
+            returned, in its order (PIR-874).
         """
         found = await store.neighbors(
             node_id,
@@ -77,4 +78,4 @@ class NodeNeighbors(Knot):
             edge_types=edge_types,
             limit=limit,
         )
-        return tuple(found)
+        return NodeExpansion(node_id, direction, limit, found)

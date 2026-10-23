@@ -119,7 +119,7 @@ class EvaluatorOptimizerLoop(AgentLoopPipeline[EvaluatorOptimizerState]):
         """
         candidate = result.outputs.get(self._gen_id, "")
         verdict = result.outputs.get(self._judge_id)
-        score = verdict.score if isinstance(verdict, JudgeVerdict) else 0.0
+        score = verdict.metadata.score if isinstance(verdict, JudgeVerdict) else 0.0
         accepted = bool(result.outputs.get(self._gate_id, False))
         iterations = state.iterations + 1
 
@@ -140,7 +140,7 @@ class EvaluatorOptimizerLoop(AgentLoopPipeline[EvaluatorOptimizerState]):
             threshold=state.threshold,
             max_iterations=state.max_iterations,
             reflection_gate=state.reflection_gate,
-            feedback=verdict.feedback if isinstance(verdict, JudgeVerdict) else "",
+            feedback=verdict.data if isinstance(verdict, JudgeVerdict) else "",
             best_answer=best_answer,
             best_score=best_score,
             accepted=accepted,

@@ -189,8 +189,8 @@ async def test_map_agent_resumes_within_a_scope_and_isolates_across_scopes() -> 
         ).run(["a", "b"], checkpoint_scope="7")
     ]
     assert same.calls == ["b"]
-    by_key = {r.key: r for r in resumed}
-    assert isinstance(by_key["a"].outcome, Skipped)
+    by_key = {r.metadata.key: r for r in resumed}
+    assert isinstance(by_key["a"].data, Skipped)
     assert by_key["b"].succeeded
 
     # A different scope shares nothing.

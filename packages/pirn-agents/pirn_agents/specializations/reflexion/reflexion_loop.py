@@ -144,7 +144,7 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
         answer = result.outputs[self._actor_id]
         evaluation = result.outputs[self._evaluator_id]
         index = state.index + 1
-        if evaluation.success:
+        if evaluation.metadata.success:
             attempts = (
                 *state.attempts,
                 ReflexionAttempt(answer=answer, success=True, feedback="", reflection=""),
@@ -168,7 +168,7 @@ class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
         attempts = (
             *state.attempts,
             ReflexionAttempt(
-                answer=answer, success=False, feedback=evaluation.feedback, reflection=reflection
+                answer=answer, success=False, feedback=evaluation.data, reflection=reflection
             ),
         )
         return ReflexionState(

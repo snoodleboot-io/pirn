@@ -55,12 +55,12 @@ async def test_raptor_rebuild_skips_summaries() -> None:
     warm = time.perf_counter() - start
     warm_calls = len(llm.calls) - cold_calls
 
-    assert first.reused is False
-    assert second.reused is True
+    assert first.metadata.reused is False
+    assert second.metadata.reused is True
     assert cold_calls > 0
     assert warm_calls == 0
     print(
-        f"[benchmark] raptor_ingest nodes={first.node_count} levels={first.level_count} "
+        f"[benchmark] raptor_ingest nodes={first.metadata.node_count} levels={first.metadata.level_count} "
         f"cold_calls={cold_calls} cold={cold * 1e3:.1f}ms warm_calls={warm_calls} "
         f"warm={warm * 1e3:.1f}ms"
     )

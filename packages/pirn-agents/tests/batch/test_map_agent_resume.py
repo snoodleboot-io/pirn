@@ -76,7 +76,7 @@ async def test_resume_skips_already_completed_items() -> None:
         ["a", "b", "c"],
     )
 
-    assert all(isinstance(r.outcome, Skipped) for r in results)
+    assert all(isinstance(r.data, Skipped) for r in results)
     assert second.calls == []  # the agent is never invoked for completed items
 
 
@@ -112,9 +112,9 @@ async def test_partial_resume_runs_only_remaining_items() -> None:
         ["a", "b", "c"],
     )
 
-    by_key = {r.key: r for r in results}
-    assert isinstance(by_key["a"].outcome, Skipped)
-    assert isinstance(by_key["c"].outcome, Skipped)
+    by_key = {r.metadata.key: r for r in results}
+    assert isinstance(by_key["a"].data, Skipped)
+    assert isinstance(by_key["c"].data, Skipped)
     assert by_key["b"].succeeded
     assert agent.calls == ["b"]  # only the one uncompleted item ran
 
@@ -150,7 +150,7 @@ async def test_failed_items_are_not_recorded_and_retry_on_resume() -> None:
         ),
         ["a", "bad", "c"],
     )
-    by_key = {r.key: r for r in results}
+    by_key = {r.metadata.key: r for r in results}
     assert by_key["1"].succeeded
     assert second.calls == ["bad"]
 
@@ -235,7 +235,7 @@ async def test_each_resume_probe_is_its_own_knot() -> None:
         )
         result = await second.run(RunRequest())
     assert result.succeeded, result.exceptions
-    assert all(isinstance(item.outcome, Skipped) for item in result.outputs["map"])
+    assert all(isinstance(item.data, Skipped) for item in result.outputs["map"])
 
     # Two runs, so two probe rows per item — one per run, each its own knot.
     probes = [await history.query_lineage_by_knot_id(f"probe_{index}") for index in range(3)]

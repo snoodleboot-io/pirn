@@ -50,8 +50,8 @@ class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
             store=store,
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        assert profile.fields == {"name": "Ada"}
-        assert profile.session_ids == ("s1",)
+        assert profile.data == {"name": "Ada"}
+        assert profile.metadata.session_ids == ("s1",)
         assert await store.get(namespace="profile", key="profile:user:u1") is not None
 
     async def test_persists_across_sessions_without_clobbering(self) -> None:
@@ -72,8 +72,8 @@ class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
             store=store,
             now=datetime(2026, 2, 1, tzinfo=UTC),
         )
-        assert profile.fields == {"name": "Ada", "prefs": {"theme": "dark", "lang": "en"}}
-        assert profile.session_ids == ("s1", "s2")
+        assert profile.data == {"name": "Ada", "prefs": {"theme": "dark", "lang": "en"}}
+        assert profile.metadata.session_ids == ("s1", "s2")
 
     async def test_provider_neutral_lookup_uses_storage_key(self) -> None:
         knot = _make_knot()
@@ -100,7 +100,7 @@ class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
         profile = await knot.process(
             key=key, incoming_fields={"b": 2}, store=store, now=datetime(2026, 1, 2, tzinfo=UTC)
         )
-        assert profile.session_ids == ("s1",)
+        assert profile.metadata.session_ids == ("s1",)
 
     async def test_rejects_non_key(self) -> None:
         knot = _make_knot()

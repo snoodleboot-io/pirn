@@ -12,6 +12,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.tool_use.tool_call_validator import (
     ToolCallValidator,
 )
+from pirn_agents.specializations.tool_use.validated_tool_call import ValidatedToolCall
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
 from tests.specializations.conftest import StubTool
@@ -51,7 +52,9 @@ class TestToolCallValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         validated = result.outputs["val"]
-        assert validated == call
+        assert isinstance(validated, ValidatedToolCall)
+        assert validated.data == call
+        assert validated.metadata.tool_name == call.tool_name
 
 
 class TestToolCallValidatorRejections(unittest.IsolatedAsyncioTestCase):

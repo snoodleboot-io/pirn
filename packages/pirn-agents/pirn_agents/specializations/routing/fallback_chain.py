@@ -30,7 +30,7 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -38,6 +38,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.routing.candidate_routing import CandidateRouting
 from pirn_agents.specializations.routing.fallback_chain_result import FallbackChainResult
 from pirn_agents.specializations.routing.fallback_chain_state import FallbackChainState
 from pirn_agents.specializations.routing.fallback_loop import FallbackLoop
@@ -50,7 +51,7 @@ class FallbackChain(AgentPipeline):
     def __init__(
         self,
         *,
-        ordered: Knot | Sequence[RouteCandidate],
+        ordered: Knot | CandidateRouting,
         arguments: Knot | Mapping[str, Any],
         confidences: Knot | Mapping[str, float],
         _config: KnotConfig,
@@ -66,7 +67,7 @@ class FallbackChain(AgentPipeline):
 
     async def process(
         self,
-        ordered: Sequence[RouteCandidate],
+        ordered: CandidateRouting,
         arguments: Mapping[str, Any],
         confidences: Mapping[str, float],
         **_: Any,
@@ -74,7 +75,7 @@ class FallbackChain(AgentPipeline):
         """Build the candidate chain and return its result-extracting sink knot.
 
         Args:
-            ordered: Candidates in confidence-descending order.
+            ordered: The :class:`CandidateRouting` to try, confidence-descending.
             arguments: Arguments passed to each invoked tool.
             confidences: Confidence per candidate name (missing = 0.0).
 
@@ -82,10 +83,15 @@ class FallbackChain(AgentPipeline):
             The sink knot whose output is a :class:`FallbackResult`.
 
         Raises:
-            TypeError: If ``ordered`` holds a non-:class:`RouteCandidate` or
-                ``arguments``/``confidences`` are not mappings.
+            TypeError: If ``ordered`` is not a :class:`CandidateRouting`, holds a
+                non-:class:`RouteCandidate`, or ``arguments``/``confidences`` are
+                not mappings.
         """
-        candidate_tuple = tuple(ordered)
+        if not isinstance(ordered, CandidateRouting):
+            raise TypeError(
+                f"FallbackChain: ordered must be a CandidateRouting, got {type(ordered).__name__}"
+            )
+        candidate_tuple = tuple(ordered.data)
         for index, candidate in enumerate(candidate_tuple):
             if not isinstance(candidate, RouteCandidate):
                 raise TypeError(

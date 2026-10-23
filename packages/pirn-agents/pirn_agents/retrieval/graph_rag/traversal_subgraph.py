@@ -17,6 +17,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
+from pirn_agents.retrieval.graph_rag.traversal_result import TraversalResult
 from pirn_agents.retrieval.graph_rag.traversal_state import TraversalState
 
 
@@ -32,14 +33,21 @@ class TraversalSubgraph(Knot):
     ) -> None:
         super().__init__(state=state, _config=_config, **kwargs)
 
-    async def process(self, state: TraversalState, **_: Any) -> Subgraph:
+    async def process(self, state: TraversalState, **_: Any) -> TraversalResult:
         """Return the traversal's nodes and edges.
 
         Args:
             state: The loop's final state.
 
         Returns:
-            The collected :class:`Subgraph`. Every recorded edge connects two
-            collected nodes, so the selection is internally consistent.
+            A :class:`TraversalResult` whose ``data`` is the collected
+            :class:`Subgraph` — every recorded edge connects two collected nodes,
+            so the selection is internally consistent — and whose frame carries
+            the budget and how many hops ran (PIR-874).
         """
-        return Subgraph(nodes=state.nodes, edges=state.edges)
+        return TraversalResult(
+            Subgraph(nodes=state.nodes, edges=state.edges),
+            direction=state.direction,
+            budget=state.budget,
+            hops=state.budget.max_depth - state.rounds_left,
+        )

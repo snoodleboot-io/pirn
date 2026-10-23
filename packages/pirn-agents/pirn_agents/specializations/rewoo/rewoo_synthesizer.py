@@ -1,9 +1,9 @@
 """``ReWooSynthesizer`` — fold the parallel tool evidence into one final answer.
 
 Algorithm:
-    1. Receive the ``goal`` (str), the planned ``plan`` (tuple of
-       :class:`ToolCall`), the gathered ``results`` (tuple of
-       :class:`ToolResult`), and the ``llm``.
+    1. Receive the ``goal`` (str), the planned ``plan`` (a
+       :class:`ToolCallBatch`), the gathered ``results`` (a
+       :class:`ToolResultBatch`, PIR-874), and the ``llm``.
     2. Validate types at process time.
     3. Render an evidence block pairing each planned call with its result.
     4. Ask the LLM once to synthesise the final answer from the evidence.
@@ -18,7 +18,6 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -29,7 +28,9 @@ from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_result_batch import ToolResultBatch
 
 
 class ReWooSynthesizer(Knot):
@@ -47,8 +48,8 @@ class ReWooSynthesizer(Knot):
         self,
         *,
         goal: Knot | str,
-        plan: Knot | Sequence[ToolCall],
-        results: Knot | Sequence[ToolResult],
+        plan: Knot | ToolCallBatch,
+        results: Knot | ToolResultBatch,
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
@@ -65,8 +66,8 @@ class ReWooSynthesizer(Knot):
     async def process(
         self,
         goal: str,
-        plan: Sequence[ToolCall],
-        results: Sequence[ToolResult],
+        plan: ToolCallBatch,
+        results: ToolResultBatch,
         llm: LLMProvider,
         **_: Any,
     ) -> ReWooResult:
@@ -74,8 +75,8 @@ class ReWooSynthesizer(Knot):
 
         Args:
             goal: The original task.
-            plan: The planned tool calls (in order).
-            results: The tool results gathered in parallel (in plan order).
+            plan: The planned tool calls (in order) as a :class:`ToolCallBatch`.
+            results: The :class:`ToolResultBatch` gathered in parallel (in plan order).
             llm: Provider used for the single synthesis round-trip.
 
         Returns:
@@ -84,8 +85,16 @@ class ReWooSynthesizer(Knot):
         Raises:
             TypeError: If any input has the wrong type.
         """
-        plan_tuple = tuple(plan)
-        results_tuple = tuple(results)
+        if not isinstance(plan, ToolCallBatch):
+            raise TypeError(
+                f"ReWooSynthesizer: plan must be a ToolCallBatch, got {type(plan).__name__}"
+            )
+        if not isinstance(results, ToolResultBatch):
+            raise TypeError(
+                f"ReWooSynthesizer: results must be a ToolResultBatch, got {type(results).__name__}"
+            )
+        plan_tuple = plan.data
+        results_tuple = results.data
         for index, call in enumerate(plan_tuple):
             if not isinstance(call, ToolCall):
                 raise TypeError(

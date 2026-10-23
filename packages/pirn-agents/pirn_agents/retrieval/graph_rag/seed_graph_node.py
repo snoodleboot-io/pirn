@@ -19,7 +19,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
+from pirn_agents.retrieval.graph_rag.seed_lookup import SeedLookup
 from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
 
 
@@ -36,14 +36,15 @@ class SeedGraphNode(Knot):
     ) -> None:
         super().__init__(store=store, node_id=node_id, _config=_config, **kwargs)
 
-    async def process(self, store: GraphStore, node_id: str, **_: Any) -> GraphNode | None:
-        """Return the node stored under ``node_id``, or ``None``.
+    async def process(self, store: GraphStore, node_id: str, **_: Any) -> SeedLookup:
+        """Return the node stored under ``node_id``, or ``None``, as a :class:`SeedLookup`.
 
         Args:
             store: The graph store to read from.
             node_id: The seed id to resolve.
 
         Returns:
-            The node, or ``None`` when the store has no such node.
+            A :class:`SeedLookup` whose ``data`` is the node, or ``None`` when the
+            store has no such node (PIR-874).
         """
-        return await store.get_node(node_id)
+        return SeedLookup(node_id, await store.get_node(node_id))

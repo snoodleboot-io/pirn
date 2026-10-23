@@ -7,7 +7,7 @@ and output:
     1. Build a schema-shaped extraction prompt from the text and the target
        :class:`~pirn_agents.retrieval.graph_rag.extraction_schema.ExtractionSchema`.
     2. Decode it into a validated
-       :class:`~pirn_agents.retrieval.graph_rag.extraction_result.ExtractionResult` via the
+       :class:`~pirn_agents.retrieval.graph_rag.extracted_graph.ExtractedGraph` via the
        F20 :meth:`~pirn_agents.specializations.structured_output.structured_decoder.StructuredDecoder.decode_once`
        path — provider-neutral, capability-gated native schema / forced-tool /
        constrained decoding with a retry fallback, so extraction works against
@@ -17,7 +17,7 @@ and output:
     4. Map the typed result onto :class:`GraphNode` / :class:`GraphEdge` values
        and upsert them into any :class:`GraphStore` implementation.
 
-The decoded :class:`ExtractionResult` is returned so callers can inspect or
+The decoded graph is returned as an :class:`ExtractionResult` so callers can inspect or
 re-use the typed extraction independently of the graph write.
 """
 
@@ -30,6 +30,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.retrieval.graph_rag.extracted_graph import ExtractedGraph
 from pirn_agents.retrieval.graph_rag.extraction_result import ExtractionResult
 from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
@@ -91,11 +92,12 @@ class EntityRelationExtractor(Knot):
             max_retries: Retry budget for the structured-output fallback path.
 
         Returns:
-            The validated :class:`ExtractionResult` (also written to ``store``).
+            An :class:`ExtractionResult` carrying the validated
+            :class:`ExtractedGraph` (also written to ``store``) and its counts.
 
         Raises:
             TypeError: If ``text``/``schema``/``store`` are the wrong type, or the
-                decoded value is not an :class:`ExtractionResult`.
+                decoded value is not an :class:`ExtractedGraph`.
             ValueError: If ``text`` is blank, or an extracted entity/relation type
                 is outside the schema, or a relation references an unknown entity.
         """
@@ -103,12 +105,12 @@ class EntityRelationExtractor(Knot):
             raise ValueError("EntityRelationExtractor: text must be non-empty")
         prompt = self._build_prompt(text, schema)
         decoded = await StructuredDecoder.decode_once(
-            prompt=prompt, llm=llm, model_class=ExtractionResult, max_retries=max_retries
+            prompt=prompt, llm=llm, model_class=ExtractedGraph, max_retries=max_retries
         )
-        if not isinstance(decoded, ExtractionResult):
+        if not isinstance(decoded, ExtractedGraph):
             raise TypeError(
                 f"EntityRelationExtractor: decoder returned {type(decoded).__name__}, "
-                "expected ExtractionResult"
+                "expected ExtractedGraph"
             )
         self._validate_against_schema(decoded, schema)
         nodes = [
@@ -130,7 +132,7 @@ class EntityRelationExtractor(Knot):
         ]
         await store.upsert_nodes(nodes)
         await store.upsert_edges(edges)
-        return decoded
+        return ExtractionResult(decoded)
 
     @classmethod
     def _build_prompt(cls, text: str, schema: ExtractionSchema) -> str:
@@ -144,7 +146,7 @@ class EntityRelationExtractor(Knot):
         )
 
     @staticmethod
-    def _validate_against_schema(result: ExtractionResult, schema: ExtractionSchema) -> None:
+    def _validate_against_schema(result: ExtractedGraph, schema: ExtractionSchema) -> None:
         """Reject out-of-schema types and relations that dangle off unknown ids."""
         allowed_entities = set(schema.entity_types)
         allowed_relations = set(schema.relation_types)

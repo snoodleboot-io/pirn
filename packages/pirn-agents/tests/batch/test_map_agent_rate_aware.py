@@ -131,7 +131,7 @@ async def test_throttle_without_retry_reports_error() -> None:
 
     results = await _drain(runner, ["x"])
 
-    assert isinstance(results[0].outcome, Err)
+    assert isinstance(results[0].data, Err)
     assert results[0].error is not None and "slow down" in results[0].error
     assert controller.limit() == 2  # scaled down even though the item failed
 
