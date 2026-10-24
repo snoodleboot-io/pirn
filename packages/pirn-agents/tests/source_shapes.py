@@ -112,6 +112,23 @@ class SourceShapes:
     _hashing_modules: ClassVar[frozenset[str]] = frozenset({"hashlib", "xxhash", "blake3", "mmh3"})
     #: The types ``pirn.core.run_context_vars.RunContextVars`` publishes ambiently.
     #: A ``ContextVar`` of one of these is a second copy of the run's own state.
+    #: The types core publishes as ``RunContextVars`` ContextVars — and only
+    #: those. A ``ContextVar`` carrying one of these is a second copy of
+    #: something the run already makes ambient, which can disagree with it.
+    #:
+    #: ``ConcurrencyLimits`` and ``Admission`` were in this set and are not in
+    #: core's: core declares no ContextVar for either (they travel *inside*
+    #: ``ExecutionPlane``, which is published, and a knot reads them through
+    #: it). So a variable carrying limits has nothing ambient to disagree with
+    #: — it is an outbox, not a shadow. ``InnerGroupLimit`` is the one in this
+    #: package: ``process()`` writes this run's group cap and the argument-less
+    #: ``NestedRunKnot._inner_concurrency()`` hook reads it once, before the
+    #: inner run starts; it is never read as "the current run's limits". The
+    #: alternative is holding the cap on the knot, which is the graph-state
+    #: defect its own docstring describes — two concurrent runs of one tapestry
+    #: overwriting each other's budget. It would be unnecessary if that hook
+    #: (or ``_make_inner_tapestry``) took the resolved inputs; both take none,
+    #: which is the core gap behind it (PIR-874).
     _core_ambient_types: ClassVar[frozenset[str]] = frozenset(
         {
             "Tapestry",
@@ -123,8 +140,6 @@ class SourceShapes:
             "RunNesting",
             "ExecutionPlane",
             "TapestryStore",
-            "ConcurrencyLimits",
-            "Admission",
         }
     )
     _keyed_readers: ClassVar[frozenset[str]] = frozenset({"get", "pop", "setdefault"})
@@ -334,10 +349,41 @@ class SourceShapes:
 
     @staticmethod
     def fans_out_by_hand(node: ast.AST) -> bool:
-        """Whether ``node`` calls a task/concurrency scheduler primitive."""
-        return any(
-            isinstance(sub, ast.Call) and SourceShapes._is_fan_out_call(sub)
-            for sub in ast.walk(node)
+        """Whether ``node`` calls a task/concurrency scheduler primitive.
+
+        A fan-out call whose handed coroutines are *all* methods on plumbing the
+        same scope constructed is not a scheduler: ``create_task(t.run(...))``
+        with ``t = Tapestry(...)`` starts the engine, and the engine is what
+        schedules the work (see :meth:`async_plumbing_names`). The exemption
+        needs a handed call to qualify, so a primitive handed nothing —
+        ``asyncio.TaskGroup()`` — is a scheduler being constructed and still
+        counts, as does one handed a collaborator's coroutine or a receiver the
+        scope did not build (an injected tapestry-like parameter).
+        """
+        for scope in SourceShapes.scopes(node):
+            plumbing = SourceShapes.async_plumbing_names(scope)
+            for sub in SourceShapes.scoped_walk(scope):
+                if (
+                    isinstance(sub, ast.Call)
+                    and SourceShapes._is_fan_out_call(sub)
+                    and not SourceShapes._hands_only_plumbing(sub, plumbing)
+                ):
+                    return True
+        return False
+
+    @staticmethod
+    def _hands_only_plumbing(call: ast.Call, plumbing: frozenset[str]) -> bool:
+        """Whether every coroutine ``call`` hands over is a method on constructed plumbing."""
+        handed: list[ast.expr] = [*call.args, *(keyword.value for keyword in call.keywords)]
+        coroutines = [
+            inner for argument in handed for inner in SourceShapes._handed_calls(argument)
+        ]
+        return bool(coroutines) and all(
+            isinstance(inner.func, ast.Attribute)
+            and isinstance(inner.func.value, ast.Name)
+            and inner.func.value.id in plumbing
+            and inner.func.value.id != "asyncio"
+            for inner in coroutines
         )
 
     @staticmethod

@@ -17,12 +17,9 @@ wires this Check behind a ``Gate`` for every capability whose
 :class:`~pirn_agents.tools.tool_permissions.ToolPermissions` require
 approval; a capability that does not is never gated at all.
 
-Named ``ToolApprovalCheck`` rather than the shorter ``ApprovalCheck`` because
-:class:`pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
-already holds that name for a different, unrelated seam — pausing a whole
+Named ``ToolApprovalCheck`` because it gates one tool call; pausing a whole
 :class:`~pirn_agents.types.messaging.agent_response.AgentResponse` for a human
-decision, not gating one tool call — and class names must stay unique across
-the workspace (``docs/contributing/knot-remediation-process.md``).
+decision is :class:`~pirn_agents.sessions.suspending_approval_check.SuspendingApprovalCheck`.
 
 ``process()`` evaluates the same policy
 :meth:`pirn_agents.agent.approval_hook.ApprovalHook.authorize` already

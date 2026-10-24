@@ -357,8 +357,8 @@ class _PlanFirstStep(Knot):
     async def process(self, plan: Any, **_: Any) -> str:
         from pirn_agents.planning.plan import Plan as _Plan
 
-        if isinstance(plan, _Plan) and plan.steps:
-            return plan.steps[0]
+        if isinstance(plan, _Plan) and plan.data:
+            return plan.data[0]
         return str(plan)
 
 

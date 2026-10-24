@@ -17,10 +17,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.guardrails.claim_support import ClaimSupport
 
 
 class ClaimVerification(Knot):
-    """Search the memory store for one claim; ``True`` when at least one hit."""
+    """Search the memory store for one claim and return the evidence found."""
 
     def __init__(
         self,
@@ -32,7 +33,18 @@ class ClaimVerification(Knot):
     ) -> None:
         super().__init__(claim=claim, store=store, _config=_config, **kwargs)
 
-    async def process(self, claim: str, store: MemoryStore, **_: Any) -> bool:
-        """Return whether ``claim`` has at least one supporting hit in ``store``."""
+    async def process(self, claim: str, store: MemoryStore, **_: Any) -> ClaimSupport:
+        """Search ``store`` for ``claim`` and return what it found.
+
+        Args:
+            claim: The claim to look up.
+            store: The memory store searched.
+
+        Returns:
+            A :class:`ClaimSupport` whose ``data`` is the hits the search
+            returned, so a downstream knot can cite them, and whose
+            ``metadata.supported`` is the verdict. A bare ``bool`` would be
+            core's ``Check`` role without ``Gate(check=)`` wiring (PIR-874).
+        """
         hits = await store.search(claim, top_k=1)
-        return bool(hits)
+        return ClaimSupport(claim, hits)

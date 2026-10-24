@@ -11,7 +11,9 @@ stores with a one-line reason each and froze the set by exact equality — and i
 detector, which matched three hard-coded method-name pairs, could not see the
 ``register``/``get`` stores that existed the whole time, so the inventory it
 froze was not the inventory of stores. The assertion below is the rule itself:
-**no class holds a keyed store of its own**. :class:`TestKeyedStoreDetectorFires`
+**no knot holds a keyed store of its own** — the value plane is where a knot's
+output goes, and a non-knot data structure's dict is its implementation (core's
+``InMemoryDataStore`` has the identical shape). :class:`TestKeyedStoreDetectorFires`
 proves the detector fires, so an empty finding means an empty tree and not a
 blind detector.
 """
@@ -20,6 +22,10 @@ from __future__ import annotations
 
 import ast
 import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from pirn.core.knot import Knot
 
 from tests.agents_source_index import AgentsSourceIndex
 from tests.source_shapes import SourceShapes
@@ -128,3 +134,78 @@ class TestKeyedStoreDetectorFires(unittest.TestCase):
             self._stores("class Plain:\n    def run(self, value):\n        return value\n")
             == frozenset()
         )
+
+
+class TestKeyedStoreRuleIsScopedToKnots(unittest.TestCase):
+    """The rule's scope is the knot; the shape alone cannot be the rule."""
+
+    _store_body = (
+        "    def put(self, key, value):\n"
+        "        self._values[key] = value\n"
+        "    def get(self, key):\n"
+        "        return self._values.get(key)\n"
+    )
+
+    def test_the_value_plane_itself_has_the_shape(self) -> None:
+        """Core's own ``InMemoryDataStore`` trips the detector: the standing reason for the scope."""
+        path = (
+            Path(__file__).resolve().parents[2]
+            / "pirn-core/pirn/backends/in_memory/in_memory_data_store.py"
+        )
+        node = next(n for n in ast.parse(path.read_text()).body if isinstance(n, ast.ClassDef))
+        assert SourceShapes.keyed_store_attributes(node) == frozenset({"_evicted", "_values"})
+
+    def test_discovery_scans_knots_and_only_knots(self) -> None:
+        scanned = AgentsSourceIndex.knots()
+        assert scanned
+        assert all(issubclass(cls, Knot) for cls, _node in scanned.values())
+        assert len(scanned) < len(AgentsSourceIndex.classes())
+
+    def test_a_knot_with_a_keyed_store_has_the_shape_discovery_reports(self) -> None:
+        node = next(
+            n
+            for n in ast.parse(f"class Stasher(Knot):\n{self._store_body}").body
+            if isinstance(n, ast.ClassDef)
+        )
+        assert SourceShapes.keyed_store_attributes(node) == frozenset({"_values"})
+
+    def test_discovery_reports_a_knot_with_a_keyed_store(self) -> None:
+        class Stasher(Knot):
+            def __init__(self) -> None:
+                self._values: dict[str, object] = {}
+
+            def put(self, key: str, value: object) -> None:
+                self._values[key] = value
+
+            def get(self, key: str) -> object:
+                return self._values.get(key)
+
+        stasher_node = next(
+            n
+            for n in ast.parse(f"class Stasher(Knot):\n{self._store_body}").body
+            if isinstance(n, ast.ClassDef)
+        )
+        index = {"x.py::Stasher": (Stasher, stasher_node)}
+        with patch.object(AgentsSourceIndex, "knots", return_value=index):
+            assert StoreInventory.discover() == {"x.py::Stasher": frozenset({"_values"})}
+
+    def test_discovery_is_silent_on_a_non_knot_with_the_identical_store(self) -> None:
+        class Plain:
+            pass
+
+        node = next(
+            n
+            for n in ast.parse(f"class Plain:\n{self._store_body}").body
+            if isinstance(n, ast.ClassDef)
+        )
+        everything = {"x.py::Plain": (Plain, node)}
+        assert SourceShapes.keyed_store_attributes(node) == frozenset({"_values"})
+        with (
+            patch.object(AgentsSourceIndex, "classes", return_value=everything),
+            patch.object(
+                AgentsSourceIndex,
+                "knots",
+                return_value={k: v for k, v in everything.items() if issubclass(v[0], Knot)},
+            ),
+        ):
+            assert StoreInventory.discover() == {}

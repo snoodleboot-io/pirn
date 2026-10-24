@@ -138,8 +138,27 @@ class TestCoreSeamDetectorsFire(unittest.TestCase):
     # -- nesting guard ------------------------------------------------------------
 
     def test_rule_nesting_fires_on_a_core_ambient_type(self) -> None:
-        """A variable carrying core's own limits is a second copy of the plane's."""
+        """A variable carrying the run's data store is a second copy of an ambient one."""
         assert self._is_shadow(
+            "nesting",
+            "class Plane:\n"
+            "    _current: ClassVar[ContextVar[DataStore | None]] = ContextVar(\n"
+            "        'store', default=None\n"
+            "    )\n",
+        )
+
+    def test_rule_nesting_ignores_limits_because_core_publishes_none(self) -> None:
+        """``ConcurrencyLimits`` was in the ambient set and is not in core's (PIR-874).
+
+        Core declares no ``RunContextVars`` ContextVar for limits or for
+        ``Admission`` — they travel inside ``ExecutionPlane``, which *is*
+        published, and a knot reads them through it. So a variable carrying
+        limits has nothing ambient to disagree with: it is an outbox, not a
+        shadow. ``InnerGroupLimit`` is the one in this package, and the
+        alternative — the cap on the knot — is the graph-state defect its own
+        docstring describes.
+        """
+        assert not self._is_shadow(
             "nesting",
             "class Cap:\n"
             "    _current: ClassVar[ContextVar[ConcurrencyLimits | None]] = ContextVar(\n"

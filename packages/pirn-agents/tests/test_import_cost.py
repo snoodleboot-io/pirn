@@ -84,7 +84,10 @@ _MAX_SPECIALIZATION_MODULES = 430
 # record itself had to stay a record, a payload class beside it. Measured 1402
 # after that change; the comparison ceiling below did not move, which is the
 # point — growth is linear now, not quadratic.
-_MAX_REGISTRY_ENTRIES = 1402
+# PIR-874 again, closing the last four ratchets: net +1. ``ClaimSupport`` and
+# ``ClaimSupportFrame`` replace ``ClaimVerification``'s bare bool, and the
+# superseded ``ApprovalCheck`` placeholder is deleted. Measured 1403.
+_MAX_REGISTRY_ENTRIES = 1403
 
 # Linear in the entry ceiling, not quadratic. sweet_tea >= 0.2.65 keys the
 # duplicate check off a set, so a bare import performs *zero* Entry comparisons;

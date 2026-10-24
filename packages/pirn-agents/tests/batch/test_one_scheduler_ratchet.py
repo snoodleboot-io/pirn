@@ -59,6 +59,84 @@ class TestOneSchedulerDetectorsFire(unittest.TestCase):
 
     # -- own task scheduling ----------------------------------------------------
 
+    def test_rule_task_scheduling_ignores_starting_a_tapestry_it_built(self) -> None:
+        """Starting the engine is not scheduling work beside it."""
+        assert not OneSchedulerInventory.schedules_its_own_tasks(
+            self._class_of(
+                "class Mapper:\n"
+                "    async def run(self, xs):\n"
+                "        t = Tapestry()\n"
+                "        task = asyncio.create_task(t.run(RunRequest(xs)))\n"
+                "        return await task\n"
+            )
+        )
+
+    def test_rule_task_scheduling_still_fires_on_a_collaborators_coroutine(self) -> None:
+        assert OneSchedulerInventory.schedules_its_own_tasks(
+            self._class_of(
+                "class Mapper:\n"
+                "    async def run(self, store, x):\n"
+                "        t = Tapestry()\n"
+                "        return await asyncio.create_task(store.put(x))\n"
+            )
+        )
+
+    def test_rule_task_scheduling_still_fires_on_a_gathered_collaborator_comprehension(
+        self,
+    ) -> None:
+        assert OneSchedulerInventory.schedules_its_own_tasks(
+            self._class_of(
+                "class Mapper:\n"
+                "    async def run(self, store, xs):\n"
+                "        return await asyncio.gather(*[store.put(x) for x in xs])\n"
+            )
+        )
+
+    def test_rule_task_scheduling_still_fires_on_an_injected_tapestry(self) -> None:
+        """A receiver the scope did not construct is a collaborator, whatever it is named."""
+        assert OneSchedulerInventory.schedules_its_own_tasks(
+            self._class_of(
+                "class Mapper:\n"
+                "    async def run(self, tapestry, xs):\n"
+                "        return await asyncio.create_task(tapestry.run(RunRequest(xs)))\n"
+            )
+        )
+
+    def test_rule_task_scheduling_still_fires_when_one_handed_coroutine_is_not_plumbing(
+        self,
+    ) -> None:
+        assert OneSchedulerInventory.schedules_its_own_tasks(
+            self._class_of(
+                "class Mapper:\n"
+                "    async def run(self, store, xs):\n"
+                "        t = Tapestry()\n"
+                "        return await asyncio.gather(t.run(xs), store.put(xs))\n"
+            )
+        )
+
+    def test_rule_task_scheduling_still_fires_on_a_bare_task_group(self) -> None:
+        assert OneSchedulerInventory.schedules_its_own_tasks(
+            self._class_of(
+                "class Mapper:\n"
+                "    async def run(self):\n"
+                "        t = Tapestry()\n"
+                "        async with asyncio.TaskGroup() as group:\n"
+                "            pass\n"
+            )
+        )
+
+    def test_rule_task_scheduling_plumbing_is_per_scope(self) -> None:
+        """A tapestry built in one method does not exempt a same-named parameter in another."""
+        assert OneSchedulerInventory.schedules_its_own_tasks(
+            self._class_of(
+                "class Mapper:\n"
+                "    async def build(self):\n"
+                "        t = Tapestry()\n"
+                "    async def run(self, t):\n"
+                "        return await asyncio.create_task(t.run())\n"
+            )
+        )
+
     def test_rule_task_scheduling_fires_on_asyncio_gather(self) -> None:
         assert OneSchedulerInventory.schedules_its_own_tasks(
             self._class_of(
