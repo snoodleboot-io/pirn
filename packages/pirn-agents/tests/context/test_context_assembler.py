@@ -55,9 +55,9 @@ class TestBudgetFitting(unittest.IsolatedAsyncioTestCase):
         items = (_word_item("one two"), _word_item("three"))
         result = await k.process(items=items, budget=10, counter=_counter())
         assert isinstance(result, AssembledContext)
-        assert result.kept == items
-        assert result.evicted == ()
-        assert result.total_tokens == 3
+        assert result.data == items
+        assert result.metadata.evicted == ()
+        assert result.metadata.total_tokens == 3
 
     async def test_evicts_until_within_budget(self) -> None:
         k = _make_knot()
@@ -70,10 +70,10 @@ class TestBudgetFitting(unittest.IsolatedAsyncioTestCase):
         result = await k.process(
             items=items, budget=4, counter=_counter(), policy=RecencyEvictionPolicy()
         )
-        assert result.total_tokens == 4
+        assert result.metadata.total_tokens == 4
         # recency drops the oldest (position 1) first.
-        assert [i.content for i in result.evicted] == ["a a"]
-        assert [i.content for i in result.kept] == ["b b", "c c"]
+        assert [i.content for i in result.metadata.evicted] == ["a a"]
+        assert [i.content for i in result.data] == ["b b", "c c"]
 
     async def test_kept_preserves_original_order(self) -> None:
         k = _make_knot()
@@ -86,23 +86,23 @@ class TestBudgetFitting(unittest.IsolatedAsyncioTestCase):
             items=items, budget=4, counter=_counter(), policy=RecencyEvictionPolicy()
         )
         # position-1 item ("b b") is evicted; remaining keep input order.
-        assert [i.content for i in result.kept] == ["a a", "c c"]
+        assert [i.content for i in result.data] == ["a a", "c c"]
 
     async def test_accepts_context_budget_with_reserved(self) -> None:
         k = _make_knot()
         items = (_word_item("a a"), _word_item("b b"))
         budget = ContextBudget(max_tokens=6, reserved_tokens=3)  # available == 3
         result = await k.process(items=items, budget=budget, counter=_counter())
-        assert result.total_tokens <= 3
-        assert len(result.evicted) == 1
+        assert result.metadata.total_tokens <= 3
+        assert len(result.metadata.evicted) == 1
 
     async def test_zero_budget_evicts_all_unpinned(self) -> None:
         k = _make_knot()
         items = (_word_item("a"), _word_item("b"))
         result = await k.process(items=items, budget=0, counter=_counter())
-        assert result.kept == ()
-        assert len(result.evicted) == 2
-        assert result.total_tokens == 0
+        assert result.data == ()
+        assert len(result.metadata.evicted) == 2
+        assert result.metadata.total_tokens == 0
 
 
 class TestPinned(unittest.IsolatedAsyncioTestCase):
@@ -116,7 +116,7 @@ class TestPinned(unittest.IsolatedAsyncioTestCase):
         result = await k.process(
             items=items, budget=3, counter=_counter(), policy=RecencyEvictionPolicy()
         )
-        kept_contents = [i.content for i in result.kept]
+        kept_contents = [i.content for i in result.data]
         assert "pinned words here" in kept_contents
 
     async def test_pinned_can_exceed_budget(self) -> None:
@@ -124,8 +124,8 @@ class TestPinned(unittest.IsolatedAsyncioTestCase):
         items = (_word_item("one two three four five", pinned=True),)
         result = await k.process(items=items, budget=2, counter=_counter())
         # Pinned content is retained even though it exceeds the budget.
-        assert result.kept == items
-        assert result.total_tokens == 5
+        assert result.data == items
+        assert result.metadata.total_tokens == 5
 
 
 class TestPolicySelection(unittest.IsolatedAsyncioTestCase):
@@ -139,7 +139,7 @@ class TestPolicySelection(unittest.IsolatedAsyncioTestCase):
         result = await k.process(
             items=items, budget=4, counter=_counter(), policy=RelevanceEvictionPolicy()
         )
-        assert [i.content for i in result.evicted] == ["a a"]
+        assert [i.content for i in result.metadata.evicted] == ["a a"]
 
     async def test_importance_policy_drops_least_important(self) -> None:
         k = _make_knot()
@@ -151,7 +151,7 @@ class TestPolicySelection(unittest.IsolatedAsyncioTestCase):
         result = await k.process(
             items=items, budget=4, counter=_counter(), policy=ImportanceEvictionPolicy()
         )
-        assert [i.content for i in result.evicted] == ["b b"]
+        assert [i.content for i in result.metadata.evicted] == ["b b"]
 
     async def test_defaults_to_recency_when_policy_omitted(self) -> None:
         k = _make_knot()
@@ -160,7 +160,7 @@ class TestPolicySelection(unittest.IsolatedAsyncioTestCase):
             _word_item("b b", position=2),
         )
         result = await k.process(items=items, budget=2, counter=_counter())
-        assert [i.content for i in result.evicted] == ["a a"]
+        assert [i.content for i in result.metadata.evicted] == ["a a"]
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):

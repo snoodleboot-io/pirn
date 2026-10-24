@@ -8,7 +8,7 @@ Algorithm:
        tool calls in the line format ``<n>. <tool_name>: <input>``.
     4. Parse each matching line into a :class:`ToolCall` with a stable
        ``call_id`` (``"c<index>"``) and ``arguments={"input": <input>}``.
-    5. Return the ordered tuple of :class:`ToolCall`s.
+    5. Return the ordered calls as a :class:`ToolCallBatch` (PIR-874).
 
 The planner performs exactly one LLM round-trip regardless of how many tools the
 plan contains — the round-trip saving over ReAct, which calls the LLM once per
@@ -31,6 +31,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 
 
 class ReWooPlanner(Knot):
@@ -69,7 +70,7 @@ class ReWooPlanner(Knot):
         llm: LLMProvider,
         tool_descriptions: str,
         **_: Any,
-    ) -> tuple[ToolCall, ...]:
+    ) -> ToolCallBatch:
         """Plan every tool call up front and return them in order.
 
         Args:
@@ -78,7 +79,7 @@ class ReWooPlanner(Knot):
             tool_descriptions: A newline-listed description of callable tools.
 
         Returns:
-            An ordered tuple of :class:`ToolCall`s, one per parsed plan line.
+            A :class:`ToolCallBatch` of :class:`ToolCall`s, one per parsed plan line.
         """
         planning_system = type(self)._planning_system.resolve()
         user = f"Goal:\n{goal}\n\nAvailable tools:\n{tool_descriptions}"
@@ -88,7 +89,7 @@ class ReWooPlanner(Knot):
                 {"role": "user", "content": user},
             ]
         )
-        return self._parse_calls(LlmResponseText().extract(raw))
+        return ToolCallBatch(self._parse_calls(LlmResponseText().extract(raw)))
 
     @staticmethod
     def _parse_calls(text: str) -> tuple[ToolCall, ...]:

@@ -46,8 +46,8 @@ from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
+from pirn_agents.planning.routed_tool_call import RoutedToolCall
 from pirn_agents.security.secret_redactor import SecretRedactor
-from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_rejection import ToolCallRejection
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
@@ -80,14 +80,15 @@ class ToolExecutor(SubTapestry):
 
     async def process(
         self,
-        call: ToolCall,
+        call: RoutedToolCall,
         tools: Sequence[ToolFactory],
         **_: Any,
     ) -> Knot:
         """Resolve ``call`` to a capability and return the sink that runs it.
 
         Args:
-            call: The tool call specifying the tool name, arguments, and call ID.
+            call: The :class:`RoutedToolCall` whose ``data`` names the tool,
+                arguments and call ID (PIR-874).
             tools: The registered capabilities available for dispatch.
 
         Returns:
@@ -99,27 +100,30 @@ class ToolExecutor(SubTapestry):
             TypeError: If tools is not a sequence of tool capabilities.
             ValueError: If tools is empty.
         """
+        tool_call = call.data
         if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
             raise TypeError("ToolExecutor: tools must be a sequence of tool capabilities")
         if not tools:
             raise ValueError("ToolExecutor: tools must be non-empty")
         registry = {factory.name: factory for factory in (ToolFactory.of(t) for t in tools)}
-        knot_id = ToolFactory.knot_id_for(call.call_id)
-        factory = registry.get(call.tool_name)
+        knot_id = ToolFactory.knot_id_for(tool_call.call_id)
+        factory = registry.get(tool_call.tool_name)
         call_knot: Knot
         if factory is None:
             call_knot = ToolCallRejection(
-                call=call,
-                error=ToolNotFoundError(call.tool_name, call.call_id),
+                call=tool_call,
+                error=ToolNotFoundError(tool_call.tool_name, tool_call.call_id),
                 _config=KnotConfig(id=knot_id),
             )
         else:
             try:
-                call_knot = factory.for_call(call)
+                call_knot = factory.for_call(tool_call)
             except ToolArgumentValidationError as exc:
-                call_knot = ToolCallRejection(call=call, error=exc, _config=KnotConfig(id=knot_id))
+                call_knot = ToolCallRejection(
+                    call=tool_call, error=exc, _config=KnotConfig(id=knot_id)
+                )
         return Aggregator(
-            combine=functools.partial(self._view, call.call_id),
+            combine=functools.partial(self._view, tool_call.call_id),
             outcome=call_knot,
             _config=KnotConfig(id="outcome", error_policy=ErrorPolicy.RECEIVE_ERRORS),
         )

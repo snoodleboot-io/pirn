@@ -21,15 +21,13 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 
 if TYPE_CHECKING:
     from pirn.backends.signer import Signer
     from pirn.connectors.object_store import ObjectStore
-
-_logger = logging.getLogger(__name__)
 
 
 class CloudObjectStore(DataStore):
@@ -48,6 +46,8 @@ class CloudObjectStore(DataStore):
     ``_object_key(content_hash)`` maps a content hash onto the backing store's
     key space; the default is ``{prefix}{hash-without-sha256:}``.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -90,7 +90,7 @@ class CloudObjectStore(DataStore):
                     "This prevents accidental unsigned stores in production. "
                     "Set PIRN_ALLOW_UNSIGNED=1 only in development or test environments."
                 )
-            _logger.warning(
+            CloudObjectStore._logger.warning(
                 "%s constructed without HMAC signing (allow_unsigned=True). "
                 "cloudpickle.loads on attacker-controlled bytes is an RCE sink. "
                 "Ensure the backing store is within the same trust boundary as this process.",

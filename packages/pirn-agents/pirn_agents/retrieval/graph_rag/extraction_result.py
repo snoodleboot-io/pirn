@@ -1,30 +1,41 @@
-"""``ExtractionResult`` — the typed entity/relation payload of one extraction.
+"""``ExtractionResult`` — the ``Payload`` an entity/relation extraction hands back.
 
-The top-level pydantic model the F20 structured-output path decodes for the
-:class:`~pirn_agents.retrieval.graph_rag.entity_relation_extractor.EntityRelationExtractor`.
-It is the ``model_class`` handed to ``StructuredDecoder.decode_once``, so the LLM's output is
-validated into typed :class:`ExtractedEntity` / :class:`ExtractedRelation` lists
-before the extractor maps them onto graph nodes and edges.
+``ExtractionResult`` is ``Payload[ExtractionFrame, ExtractedGraph]`` (PIR-874,
+following the PIR-868 pattern): ``data`` is the
+:class:`~pirn_agents.retrieval.graph_rag.extracted_graph.ExtractedGraph` the
+structured-output path decoded — the pydantic model that *is* the LLM's schema,
+and so stays a plain model — and ``metadata`` is the
+:class:`~pirn_agents.retrieval.graph_rag.extraction_frame.ExtractionFrame` with
+the counts. A bare decode model crossing the knot boundary carried the entities
+and nothing the next knot could trace them back through.
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
 
-from pirn_agents.retrieval.graph_rag.extracted_entity import ExtractedEntity
-from pirn_agents.retrieval.graph_rag.extracted_relation import ExtractedRelation
+from pirn.core.payload import Payload
+
+from pirn_agents.retrieval.graph_rag.extracted_graph import ExtractedGraph
+from pirn_agents.retrieval.graph_rag.extraction_frame import ExtractionFrame
 
 
-class ExtractionResult(BaseModel):
-    """The entities and relations extracted from a single piece of text.
+class ExtractionResult(Payload[ExtractionFrame, ExtractedGraph]):
+    """The decoded graph plus the counts describing it."""
 
-    Attributes
-    ----------
-    entities:
-        The typed entities extracted from the text.
-    relations:
-        The typed relations extracted between those entities.
-    """
+    def __init__(self, graph: ExtractedGraph) -> None:
+        frame = ExtractionFrame(
+            entity_count=len(graph.entities), relation_count=len(graph.relations)
+        )
+        super().__init__(metadata=frame, data=graph)
 
-    entities: list[ExtractedEntity] = Field(default_factory=list[ExtractedEntity])
-    relations: list[ExtractedRelation] = Field(default_factory=list[ExtractedRelation])
+    def _pirn_audit_dict(self) -> dict[str, Any]:
+        audit = dict(super()._pirn_audit_dict())
+        audit["graph"] = self.data.model_dump()
+        return audit
+
+    def __eq__(self, other: object) -> bool:
+        """Structural equality: same concrete type, equal metadata and data."""
+        if type(other) is not type(self):
+            return NotImplemented
+        return self._metadata == other._metadata and self._data == other._data

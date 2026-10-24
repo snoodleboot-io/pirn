@@ -175,11 +175,15 @@ async def run_dual_write(history, tmp_dir: Path) -> None:
 def _print_result(result, *, transport_label: str) -> None:
     report: Report = result.outputs["summarise"]
     print(f"  Transport : {transport_label}")
-    print(f"  Report    : high={report.high_value_count}, low={report.low_value_count}, "
-          f"mean_score={report.mean_score}")
+    print(
+        f"  Report    : high={report.high_value_count}, low={report.low_value_count}, "
+        f"mean_score={report.mean_score}"
+    )
     for rec in result.lineage:
-        print(f"  {rec.knot_id:<12} outcome={rec.outcome:<8} "
-              f"error_policy={rec.extra.get('error_policy', '—')}")
+        print(
+            f"  {rec.knot_id:<12} outcome={rec.outcome:<8} "
+            f"error_policy={rec.extra.get('error_policy', '—')}"
+        )
 
 
 async def main() -> None:

@@ -33,8 +33,8 @@ class FailoverLoopState(PirnOpaqueValue):
 
     def next_candidate(self) -> FailoverCandidate | None:
         """The candidate the next attempt runs, or ``None`` once succeeded or exhausted."""
-        index = len(self.result.attempts)
-        if self.result.succeeded or index >= len(self.candidates):
+        index = len(self.result.metadata.attempts)
+        if self.result.metadata.succeeded or index >= len(self.candidates):
             return None
         return self.candidates[index]
 

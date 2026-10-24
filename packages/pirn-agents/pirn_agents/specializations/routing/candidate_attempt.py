@@ -74,7 +74,11 @@ class CandidateAttempt(AgentPipeline):
                 "skip",
                 FallbackChainState,
                 default=FallbackChainState(
-                    attempted=prior.attempted, skipped=(*prior.skipped, candidate.name)
+                    ordered=prior.ordered,
+                    arguments=prior.arguments,
+                    confidences=prior.confidences,
+                    attempted=prior.attempted,
+                    skipped=(*prior.skipped, candidate.name),
                 ),
                 _config=KnotConfig(id="skip"),
             )

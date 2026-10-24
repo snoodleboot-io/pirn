@@ -307,8 +307,8 @@ inventory at empty. `ContentHasher.hash` (§4.4) is the one
 hashing path; `ContentAddress`/`content_address()` are deleted (PIR-864) and
 every caller calls `ContentHasher.hash(value, strict=True)` directly.
 
-**Resolved (PIR-872):** `BatchItemStatus` is deleted — `BatchItemResult.outcome` is the
-item's core `Result` (`Ok`, `Err` — a timeout is an `Err` whose error type is
+**Resolved (PIR-872):** `BatchItemStatus` is deleted — `BatchItemResult.data` (its
+`outcome` until PIR-874 made it a `Payload`) is the item's core `Result` (`Ok`, `Err` — a timeout is an `Err` whose error type is
 `KnotTimeoutError` — or `Skipped(reason="resumed")`). `CanonicalJson`/`OpaquePolicy` are deleted (PIR-872): their last callers
 (`determinism/content_digest.py`, `evaluation/trajectory_call_key.py`) call
 `ContentHasher.hash(value, strict=True)` directly, like `IdempotencyKeyAssigner` and
@@ -766,7 +766,7 @@ constructor is unchanged.
   flip it. `docs/contributing/knot-design-rules.md` Rule 4 now describes that
   shape instead of a constructor-state exception.
 - **An outcome is `Ok|Err|Skipped`.** `BatchItemStatus`, `ToolStatus` and
-  `FailoverOutcome` are deleted: `BatchItemResult.outcome`, `ToolResult.outcome`
+  `FailoverOutcome` are deleted: `BatchItemResult.data`, `ToolResult.outcome`
   and `FailoverAttempt.result` are the `Result`; a timeout is an `Err` whose error
   type is `KnotTimeoutError`; a resumed item or open circuit is a `Skipped` with a
   reason. `ToolResult.status` survives only as a model-facing string derived from

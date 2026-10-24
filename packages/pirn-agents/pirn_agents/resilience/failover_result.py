@@ -1,51 +1,52 @@
-"""``FailoverResult`` — the typed outcome of a failover-chain run."""
+"""``FailoverResult`` — the typed outcome of a failover-chain run.
+
+PIR-874 completes the PIR-868 rebase for this type: ``FailoverResult`` is
+``Payload[FailoverFrame, Any]``. The frame
+(:class:`~pirn_agents.resilience.failover_frame.FailoverFrame`) carries
+``succeeded``/``chosen`` and the ``attempts`` trace; ``data`` is the winning
+candidate's return value.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
 from pirn_agents.resilience.failover_attempt import FailoverAttempt
+from pirn_agents.resilience.failover_frame import FailoverFrame
+from pirn_agents.specializations.base.agent_result import AgentResult
 
 
-@dataclass(frozen=True)
-class FailoverResult(PirnOpaqueValue):
+class FailoverResult(AgentResult[FailoverFrame, Any]):
     """Outcome of walking an ordered failover chain until one candidate wins.
 
-    The ``attempts`` tuple is the run's trace: one
-    :class:`FailoverAttempt` per candidate considered, in order, recording
-    successes, failures, timeouts, and circuit-open skips so callers can see
-    exactly which candidates were tried and why each earlier one fell through.
-
-    Attributes
-    ----------
-    succeeded:
-        Whether some candidate returned a value.
-    chosen:
-        The name of the winning candidate, or ``None`` on exhaustion.
-    value:
-        The winning candidate's return value, or ``None`` on exhaustion. (A
-        candidate that legitimately returns ``None`` still sets
-        ``succeeded=True``.)
-    attempts:
-        Ordered trace of every candidate considered.
+    The ``attempts`` trace (``metadata.attempts``) holds one
+    :class:`FailoverAttempt` per candidate considered, in order, so callers can
+    see which candidates were tried and why each earlier one fell through.
+    Read ``succeeded``, ``chosen`` and ``attempts`` as ``metadata.<field>`` and
+    the winning value as ``data`` (``None`` on exhaustion; a candidate that
+    legitimately returns ``None`` still sets ``succeeded=True``).
     """
 
-    succeeded: bool
-    chosen: str | None
-    value: Any
-    attempts: tuple[FailoverAttempt, ...]
+    def __init__(
+        self,
+        succeeded: bool,
+        chosen: str | None,
+        value: Any,
+        attempts: tuple[FailoverAttempt, ...],
+    ) -> None:
+        """Build a result from the walk's facts and the winning value.
 
-    @staticmethod
-    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
-        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
-        return [value._pirn_audit_dict() for value in values]
+        Args:
+            succeeded: Whether some candidate returned a value.
+            chosen: The winning candidate's name, or ``None`` on exhaustion.
+            value: The winning candidate's return value, or ``None``. Stored as
+                ``data``.
+            attempts: Ordered trace of every candidate considered.
+        """
+        frame = FailoverFrame(succeeded=succeeded, chosen=chosen, attempts=attempts)
+        super().__init__(metadata=frame, data=value)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            "succeeded": self.succeeded,
-            "chosen": self.chosen,
-            "attempts": self._audit_all(self.attempts),
-        }
+        audit = dict(super()._pirn_audit_dict())
+        audit["value"] = repr(self.data)
+        return audit

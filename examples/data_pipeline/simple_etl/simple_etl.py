@@ -38,25 +38,15 @@ id,name,amount,region
     def build_tapestry(history: SQLiteHistory | None = None) -> Tapestry:
         """Wire extract -> clean -> enrich -> load behind five parameters."""
         with Tapestry(history=history) as t:
-            source_csv = Parameter(
-                "source_csv", str, _config=KnotConfig(id="source_csv")
-            )
-            drop_nulls = Parameter(
-                "drop_nulls", bool, _config=KnotConfig(id="drop_nulls")
-            )
+            source_csv = Parameter("source_csv", str, _config=KnotConfig(id="source_csv"))
+            drop_nulls = Parameter("drop_nulls", bool, _config=KnotConfig(id="drop_nulls"))
             fx_rate = Parameter("fx_rate", float, _config=KnotConfig(id="fx_rate"))
             db_path = Parameter("db_path", str, _config=KnotConfig(id="db_path"))
-            table_name = Parameter(
-                "table_name", str, _config=KnotConfig(id="table_name")
-            )
+            table_name = Parameter("table_name", str, _config=KnotConfig(id="table_name"))
 
             raw = extract(source_csv=source_csv, _config=KnotConfig(id="extract"))
-            cleaned = clean(
-                raw=raw, drop_nulls=drop_nulls, _config=KnotConfig(id="clean")
-            )
-            enriched = enrich(
-                clean_data=cleaned, fx_rate=fx_rate, _config=KnotConfig(id="enrich")
-            )
+            cleaned = clean(raw=raw, drop_nulls=drop_nulls, _config=KnotConfig(id="clean"))
+            enriched = enrich(clean_data=cleaned, fx_rate=fx_rate, _config=KnotConfig(id="enrich"))
             load(
                 enriched=enriched,
                 db_path=db_path,
@@ -78,9 +68,7 @@ id,name,amount,region
     @classmethod
     async def main(cls) -> None:
         """Run the pipeline, re-run it cached, then re-run with a new FX rate."""
-        history = SQLiteHistory(
-            path=str(Path(__file__).resolve().parents[2] / "pirn.db")
-        )
+        history = SQLiteHistory(path=str(Path(__file__).resolve().parents[2] / "pirn.db"))
         t = cls.build_tapestry(history=history)
 
         print("Run 1 — full pipeline")

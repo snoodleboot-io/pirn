@@ -5,7 +5,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import urllib.parse
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.emitters.emitter import Emitter
@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
-
-_logger = logging.getLogger(__name__)
 
 
 class WebhookEmitter(Emitter):
@@ -52,6 +50,8 @@ class WebhookEmitter(Emitter):
       construction time.  Hostname-based URLs are not resolved at
       construction time.  Defaults to ``False``.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -204,6 +204,6 @@ class WebhookEmitter(Emitter):
             try:
                 await self._client.aclose()
             except Exception:
-                _logger.warning(
+                WebhookEmitter._logger.warning(
                     "WebhookEmitter: client.aclose() raised during close", exc_info=True
                 )

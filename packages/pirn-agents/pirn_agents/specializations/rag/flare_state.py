@@ -7,6 +7,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.stores.memory_store import MemoryStore
+
 
 @dataclass(frozen=True)
 class FlareState:
@@ -28,3 +31,10 @@ class FlareState:
     retrieval_calls: int
     done: bool
     index: int
+    query: str
+    memory: MemoryStore
+    llm: LLMProvider
+    confidence_threshold: float
+    max_sentences: int
+    max_retrieval_calls: int
+    top_k: int

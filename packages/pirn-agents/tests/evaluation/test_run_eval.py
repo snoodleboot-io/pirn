@@ -45,10 +45,10 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
 
         report = await RunEval.run(dataset=_dataset(), target=target, metrics={"exact_match": em})
 
-        assert [r.item_id for r in report.results] == ["q1", "q2"]
+        assert [r.metadata.item_id for r in report.results] == ["q1", "q2"]
         # q1 answered "Paris" (correct), q2 answered "5" (wrong "4")
-        assert report.results[0].metrics["exact_match"] == 1.0
-        assert report.results[1].metrics["exact_match"] == 0.0
+        assert report.results[0].data["exact_match"] == 1.0
+        assert report.results[1].data["exact_match"] == 0.0
         assert report.metric("exact_match") == 0.5
 
     async def test_thresholds_set_per_item_pass_fail(self) -> None:
@@ -70,9 +70,9 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
             metrics={"exact_match": em},
             thresholds=thresholds,
         )
-        assert report.results[0].passed is True
-        assert report.results[1].passed is False
-        assert report.results[1].detail["breaches"][0]["metric"] == "exact_match"
+        assert report.results[0].metadata.passed is True
+        assert report.results[1].metadata.passed is False
+        assert report.results[1].metadata.detail["breaches"][0]["metric"] == "exact_match"
         assert report.passed is False
 
     async def test_async_metric_and_custom_concurrency(self) -> None:
@@ -88,8 +88,8 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
             metrics={"len": async_metric},
             concurrency=2,
         )
-        assert report.results[0].metrics["len"] == 4.0
-        assert report.results[0].passed is None
+        assert report.results[0].data["len"] == 4.0
+        assert report.results[0].metadata.passed is None
 
     async def test_non_dataset_raises(self) -> None:
         async def target(_: Mapping[str, Any]) -> Mapping[str, Any]:

@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
+from pirn_agents.planning.routed_tool_call import RoutedToolCall
 from pirn_agents.planning.tool_router import ToolRouter
 from pirn_agents.tools.tool_call import ToolCall
 from tests.conftest import StubTool
@@ -28,12 +29,16 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         search = StubTool(name="search", description="search engine")
         calc = StubTool(name="calc", description="calculator")
         k = _make_knot((search, calc))
-        call: ToolCall = await k.process(
+        routed = await k.process(
             step="use search to find flights",
             tools=(search, calc),
         )
+        assert isinstance(routed, RoutedToolCall)
+        call: ToolCall = routed.data
         assert call.tool_name == "search"
         assert call.arguments == {"step": "use search to find flights"}
+        assert routed.metadata.step == "use search to find flights"
+        assert routed.metadata.candidates == ("search", "calc")
 
     async def test_raises_when_no_match(self) -> None:
         search = StubTool(name="search")

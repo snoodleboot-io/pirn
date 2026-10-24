@@ -91,6 +91,11 @@ class TierAttemptFold(Knot):
             message = outcome.record.message if isinstance(outcome, Err) else "skipped"
             decisions.append(f"{tier.name}: failed ({message}) -> escalate")
             return CascadeChainState(
+                request=prior.request,
+                tiers=prior.tiers,
+                confidence=prior.confidence,
+                meter=prior.meter,
+                spend_cap_policy=prior.spend_cap_policy,
                 attempted=tuple(attempted),
                 decisions=tuple(decisions),
                 best_value=prior.best_value,
@@ -115,6 +120,11 @@ class TierAttemptFold(Knot):
                 confidence=score,
             )
             return CascadeChainState(
+                request=prior.request,
+                tiers=prior.tiers,
+                confidence=prior.confidence,
+                meter=prior.meter,
+                spend_cap_policy=prior.spend_cap_policy,
                 attempted=tuple(attempted),
                 decisions=tuple(decisions),
                 accepted_outcome=cascade_outcome,
@@ -122,6 +132,11 @@ class TierAttemptFold(Knot):
             )
         decisions.append(f"{tier.name}: low confidence={score} -> escalate")
         return CascadeChainState(
+            request=prior.request,
+            tiers=prior.tiers,
+            confidence=prior.confidence,
+            meter=prior.meter,
+            spend_cap_policy=prior.spend_cap_policy,
             attempted=tuple(attempted),
             decisions=tuple(decisions),
             best_value=value,

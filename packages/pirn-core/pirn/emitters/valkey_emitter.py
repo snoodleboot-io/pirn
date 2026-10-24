@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.emitters.emitter import Emitter
@@ -13,8 +13,6 @@ if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
 
-_logger = logging.getLogger(__name__)
-
 
 class ValKeyEmitter(Emitter):
     """Publishes events as JSON messages on ValKey pub/sub channels.
@@ -22,6 +20,8 @@ class ValKeyEmitter(Emitter):
     Channels default to ``pirn:status``, ``pirn:lineage``,
     ``pirn:result``; override per-event-type as needed.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -98,4 +98,6 @@ class ValKeyEmitter(Emitter):
             try:
                 await self._client.close()
             except Exception:
-                _logger.warning("ValKeyEmitter: client.close() raised during close", exc_info=True)
+                ValKeyEmitter._logger.warning(
+                    "ValKeyEmitter: client.close() raised during close", exc_info=True
+                )

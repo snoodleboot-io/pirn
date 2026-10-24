@@ -18,6 +18,7 @@ from pirn.connectors.databases.snowflake_config import SnowflakeConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.threaded_cursor_transaction import ThreadedCursorTransaction
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.connector_usage_error import ConnectorUsageError
 
 
 class SnowflakePool(DatabaseConnectionPool):
@@ -180,7 +181,7 @@ class SnowflakePool(DatabaseConnectionPool):
         """
         task = self._transaction_task
         if task is not None and task is asyncio.current_task():
-            raise RuntimeError(
+            raise ConnectorUsageError(
                 "SnowflakePool: statement issued on the pool inside its own "
                 "transaction scope; use the handle `async with pool.transaction()` yielded"
             )

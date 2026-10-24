@@ -25,6 +25,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.interfaces.router import Router
+from pirn_agents.specializations.routing.candidate_routing import CandidateRouting
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 
@@ -51,7 +52,7 @@ class CandidateRouter(Router):
         candidates: Sequence[RouteCandidate],
         confidences: Mapping[str, float],
         **_: Any,
-    ) -> tuple[RouteCandidate, ...]:
+    ) -> CandidateRouting:
         """Return the candidates ordered by confidence, highest first.
 
         Args:
@@ -59,7 +60,9 @@ class CandidateRouter(Router):
             confidences: Confidence per candidate name (missing = 0.0).
 
         Returns:
-            A confidence-descending tuple of :class:`RouteCandidate`.
+            A :class:`CandidateRouting` whose ``data`` is the confidence-descending
+            tuple of :class:`RouteCandidate` and whose frame records the order
+            and the confidences it was made from (PIR-874).
 
         Raises:
             TypeError: If ``candidates`` holds a non-:class:`RouteCandidate` or
@@ -80,10 +83,9 @@ class CandidateRouter(Router):
             raise TypeError(
                 f"CandidateRouter: confidences must be a Mapping, got {type(confidences).__name__}"
             )
-        return tuple(
-            sorted(
-                candidate_tuple,
-                key=lambda candidate: confidences.get(candidate.name, 0.0),
-                reverse=True,
-            )
+        ordered = sorted(
+            candidate_tuple,
+            key=lambda candidate: confidences.get(candidate.name, 0.0),
+            reverse=True,
         )
+        return CandidateRouting(ordered, confidences)

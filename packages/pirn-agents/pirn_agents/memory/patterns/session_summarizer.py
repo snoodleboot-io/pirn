@@ -43,6 +43,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class SessionSummarizer(Knot):
@@ -81,7 +82,7 @@ class SessionSummarizer(Knot):
         llm: LLMProvider,
         token_threshold: int = 2000,
         **_: Any,
-    ) -> list[AgentMessage]:
+    ) -> ConversationPayload:
         """Compress conversation history if it exceeds the token threshold.
 
         Args:
@@ -90,8 +91,9 @@ class SessionSummarizer(Knot):
             token_threshold: Positive int; only compress when token count exceeds this value.
 
         Returns:
-            The original message list if under threshold, or a compressed list with
-            a summary message prepended and only the most recent message appended.
+            A ConversationPayload (data plus a ConversationFrame; ADR agents-speaks-core
+            WS6b; PIR-874) holding the original messages if under threshold, or a compressed
+            list with a summary message prepended and only the most recent message appended.
 
         Raises:
             TypeError: If llm is not an LLMProvider or any message is not an AgentMessage.
@@ -111,7 +113,7 @@ class SessionSummarizer(Knot):
                 )
         total_tokens = sum(len(msg.content.split()) for msg in message_list)
         if total_tokens <= token_threshold:
-            return message_list
+            return ConversationPayload(message_list)
 
         rendered = "\n".join(f"{m.role}: {m.content}" for m in message_list)
         summary_prompt = type(self)._summary_prompt.render(
@@ -125,5 +127,5 @@ class SessionSummarizer(Knot):
         summary_text = LlmResponseText().extract(raw)
         summary_msg = AgentMessage(role="system", content=f"[Summary] {summary_text}")
         if message_list:
-            return [summary_msg, message_list[-1]]
-        return [summary_msg]
+            return ConversationPayload([summary_msg, message_list[-1]])
+        return ConversationPayload([summary_msg])

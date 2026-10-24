@@ -34,6 +34,8 @@ class ClassHierarchyIndex:
         self._module_scope: dict[str, str] = {}
         self._module_classes: dict[str, dict[str, str]] = {}
         self._class_bases: dict[str, tuple[str, list[ast.expr]]] = {}
+        self._class_methods: dict[str, frozenset[str]] = {}
+        self._callable_ids: set[str] = set()
         self._class_ids_by_node: dict[int, str] = {}
         self._files_by_key: dict[str, SourceFile] = {}
         self._ancestors: dict[str, frozenset[str]] = {}
@@ -77,16 +79,21 @@ class ClassHierarchyIndex:
                 qualname = f"{qualifier}{child.name}"
                 class_id = f"{key}.{qualname}"
                 self._class_bases[class_id] = (key, list(child.bases))
+                self._class_methods[class_id] = frozenset(
+                    member.name
+                    for member in child.body
+                    if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef))
+                )
+                self._callable_ids.add(class_id)
                 self._class_ids_by_node[id(child)] = class_id
                 if top:
                     classes[child.name] = class_id
                     bindings[child.name] = class_id
                 else:
                     bindings.setdefault(child.name, class_id)
-                self._register_classes(
-                    key, child, f"{qualname}.", bindings, classes, top=False
-                )
+                self._register_classes(key, child, f"{qualname}.", bindings, classes, top=False)
             elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self._callable_ids.add(f"{key}.{qualifier}{child.name}")
                 if top:
                     bindings[child.name] = f"{key}.{qualifier}{child.name}"
                 self._register_classes(
@@ -213,6 +220,24 @@ class ClassHierarchyIndex:
         if class_id is None:
             return False
         return class_id in root_ids or bool(self.ancestors(class_id) & root_ids)
+
+    def is_callable_id(self, class_id: str) -> bool:
+        """True when ``class_id`` names a class or function the workspace defines."""
+        return class_id in self._callable_ids
+
+    def has_method(self, class_id: str, name: str) -> bool:
+        """True when ``class_id`` or one of its ancestors defines a ``def`` called ``name``."""
+        for candidate in (class_id, *self.ancestors(class_id)):
+            if name in self._class_methods.get(candidate, frozenset()):
+                return True
+        return False
+
+    def resolve_call_target(self, source_file: SourceFile, call: ast.Call) -> str | None:
+        """The class id a constructor call names, or ``None`` when it names nothing known."""
+        resolved = self.resolve(source_file, call.func)
+        if resolved is None or resolved not in self._class_bases:
+            return None
+        return resolved
 
     def base_ids(self, source_file: SourceFile, class_node: ast.ClassDef) -> list[str]:
         """The direct bases of ``class_node``, resolved (unresolvable ones omitted)."""

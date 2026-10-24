@@ -23,6 +23,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.memory.management.memory_record import MemoryRecord
 from pirn_agents.memory.memory_lineage_recall import MemoryLineageRecall
+from pirn_agents.memory.recalled_lineage_record import RecalledLineageRecord
 
 
 def _record(id: str, *, session_id: str = "s1") -> MemoryRecord:
@@ -135,9 +136,35 @@ class TestMemoryLineageRecall:
             result = await t.run(RunRequest())
         assert not result.succeeded
 
+    async def test_each_fetch_gets_its_own_lineage_row(self) -> None:
+        """The point of the inner run: N reads are N knots, not one opaque loop.
+
+        Before PIR-874 the fetches were a Python ``for`` awaiting the store, so
+        the whole recall produced exactly one lineage row however many values it
+        read. Each read now has its own row, outcome and retry budget.
+        """
+        history = InMemoryHistory()
+        data_store = InMemoryDataStore()
+        await _write(history, data_store, _record("e1"))
+        await _write(history, data_store, _record("e2"))
+        await _write(history, data_store, _record("e3"))
+
+        with Tapestry(history=history, data_store=data_store) as t:
+            MemoryLineageRecall(
+                history=history,
+                data_store=data_store,
+                writer_knot_id="writer",
+                _config=KnotConfig(id="recall"),
+            )
+            result = await t.run(RunRequest())
+        assert result.succeeded
+        rows = [await history.query_lineage_by_knot_id(f"row_{index}") for index in range(3)]
+        assert [len(row) for row in rows] == [1, 1, 1]
+        assert all(row[0].outcome == "ok" for row in rows)
+
     def test_matches_is_a_subset_check(self) -> None:
         record = _record("e1", session_id="s1")
-        assert MemoryLineageRecall._matches(record, {"session_id": "s1"})
-        assert not MemoryLineageRecall._matches(record, {"session_id": "other"})
-        assert not MemoryLineageRecall._matches(record, {"missing_key": "x"})
-        assert MemoryLineageRecall._matches(record, {})
+        assert RecalledLineageRecord.matches(record, {"session_id": "s1"})
+        assert not RecalledLineageRecord.matches(record, {"session_id": "other"})
+        assert not RecalledLineageRecord.matches(record, {"missing_key": "x"})
+        assert RecalledLineageRecord.matches(record, {})

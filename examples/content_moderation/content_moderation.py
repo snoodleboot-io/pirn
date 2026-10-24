@@ -34,23 +34,15 @@ class ContentModeration:
     async def main(cls) -> None:
         """Run every sample through the YAML-defined tapestry and print its lineage."""
         yaml_path = Path(__file__).parent / "tapestry.yaml"
-        history = SQLiteHistory(
-            path=str(Path(__file__).resolve().parent.parent / "pirn.db")
-        )
+        history = SQLiteHistory(path=str(Path(__file__).resolve().parent.parent / "pirn.db"))
         base_tapestry = Tapestry(history=history)
-        tapestry = PipelineLoader.load_yaml(
-            yaml_path.read_text(), tapestry=base_tapestry
-        )
+        tapestry = PipelineLoader.load_yaml(yaml_path.read_text(), tapestry=base_tapestry)
 
         for label, text in cls.samples:
             print(f"\n── {label} ──")
             result = await tapestry.run(RunRequest(parameters={"raw_text": text}))
             for rec in result.lineage:
-                icon = (
-                    "✓"
-                    if rec.outcome == "ok"
-                    else ("⊘" if rec.outcome == "skipped" else "✗")
-                )
+                icon = "✓" if rec.outcome == "ok" else ("⊘" if rec.outcome == "skipped" else "✗")
                 print(f"  {icon} {rec.knot_id:<18} {rec.outcome}")
 
         history.close()

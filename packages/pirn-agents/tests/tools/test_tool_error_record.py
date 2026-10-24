@@ -101,16 +101,19 @@ class TestEveryInvocationPathRedacts(unittest.IsolatedAsyncioTestCase):
 
     async def test_parallel_tool_executor(self) -> None:
         from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
+        from pirn_agents.tools.tool_call_batch import ToolCallBatch
         from pirn_agents.tools.toolset import Toolset
 
         with Tapestry() as t:
             ParallelToolExecutor(
-                tool_calls=(ToolCall(tool_name="raiser", arguments={}, call_id="c1"),),
+                tool_calls=ToolCallBatch(
+                    (ToolCall(tool_name="raiser", arguments={}, call_id="c1"),)
+                ),
                 toolset=Toolset([_RaisingTool]),
                 _config=KnotConfig(id="batch"),
             )
 
-        outcome = (await t.run(RunRequest())).outputs["batch"][0]
+        outcome = (await t.run(RunRequest())).outputs["batch"].data[0]
 
         assert outcome.exception is not None
         assert _SECRET not in outcome.exception.message

@@ -1,40 +1,50 @@
-"""``EvalCaseResult`` — one item's metric scores and pass/fail verdict."""
+"""``EvalCaseResult`` — one item's metric scores and pass/fail verdict.
+
+``EvalCaseResult`` is ``Payload[EvalCaseFrame, Mapping[str, float]]`` (PIR-868
+pattern, enforced by PIR-874): the frame carries ``item_id``/``passed``/``detail``
+and ``data`` is the ``metrics`` mapping of metric name to score. It subclasses
+:class:`pirn.core.payload.Payload` directly because ``evaluation/`` does not
+import from ``specializations/``.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.payload import Payload
+
+from pirn_agents.evaluation.eval_case_frame import EvalCaseFrame
 
 
-@dataclass(frozen=True)
-class EvalCaseResult(PirnOpaqueValue):
+class EvalCaseResult(Payload[EvalCaseFrame, Mapping[str, float]]):
     """The evaluation outcome for a single :class:`EvalItem`.
 
-    Attributes
-    ----------
-    item_id:
-        The evaluated item's id.
-    metrics:
-        Mapping of metric name to the item's score for that metric.
-    passed:
-        ``True``/``False`` when thresholds applied to this item, else ``None``
-        (no threshold configured for any of its metrics).
-    detail:
-        Free-form breakdown (produced output, per-metric threshold breaches).
+    The constructor takes ``item_id``, ``metrics`` (metric name to score),
+    ``passed`` and ``detail``; read them back as ``metadata.item_id``/
+    ``metadata.passed``/``metadata.detail`` and ``data``.
     """
 
-    item_id: str
-    metrics: Mapping[str, float]
-    passed: bool | None = None
-    detail: Mapping[str, Any] = field(default_factory=dict[str, Any])
+    def __init__(
+        self,
+        item_id: str,
+        metrics: Mapping[str, float],
+        passed: bool | None = None,
+        detail: Mapping[str, Any] | None = None,
+    ) -> None:
+        frame = EvalCaseFrame(
+            item_id=item_id,
+            passed=passed,
+            detail=dict(detail) if detail is not None else {},
+        )
+        super().__init__(metadata=frame, data=metrics)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            "item_id": self.item_id,
-            "metrics": dict(self.metrics),
-            "passed": self.passed,
-            "detail": dict(self.detail),
-        }
+        audit = dict(super()._pirn_audit_dict())
+        audit["metrics"] = dict(self.data)
+        return audit
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, EvalCaseResult):
+            return NotImplemented
+        return self.metadata == other.metadata and self.data == other.data

@@ -20,6 +20,7 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_toolset import McpToolset
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from tests.mcp.stub_mcp import StubMcpTransport
 
 
@@ -54,13 +55,16 @@ async def test_concurrent_call_tool_reuses_single_vended_session() -> None:
 
     with Tapestry() as tapestry:
         ParallelToolExecutor(
-            tool_calls=calls, toolset=toolset, max_concurrency=8, _config=KnotConfig(id="pte")
+            tool_calls=ToolCallBatch(calls),
+            toolset=toolset,
+            max_concurrency=8,
+            _config=KnotConfig(id="pte"),
         )
     start = time.perf_counter()
     run = await tapestry.run(RunRequest())
     elapsed = time.perf_counter() - start
     assert run.succeeded, run.exceptions
-    results = run.outputs["pte"]
+    results = run.outputs["pte"].data
 
     assert len(results) == n
     assert all(r.status == "ok" for r in results)

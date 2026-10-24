@@ -193,7 +193,8 @@ async def test_session_summarizer_records_its_call() -> None:
             _config=KnotConfig(id="summ"),
         )
     )
-    assert output[0].content == "[Summary] a summary"
+    assert isinstance(output, ConversationPayload)
+    assert output.data[0].content == "[Summary] a summary"
     _assert_one_llm_event(events, "summ")
 
 

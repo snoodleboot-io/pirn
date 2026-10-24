@@ -23,12 +23,10 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.transport_handle import TransportHandle
-
-_log = logging.getLogger(__name__)
 
 
 class InlineTransport(DataTransport):
@@ -40,6 +38,8 @@ class InlineTransport(DataTransport):
         Emit a one-time warning when a written value's shallow size
         exceeds this threshold. Defaults to 10 MiB.
     """
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(self, *, warn_above_bytes: int = 10 * 1024 * 1024) -> None:
         self._warn_above_bytes = warn_above_bytes
@@ -79,7 +79,7 @@ class InlineTransport(DataTransport):
         size = sys.getsizeof(value)
         if size >= self._warn_above_bytes:
             self._warned_knot_types.add(knot_id)
-            _log.warning(
+            InlineTransport._log.warning(
                 "pirn.transport: knot %r produced ~%d MB via InlineTransport. "
                 "Consider FilesystemTransport or ObjectStoreTransport for data of this size.",
                 knot_id,

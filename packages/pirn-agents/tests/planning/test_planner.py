@@ -36,7 +36,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(responses=["1. book flight\n2. reserve hotel\n3. pack bags"])
         k = _make_knot(llm)
         plan: Plan = await k.process(context=_CONTEXT, llm=llm)
-        assert plan.steps == ("book flight", "reserve hotel", "pack bags")
+        assert plan.data == ("book flight", "reserve hotel", "pack bags")
 
     async def test_collects_rationale_lines(self) -> None:
         llm = StubLLMProvider(
@@ -46,8 +46,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         )
         k = _make_knot(llm)
         plan: Plan = await k.process(context=_CONTEXT, llm=llm)
-        assert plan.steps == ("book flight", "pack bags")
-        assert "user wants to travel" in plan.rationale
+        assert plan.data == ("book flight", "pack bags")
+        assert "user wants to travel" in plan.metadata.rationale
 
     async def test_raises_when_no_steps(self) -> None:
         llm = StubLLMProvider(responses=["# only rationale"])

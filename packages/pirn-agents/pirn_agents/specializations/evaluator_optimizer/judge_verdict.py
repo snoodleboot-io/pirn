@@ -1,15 +1,20 @@
-"""``JudgeVerdict`` — a scored verdict from an LLM-as-judge."""
+"""``JudgeVerdict`` — a scored verdict from an LLM-as-judge.
+
+``JudgeVerdict`` is ``Payload[JudgeVerdictFrame, str]`` (PIR-868 pattern,
+enforced by PIR-874): the frame carries the numeric ``score`` and ``data`` is the
+free-form ``feedback`` critique. Read them back as ``metadata.score`` and
+``data``.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn_agents.specializations.base.agent_result import AgentResult
+from pirn_agents.specializations.evaluator_optimizer.judge_verdict_frame import JudgeVerdictFrame
 
 
-@dataclass(frozen=True)
-class JudgeVerdict(PirnOpaqueValue):
+class JudgeVerdict(AgentResult[JudgeVerdictFrame, str]):
     """A numeric judgment of a candidate answer.
 
     This is the scored generalisation of the boolean signal
@@ -17,16 +22,14 @@ class JudgeVerdict(PirnOpaqueValue):
     than a yes/no "iterate again?", the judge returns a continuous ``score`` plus
     ``feedback`` the optimiser can act on.
 
-    Attributes
-    ----------
-    score:
-        Quality score on a 0-10 scale (higher is better).
-    feedback:
-        Free-form critique the generator can use to improve the next candidate.
+    The constructor takes ``score`` (0-10, higher is better) and ``feedback``
+    (free-form critique the generator can use to improve the next candidate).
     """
 
-    score: float
-    feedback: str = ""
+    def __init__(self, score: float, feedback: str = "") -> None:
+        super().__init__(metadata=JudgeVerdictFrame(score=score), data=feedback)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {"score": self.score, "feedback": self.feedback}
+        audit = dict(super()._pirn_audit_dict())
+        audit["feedback"] = self.data
+        return audit

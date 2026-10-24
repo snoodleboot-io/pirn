@@ -13,6 +13,7 @@ from pirn.connectors.databases.mssql_config import MssqlConfig
 from pirn.connectors.dbapi_cursor_transaction import DbapiCursorTransaction
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.exceptions.connector_usage_error import ConnectorUsageError
 
 
 class MssqlPool(DatabaseConnectionPool):
@@ -201,7 +202,7 @@ class MssqlPool(DatabaseConnectionPool):
         rather than leaking it to the next checkout.
 
         Raises:
-            RuntimeError: If the connection is in ODBC autocommit mode, where
+            ConnectorUsageError: If the connection is in ODBC autocommit mode, where
                 each statement commits itself and no scope can be atomic. Set
                 ``MssqlConfig.autocommit = False`` for transactional work.
         """
@@ -209,7 +210,7 @@ class MssqlPool(DatabaseConnectionPool):
         connection = await pool.acquire()
         if not self._manages_transactions(connection):
             await pool.release(connection)
-            raise RuntimeError(
+            raise ConnectorUsageError(
                 "MssqlPool: the connection is in ODBC autocommit mode, so each "
                 "statement commits itself and a transaction scope would not be "
                 "atomic; set MssqlConfig.autocommit = False"

@@ -41,6 +41,7 @@ from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.guardrails.claim_support import ClaimSupport
 from pirn_agents.specializations.guardrails.claim_verification import ClaimVerification
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -105,11 +106,13 @@ class FactClaimVerifier(AgentPipeline):
 
     @staticmethod
     def _annotate(
-        response: AgentResponse, claims: Sequence[str], **verified_by_key: bool
+        response: AgentResponse, claims: Sequence[str], **verified_by_key: ClaimSupport
     ) -> AgentResponse:
         """Return ``response``, or a copy annotated with unverified claims."""
         unverified = [
-            claim for index, claim in enumerate(claims) if not verified_by_key[f"claim_{index}"]
+            claim
+            for index, claim in enumerate(claims)
+            if not verified_by_key[f"claim_{index}"].metadata.supported
         ]
         if not unverified:
             return response

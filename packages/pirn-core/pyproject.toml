@@ -57,7 +57,13 @@ dependencies = [
     # That was ~89% of `import pirn_agents` and ~4.8s of a full-workspace
     # import. 0.2.65 indexes the dedupe; see PIR-780 and the guard in
     # pirn-agents/tests/test_import_cost.py.
-    "sweet-tea>=0.2.65",
+    # 0.2.75 made ``Entry.class_def`` a property that lazily imports the
+    # entry's module and returns ``None`` when that import fails. Callers
+    # must handle the ``None``, and under pyright strict that handling is an
+    # *error* against the older shape (where the field is a plain ``type``),
+    # so the floor and the code have to agree. CI installs the latest and
+    # caught this when 0.2.120 landed mid-run (PIR-873).
+    "sweet-tea>=0.2.75",
 ]
 
 [project.scripts]

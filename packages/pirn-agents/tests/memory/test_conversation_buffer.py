@@ -11,6 +11,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.conversation_buffer import ConversationBuffer
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 def _make_knot() -> ConversationBuffer:
@@ -39,8 +40,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             history=history,
             max_size=10,
         )
-        assert len(out) == 3
-        assert out[-1].content == "latest"
+        assert isinstance(out, ConversationPayload)
+        assert len(out.data) == 3
+        assert out.data[-1].content == "latest"
 
     async def test_trims_to_max_size(self) -> None:
         k = _make_knot()
@@ -50,9 +52,10 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             history=history,
             max_size=3,
         )
-        assert len(out) == 3
-        assert out[-1].content == "latest"
-        assert out[0].content == "m3"
+        assert isinstance(out, ConversationPayload)
+        assert len(out.data) == 3
+        assert out.data[-1].content == "latest"
+        assert out.data[0].content == "m3"
 
     async def test_rejects_non_positive_max_size(self) -> None:
         k = _make_knot()

@@ -325,7 +325,7 @@ class TriggeredBatch:
         async for result in self._map_agent.run(inputs, checkpoint_scope=scope):
             total += 1
             if result.succeeded:
-                completed.add(result.key)
+                completed.add(result.metadata.key)
         return BatchProgress(
             batch_id=f"{self._batch_id}-{ordinal}",
             completed_keys=frozenset(completed),

@@ -43,9 +43,9 @@ result = await assembler.process(
     items=items, budget=ContextBudget(max_tokens=8000, reserved_tokens=1000),
     counter=counter, policy=RecencyEvictionPolicy(),
 )
-result.kept          # retained items, original order
-result.evicted       # dropped items, eviction order
-result.total_tokens  # kept token total
+result.data          # kept items, original order
+result.metadata.evicted  # dropped items, eviction order
+result.metadata.total_tokens  # kept token total
 ```
 
 Policies (each overrides only `eviction_rank`; lower rank is evicted first):
@@ -81,14 +81,14 @@ result = await compactor.compact(request)
 
 * **Trigger** — compaction runs only when total tokens exceed
   `fill_threshold * available`. Below it the pass is a no-op
-  (`result.triggered is False`, `result.retained == items`).
-* **Pinned preservation** — pinned items always appear in `result.retained` and
-  never in `result.evicted`. This is invariant across every strategy.
+  (`result.metadata.triggered is False`, `result.data == items`).
+* **Pinned preservation** — pinned items always appear in `result.data` and
+  never in `result.metadata.evicted`. This is invariant across every strategy.
 * **In-place summary** — evicted turns are summarized (oldest-first) into a
   single **pinned** `summary` item that takes the slot of the earliest evicted
   item; newer turns keep their order.
-* **Lossless in intent** — evicted originals are surfaced in `result.evicted`
-  and represented by `result.summary`.
+* **Lossless in intent** — evicted originals are surfaced in `result.metadata.evicted`
+  and represented by `result.metadata.summary`.
 
 ### F27 memory integration
 

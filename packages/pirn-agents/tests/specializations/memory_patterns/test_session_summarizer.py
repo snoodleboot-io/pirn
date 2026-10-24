@@ -12,6 +12,7 @@ from pirn_agents.memory.patterns.session_summarizer import (
     SessionSummarizer,
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -40,7 +41,8 @@ class TestSessionSummarizerProcess(unittest.IsolatedAsyncioTestCase):
         messages = make_messages(2, words_each=5)
         llm = StubLLMProvider(["summary"])
         result = await k.process(messages=messages, llm=llm, token_threshold=1000)
-        assert result == messages
+        assert isinstance(result, ConversationPayload)
+        assert list(result.data) == messages
         assert llm.calls == []
 
     async def test_compresses_long_history(self) -> None:
@@ -48,11 +50,12 @@ class TestSessionSummarizerProcess(unittest.IsolatedAsyncioTestCase):
         messages = make_messages(20, words_each=10)
         llm = StubLLMProvider(["Condensed summary of the conversation."])
         result = await k.process(messages=messages, llm=llm, token_threshold=50)
-        assert len(result) == 2
-        assert result[0].role == "system"
-        assert "[Summary]" in result[0].content
-        assert "Condensed summary" in result[0].content
-        assert result[1] == messages[-1]
+        assert isinstance(result, ConversationPayload)
+        assert len(result.data) == 2
+        assert result.data[0].role == "system"
+        assert "[Summary]" in result.data[0].content
+        assert "Condensed summary" in result.data[0].content
+        assert result.data[1] == messages[-1]
         assert len(llm.calls) == 1
 
     async def test_summary_message_retains_last_user_message(self) -> None:
@@ -64,7 +67,7 @@ class TestSessionSummarizerProcess(unittest.IsolatedAsyncioTestCase):
         ]
         llm = StubLLMProvider(["Brief summary."])
         result = await k.process(messages=messages, llm=llm, token_threshold=10)
-        assert result[-1].content == "final question"
+        assert result.data[-1].content == "final question"
 
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()

@@ -20,6 +20,7 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.toolset import Toolset
 from tests.benchmarks.conftest import BenchmarkRecorder
 from tests.conftest import StubLLMProvider, StubTool
@@ -37,7 +38,7 @@ async def test_end_to_end_pattern_latency_and_tokens(
 
     with Tapestry():
         executor = ParallelToolExecutor(
-            tool_calls=[],
+            tool_calls=ToolCallBatch([]),
             toolset=Toolset(),
             _config=KnotConfig(id="pte-e2e", validate_io=False),
         )
@@ -51,12 +52,14 @@ async def test_end_to_end_pattern_latency_and_tokens(
         total_tokens += tokens_per_turn
         with Tapestry() as tapestry:
             ParallelToolExecutor(
-                tool_calls=[ToolCall(tool_name="search", arguments={"q": "x"}, call_id=f"c{turn}")],
+                tool_calls=ToolCallBatch(
+                    [ToolCall(tool_name="search", arguments={"q": "x"}, call_id=f"c{turn}")]
+                ),
                 toolset=toolset,
                 max_concurrency=1,
                 _config=KnotConfig(id="pte-e2e"),
             )
-        results = (await tapestry.run(RunRequest())).outputs["pte-e2e"]
+        results = (await tapestry.run(RunRequest())).outputs["pte-e2e"].data
         assert results[0].status == "ok"
     latency = time.perf_counter() - start
 

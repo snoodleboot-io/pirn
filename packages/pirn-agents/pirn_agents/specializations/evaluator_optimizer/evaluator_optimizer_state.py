@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pirn_agents.llm.llm_provider import LLMProvider
+
 
 @dataclass(frozen=True)
 class EvaluatorOptimizerState:
@@ -18,6 +20,11 @@ class EvaluatorOptimizerState:
     would work today but is the shape that hid the original defect.
 
     Attributes:
+        task: The task every candidate answers.
+        llm: The provider each generation and judgement call uses.
+        threshold: Score at or above which the accept gate fires.
+        max_iterations: Hard cap on iterations.
+        reflection_gate: Whether the optional reflection gate runs.
         feedback: The judge's last feedback, fed to the next generation. Empty
             on round one.
         best_answer: Best candidate seen so far.
@@ -27,6 +34,11 @@ class EvaluatorOptimizerState:
         stop: Set when the optional reflection gate asked to stop early.
     """
 
+    task: str
+    llm: LLMProvider
+    threshold: float
+    max_iterations: int
+    reflection_gate: bool
     feedback: str = ""
     best_answer: str = ""
     best_score: float = 0.0

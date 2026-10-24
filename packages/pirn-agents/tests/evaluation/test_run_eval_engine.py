@@ -113,7 +113,7 @@ class TestItemsRunOnTheEngine(unittest.IsolatedAsyncioTestCase):
         report = await RunEval.run(
             dataset=_dataset(3), target=target, metrics={"em": _Metrics.exact}
         )
-        assert [r.item_id for r in report.results] == ["q0", "q1", "q2"]
+        assert [r.metadata.item_id for r in report.results] == ["q0", "q1", "q2"]
 
     async def test_every_item_has_its_own_lineage_row(self) -> None:
         history = InMemoryHistory()

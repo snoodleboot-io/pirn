@@ -45,9 +45,9 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
 #: `RetryResultExtractor`/`RetryOnParseFailureLoop` (ADR agents-speaks-core
-#: WS5a). `SelfAskPipeline` is fixed — see its `SelfAskComposer`/
-#: `SelfAskLoop`; `PromptChainPipeline` is fixed — see its
-#: `PromptChainResultExtractor`/`PromptChainLoop`; `OrchestratorAgent` is
+#: WS5a). `SelfAskPipeline` is fixed — its sub-answers fan out concurrently
+#: into an `Aggregator` (PIR-873). `PromptChainPipeline` is fixed — its links are wired at
+#: build time and gathered by an `Aggregator` (PIR-873). `OrchestratorAgent` is
 #: fixed — see its `OrchestratorResultNormalizer`; `JsonExtractorPipeline`/
 #: `YamlExtractorPipeline`/`PydanticValidatorPipeline` are fixed — see their
 #: `*Loop`/`*ResultExtractor` pairs; `ReflexionPipeline` is fixed — see

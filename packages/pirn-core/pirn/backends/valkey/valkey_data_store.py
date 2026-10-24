@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.signer import Signer
@@ -12,8 +12,6 @@ from pirn.core.optional_dependency import OptionalDependency
 if TYPE_CHECKING:
     from glide import ExpirySet, GlideClient, GlideClientConfiguration
 
-_logger = logging.getLogger(__name__)
-
 
 class ValKeyDataStore(DataStore):
     """DataStore backed by ValKey.
@@ -21,6 +19,8 @@ class ValKeyDataStore(DataStore):
     Values are cloudpickled and stored under their content hash.  Optional
     HMAC signing guards against tampered values at rest.
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     _prefix = "pirn:data:"
 
@@ -68,7 +68,7 @@ class ValKeyDataStore(DataStore):
                     "This prevents accidental unsigned stores in production. "
                     "Set PIRN_ALLOW_UNSIGNED=1 only in development or test environments."
                 )
-            _logger.warning(
+            ValKeyDataStore._logger.warning(
                 "ValKeyDataStore constructed without HMAC signing (allow_unsigned=True). "
                 "cloudpickle.loads on attacker-controlled bytes is an RCE sink. "
                 "Ensure the backing store is within the same trust boundary as this process.",

@@ -30,7 +30,19 @@ Package DAG (declared deps) — *acyclic, one domain edge.* (SCD-10 / C1 + C3)
     ``pirn-ml -> pirn-data``. A new domain->domain dependency fails the build
     pending an ADR amendment.
 
-Exit status is non-zero if any check finds a violation.
+CLI contract
+------------
+Run it **from the repository root** — the default ``--src`` / ``--packages-root``
+are repo-relative, and from inside a package the walk finds different files and
+reports phantom edges. Any other working directory is refused rather than
+silently believed.
+
+* ``0`` — every selected check ran over real files and found nothing.
+* ``1`` — violations, printed on stdout.
+* ``2`` — unusable invocation: not run from the repository root, a missing
+  source tree, a missing domain package directory, a source file that cannot be
+  read or parsed, or a packages root declaring no distributions. A gate that
+  checked nothing must never report success.
 """
 
 from __future__ import annotations
@@ -42,132 +54,155 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
-
-# Top-level domain import names that core must never import (post-extraction).
-_domain_packages = (
-    "pirn_signal",
-    "pirn_data",
-    "pirn_ml",
-    "pirn_agents",
-    "pirn_health",
-    "pirn_oilgas",
-)
-
-# The six extractable domains (core is the DAG root, not a domain).
-_domain_names = (
-    "signal",
-    "data",
-    "ml",
-    "agents",
-    "health",
-    "oilgas",
-)
-
-# The sole permitted domain->domain hard edge after Phase 2 (ADR-3 / C3):
-# ``ml`` depends on ``data``; ``agents->ml`` (SCD-08) and ``health->agents``
-# (SCD-09) are eliminated.
-_allowed_domain_edge = ("ml", "data")
-_allowed_package_edge = ("pirn-ml", "pirn-data")
-
-# Optional connector/backend + codec third-party packages. None of these may be
-# imported as a side effect of ``import pirn``. Names are the *import* names
-# (what shows up in ``sys.modules``), not the PyPI distribution names.
-_backend_modules = (
-    # databases
-    "asyncpg",
-    "aiosqlite",
-    "duckdb",
-    "aiomysql",
-    "aioodbc",
-    "oracledb",
-    "snowflake",
-    "clickhouse_connect",
-    "databricks",
-    "google.cloud.bigquery",
-    # object storage
-    "aioboto3",
-    "gcloud_aio_storage",
-    "azure.storage.blob",
-    # messaging / streaming
-    "aiokafka",
-    "aio_pika",
-    "azure.servicebus",
-    "google.cloud.pubsub",
-    "glide",  # valkey-glide
-    # compression codecs
-    "zstandard",
-    "snappy",
-    "lz4",
-)
+from typing import ClassVar
 
 
-def _imported_module_roots(tree: ast.AST) -> set[str]:
-    """Collect dotted module names referenced by ``import`` / ``from`` stmts."""
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                modules.add(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            # Absolute imports only; relative (level > 0) can't reach a domain.
-            if node.level == 0 and node.module is not None:
-                modules.add(node.module)
-    return modules
+class CheckImportGraph:
+    """Static + runtime assertions over the workspace's import and dependency graphs."""
 
+    _repo_root: ClassVar[Path] = Path(__file__).resolve().parents[1]
 
-def check_core_is_sink(src: Path) -> list[str]:
-    """C2: fail if any file under ``src`` imports a top-level domain package."""
-    violations: list[str] = []
-    for path in sorted(src.rglob("*.py")):
+    # Top-level domain import names that core must never import (post-extraction).
+    _domain_packages: ClassVar[tuple[str, ...]] = (
+        "pirn_signal",
+        "pirn_data",
+        "pirn_ml",
+        "pirn_agents",
+        "pirn_health",
+        "pirn_oilgas",
+    )
+
+    # The six extractable domains (core is the DAG root, not a domain).
+    _domain_names: ClassVar[tuple[str, ...]] = (
+        "signal",
+        "data",
+        "ml",
+        "agents",
+        "health",
+        "oilgas",
+    )
+
+    # The sole permitted domain->domain hard edge after Phase 2 (ADR-3 / C3):
+    # ``ml`` depends on ``data``; ``agents->ml`` (SCD-08) and ``health->agents``
+    # (SCD-09) are eliminated.
+    _allowed_domain_edge: ClassVar[tuple[str, str]] = ("ml", "data")
+    _allowed_package_edge: ClassVar[tuple[str, str]] = ("pirn-ml", "pirn-data")
+
+    # Optional connector/backend + codec third-party packages. None of these may be
+    # imported as a side effect of ``import pirn``. Names are the *import* names
+    # (what shows up in ``sys.modules``), not the PyPI distribution names.
+    _backend_modules: ClassVar[tuple[str, ...]] = (
+        # databases
+        "asyncpg",
+        "aiosqlite",
+        "duckdb",
+        "aiomysql",
+        "aioodbc",
+        "oracledb",
+        "snowflake",
+        "clickhouse_connect",
+        "databricks",
+        "google.cloud.bigquery",
+        # object storage
+        "aioboto3",
+        "gcloud_aio_storage",
+        "azure.storage.blob",
+        # messaging / streaming
+        "aiokafka",
+        "aio_pika",
+        "azure.servicebus",
+        "google.cloud.pubsub",
+        "glide",  # valkey-glide
+        # compression codecs
+        "zstandard",
+        "snappy",
+        "lz4",
+    )
+
+    @staticmethod
+    def _imported_module_roots(tree: ast.AST) -> set[str]:
+        """Collect dotted module names referenced by ``import`` / ``from`` stmts."""
+        modules: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    modules.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                # Absolute imports only; relative (level > 0) can't reach a domain.
+                if node.level == 0 and node.module is not None:
+                    modules.add(node.module)
+        return modules
+
+    @staticmethod
+    def _parse(path: Path) -> ast.Module:
+        """Parse *path*, or raise ``ValueError`` — an unreadable file fails the gate.
+
+        A gate that skipped a file it could not read would report success for
+        code it never inspected, which is how "checked nothing, passed" happens.
+        """
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except SyntaxError:
-            continue
-        for module in _imported_module_roots(tree):
-            root = module.split(".", 1)[0]
-            if root in _domain_packages:
-                violations.append(
-                    f"{path}: core imports domain package {module!r} — "
-                    "core must depend on zero domains (constraint C2)"
-                )
-    return violations
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            raise ValueError(f"{path}: could not read the source file ({error})") from error
+        try:
+            return ast.parse(source, filename=str(path))
+        except SyntaxError as error:
+            raise ValueError(f"{path}: could not parse the source file ({error.msg})") from error
 
+    @staticmethod
+    def check_core_is_sink(src: Path) -> list[str]:
+        """C2: fail if any file under ``src`` imports a top-level domain package."""
+        if not src.is_dir():
+            raise ValueError(f"{src}: core source tree does not exist")
+        sources = sorted(src.rglob("*.py"))
+        if not sources:
+            raise ValueError(f"{src}: core source tree contains no .py files")
+        violations: list[str] = []
+        for path in sources:
+            tree = CheckImportGraph._parse(path)
+            for module in CheckImportGraph._imported_module_roots(tree):
+                root = module.split(".", 1)[0]
+                if root in CheckImportGraph._domain_packages:
+                    violations.append(
+                        f"{path}: core imports domain package {module!r} — "
+                        "core must depend on zero domains (constraint C2)"
+                    )
+        return violations
 
-def check_no_backend_at_import() -> list[str]:
-    """Fail if ``import pirn`` pulls any backend package into ``sys.modules``."""
-    probe = (
-        "import sys\n"
-        "import pirn  # noqa: F401\n"
-        f"candidates = {list(_backend_modules)!r}\n"
-        "leaked = sorted(m for m in candidates if m in sys.modules)\n"
-        "print('\\n'.join(leaked))\n"
-    )
-    result = subprocess.run(
-        [sys.executable, "-c", probe],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return ["could not import pirn to probe backend imports:\n" + result.stderr.strip()]
-    leaked = [line for line in result.stdout.splitlines() if line.strip()]
-    return [
-        f"backend package {name!r} was imported at `import pirn` time — "
-        "it must import lazily, not at module top level (ADR-2)"
-        for name in leaked
-    ]
+    @staticmethod
+    def check_no_backend_at_import() -> list[str]:
+        """Fail if ``import pirn`` pulls any backend package into ``sys.modules``."""
+        probe = (
+            "import sys\n"
+            "import pirn  # noqa: F401\n"
+            f"candidates = {list(CheckImportGraph._backend_modules)!r}\n"
+            "leaked = sorted(m for m in candidates if m in sys.modules)\n"
+            "print('\\n'.join(leaked))\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return ["could not import pirn to probe backend imports:\n" + result.stderr.strip()]
+        leaked = [line for line in result.stdout.splitlines() if line.strip()]
+        return [
+            f"backend package {name!r} was imported at `import pirn` time — "
+            "it must import lazily, not at module top level (ADR-2)"
+            for name in leaked
+        ]
 
-
-def _find_cycle(edges: dict[str, set[str]]) -> list[str] | None:
-    """Return a node cycle (as a path) if the directed graph has one, else None.
-
-    Plain DFS three-colouring — keeps the gate stdlib-only (no networkx).
-    """
-    white, gray, black = 0, 1, 2
-    color: dict[str, int] = {node: white for node in edges}
-    path: list[str] = []
-
-    def visit(node: str) -> list[str] | None:
+    @staticmethod
+    def _visit(
+        node: str,
+        edges: dict[str, set[str]],
+        color: dict[str, int],
+        path: list[str],
+    ) -> list[str] | None:
+        """One DFS step of the three-colouring in :meth:`_find_cycle`."""
+        white, gray = 0, 1
         color[node] = gray
         path.append(node)
         for nxt in sorted(edges.get(node, set())):
@@ -175,200 +210,246 @@ def _find_cycle(edges: dict[str, set[str]]) -> list[str] | None:
             if state == gray:
                 return [*path[path.index(nxt) :], nxt]
             if state == white:
-                found = visit(nxt)
+                found = CheckImportGraph._visit(nxt, edges, color, path)
                 if found is not None:
                     return found
         path.pop()
-        color[node] = black
+        color[node] = 2
         return None
 
-    for node in sorted(edges):
-        if color[node] == white:
-            found = visit(node)
-            if found is not None:
-                return found
-    return None
+    @staticmethod
+    def _find_cycle(edges: dict[str, set[str]]) -> list[str] | None:
+        """Return a node cycle (as a path) if the directed graph has one, else None.
 
+        Plain DFS three-colouring — keeps the gate stdlib-only (no networkx).
+        """
+        color: dict[str, int] = dict.fromkeys(edges, 0)
+        path: list[str] = []
+        for node in sorted(edges):
+            if color[node] == 0:
+                found = CheckImportGraph._visit(node, edges, color, path)
+                if found is not None:
+                    return found
+        return None
 
-def check_domain_dag(packages_root: Path) -> list[str]:
-    """C1+C3 over *real imports*: domains form an acyclic graph whose only
-    domain->domain edge is ``ml -> data``.
+    @staticmethod
+    def check_domain_dag(packages_root: Path) -> list[str]:
+        """C1+C3 over *real imports*: domains form an acyclic graph whose only
+        domain->domain edge is ``ml -> data``.
 
-    Post-extraction each domain ships as a standalone ``pirn_<domain>`` package
-    under ``packages/pirn-<domain>/pirn_<domain>/``. This scans every domain
-    package source for top-level ``pirn_<other>`` imports and asserts (a) the
-    induced graph is acyclic (C1) and (b) the set of cross-domain edges is
-    exactly ``{(ml, data)}`` — i.e. SCD-08 removed the ``agents -> ml`` edge and
-    SCD-09 removed the ``health -> agents`` edge, while the retained
-    ``ml -> data`` edge (ADR-3) — ``pirn_ml`` importing ``pirn_data`` — is still
-    present.
-    """
-    edges: dict[str, set[str]] = {domain: set() for domain in _domain_names}
-    for domain in _domain_names:
-        domain_src = packages_root / f"pirn-{domain}" / f"pirn_{domain}"
-        if not domain_src.is_dir():
-            continue
-        for path in sorted(domain_src.rglob("*.py")):
-            try:
-                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            except SyntaxError:
-                continue
-            for module in _imported_module_roots(tree):
-                root = module.split(".", 1)[0]
-                if root.startswith("pirn_"):
-                    other = root[len("pirn_") :]
-                    if other in _domain_names and other != domain:
-                        edges[domain].add(other)
-    return _dag_violations(
-        edges,
-        allowed_edge=_allowed_domain_edge,
-        kind="domain import graph",
-    )
+        Post-extraction each domain ships as a standalone ``pirn_<domain>`` package
+        under ``packages/pirn-<domain>/pirn_<domain>/``. This scans every domain
+        package source for top-level ``pirn_<other>`` imports and asserts (a) the
+        induced graph is acyclic (C1) and (b) the set of cross-domain edges is
+        exactly ``{(ml, data)}`` — i.e. SCD-08 removed the ``agents -> ml`` edge and
+        SCD-09 removed the ``health -> agents`` edge, while the retained
+        ``ml -> data`` edge (ADR-3) — ``pirn_ml`` importing ``pirn_data`` — is still
+        present.
 
-
-def _distribution_name(spec: str) -> str:
-    """Extract the bare distribution name from a PEP 508 dependency string."""
-    return re.split(r"[<>=!~;\[\( ]", spec.strip(), maxsplit=1)[0].strip()
-
-
-def check_package_dag(packages_root: Path) -> list[str]:
-    """C1+C3 over *declared deps*: the inter-package graph parsed from each
-    ``pyproject.toml`` is acyclic and its only domain->domain hard edge is
-    ``pirn-ml -> pirn-data``.
-
-    A new domain->domain dependency declared in any package fails the build
-    pending an ADR amendment (ADR-3).
-    """
-    parsed: dict[str, list[str]] = {}
-    for pyproject in sorted(packages_root.glob("*/pyproject.toml")):
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        project = data.get("project", {})
-        name = project.get("name")
-        if not name:
-            continue
-        parsed[name] = project.get("dependencies", [])
-
-    known = set(parsed)
-    edges: dict[str, set[str]] = {name: set() for name in parsed}
-    for name, deps in parsed.items():
-        for spec in deps:
-            dep = _distribution_name(spec)
-            if dep in known and dep != name:
-                edges[name].add(dep)
-
-    domain_pkgs = {f"pirn-{domain}" for domain in _domain_names}
-    return _dag_violations(
-        edges,
-        allowed_edge=_allowed_package_edge,
-        kind="declared package dependency graph",
-        domain_nodes=domain_pkgs,
-    )
-
-
-def _dag_violations(
-    edges: dict[str, set[str]],
-    *,
-    allowed_edge: tuple[str, str],
-    kind: str,
-    domain_nodes: set[str] | None = None,
-) -> list[str]:
-    """Shared acyclicity (C1) + sole-domain-edge (C3) assertions over ``edges``.
-
-    ``domain_nodes`` restricts which endpoints count as "domain->domain"; when
-    None every node is treated as a domain (the in-tree import graph case).
-    """
-    violations: list[str] = []
-    cycle = _find_cycle(edges)
-    if cycle is not None:
-        violations.append(
-            f"{kind} has a cycle: "
-            + " -> ".join(cycle)
-            + " (constraint C1: the package DAG must be acyclic)"
+        A domain package directory that is missing is an error: the domain would
+        contribute no edges and the gate would pass without having seen it.
+        """
+        if not packages_root.is_dir():
+            raise ValueError(f"{packages_root}: workspace packages directory does not exist")
+        edges: dict[str, set[str]] = {domain: set() for domain in CheckImportGraph._domain_names}
+        for domain in CheckImportGraph._domain_names:
+            domain_src = packages_root / f"pirn-{domain}" / f"pirn_{domain}"
+            if not domain_src.is_dir():
+                raise ValueError(
+                    f"{domain_src}: domain package source tree does not exist — the "
+                    "domain import graph would be built from an incomplete workspace"
+                )
+            for path in sorted(domain_src.rglob("*.py")):
+                tree = CheckImportGraph._parse(path)
+                for module in CheckImportGraph._imported_module_roots(tree):
+                    root = module.split(".", 1)[0]
+                    if root.startswith("pirn_"):
+                        other = root[len("pirn_") :]
+                        if other in CheckImportGraph._domain_names and other != domain:
+                            edges[domain].add(other)
+        return CheckImportGraph._dag_violations(
+            edges,
+            allowed_edge=CheckImportGraph._allowed_domain_edge,
+            kind="domain import graph",
         )
 
-    def is_domain(node: str) -> bool:
+    @staticmethod
+    def _distribution_name(spec: str) -> str:
+        """Extract the bare distribution name from a PEP 508 dependency string."""
+        return re.split(r"[<>=!~;\[\( ]", spec.strip(), maxsplit=1)[0].strip()
+
+    @staticmethod
+    def check_package_dag(packages_root: Path) -> list[str]:
+        """C1+C3 over *declared deps*: the inter-package graph parsed from each
+        ``pyproject.toml`` is acyclic and its only domain->domain hard edge is
+        ``pirn-ml -> pirn-data``.
+
+        A new domain->domain dependency declared in any package fails the build
+        pending an ADR amendment (ADR-3). An empty package set is an error, not
+        a vacuously acyclic graph.
+        """
+        if not packages_root.is_dir():
+            raise ValueError(f"{packages_root}: workspace packages directory does not exist")
+        parsed: dict[str, list[str]] = {}
+        for pyproject in sorted(packages_root.glob("*/pyproject.toml")):
+            data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+            project = data.get("project", {})
+            name = project.get("name")
+            if not name:
+                raise ValueError(f"{pyproject}: no [project] name — cannot place it in the graph")
+            parsed[name] = project.get("dependencies", [])
+
+        if not parsed:
+            raise ValueError(
+                f"{packages_root}: no packages/*/pyproject.toml found — refusing to "
+                "report an empty dependency graph as acyclic"
+            )
+
+        known = set(parsed)
+        edges: dict[str, set[str]] = {name: set() for name in parsed}
+        for name, deps in parsed.items():
+            for spec in deps:
+                dep = CheckImportGraph._distribution_name(spec)
+                if dep in known and dep != name:
+                    edges[name].add(dep)
+
+        domain_pkgs = {f"pirn-{domain}" for domain in CheckImportGraph._domain_names}
+        return CheckImportGraph._dag_violations(
+            edges,
+            allowed_edge=CheckImportGraph._allowed_package_edge,
+            kind="declared package dependency graph",
+            domain_nodes=domain_pkgs,
+        )
+
+    @staticmethod
+    def _is_domain(node: str, domain_nodes: set[str] | None) -> bool:
         return domain_nodes is None or node in domain_nodes
 
-    cross = {
-        (src, dst)
-        for src, outs in edges.items()
-        for dst in outs
-        if is_domain(src) and is_domain(dst)
-    }
-    for src, dst in sorted(cross - {allowed_edge}):
-        violations.append(
-            f"unexpected domain->domain edge {src!r} -> {dst!r} in the {kind} — "
-            f"the only permitted domain edge is {allowed_edge[0]!r} -> "
-            f"{allowed_edge[1]!r} (constraint C3 / ADR-3); a new edge requires an "
-            "ADR amendment"
+    @staticmethod
+    def _dag_violations(
+        edges: dict[str, set[str]],
+        *,
+        allowed_edge: tuple[str, str],
+        kind: str,
+        domain_nodes: set[str] | None = None,
+    ) -> list[str]:
+        """Shared acyclicity (C1) + sole-domain-edge (C3) assertions over ``edges``.
+
+        ``domain_nodes`` restricts which endpoints count as "domain->domain"; when
+        None every node is treated as a domain (the in-tree import graph case).
+        """
+        violations: list[str] = []
+        cycle = CheckImportGraph._find_cycle(edges)
+        if cycle is not None:
+            violations.append(
+                f"{kind} has a cycle: "
+                + " -> ".join(cycle)
+                + " (constraint C1: the package DAG must be acyclic)"
+            )
+
+        cross = {
+            (src, dst)
+            for src, outs in edges.items()
+            for dst in outs
+            if CheckImportGraph._is_domain(src, domain_nodes)
+            and CheckImportGraph._is_domain(dst, domain_nodes)
+        }
+        for src, dst in sorted(cross - {allowed_edge}):
+            violations.append(
+                f"unexpected domain->domain edge {src!r} -> {dst!r} in the {kind} — "
+                f"the only permitted domain edge is {allowed_edge[0]!r} -> "
+                f"{allowed_edge[1]!r} (constraint C3 / ADR-3); a new edge requires an "
+                "ADR amendment"
+            )
+        if allowed_edge not in cross:
+            violations.append(
+                f"retained edge {allowed_edge[0]!r} -> {allowed_edge[1]!r} is missing "
+                f"from the {kind} — it must be retained, not broken (ADR-3)"
+            )
+        return violations
+
+    @staticmethod
+    def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument(
+            "--src",
+            type=Path,
+            default=Path("packages/pirn-core/pirn"),
+            help="core source tree to scan for the C2 core-is-sink check",
         )
-    if allowed_edge not in cross:
-        violations.append(
-            f"retained edge {allowed_edge[0]!r} -> {allowed_edge[1]!r} is missing "
-            f"from the {kind} — it must be retained, not broken (ADR-3)"
+        parser.add_argument(
+            "--packages-root",
+            type=Path,
+            default=Path("packages"),
+            help="workspace packages dir for the declared-dependency DAG check",
         )
-    return violations
+        parser.add_argument(
+            "--core-is-sink",
+            action="store_true",
+            help="run only the C2 core-is-sink check",
+        )
+        parser.add_argument(
+            "--no-backend-at-core-import",
+            action="store_true",
+            help="run only the no-backend-at-import check",
+        )
+        parser.add_argument(
+            "--domain-dag",
+            action="store_true",
+            help="run only the domain import-graph DAG check (C1/C3, SCD-10)",
+        )
+        parser.add_argument(
+            "--package-dag",
+            action="store_true",
+            help="run only the declared-dependency DAG check (C1/C3, SCD-10)",
+        )
+        return parser.parse_args(argv)
 
+    @staticmethod
+    def main(argv: list[str] | None = None) -> int:
+        """Run the selected checks from the repository root; return the exit code."""
+        args = CheckImportGraph._parse_args(argv)
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--src",
-        type=Path,
-        default=Path("packages/pirn-core/pirn"),
-        help="core source tree to scan for the C2 core-is-sink check",
-    )
-    parser.add_argument(
-        "--packages-root",
-        type=Path,
-        default=Path("packages"),
-        help="workspace packages dir for the declared-dependency DAG check",
-    )
-    parser.add_argument(
-        "--core-is-sink",
-        action="store_true",
-        help="run only the C2 core-is-sink check",
-    )
-    parser.add_argument(
-        "--no-backend-at-core-import",
-        action="store_true",
-        help="run only the no-backend-at-import check",
-    )
-    parser.add_argument(
-        "--domain-dag",
-        action="store_true",
-        help="run only the domain import-graph DAG check (C1/C3, SCD-10)",
-    )
-    parser.add_argument(
-        "--package-dag",
-        action="store_true",
-        help="run only the declared-dependency DAG check (C1/C3, SCD-10)",
-    )
-    args = parser.parse_args()
+        cwd = Path.cwd().resolve()
+        if cwd != CheckImportGraph._repo_root:
+            print(
+                f"check_import_graph.py must run from the repository root "
+                f"({CheckImportGraph._repo_root}), not {cwd} — its default paths are "
+                "repo-relative and a different working directory produces phantom edges",
+                file=sys.stderr,
+            )
+            return 2
 
-    # No selector flag → run every check. Any selector → run only those chosen.
-    run_all = not (
-        args.core_is_sink or args.no_backend_at_core_import or args.domain_dag or args.package_dag
-    )
+        # No selector flag → run every check. Any selector → run only those chosen.
+        run_all = not (
+            args.core_is_sink
+            or args.no_backend_at_core_import
+            or args.domain_dag
+            or args.package_dag
+        )
 
-    violations: list[str] = []
-    if run_all or args.core_is_sink:
-        violations.extend(check_core_is_sink(args.src))
-    if run_all or args.no_backend_at_core_import:
-        violations.extend(check_no_backend_at_import())
-    if run_all or args.domain_dag:
-        violations.extend(check_domain_dag(args.packages_root))
-    if run_all or args.package_dag:
-        violations.extend(check_package_dag(args.packages_root))
+        violations: list[str] = []
+        try:
+            if run_all or args.core_is_sink:
+                violations.extend(CheckImportGraph.check_core_is_sink(args.src))
+            if run_all or args.no_backend_at_core_import:
+                violations.extend(CheckImportGraph.check_no_backend_at_import())
+            if run_all or args.domain_dag:
+                violations.extend(CheckImportGraph.check_domain_dag(args.packages_root))
+            if run_all or args.package_dag:
+                violations.extend(CheckImportGraph.check_package_dag(args.packages_root))
+        except ValueError as error:
+            print(f"import-graph gate could not run: {error}", file=sys.stderr)
+            return 2
 
-    for v in violations:
-        print(v)
-    if violations:
-        print(f"\nimport-graph gate FAILED: {len(violations)} violation(s)")
-        return 1
-    print("import-graph gate OK")
-    return 0
+        for violation in violations:
+            print(violation)
+        if violations:
+            print(f"\nimport-graph gate FAILED: {len(violations)} violation(s)")
+            return 1
+        print("import-graph gate OK")
+        return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(CheckImportGraph.main())

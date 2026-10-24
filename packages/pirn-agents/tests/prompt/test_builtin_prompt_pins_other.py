@@ -78,7 +78,9 @@ from pirn_agents.specializations.structured_output.yaml_extractor_attempt import
 from pirn_agents.specializations.tool_use.tool_selector import ToolSelector
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_result_batch import ToolResultBatch
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
@@ -142,12 +144,18 @@ class MemoryPatternPromptPins(unittest.IsolatedAsyncioTestCase):
         # directly (ADR agents-speaks-core WS3 part 4), a surface StubMemoryStore
         # (a plain MemoryStore double) does not expose.
         store = KeyedLineageStore(history=InMemoryHistory(), data_store=InMemoryDataStore())
-        knot = _bare(SemanticMemoryUpsert)
-        await knot.process(
-            response=AgentResponse(content="body"),
-            llm=llm,
-            store=store,
-        )
+        # Constructed and run for real rather than through ``_bare``: the knot
+        # now fans its per-fact writes out into an inner run (PIR-874), and
+        # ``NestedRunKnot`` needs the construction-time capture ``_bare``'s
+        # ``__new__`` skips.
+        with Tapestry() as tapestry:
+            SemanticMemoryUpsert(
+                response=AgentResponse(content="body"),
+                llm=llm,
+                store=store,
+                _config=KnotConfig(id="upsert"),
+            )
+        await tapestry.run(RunRequest())
         assert llm.calls[0][0]["content"] == (
             "Extract key facts from the following text.\n\nText: body\n\nReturn one fact per line."
         )
@@ -507,7 +515,12 @@ class ReWooPromptPins(unittest.IsolatedAsyncioTestCase):
         knot = _bare(ReWooSynthesizer)
         call = ToolCall(tool_name="search", arguments={"input": "x"}, call_id="c0")
         result = ToolResult(call_id="c0", outcome=Ok(value="found"))
-        await knot.process(goal="find", plan=(call,), results=(result,), llm=llm)
+        await knot.process(
+            goal="find",
+            plan=ToolCallBatch((call,)),
+            results=ToolResultBatch((result,), max_concurrency=8, timeout=None),
+            llm=llm,
+        )
         assert llm.calls[0][0]["content"] == (
             "You are a solver. Using only the tool evidence below, write the "
             "final answer to the goal. Be concise and do not call any more tools."

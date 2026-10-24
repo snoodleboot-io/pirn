@@ -26,8 +26,11 @@ The executor is a :class:`~pirn.nodes.nested_run_knot.NestedRunKnot`: its
 ``process()`` builds the fan-out, runs it through ``_run_inner`` with the cap,
 and returns the views. An empty batch starts no inner run at all.
 
-Output is a tuple of :class:`ToolResult` views in input order, built through
-the single :meth:`ToolResult.from_result`; a call naming an unregistered
+Input is a :class:`~pirn_agents.tools.tool_call_batch.ToolCallBatch` and output
+a :class:`~pirn_agents.tools.tool_result_batch.ToolResultBatch` (PIR-874; ADR
+agents-speaks-core WS6b): the :class:`ToolResult` views are in input order,
+built through the single :meth:`ToolResult.from_result`, and the batch frame
+records the attempted/succeeded/failed split and the cap and timeout used; a call naming an unregistered
 tool, or whose arguments the declaration refuses, is recorded through
 :class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`.
 
@@ -58,9 +61,11 @@ from pirn_agents.exceptions.tool_argument_validation_error import (
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.security.secret_redactor import SecretRedactor
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.tool_call_rejection import ToolCallRejection
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_result_batch import ToolResultBatch
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -84,7 +89,7 @@ class ParallelToolExecutor(NestedRunKnot):
     def __init__(
         self,
         *,
-        tool_calls: Knot | Sequence[ToolCall],
+        tool_calls: Knot | ToolCallBatch,
         toolset: Knot | Toolset,
         max_concurrency: Knot | int = 8,
         timeout: Knot | float | None = None,
@@ -106,19 +111,19 @@ class ParallelToolExecutor(NestedRunKnot):
 
     async def process(
         self,
-        tool_calls: Sequence[ToolCall],
+        tool_calls: ToolCallBatch,
         toolset: Toolset,
         max_concurrency: int,
         timeout: float | None = None,
         retry: KnotRetryPolicy | None = None,
         approval_hook: Any = None,
         **_: Any,
-    ) -> tuple[ToolResult, ...]:
+    ) -> ToolResultBatch:
         """Run one tool knot per call under the concurrency cap and return the views.
 
         Args:
-            tool_calls: Ordered calls to execute; each element must be a
-                :class:`ToolCall`.
+            tool_calls: The :class:`ToolCallBatch` to execute; each call in its
+                ``data`` must be a :class:`ToolCall`.
             toolset: Registry the calls are dispatched against.
             max_concurrency: Maximum number of simultaneously in-flight calls;
                 must be >= 1.
@@ -129,15 +134,21 @@ class ParallelToolExecutor(NestedRunKnot):
                 :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`.
 
         Returns:
-            One :class:`ToolResult` view per call, in input order, combined by
-            an ``Aggregator`` over the calls' results.
+            A :class:`ToolResultBatch` holding one :class:`ToolResult` view per
+            call, in input order, combined by an ``Aggregator`` over the
+            calls' results, framed with ``max_concurrency`` and ``timeout``.
 
         Raises:
-            TypeError: If any ``tool_calls`` element is not a
-                :class:`ToolCall`, or ``toolset`` is not a :class:`Toolset`.
+            TypeError: If ``tool_calls`` is not a :class:`ToolCallBatch`, any
+                call in it is not a :class:`ToolCall`, or ``toolset`` is not a :class:`Toolset`.
             ValueError: If ``max_concurrency`` is less than 1.
         """
-        call_list = list(tool_calls)
+        if not isinstance(tool_calls, ToolCallBatch):
+            raise TypeError(
+                f"ParallelToolExecutor: tool_calls must be a ToolCallBatch, "
+                f"got {type(tool_calls).__name__}"
+            )
+        call_list = list(tool_calls.data)
         for index, call in enumerate(call_list):
             if not isinstance(call, ToolCall):
                 raise TypeError(
@@ -156,7 +167,7 @@ class ParallelToolExecutor(NestedRunKnot):
                 f"ParallelToolExecutor: max_concurrency must be >= 1, got {max_concurrency}"
             )
         if not call_list:
-            return ()
+            return ToolResultBatch((), max_concurrency=max_concurrency, timeout=timeout)
 
         with Tapestry(traceback_filter=SecretRedactor.default_traceback_filter()) as inner:
             per_call: dict[str, Knot] = {}
@@ -177,7 +188,9 @@ class ParallelToolExecutor(NestedRunKnot):
         run = await self._run_inner(
             inner, concurrency=ConcurrencyLimits(groups={self._group: max_concurrency})
         )
-        return run.outputs[self._results_id]
+        return ToolResultBatch(
+            run.outputs[self._results_id], max_concurrency=max_concurrency, timeout=timeout
+        )
 
     @staticmethod
     def _call_knot(

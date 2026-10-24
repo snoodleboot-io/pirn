@@ -66,4 +66,4 @@ class AcceptCheck(Check):
             raise TypeError(
                 f"AcceptCheck: threshold must be numeric, got {type(threshold).__name__}"
             )
-        return verdict.score >= float(threshold)
+        return verdict.metadata.score >= float(threshold)

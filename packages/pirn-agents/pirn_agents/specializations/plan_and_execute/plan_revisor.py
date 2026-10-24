@@ -86,7 +86,7 @@ class PlanRevisor(Knot):
             A revised Plan containing the remaining steps to complete the goal.
         """
         original_steps_text = "\n".join(
-            f"{i + 1}. {step}" for i, step in enumerate(original_plan.steps)
+            f"{i + 1}. {step}" for i, step in enumerate(original_plan.data)
         )
         user_content = (
             f"Original plan:\n{original_steps_text}\n\n"

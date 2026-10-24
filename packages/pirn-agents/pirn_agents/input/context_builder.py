@@ -14,7 +14,6 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -49,34 +48,31 @@ class ContextBuilder(Knot):
 
     async def process(
         self,
-        messages: Sequence[AgentMessage],
+        messages: ConversationPayload,
         system_prompt: str | None = None,
         **_: Any,
     ) -> ConversationPayload:
-        """Assemble a sequence of messages and an optional system prompt into a ConversationPayload.
+        """Prepend an optional system prompt to a conversation window.
 
         Args:
-            messages: The ordered sequence of agent messages to include.
+            messages: The conversation window to build on.
             system_prompt: Optional system instruction prepended as a system-role message.
 
         Returns:
-            A ConversationPayload containing the ordered messages with optional system prefix.
+            ``messages`` derived with the system message in front when one is
+            given — the same ``ConversationFrame`` carried forward — else
+            ``messages`` unchanged (ADR agents-speaks-core WS6b; PIR-874).
 
         Raises:
-            TypeError: If messages is not a sequence or any element is not an AgentMessage.
-            ValueError: If system_prompt is an empty string.
+            TypeError: If ``messages`` is not a ``ConversationPayload`` or
+                ``system_prompt`` is neither a string nor ``None``.
+            ValueError: If ``system_prompt`` is an empty string.
         """
-        if not isinstance(messages, Sequence) or isinstance(messages, (str, bytes)):
+        if not isinstance(messages, ConversationPayload):
             raise TypeError(
-                f"ContextBuilder: messages must be a sequence, got {type(messages).__name__}"
+                "ContextBuilder: messages must be a ConversationPayload, "
+                f"got {type(messages).__name__}"
             )
-        ordered = tuple(messages)
-        for index, message in enumerate(ordered):
-            if not isinstance(message, AgentMessage):
-                raise TypeError(
-                    f"ContextBuilder: messages[{index}] must be an "
-                    f"AgentMessage, got {type(message).__name__}"
-                )
         if system_prompt is not None and not isinstance(system_prompt, str):
             raise TypeError(
                 "ContextBuilder: system_prompt must be a string or None, "
@@ -84,7 +80,7 @@ class ContextBuilder(Knot):
             )
         if isinstance(system_prompt, str) and not system_prompt:
             raise ValueError("ContextBuilder: system_prompt must be non-empty when provided")
-        if system_prompt:
-            system_message = AgentMessage(role="system", content=system_prompt)
-            ordered = (system_message, *ordered)
-        return ConversationPayload(ordered)
+        if not system_prompt:
+            return messages
+        system_message = AgentMessage(role="system", content=system_prompt)
+        return messages.derive((system_message, *messages.data))

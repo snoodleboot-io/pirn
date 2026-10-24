@@ -12,8 +12,6 @@ home for the framework's agent introspection.
 
 from __future__ import annotations
 
-import inspect
-
 from pirn.core.knot import Knot
 
 
@@ -35,8 +33,4 @@ class AgentIntrospector:
         """Return whether the agent's ``process`` declares a parameter ``name``."""
         if not isinstance(agent, Knot):
             return False
-        try:
-            signature = inspect.signature(type(agent).process)
-        except (TypeError, ValueError):
-            return False
-        return name in signature.parameters
+        return type(agent).declares_input(name)

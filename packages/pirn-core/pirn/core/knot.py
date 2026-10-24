@@ -39,7 +39,7 @@ import json
 import types as _types
 import weakref
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Any, ClassVar, Union, cast, get_args, get_origin, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -238,7 +238,7 @@ class Knot:
         if len(adapter_args) == 1:
             adapter_type: Any = adapter_args[0]
         elif adapter_args:
-            adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
+            adapter_type = Union[tuple(adapter_args)]  # noqa: UP007  # the member tuple is built at run time, so `X | Y` cannot express it
         else:
             adapter_type = coerce_type
 
@@ -696,6 +696,55 @@ class Knot:
         return cls._input_annotations(sig, cls._process_hints(sig))
 
     @classmethod
+    def declares_input(cls, name: str) -> bool:
+        """Whether ``process()`` declares a parameter called ``name``.
+
+        The one answer to "can this knot be given this input", so a caller never
+        re-derives the signature with ``inspect``: a second derivation can
+        disagree with the one ``validate_io`` uses (PIR-874). A schema-declared
+        class answers from its schema; a class with a ``**kwargs`` catch-all
+        still answers ``False`` for a name it does not name, because the
+        catch-all is ``**_`` and discards.
+
+        Args:
+            name: The parameter name to look for.
+
+        Returns:
+            ``True`` when ``name`` is a declared input of this knot.
+        """
+        declared = cls.declared_input_schema()
+        if declared is not None:
+            properties = declared.get("properties", {})
+            return name in properties
+        try:
+            return name in cls._declared_input_names(cls._process_signature())
+        except (TypeError, ValueError):
+            return False
+
+    @classmethod
+    def process_defaults(cls) -> dict[str, Any]:
+        """Name -> default for every declared ``process()`` input that has one.
+
+        The defaults as written, not as JSON: :meth:`input_json_schema` records
+        only the JSON-serialisable ones and omits Knot-typed and opaque-value
+        inputs altogether, so a caller that needs the real values — to fill in a
+        constructor, say — reads them here rather than introspecting the
+        signature a second time (PIR-874).
+
+        Returns:
+            The declared inputs that carry a default, in declaration order.
+        """
+        if cls.declared_input_schema() is not None:
+            return {}
+        sig = cls._process_signature()
+        declared = cls._declared_input_names(sig)
+        return {
+            name: parameter.default
+            for name, parameter in sig.parameters.items()
+            if name in declared and parameter.default is not inspect.Parameter.empty
+        }
+
+    @classmethod
     def input_json_schema(cls) -> dict[str, Any]:
         """Return the JSON schema of this knot's ``process()`` inputs.
 
@@ -1125,7 +1174,11 @@ class Knot:
                 if ann is not Any or name in hints
             }
 
-        ret: object = hints.get("return", sig.return_annotation)
+        # ``Any`` rather than ``object``: pydantic 2.14 narrowed ``TypeAdapter``'s
+        # parameter to ``TypeForm[T]``, which ``object`` no longer satisfies under
+        # pyright strict. ``hints`` already yields ``Any``; this only stops the
+        # ``Signature.empty`` fallback widening it to ``object`` (PIR-874).
+        ret: Any = hints.get("return", sig.return_annotation)
         _is_knot_type = (
             ret is not inspect.Signature.empty
             and ret is not None
@@ -1134,7 +1187,7 @@ class Knot:
         output_adapter: TypeAdapter[Any] | None = (
             None
             if ret is inspect.Signature.empty or ret is None or _is_knot_type
-            else TypeAdapter(ret)
+            else TypeAdapter(cast(Any, ret))
         )
         return input_adapters, output_adapter
 

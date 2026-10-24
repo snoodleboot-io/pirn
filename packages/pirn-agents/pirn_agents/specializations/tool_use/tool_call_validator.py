@@ -30,6 +30,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.specializations.tool_use.validated_tool_call import ValidatedToolCall
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
 
@@ -52,7 +53,7 @@ class ToolCallValidator(Knot):
         tool_call: ToolCall,
         tools: Sequence[ToolFactory],
         **_: Any,
-    ) -> ToolCall:
+    ) -> ValidatedToolCall:
         """Validate the ToolCall arguments against the registered tool's declaration.
 
         Args:
@@ -60,7 +61,8 @@ class ToolCallValidator(Knot):
             tools: The capabilities to validate against.
 
         Returns:
-            The original ToolCall unchanged when validation passes.
+            A :class:`ValidatedToolCall` carrying the original call unchanged and
+            the names it was validated against (PIR-874).
 
         Raises:
             TypeError: If tool_call is not a ToolCall or any element of tools is not a capability.
@@ -84,4 +86,4 @@ class ToolCallValidator(Knot):
             raise ValueError(
                 f"ToolCallValidator: tool '{tool_call.tool_name}' rejected its arguments: {detail}"
             )
-        return tool_call
+        return ValidatedToolCall(tool_call, tuple(registry))

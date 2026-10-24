@@ -79,7 +79,15 @@ _MAX_SPECIALIZATION_MODULES = 430
 # PIR-869 moved every core module-level function onto a holder class (CLI
 # classes, ConnectionConfigDecorator, AsyncCallable, SqliteMigrations, ...);
 # each is one more registry entry. Measured 1379 after that change.
-_MAX_REGISTRY_ENTRIES = 1379
+# PIR-874 made every value a knot hands back a ``Payload[Frame, Data]``: each of
+# the 24 converted or wrapped types brought a ``<Name>Frame`` and, where the
+# record itself had to stay a record, a payload class beside it. Measured 1402
+# after that change; the comparison ceiling below did not move, which is the
+# point — growth is linear now, not quadratic.
+# PIR-874 again, closing the last four ratchets: net +1. ``ClaimSupport`` and
+# ``ClaimSupportFrame`` replace ``ClaimVerification``'s bare bool, and the
+# superseded ``ApprovalCheck`` placeholder is deleted. Measured 1403.
+_MAX_REGISTRY_ENTRIES = 1403
 
 # Linear in the entry ceiling, not quadratic. sweet_tea >= 0.2.65 keys the
 # duplicate check off a set, so a bare import performs *zero* Entry comparisons;
