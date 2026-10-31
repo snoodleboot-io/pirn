@@ -1,0 +1,103 @@
+name: Cron Health
+
+# Guard for scheduled workflows that stop producing results (PIR-845).
+#
+# A `cancelled` run does not turn a dashboard red. Heavy Tests and Real Backend
+# Tests sat behind an environment approval nobody gave: 129 scheduled runs each
+# ended cancelled and neither suite executed for months while everything read
+# green. Any cron workflow can fail that way, so this is a general guard, not a
+# fix for those two: it inspects EVERY workflow in this directory that declares a
+# `schedule:` trigger.
+#
+# Per scheduled workflow, looking only at COMPLETED scheduled runs, newest first:
+#   * CANCELLED_THRESHOLD or more consecutive cancelled runs, or
+#   * NO_SUCCESS_WINDOW completed runs with not one success
+# opens (or updates) ONE issue labelled `ci-cron-stalled`, titled with the
+# workflow's name. The issue is closed again when the newest completed run
+# succeeds. This workflow is not a required check and nothing depends on it, so
+# it can never block a merge; it alerts by issue, the only channel this repo has
+# (no Slack or paging integration exists).
+#
+# Runs daily at 07:43 UTC: after every nightly cron (03:00 mutation/benchmarks,
+# 04:00 heavy, 05:00 real-backends) and the Monday 06:00 image build have
+# started, so the previous night's results are in; and in the morning so an alert
+# is read the same day. A run still `waiting` for approval is not completed and
+# is ignored — it counts once it times out as cancelled.
+on:
+  schedule:
+    - cron: '43 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: cron-health
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  cron-health:
+    name: Scheduled workflows are producing results
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      LABEL: ci-cron-stalled
+      CANCELLED_THRESHOLD: "3"
+      NO_SUCCESS_WINDOW: "10"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Check every scheduled workflow
+        run: |
+          set -euo pipefail
+          gh label create "$LABEL" --color D93F0B \
+            --description "A scheduled workflow is cancelled or never succeeds (PIR-845)" 2>/dev/null || true
+
+          # Scheduled workflows = files declaring a top-level `  schedule:` under `on:`.
+          for file in $(grep -lE '^  schedule:' .github/workflows/*.yml); do
+            wf="$(basename "$file")"
+            name="$(sed -n 's/^name: *\([^#]*[^# ]\).*/\1/p' "$file" | head -1)"
+            # Completed scheduled runs, newest first, as one conclusion per line.
+            conclusions="$(gh run list --workflow "$wf" --event schedule --status completed \
+              --limit "$NO_SUCCESS_WINDOW" --json conclusion --jq '.[].conclusion')"
+            total="$(printf '%s' "$conclusions" | grep -c . || true)"
+            streak=0
+            while IFS= read -r c; do
+              [ "$c" = "cancelled" ] || break
+              streak=$((streak + 1))
+            done <<< "$conclusions"
+            successes="$(printf '%s' "$conclusions" | grep -c '^success$' || true)"
+            newest="$(printf '%s\n' "$conclusions" | head -1)"
+            echo "$name ($wf): completed=$total consecutive_cancelled=$streak successes=$successes newest=$newest"
+
+            reason=""
+            if [ "$streak" -ge "$CANCELLED_THRESHOLD" ]; then
+              reason="$streak consecutive cancelled scheduled runs. A cancelled run does not turn a dashboard red; check for an unanswered environment approval or a timeout."
+            elif [ "$total" -ge "$NO_SUCCESS_WINDOW" ] && [ "$successes" -eq 0 ]; then
+              reason="No success in the last $total completed scheduled runs."
+            fi
+
+            title="Scheduled workflow stalled: $name"
+            existing="$(gh issue list --label "$LABEL" --state open --search "\"$title\" in:title" \
+              --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")"
+            if [ -n "$reason" ]; then
+              body="$reason
+
+          - Workflow: \`$wf\`
+          - Recent completed scheduled runs, newest first: $(printf '%s' "$conclusions" | tr '\n' ' ')
+          - Runs: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/$wf"
+              if [ -n "$existing" ]; then
+                gh issue comment "$existing" --body "Still stalled. $body"
+              else
+                gh issue create --label "$LABEL" --title "$title" --body "$body"
+              fi
+            elif [ -n "$existing" ] && [ "$newest" = "success" ]; then
+              gh issue close "$existing" --comment "The newest scheduled run of \`$wf\` succeeded."
+            fi
+          done

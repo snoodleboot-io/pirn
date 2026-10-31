@@ -23,16 +23,44 @@ name: Workspace (independent packages)  # SCD-24..27, standalone
 # Runs on every PR to main (change-detection fans out to only the affected
 # packages) and on push to main (full matrix). Per-package images are built by
 # build-ci-image.yml (main push on dep/Dockerfile change + weekly).
+#
+# RE-VERIFICATION OF main (PIR-846). A green run on main only proves the code
+# against the dependencies and images that existed THEN. On 2026-09-07 the CI base
+# images were rebuilt with no code change and picked up pillow-heif 1.7.0 and
+# sqlglot 30.18.0, which broke every PR touching core or data; main itself was
+# never red, it was stale, because nothing re-ran it. Two more triggers close that:
+#
+#   * workflow_run — when "Build CI Base Images" completes successfully, run the
+#     FULL matrix on main against the images that were just built.
+#   * schedule — a weekly full run, for a dependency release that lands without an
+#     image rebuild. Thursday 08:17 UTC: the images rebuild Monday 06:00 (and that
+#     rebuild now triggers its own run), so Thursday splits the week into ~3-4 day
+#     gaps; it lands in working hours so a red result is read the same day; the
+#     odd minute keeps it off the top-of-hour scheduler queue, which delays and
+#     occasionally drops runs.
+#
+# Both bypass affected-package detection: the `changes` job treats every event
+# other than pull_request as "all seven packages" and then ASSERTS it, so the
+# bypass cannot silently degrade into a partial run.
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
+  workflow_run:
+    workflows: ["Build CI Base Images"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '17 8 * * 4'   # weekly Thu 08:17 UTC — full re-verify of main (PIR-846)
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # The event is part of the group so a full re-verification of main and an
+  # ordinary push to main never cancel each other: a cancelled re-verification
+  # is exactly the silent non-result this workflow change exists to remove.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_run' && github.event_name != 'schedule' }}
 
 permissions:
   contents: read
@@ -74,6 +102,10 @@ jobs:
   changes:
     name: Detect affected packages
     runs-on: ubuntu-latest
+    # A workflow_run fires for ANY completion of the image build; only a successful
+    # build on main is worth re-verifying against (a failed build left the old
+    # images in place, and has its own red run).
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     outputs:
       packages: ${{ steps.compute.outputs.packages }}
       any: ${{ steps.compute.outputs.any }}
@@ -94,11 +126,29 @@ jobs:
             merge_base="$(git merge-base "$base" "$head")"
             git diff --name-only "$merge_base" "$head" > "$RUNNER_TEMP/changed.txt"
           else
-            # push to main / dispatch: an empty list selects every package.
+            # push to main / dispatch / workflow_run / schedule: an empty list
+            # selects every package (WorkspacePackages.affected, unit-tested).
             : > "$RUNNER_TEMP/changed.txt"
           fi
           python3 scripts/workspace_packages.py affected \
             --changed-file "$RUNNER_TEMP/changed.txt" --github-output "$GITHUB_OUTPUT"
+      - name: Assert the full-matrix bypass took effect (PIR-846)
+        # Re-verification is only worth anything if it really runs all seven. Do not
+        # trust the empty-list convention: compare the computed set to ALL_PACKAGES
+        # and fail loudly, so a future change to affected() cannot turn the weekly
+        # and post-image-rebuild runs back into partial ones unnoticed.
+        if: github.event_name != 'pull_request'
+        env:
+          COMPUTED: ${{ steps.compute.outputs.packages }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          computed = sorted(json.loads(os.environ["COMPUTED"]))
+          expected = sorted(json.loads(os.environ["ALL_PACKAGES"]))
+          if computed != expected:
+              raise SystemExit(f"full-matrix bypass failed: {computed} != {expected}")
+          PY
 
   # ===========================================================================
   # Build every package's wheel into one wheelhouse artifact. Each package builds
@@ -690,3 +740,64 @@ jobs:
           done
       - name: All green
         run: echo "every always-run gate succeeded; per-package matrices succeeded or had no affected package"
+
+  # ===========================================================================
+  # Alert on a red main (PIR-846). The repo had no alerting channel at all (no
+  # Slack, no issue automation), so the channel is a GitHub issue — the one place
+  # the maintainer already reads. It is NOT a required check and nothing needs it:
+  # it only reads ci-status's result, so it can never block a merge.
+  #
+  # Idempotent: one open issue labelled `ci-main-red` is reused. A repeated
+  # failure adds a comment to it instead of opening a new issue, and the next
+  # green run on main closes it. The job-level concurrency group serialises two
+  # runs finishing together, so they cannot both see "no open issue" and each
+  # create one.
+  # ===========================================================================
+  alert-main:
+    name: Alert on red main
+    # `changes` is needed so a skipped run (workflow_run after a failed image build)
+    # is not mistaken for a green one and used to close an open issue.
+    needs: [changes, ci-status]
+    # push, workflow_run and schedule all execute on main; PRs never alert.
+    # `failure` only — a run cancelled by a newer push is not a verdict.
+    if: >-
+      always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      && needs.changes.result == 'success'
+      && (needs.ci-status.result == 'failure' || needs.ci-status.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    concurrency:
+      group: ci-main-alert
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      LABEL: ci-main-red
+    steps:
+      - name: Open or update the red-main issue (failure)
+        if: needs.ci-status.result == 'failure'
+        run: |
+          set -euo pipefail
+          gh label create "$LABEL" --color B60205 \
+            --description "Workspace CI is red on main (PIR-846)" 2>/dev/null || true
+          body="Workspace CI failed on main.
+
+          - Trigger: \`${{ github.event_name }}\`
+          - Commit: ${{ github.sha }}
+          - Run: $RUN_URL"
+          existing="$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still failing. $body"
+          else
+            gh issue create --label "$LABEL" \
+              --title "CI is red on main (Workspace)" --body "$body"
+          fi
+      - name: Close the red-main issue (recovered)
+        if: needs.ci-status.result == 'success'
+        run: |
+          set -euo pipefail
+          for n in $(gh issue list --label "$LABEL" --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Workspace CI is green on main again: $RUN_URL"
+          done
