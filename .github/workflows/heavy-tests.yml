@@ -26,6 +26,15 @@ jobs:
   approve:
     name: Approve Heavy Tests
     runs-on: ubuntu-latest
+    # PIR-845: the approval gate applies to workflow_dispatch only. A cron run has
+    # no human present to approve it, so the gate timed out and every scheduled run
+    # ended `cancelled` — 129 in a row, none ever executed — and a cancelled run
+    # does not turn a dashboard red, so the suite looked fine while never running.
+    # The scheduled run is the one that must not need a person, so it skips this job
+    # (and with it the environment); a manual dispatch still waits for approval.
+    # Neither suite reads any secret, so nothing is lost by skipping the
+    # environment on the schedule path. cron-health.yml alerts if it ever regresses.
+    if: github.event_name != 'schedule'
     environment: heavy
     steps:
       - run: echo "Approved — running heavy tests across all Python versions"
@@ -34,6 +43,9 @@ jobs:
     name: Heavy Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     needs: [approve]
+    # approve is skipped on schedule, and a skipped need skips its dependents by
+    # default — so run when it succeeded OR was skipped, never when it was rejected.
+    if: ${{ !cancelled() && (needs.approve.result == 'success' || needs.approve.result == 'skipped') }}
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-heavy:py${{ matrix.python-version }}
     strategy:
