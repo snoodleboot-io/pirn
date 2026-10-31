@@ -118,6 +118,11 @@ class AttemptTier(AgentPipeline):
                     "downshift",
                     CascadeChainState,
                     default=CascadeChainState(
+                        request=prior.request,
+                        tiers=prior.tiers,
+                        confidence=prior.confidence,
+                        meter=prior.meter,
+                        spend_cap_policy=prior.spend_cap_policy,
                         attempted=prior.attempted,
                         decisions=tuple(decisions),
                         best_value=prior.best_value,

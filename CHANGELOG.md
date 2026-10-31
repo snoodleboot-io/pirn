@@ -9,6 +9,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+#### Every value a knot hands back is a `Payload[Frame, Data]` (PIR-874)
+
+ADR agents-speaks-core WS6b, enforced by `tests/types/test_types_are_payload_or_frame.py`: a value crossing a knot boundary carries a frame describing its lineage, not just its data. The ratchet found 32 `pirn_agents` types returned bare by 47 knots. Eight are not values and are now recognised by shape — a vended collaborator (a `PirnOpaqueValue` with an `async` method: `LLMProvider`, `MemoryStore`, `EmbeddingProvider`, `SqlConnector`, `SearchBackend`) and a loop's state (the `S` of a `LoopSubTapestry[S]`, read off the loops' own generic parameters). The other 24 are converted, following the PIR-868 pattern: run-level facts in a `<Name>Frame`, the produced value as `data`, constructors keeping their named fields, fields read back as `metadata.<field>` / `.data`.
+
+- **Converted types** (frame → data): `DocumentOutcome` (counts, error → source id), `RaptorTree` (hash, counts, reused → root), `CascadeOutcome` (chosen, succeeded, escalated, attempted, decisions, confidence → value), `FailoverResult` (succeeded, chosen, attempts → value), `JudgeVerdict` (score → feedback), `ReflexionEvaluation` (success → feedback), `EvalCaseResult` (item id, passed, detail → metrics), `EntityProfile` (key, provenance, updated at, sessions → fields), `RankedMemory` (score, relevance, recency, importance → record), `BatchItemResult` (index, key, attempts, latency → outcome), `Plan` (rationale → steps), `AssembledContext` (total tokens, evicted → kept), `CompactionResult` (triggered, token counts, summary, evicted → retained), `LatsNode` (value, depth → trajectory).
+- **Message windows**: `MessageParser`, `ConversationBuffer`, `SessionSummarizer`, `WorkingMemoryWindowWriter`, `ConversationMemoryPruner`, `GraphContextBuilder`, `InputMessageScrubber` and `ReActStepAccumulator` return the existing `ConversationPayload` instead of a bare tuple. The ReAct chain threads it end to end — `ContextBuilder`, `ReActStepAccumulator` and `ReActResponseExtractor` take it as input and `derive` from it, so the frame travels the unrolled loop instead of being rebuilt empty each step.
+- **Records that stay records, wrapped by their producer** (`ToolCall`, `ToolResult`, `GraphNode`, `GraphNeighbor`, `Subgraph`, `RouteCandidate`, `ContextItem`, `RunState`, and the pydantic decode model now named `ExtractedGraph`): `RoutedToolCall` (`ToolRouter` → `ToolExecutor`), `ValidatedToolCall`, `ToolCallBatch` / `ToolResultBatch` (the ReWoo chain: `ReWooPlanner` → `ParallelToolExecutor` → `ReWooSynthesizer`), `WorkerInvocation` returns the existing `WorkerTaskResult`, `CandidateRouting` (`CandidateRouter` → `FallbackChain`), `SeedLookup` / `NodeExpansion` / `TraversalResult` (graph traversal; `HybridGraphRetriever` takes the result), `ExtractionResult(Payload[ExtractionFrame, ExtractedGraph])`, `ThreadContext`, `ResumedRun` (`RunResumer` never returns `None` now — absence is `data is None`).
+- Consumers of every converted type read `.metadata.<field>` / `.data`; no property re-exposes an old field. A knot input is `Knot | X` at construction, so none of this is visible to pyright — the cost shows only when a run resolves a parent.
+
 ### Added
 
 #### `Knot._annotation_imports` — optional-engine types without an import-time engine (PIR-872)

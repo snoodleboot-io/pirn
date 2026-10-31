@@ -1,6 +1,6 @@
-"""``SelfAskState`` — the value threaded through the sub-answer loop.
+"""``SelfAskState`` — the answered sub-questions handed to the composer.
 
-Internal API. See ``self_ask_loop.py``.
+Internal API. See ``self_ask_pipeline.py``.
 """
 
 from __future__ import annotations
@@ -10,20 +10,16 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class SelfAskState:
-    """One round's worth of accumulated Self-Ask sub-answer state.
+    """Every sub-question paired, by position, with its answer.
 
-    Frozen; ``fold`` returns a new instance rather than mutating, matching
-    every other ``LoopSubTapestry`` state in this package.
+    Frozen. Built once by the fan-out's ``Aggregator`` combine, then read by
+    :class:`SelfAskComposer`, which zips the two tuples strictly — so they are
+    always the same length and always in sub-question order.
 
     Attributes:
-        subquestions: The full, fixed sub-question list decided before the
-            loop started (decomposition already ran; this loop only answers
-            each in turn).
-        index: How many sub-questions have been answered so far — also the
-            0-based index of the next sub-question to answer.
-        subanswers: The answers collected so far, in sub-question order.
+        subquestions: The sub-question list decomposition produced.
+        subanswers: Each sub-question's answer, in sub-question order.
     """
 
     subquestions: tuple[str, ...]
-    index: int
     subanswers: tuple[str, ...]

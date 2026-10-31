@@ -9,6 +9,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from pirn_agents.llm.llm_provider import LLMProvider
+
 
 @dataclass(frozen=True)
 class JsonExtractorState:
@@ -31,3 +33,7 @@ class JsonExtractorState:
     result: Mapping[str, Any] | None
     last_error: str
     attempts: int
+    prompt: str
+    llm: LLMProvider
+    schema: Mapping[str, Any]
+    max_retries: int

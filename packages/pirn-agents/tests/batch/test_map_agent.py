@@ -45,7 +45,7 @@ async def test_maps_agent_over_all_inputs() -> None:
 
     results = await _drain(runner, ["a", "b", "c"])
 
-    by_key = {r.key: r for r in results}
+    by_key = {r.metadata.key: r for r in results}
     assert set(by_key) == {"0", "1", "2"}
     assert all(r.succeeded for r in results)
     assert by_key["0"].output == "done:a"
@@ -59,9 +59,9 @@ async def test_single_item_failure_does_not_abort_batch() -> None:
 
     results = await _drain(runner, ["ok1", "bad", "ok2"])
 
-    by_key = {r.key: r for r in results}
+    by_key = {r.metadata.key: r for r in results}
     assert by_key["0"].succeeded
-    assert isinstance(by_key["1"].outcome, Err)
+    assert isinstance(by_key["1"].data, Err)
     assert by_key["1"].error is not None and "permanent failure" in by_key["1"].error
     assert by_key["2"].succeeded
 
@@ -134,7 +134,7 @@ async def test_timeout_isolated_from_siblings() -> None:
 
     results = await _drain(runner, ["slow", "fast"])
 
-    by_key = {r.key: r for r in results}
+    by_key = {r.metadata.key: r for r in results}
     assert by_key["0"].timed_out
     assert by_key["0"].error is not None
     assert by_key["1"].succeeded
@@ -180,7 +180,7 @@ async def test_retry_exhausted_returns_error() -> None:
 
     results = await _drain(runner, ["flaky"])
 
-    assert isinstance(results[0].outcome, Err)
+    assert isinstance(results[0].data, Err)
 
 
 async def test_custom_key_fn_used_for_result_key() -> None:
@@ -195,7 +195,7 @@ async def test_custom_key_fn_used_for_result_key() -> None:
 
     results = await _drain(runner, ["x", "y"])
 
-    assert {r.key for r in results} == {"id-x", "id-y"}
+    assert {r.metadata.key for r in results} == {"id-x", "id-y"}
 
 
 async def test_empty_input_yields_nothing() -> None:
@@ -278,8 +278,8 @@ async def test_engine_invoked_results_carry_real_attempts_and_latency() -> None:
     run = await t.run(RunRequest())
 
     assert run.succeeded, run.exceptions
-    by_key = {r.key: r for r in run.outputs["map-agent"]}
-    assert by_key["0"].succeeded and by_key["0"].attempts == 2
-    assert isinstance(by_key["1"].outcome, Err) and by_key["1"].attempts == 2
-    assert by_key["2"].succeeded and by_key["2"].attempts == 1
-    assert all(r.latency > 0.0 for r in by_key.values() if r.succeeded)
+    by_key = {r.metadata.key: r for r in run.outputs["map-agent"]}
+    assert by_key["0"].succeeded and by_key["0"].metadata.attempts == 2
+    assert isinstance(by_key["1"].data, Err) and by_key["1"].metadata.attempts == 2
+    assert by_key["2"].succeeded and by_key["2"].metadata.attempts == 1
+    assert all(r.metadata.latency > 0.0 for r in by_key.values() if r.succeeded)

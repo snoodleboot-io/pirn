@@ -19,6 +19,7 @@ from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.toolset import Toolset
@@ -38,11 +39,14 @@ class TestParallelToolExecutorApproval(unittest.IsolatedAsyncioTestCase):
         calls = [ToolCall(tool_name="danger", arguments={"input": "x"}, call_id="c1")]
         with Tapestry() as t:
             ParallelToolExecutor(
-                tool_calls=calls, toolset=toolset, approval_hook=None, _config=KnotConfig(id="pte")
+                tool_calls=ToolCallBatch(calls),
+                toolset=toolset,
+                approval_hook=None,
+                _config=KnotConfig(id="pte"),
             )
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
-        results: tuple[ToolResult, ...] = run.outputs["pte"]
+        results: tuple[ToolResult, ...] = run.outputs["pte"].data
         assert results[0].status == "ok"
         assert results[0].result == "ran"
 
@@ -52,14 +56,14 @@ class TestParallelToolExecutorApproval(unittest.IsolatedAsyncioTestCase):
         calls = [ToolCall(tool_name="danger", arguments={"input": "x"}, call_id="c1")]
         with Tapestry() as t:
             ParallelToolExecutor(
-                tool_calls=calls,
+                tool_calls=ToolCallBatch(calls),
                 toolset=toolset,
                 approval_hook=_DenyHook(),
                 _config=KnotConfig(id="pte"),
             )
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
-        results: tuple[ToolResult, ...] = run.outputs["pte"]
+        results: tuple[ToolResult, ...] = run.outputs["pte"].data
         assert results[0].status == "skipped"
         assert results[0].error == "call skipped: approval denied"
         assert danger.invocations == []
@@ -74,14 +78,14 @@ class TestParallelToolExecutorApproval(unittest.IsolatedAsyncioTestCase):
         ]
         with Tapestry() as t:
             ParallelToolExecutor(
-                tool_calls=calls,
+                tool_calls=ToolCallBatch(calls),
                 toolset=toolset,
                 approval_hook=_DenyHook(),
                 _config=KnotConfig(id="pte"),
             )
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
-        results: tuple[ToolResult, ...] = run.outputs["pte"]
+        results: tuple[ToolResult, ...] = run.outputs["pte"].data
         assert results[0].status == "skipped"
         assert results[1].status == "ok"
         assert results[1].result == "fine"

@@ -72,7 +72,7 @@ class AttemptCandidate(Knot):
                 succeeded=False,
                 chosen=None,
                 value=None,
-                attempts=(*prior.attempts, attempt),
+                attempts=(*prior.metadata.attempts, attempt),
             )
         if isinstance(outcome, Err):
             if breaker is not None:
@@ -81,7 +81,7 @@ class AttemptCandidate(Knot):
                 succeeded=False,
                 chosen=None,
                 value=None,
-                attempts=(*prior.attempts, FailoverAttempt(candidate.name, outcome)),
+                attempts=(*prior.metadata.attempts, FailoverAttempt(candidate.name, outcome)),
             )
         if breaker is not None:
             await breaker.record_success()
@@ -89,5 +89,5 @@ class AttemptCandidate(Knot):
             succeeded=True,
             chosen=candidate.name,
             value=outcome.value,
-            attempts=(*prior.attempts, FailoverAttempt(candidate.name, outcome)),
+            attempts=(*prior.metadata.attempts, FailoverAttempt(candidate.name, outcome)),
         )

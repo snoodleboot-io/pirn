@@ -45,7 +45,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         strategy = SummaryMemoryCompactor(summarizer=StubSummarizer())
         result = await k.process(strategy=strategy, request=_request())
         assert isinstance(result, CompactionResult)
-        assert result.triggered is True
+        assert result.metadata.triggered is True
 
     async def test_rejects_non_strategy(self) -> None:
         k = _make_knot()

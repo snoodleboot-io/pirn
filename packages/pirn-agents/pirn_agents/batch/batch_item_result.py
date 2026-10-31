@@ -6,46 +6,42 @@ outlived its ``KnotConfig.timeout`` (``Err`` carrying ``KnotTimeoutError``) — 
 ``Err``, and one already completed in a prior run is ``Skipped(reason="resumed")``.
 There is no parallel status enum; the batch-specific distinctions are read off
 the ``Result`` variant and the error type.
+
+ADR agents-speaks-core WS6b makes it a ``Payload[BatchItemFrame, Result[Any]]``
+(PIR-868 pattern, PIR-874): the frame
+(:class:`~pirn_agents.batch.batch_item_frame.BatchItemFrame`) carries
+``index``/``key``/``attempts``/``latency`` and the data is the item's ``Result``.
+The constructor still takes those fields by name; they are read back as
+``metadata.<field>`` and ``data``. It subclasses ``Payload`` directly (not
+``AgentResult``) because ``batch/`` sits outside ``specializations/`` and may not
+import from it, so it adds the same structural ``__eq__`` ``AgentResult`` has.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from pirn.core.err import Err
 from pirn.core.ok import Ok
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.payload import Payload
 from pirn.core.result import Result
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents._internal.json_shape import JsonShape
+from pirn_agents.batch.batch_item_frame import BatchItemFrame
 
 
-@dataclass(frozen=True)
-class BatchItemResult(PirnOpaqueValue):
+class BatchItemResult(Payload[BatchItemFrame, "Result[Any]"]):
     """The terminal outcome of running the agent over a single input item.
 
-    A frozen value carrying everything a streaming sink or per-fire summary
-    needs. The per-item agent's return value is opaque, so this wraps
-    :class:`PirnOpaqueValue` to stay opaque at pirn IO boundaries.
+    A ``Payload`` carrying everything a streaming sink or per-fire summary
+    needs; the per-item agent's return value is opaque, so it stays opaque at
+    pirn IO boundaries.
 
-    Attributes
-    ----------
-    index:
-        Position of the item in the input stream (0-based). Non-negative.
-    key:
-        Stable identity of the item — the suffix of its knot id, and so its
-        resume key in ``RunHistory``.
-    outcome:
-        The item's core ``Result``: ``Ok(value=output)``, ``Err(record=...)``
-        (the full :class:`ExceptionRecord` — type, message, detached
-        traceback), or ``Skipped``.
-    attempts:
-        How many times the item was attempted (1 = succeeded first try).
-    latency:
-        Wall-clock seconds spent on the item (queue wait excluded).
+    Read ``index``, ``key``, ``attempts`` and ``latency`` as ``metadata.<field>``
+    and the item's core ``Result`` (``Ok(value=output)``, ``Err(record=...)``
+    carrying the full :class:`ExceptionRecord`, or ``Skipped``) as ``data``.
     """
 
     #: :attr:`~pirn.managers.exception_record.ExceptionRecord.exc_type` values
@@ -53,39 +49,36 @@ class BatchItemResult(PirnOpaqueValue):
     #: so a timeout is an ``Err`` whose error type names one.
     _timeout_exc_types: ClassVar[frozenset[str]] = frozenset({"TimeoutError", "KnotTimeoutError"})
 
-    index: int
-    key: str
-    outcome: Result[Any]
-    attempts: int = 1
-    latency: float = 0.0
-
-    def __post_init__(self) -> None:
-        if isinstance(self.index, bool) or not isinstance(self.index, int) or self.index < 0:
-            raise ValueError(
-                f"BatchItemResult: index must be a non-negative int, got {self.index!r}"
-            )
-        if not isinstance(self.key, str) or not self.key:
-            raise TypeError("BatchItemResult: key must be a non-empty str")
-        if not isinstance(self.outcome, (Ok, Err, Skipped)):
+    def __init__(
+        self,
+        index: int,
+        key: str,
+        outcome: Result[Any],
+        attempts: int = 1,
+        latency: float = 0.0,
+    ) -> None:
+        frame = BatchItemFrame(index=index, key=key, attempts=attempts, latency=latency)
+        if not isinstance(outcome, (Ok, Err, Skipped)):
             raise TypeError(
                 f"BatchItemResult: outcome must be Ok, Err, or Skipped, "
-                f"got {type(self.outcome).__name__}"
+                f"got {type(outcome).__name__}"
             )
+        super().__init__(metadata=frame, data=outcome)
 
     @property
     def succeeded(self) -> bool:
         """Whether the item completed successfully (its outcome is ``Ok``)."""
-        return isinstance(self.outcome, Ok)
+        return isinstance(self.data, Ok)
 
     @property
     def output(self) -> Any:
         """The agent's return value for an ``Ok`` outcome; otherwise ``None``."""
-        return self.outcome.value if isinstance(self.outcome, Ok) else None
+        return self.data.value if isinstance(self.data, Ok) else None
 
     @property
     def exception(self) -> ExceptionRecord | None:
         """The captured failure record for an ``Err`` outcome; otherwise ``None``."""
-        return self.outcome.record if isinstance(self.outcome, Err) else None
+        return self.data.record if isinstance(self.data, Err) else None
 
     @property
     def error(self) -> str | None:
@@ -108,15 +101,12 @@ class BatchItemResult(PirnOpaqueValue):
         the agent may return.
         """
         return {
-            "index": self.index,
-            "key": self.key,
-            "outcome": self._outcome_token(self.outcome),
+            **super()._pirn_audit_dict(),
+            "outcome": self._outcome_token(self.data),
             "output": self._json_safe(self.output),
             "error": self.error,
             "exception": None if self.exception is None else self.exception.model_dump(mode="json"),
-            "skip_reason": self.outcome.reason if isinstance(self.outcome, Skipped) else None,
-            "attempts": self.attempts,
-            "latency": self.latency,
+            "skip_reason": self.data.reason if isinstance(self.data, Skipped) else None,
         }
 
     @staticmethod
@@ -139,3 +129,12 @@ class BatchItemResult(PirnOpaqueValue):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return self.to_payload()
+
+    def __eq__(self, other: object) -> bool:
+        """Structural equality: same type, equal frame and equal outcome."""
+        if type(other) is not type(self):
+            return NotImplemented
+        return self._metadata == other._metadata and self._data == other._data
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.metadata.key))

@@ -60,7 +60,7 @@ pirn_agents/
 ├── tools/tool_call.py           ToolCall              — LLM-requested tool invocation
 ├── tools/tool_result.py         ToolResult            — the model-facing view of a ToolCall's Result
 ├── input/
-│   ├── message_parser.py        MessageParser         — raw input → AgentMessage tuple
+│   ├── message_parser.py        MessageParser         — raw input → ConversationPayload
 │   ├── context_builder.py       ContextBuilder        — messages + system_prompt → ConversationPayload
 │   └── intent_classifier.py     IntentClassifier      — context → intent label string
 ├── generation/
@@ -103,7 +103,7 @@ pirn_agents/
     ├── reflection/              SelfCritiqueRevise, ConstitutionalFilter, OutcomeSimulator
     ├── tool_use/                ToolSelector, ParallelToolCaller, ToolChain,
     │                            ToolCallValidator, ToolResultFormatter
-    ├── human_in_the_loop/       ApprovalCheck, ClarificationRequester, EscalationRouter
+    ├── human_in_the_loop/       ClarificationRequester, EscalationRouter
     ├── routing/                 IntentRouter, ConfidenceRouter, CapabilityRouter
     └── conversation/            MultiTurnContextAssembler, ConversationMemoryPruner
 ```
@@ -358,17 +358,16 @@ response: AgentResponse = result.outputs["react"]   # Payload[GenerationFrame, s
 
 ## Human-in-the-loop patterns
 
-Three knots in `specializations/human_in_the_loop/` handle points in a pipeline where a human (or a supervising agent) must intervene before execution continues.
+Two knots in `specializations/human_in_the_loop/` handle points in a pipeline where a human (or a supervising agent) must intervene before execution continues.
 
 | Knot | Purpose | Returns |
 |------|---------|---------|
-| `ApprovalCheck` | Emit an approval request for an `AgentResponse`; gate downstream execution on the result | `bool` — `True` if approved |
 | `ClarificationRequester` | Detect ambiguous user messages via LLM; return a clarifying question or the original message | `str` |
 | `EscalationRouter` | Pass high-confidence responses through; return `None` for low-confidence ones that need human review | `AgentResponse \| None` |
 
 **Key points:**
-- All three return plain values, not booleans that auto-block the graph. Wire their outputs to a `Gate` when you need to halt execution on failure.
-- `ApprovalCheck` accepts `auto_approve=True` for non-production or test use — the request record is still emitted, but the knot always returns `True`.
+- Both return plain values. Wire their outputs to a `Gate` when you need to halt execution on failure.
+- For human approval of a whole response, use `pirn_agents.sessions.suspending_approval_check.SuspendingApprovalCheck`, which pauses the run as `Skipped(reason="awaiting_human")` (the former bool-returning `ApprovalCheck` was deleted, PIR-874).
 - `EscalationRouter` reads `response.metadata.usage["confidence"]`; providers that do not populate this field will always escalate (confidence is treated as 0).
 
 ```python
@@ -381,7 +380,6 @@ from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.generation.output_parser import OutputParser
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.input.message_parser import MessageParser
-from pirn_agents.specializations.human_in_the_loop.approval_check import ApprovalCheck
 from pirn_agents.specializations.human_in_the_loop.escalation_router import EscalationRouter
 
 # provider defined elsewhere
@@ -406,17 +404,6 @@ async def main():
                        _config=KnotConfig(id="escalation_gate"),
                    )
 
-        # For responses that pass routing, require explicit approval before continuing
-        approval = ApprovalCheck(
-                       response=parsed,
-                       _config=KnotConfig(id="approval"),
-                   )
-        Gate(
-            input=approval,
-            predicate=lambda approved: approved,
-            _config=KnotConfig(id="approval_gate"),
-        )
-
     result = await t.run(RunRequest(parameters={"user_input": "Summarise our Q3 financials."}))
 ```
 
@@ -435,7 +422,7 @@ Three knots in `specializations/plan_and_execute/` decompose a high-level goal i
 **Key points:**
 - `PlanExecutor` runs steps sequentially inside its own loop — it is not a `LoopSubTapestry`. All steps share the same `LLMProvider` call context.
 - `PlanRevisor` is optional. Use it when you want the agent to self-correct a stalled plan rather than failing the whole pipeline.
-- `TaskPlanner` parses numbered lines (`1. step one`) from the LLM response. Lines starting with `#` are treated as rationale and excluded from `Plan.steps`.
+- `TaskPlanner` parses numbered lines (`1. step one`) from the LLM response. Lines starting with `#` are treated as rationale (`Plan.metadata.rationale`) and excluded from the steps (`Plan.data`).
 
 ```python
 from pirn.core.knot_config import KnotConfig
@@ -582,7 +569,7 @@ Every entry below was checked against the real `__init__` signature (grep it you
 | Select the right tool | `ToolSelector(message=..., tools=[...], llm=..., _config=...)` |
 | Call tools in parallel | `ParallelToolCaller(tool_calls=[...], tools=[...], _config=...)` |
 | Validate tool call args | `ToolCallValidator(tool_call=..., tools=[...], _config=...)` |
-| Human approval gate | `ApprovalCheck(response=..., auto_approve=False, _config=...)` |
+| Human approval pause | `SuspendingApprovalCheck(response=..., _config=...)` |
 | Request clarification | `ClarificationRequester(message=..., llm=..., _config=...)` |
 | Escalation routing | `EscalationRouter(response=..., threshold=0.8, _config=...)` |
 | Route by intent | `IntentRouter(message=..., llm=..., categories=[...], _config=...)` |

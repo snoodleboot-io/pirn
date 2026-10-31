@@ -95,10 +95,10 @@ class TestOrdering:
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["failover"]
-        assert result.succeeded is True
-        assert result.chosen == "primary"
-        assert result.value == "A"
-        assert [a.name for a in result.attempts] == ["primary"]
+        assert result.metadata.succeeded is True
+        assert result.metadata.chosen == "primary"
+        assert result.data == "A"
+        assert [a.name for a in result.metadata.attempts] == ["primary"]
 
     async def test_falls_through_error_to_next(self) -> None:
         with Tapestry() as t:
@@ -112,11 +112,11 @@ class TestOrdering:
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["failover"]
-        assert result.chosen == "secondary"
-        assert result.value == "B"
-        assert isinstance(result.attempts[0].result, Err)
-        assert result.attempts[0].result.record.message == "down"
-        assert isinstance(result.attempts[1].result, Ok)
+        assert result.metadata.chosen == "secondary"
+        assert result.data == "B"
+        assert isinstance(result.metadata.attempts[0].result, Err)
+        assert result.metadata.attempts[0].result.record.message == "down"
+        assert isinstance(result.metadata.attempts[1].result, Ok)
 
     async def test_all_fail_returns_exhausted_trace(self) -> None:
         with Tapestry() as t:
@@ -130,10 +130,10 @@ class TestOrdering:
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["failover"]
-        assert result.succeeded is False
-        assert result.chosen is None
-        assert result.value is None
-        assert [isinstance(a.result, Err) for a in result.attempts] == [True, True]
+        assert result.metadata.succeeded is False
+        assert result.metadata.chosen is None
+        assert result.data is None
+        assert [isinstance(a.result, Err) for a in result.metadata.attempts] == [True, True]
 
 
 class TestTimeout:
@@ -153,9 +153,9 @@ class TestTimeout:
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["failover"]
-        assert result.chosen == "fast"
-        assert isinstance(result.attempts[0].result, Err)
-        assert result.attempts[0].result.record.exc_type == "KnotTimeoutError"
+        assert result.metadata.chosen == "fast"
+        assert isinstance(result.metadata.attempts[0].result, Err)
+        assert result.metadata.attempts[0].result.record.exc_type == "KnotTimeoutError"
         call_rows = await history.query_lineage_by_knot_id("call")
         assert any(row.outcome == "err" for row in call_rows)
 
@@ -194,8 +194,8 @@ class TestLoopState:
         run = await t.run(RunRequest())
         assert run.succeeded
         final = run.outputs["loop"]
-        assert final.result.chosen == "b"
-        assert [a.name for a in final.result.attempts] == ["a", "b"]
+        assert final.result.metadata.chosen == "b"
+        assert [a.name for a in final.result.metadata.attempts] == ["a", "b"]
 
     def test_loop_is_not_a_specialization_pipeline(self) -> None:
         from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
@@ -219,8 +219,8 @@ class TestCircuitIntegration:
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["failover"]
-        assert result.chosen == "secondary"
-        assert isinstance(result.attempts[0].result, Skipped)
+        assert result.metadata.chosen == "secondary"
+        assert isinstance(result.metadata.attempts[0].result, Skipped)
 
     async def test_repeated_failure_trips_breaker_across_runs(self) -> None:
         breakers = CircuitBreakerRegistry(CircuitBreakerConfig(failure_threshold=1))
@@ -235,7 +235,7 @@ class TestCircuitIntegration:
         first_run = await t1.run(RunRequest())
         assert first_run.succeeded
         first = first_run.outputs["failover"]
-        assert isinstance(first.attempts[0].result, Err)
+        assert isinstance(first.metadata.attempts[0].result, Err)
         # Second run: primary's breaker is now open, so it is skipped.
         with Tapestry() as t2:
             FailoverChain(
@@ -244,7 +244,7 @@ class TestCircuitIntegration:
         second_run = await t2.run(RunRequest())
         assert second_run.succeeded
         second = second_run.outputs["failover"]
-        assert isinstance(second.attempts[0].result, Skipped)
+        assert isinstance(second.metadata.attempts[0].result, Skipped)
 
     async def test_success_records_into_breaker(self) -> None:
         breakers = CircuitBreakerRegistry(CircuitBreakerConfig(failure_threshold=2))
@@ -257,6 +257,6 @@ class TestCircuitIntegration:
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["failover"]
-        assert result.succeeded is True
+        assert result.metadata.succeeded is True
         # A recorded success keeps the breaker closed.
         assert breakers.get("p").state.value == "closed"

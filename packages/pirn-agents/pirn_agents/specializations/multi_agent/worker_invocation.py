@@ -12,6 +12,7 @@ from pirn.managers.exception_record import ExceptionRecord
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
+from pirn_agents.specializations.multi_agent.worker_task_result import WorkerTaskResult
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
@@ -48,7 +49,7 @@ class WorkerInvocation(Knot):
         task: str,
         worker: ToolFactory,
         **_: Any,
-    ) -> ToolResult:
+    ) -> WorkerTaskResult:
         """Invoke ``worker`` for ``task``, never raising.
 
         Args:
@@ -56,15 +57,22 @@ class WorkerInvocation(Knot):
             worker: The tool (in practice an F7 agent-as-tool) to invoke.
 
         Returns:
-            The worker's own :class:`ToolResult` when it returns one already
-            (an F7 :class:`~pirn_agents.tools.agent_tool.AgentTool`), or a
-            :class:`ToolResult` wrapping its plain return value, or a
-            :class:`ToolResult` whose outcome is ``Err`` when the call raised.
+            A :class:`WorkerTaskResult` — ``Payload[WorkerTaskFrame, ToolResult]``
+            — naming the task and carrying the worker's own
+            :class:`ToolResult` when it returns one already (an F7
+            :class:`~pirn_agents.tools.agent_tool.AgentTool`), or a
+            :class:`ToolResult` wrapping its plain return value, or one whose
+            outcome is ``Err`` when the call raised. The result used to be
+            wrapped one knot later, in the aggregator; a bare ``ToolResult``
+            crossing this boundary carried no frame (PIR-874).
         """
         factory = ToolFactory.of(worker)
         call = ToolCall(tool_name=factory.name, arguments={"task": task}, call_id=task)
         try:
             outcome = await factory.run_call(call)
         except ToolArgumentValidationError as exc:
-            return ToolResult(call_id=task, outcome=Err(record=ExceptionRecord.for_knot(task, exc)))
-        return ToolResult.from_result(task, outcome)
+            failed = ToolResult(
+                call_id=task, outcome=Err(record=ExceptionRecord.for_knot(task, exc))
+            )
+            return WorkerTaskResult(task=task, result=failed)
+        return WorkerTaskResult(task=task, result=ToolResult.from_result(task, outcome))

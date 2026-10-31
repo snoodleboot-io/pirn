@@ -11,6 +11,7 @@ from pirn_agents.specializations.conversation.conversation_memory_pruner import 
     ConversationMemoryPruner,
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 def _make_message(role: str, content: str) -> AgentMessage:
@@ -34,7 +35,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             _make_message("assistant", "hello"),
         ]
         result = await k.process(messages=messages, token_budget=1000)
-        assert len(result) == 2
+        assert isinstance(result, ConversationPayload)
+        assert len(result.data) == 2
 
     async def test_prunes_oldest_non_system_messages(self) -> None:
         k = _make_knot()
@@ -45,7 +47,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             _make_message("user", "c" * 50),
         ]
         result = await k.process(messages=messages, token_budget=120)
-        roles = [m.role for m in result]
+        roles = [m.role for m in result.data]
         assert "system" in roles
 
     async def test_preserves_system_message(self) -> None:
@@ -55,8 +57,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             _make_message("user", "u" * 200),
         ]
         result = await k.process(messages=messages, token_budget=15)
-        assert len(result) == 1
-        assert result[0].role == "system"
+        assert len(result.data) == 1
+        assert result.data[0].role == "system"
 
     async def test_drops_exactly_the_oldest_turns_needed_and_keeps_order(self) -> None:
         k = _make_knot()
@@ -67,13 +69,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             _make_message("user", "c" * 50),
         ]
         result = await k.process(messages=messages, token_budget=110)
-        assert [m.content[0] for m in result] == ["s", "b", "c"]
+        assert [m.content[0] for m in result.data] == ["s", "b", "c"]
 
     async def test_an_all_system_history_over_budget_is_returned_unpruned(self) -> None:
         k = _make_knot()
         messages = [_make_message("system", "s" * 40), _make_message("system", "t" * 40)]
         result = await k.process(messages=messages, token_budget=10)
-        assert result == messages
+        assert list(result.data) == messages
 
     async def test_rejects_zero_token_budget(self) -> None:
         k = _make_knot()

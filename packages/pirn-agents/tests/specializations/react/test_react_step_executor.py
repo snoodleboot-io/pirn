@@ -34,6 +34,7 @@ from pirn_agents.specializations.react.react_step_executor import (
 from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubTool,
@@ -48,9 +49,9 @@ class _DenyHook(ApprovalHook):
 def _make(llm: StubLLMProvider, tools: tuple = ()) -> ReActStepExecutor:
     with Tapestry():
         seed = Parameter(
-            "seed_messages",
-            tuple[AgentMessage, ...],
-            default=(AgentMessage(role="user", content="hi"),),
+            "seed",
+            ConversationPayload,
+            default=ConversationPayload((AgentMessage(role="user", content="hi"),)),
             _config=KnotConfig(id="seed"),
         )
         ctx = ContextBuilder(messages=seed, _config=KnotConfig(id="ctx"))
@@ -70,12 +71,15 @@ async def _run_step(
     already_terminated: bool,
     approval_hook: Any = None,
 ) -> tuple[AgentMessage, ...]:
-    """Wire a ReActStepExecutor over a real context/seed and run it end to end."""
+    """Wire a ReActStepExecutor over a real context/seed and run it end to end.
+
+    Returns the step's messages; the step itself hands back a ``ConversationPayload``.
+    """
     with Tapestry() as t:
         seed = Parameter(
-            "seed_messages",
-            tuple[AgentMessage, ...],
-            default=tuple(context),
+            "seed",
+            ConversationPayload,
+            default=ConversationPayload(tuple(context)),
             _config=KnotConfig(id="seed"),
         )
         ctx = ContextBuilder(messages=seed, _config=KnotConfig(id="ctx"))
@@ -89,7 +93,9 @@ async def _run_step(
         )
     result = await t.run(RunRequest())
     assert result.succeeded, result.exceptions
-    return result.outputs["step"]
+    step_output = result.outputs["step"]
+    assert isinstance(step_output, ConversationPayload)
+    return step_output.data
 
 
 class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
@@ -206,9 +212,9 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
         tool = StubTool(name="search", handler="found")
         with Tapestry() as t:
             seed = Parameter(
-                "seed_messages",
-                tuple[AgentMessage, ...],
-                default=(AgentMessage(role="user", content="hi"),),
+                "seed",
+                ConversationPayload,
+                default=ConversationPayload((AgentMessage(role="user", content="hi"),)),
                 _config=KnotConfig(id="seed"),
             )
             ctx = ContextBuilder(messages=seed, _config=KnotConfig(id="ctx"))

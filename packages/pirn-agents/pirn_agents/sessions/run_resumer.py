@@ -19,6 +19,7 @@ from pirn.backends.base.run_history import RunHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.sessions.resumed_run import ResumedRun
 from pirn_agents.sessions.run_state import RunState
 from pirn_agents.sessions.session_chain import SessionChain
 
@@ -41,8 +42,8 @@ class RunResumer(Knot):
         history: RunHistory,
         session_id: str,
         **_: Any,
-    ) -> RunState | None:
-        """Return the projected run state for ``session_id``, or ``None``.
+    ) -> ResumedRun:
+        """Return the projected run state for ``session_id`` as a :class:`ResumedRun`.
 
         Args:
             history: The ``RunHistory`` the session's turns were recorded to.
@@ -50,8 +51,9 @@ class RunResumer(Knot):
                 turn was run with.
 
         Returns:
-            The rehydrated :class:`RunState`, or ``None`` when no run exists
-            for ``session_id``.
+            A :class:`ResumedRun` whose ``data`` is the rehydrated
+            :class:`RunState`, or ``None`` (with ``metadata.found`` ``False``)
+            when no run exists for ``session_id``.
 
         Raises:
             TypeError: If ``history`` is not a ``RunHistory`` or
@@ -66,5 +68,6 @@ class RunResumer(Knot):
         try:
             turns = await SessionChain.turns_of(history, session_id)
         except KeyError:
-            return None
-        return RunState.from_chain(session_id=session_id, turns=turns)
+            return ResumedRun(session_id=session_id, state=None, turn_count=0)
+        state = RunState.from_chain(session_id=session_id, turns=turns)
+        return ResumedRun(session_id=session_id, state=state, turn_count=len(turns))

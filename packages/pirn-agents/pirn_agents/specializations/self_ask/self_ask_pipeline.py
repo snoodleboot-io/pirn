@@ -5,7 +5,8 @@ A :class:`SubTapestry` that:
 1. Asks the LLM to decompose the task into follow-up sub-questions (one per
    ``- `` line).
 2. Answers each sub-question with the LLM in turn, via
-   :class:`~pirn_agents.specializations.self_ask.self_ask_loop.SelfAskLoop`
+   one :class:`~pirn_agents.specializations.rag.llm_chat_call.LLMChatCall`
+   per sub-question, gathered by an :class:`~pirn.nodes.aggregator.Aggregator`
    (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`) so each
    sub-answer is a real, individually-traceable engine knot rather than a
    step inside a hand-rolled Python ``for`` loop (ADR agents-speaks-core
@@ -24,18 +25,19 @@ References:
 
 from __future__ import annotations
 
+import functools
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.llm_response_text import LlmResponseText
+from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.self_ask.self_ask_composer import SelfAskComposer
-from pirn_agents.specializations.self_ask.self_ask_loop import SelfAskLoop
 from pirn_agents.specializations.self_ask.self_ask_state import SelfAskState
 
 
@@ -118,23 +120,52 @@ class SelfAskPipeline(AgentPipeline):
         if not subquestions:
             subquestions = (task,)
 
-        initial = Parameter(
-            "self_ask_state",
-            SelfAskState,
-            default=SelfAskState(subquestions=tuple(subquestions), index=0, subanswers=()),
-        )
-        loop = SelfAskLoop(
-            llm=llm,
-            subanswer_system=type(self)._subanswer_system.resolve(),
-            state=initial,
-            _config=KnotConfig(id="self_ask_loop"),
+        question_tuple = tuple(subquestions)
+        subanswer_system = type(self)._subanswer_system.resolve()
+        answers: dict[str, Knot] = {}
+        for index, subquestion in enumerate(question_tuple):
+            answers[f"subanswer_{index}"] = LLMChatCall(
+                prompt=subquestion,
+                llm=llm,
+                system=subanswer_system,
+                _config=KnotConfig(id=f"subanswer_{index}"),
+            )
+        gathered = Aggregator(
+            combine=functools.partial(
+                SelfAskPipeline._pair_answers, question_tuple, tuple(answers)
+            ),
+            _config=KnotConfig(id="self_ask_subanswers"),
+            **answers,
         )
         return SelfAskComposer(
             task=task,
-            state=loop,
+            state=gathered,
             llm=llm,
             compose_system=type(self)._compose_system.resolve(),
             _config=KnotConfig(id="self_ask_result"),
+        )
+
+    @staticmethod
+    def _pair_answers(
+        subquestions: tuple[str, ...], order: tuple[str, ...], **answers: str
+    ) -> SelfAskState:
+        """Aggregator combine (bound with ``functools.partial``): pair by position.
+
+        The sub-answers are independent, so the engine runs them concurrently and
+        they finish in any order. ``order`` fixes the sub-question position of each
+        parent kwarg, so the pairing never depends on arrival order.
+
+        Args:
+            subquestions: The sub-questions, in decomposition order.
+            order: The parent kwarg keys, in the same order.
+            answers: Each sub-answer, keyed by its knot id.
+
+        Returns:
+            The :class:`SelfAskState` the composer reads.
+        """
+        return SelfAskState(
+            subquestions=subquestions,
+            subanswers=tuple(answers[key] for key in order),
         )
 
     @staticmethod

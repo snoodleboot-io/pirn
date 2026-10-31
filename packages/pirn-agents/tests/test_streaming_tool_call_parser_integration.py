@@ -23,6 +23,7 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -38,10 +39,12 @@ def _echo_tool(name: str) -> KitStubTool:
 async def _execute(calls: list[ToolCall], toolset: Toolset) -> tuple[Any, ...]:
     """Run the executor over ``calls`` in a fresh tapestry and return its views."""
     with Tapestry() as t:
-        ParallelToolExecutor(tool_calls=calls, toolset=toolset, _config=KnotConfig(id="stcp-int"))
+        ParallelToolExecutor(
+            tool_calls=ToolCallBatch(calls), toolset=toolset, _config=KnotConfig(id="stcp-int")
+        )
     run = await t.run(RunRequest())
     assert run.succeeded, run.exceptions
-    return run.outputs["stcp-int"]
+    return run.outputs["stcp-int"].data
 
 
 async def test_streamed_calls_execute_through_parallel_executor() -> None:

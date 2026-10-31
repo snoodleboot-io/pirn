@@ -43,9 +43,7 @@ def check_pii(text: str) -> bool:
 @KnotFactory.knot
 def score_toxicity(text: str) -> float:
     """Compute a simple heuristic toxicity score (0.0 - 1.0)."""
-    bad_words = sum(
-        1 for w in re.findall(r"\w+", text) if w in ModerationPatterns.profanity
-    )
+    bad_words = sum(1 for w in re.findall(r"\w+", text) if w in ModerationPatterns.profanity)
     caps_ratio = sum(1 for c in text if c.isupper()) / max(len(text), 1)
     return min(1.0, bad_words * 0.4 + caps_ratio * 0.3)
 
@@ -72,13 +70,9 @@ def decide(flags: ContentFlags) -> ModerationDecision:
     if flags.has_pii:
         return ModerationDecision("block", "PII detected", flags.toxicity_score)
     if flags.toxicity_score >= 0.7 or flags.has_profanity:
-        return ModerationDecision(
-            "warn", "High toxicity or profanity", flags.toxicity_score
-        )
+        return ModerationDecision("warn", "High toxicity or profanity", flags.toxicity_score)
     if flags.language == "unknown":
-        return ModerationDecision(
-            "warn", "Language not recognised", flags.toxicity_score
-        )
+        return ModerationDecision("warn", "Language not recognised", flags.toxicity_score)
     return ModerationDecision("allow", "Passed all checks", flags.toxicity_score)
 
 

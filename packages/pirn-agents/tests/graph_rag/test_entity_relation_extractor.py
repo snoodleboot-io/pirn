@@ -74,7 +74,9 @@ class TestEntityRelationExtractor(unittest.IsolatedAsyncioTestCase):
         )
 
         assert isinstance(result, ExtractionResult)
-        assert {e.id for e in result.entities} == {"e1", "e2"}
+        assert {e.id for e in result.data.entities} == {"e1", "e2"}
+        assert result.metadata.entity_count == 2
+        assert result.metadata.relation_count == 1
         # Entities/relations upserted cleanly into the store.
         node = await store.get_node("e1")
         assert node is not None

@@ -11,6 +11,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rewoo.rewoo_planner import ReWooPlanner
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -27,7 +28,10 @@ class TestReWooPlannerProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         calls = result.outputs["plan"]
-        assert isinstance(calls, tuple)
+        assert isinstance(calls, ToolCallBatch)
+        assert calls.metadata.count == 2
+        assert calls.metadata.tool_names == ("search", "calc")
+        calls = calls.data
         assert [c.tool_name for c in calls] == ["search", "calc"]
         assert calls[0] == ToolCall(
             tool_name="search", arguments={"input": "quantum"}, call_id="c0"
@@ -56,7 +60,7 @@ class TestReWooPlannerProcess(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="plan"),
             )
         result = await t.run(RunRequest())
-        calls = result.outputs["plan"]
+        calls = result.outputs["plan"].data
         assert len(calls) == 1
         assert calls[0].tool_name == "search"
 

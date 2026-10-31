@@ -16,6 +16,7 @@ from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.planning.routed_tool_call import RoutedToolCall
 from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
@@ -33,8 +34,9 @@ class _RaisingTool(Tool):
 class TestToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
     async def test_dsn_credentials_scrubbed_from_error(self) -> None:
         @KnotFactory.knot
-        async def call_source() -> ToolCall:
-            return ToolCall(call_id="c1", tool_name="raise_tool", arguments={})
+        async def call_source() -> RoutedToolCall:
+            call = ToolCall(call_id="c1", tool_name="raise_tool", arguments={})
+            return RoutedToolCall(call, step=call.tool_name, candidates=(call.tool_name,))
 
         with Tapestry() as t:
             call_knot = call_source(_config=KnotConfig(id="call"))
@@ -52,8 +54,9 @@ class TestToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
 
     async def test_unknown_tool_produces_safe_error(self) -> None:
         @KnotFactory.knot
-        async def call_source() -> ToolCall:
-            return ToolCall(call_id="c2", tool_name="nonexistent", arguments={})
+        async def call_source() -> RoutedToolCall:
+            call = ToolCall(call_id="c2", tool_name="nonexistent", arguments={})
+            return RoutedToolCall(call, step=call.tool_name, candidates=(call.tool_name,))
 
         with Tapestry() as t:
             call_knot = call_source(_config=KnotConfig(id="call"))
@@ -81,18 +84,21 @@ class TestParallelToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
 
     async def _run_batch(self) -> ToolResult:
         from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
+        from pirn_agents.tools.tool_call_batch import ToolCallBatch
         from pirn_agents.tools.toolset import Toolset
 
         with Tapestry() as t:
             ParallelToolExecutor(
-                tool_calls=(ToolCall(call_id="c1", tool_name="raise_tool", arguments={}),),
+                tool_calls=ToolCallBatch(
+                    (ToolCall(call_id="c1", tool_name="raise_tool", arguments={}),)
+                ),
                 toolset=Toolset([_RaisingTool]),
                 _config=KnotConfig(id="batch"),
             )
 
         result = await t.run(RunRequest())
         assert result.succeeded, result.exceptions
-        return result.outputs["batch"][0]
+        return result.outputs["batch"].data[0]
 
     async def test_dsn_scrubbed_from_error_string(self) -> None:
         outcome = await self._run_batch()

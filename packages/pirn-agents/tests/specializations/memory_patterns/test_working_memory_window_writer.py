@@ -14,6 +14,7 @@ from pirn_agents.memory.patterns.working_memory_window_writer import (
     WorkingMemoryWindowWriter,
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.specializations.conftest import StubMemoryStore
 
 
@@ -53,16 +54,18 @@ class TestWorkingMemoryWindowWriterProcess(unittest.IsolatedAsyncioTestCase):
         store = _TrackingStore()
         msg = _msg("first message")
         window = await k.process(new_message=msg, session_id="s1", store=store, max_size=10)
-        assert len(window) == 1
-        assert window[0].content == "first message"
+        assert isinstance(window, ConversationPayload)
+        assert len(window.data) == 1
+        assert window.data[0].content == "first message"
 
     async def test_trims_to_max_size(self) -> None:
         k = _make_knot()
         existing = [_msg(f"old-{i}") for i in range(5)]
         store = _TrackingStore(existing_messages=existing)
         window = await k.process(new_message=_msg("new"), session_id="s1", store=store, max_size=3)
-        assert len(window) == 3
-        assert window[-1].content == "new"
+        assert isinstance(window, ConversationPayload)
+        assert len(window.data) == 3
+        assert window.data[-1].content == "new"
 
     async def test_rejects_non_agent_message(self) -> None:
         k = _make_knot()

@@ -3,14 +3,15 @@
 A :class:`SubTapestry` that wraps :class:`WorkingMemoryWindowWriter`.
 Each invocation appends ``new_message`` to the per-session window,
 evicts older entries when ``max_size`` is exceeded, and returns the
-trimmed window as a tuple of :class:`AgentMessage`.
+trimmed window as a :class:`ConversationPayload` whose data is a tuple of
+:class:`AgentMessage`.
 
 Algorithm
 ---------
 1. Validate inputs.
 2. Construct an inner Tapestry with :class:`WorkingMemoryWindowWriter`.
 3. Run the inner tapestry via ``self._run_inner(inner)``.
-4. Extract and return the window tuple.
+4. Return the window writer's ``ConversationPayload``.
 
 Math
 ----
@@ -66,7 +67,7 @@ class WorkingMemoryPipeline(SubTapestry):
         max_size: int = 20,
         **_: Any,
     ) -> Any:
-        """Append new_message to the session window and return the trimmed context tuple.
+        """Append new_message to the session window and return the trimmed context payload.
 
         Args:
             new_message: The new message to append to the per-session window.
@@ -75,11 +76,13 @@ class WorkingMemoryPipeline(SubTapestry):
             max_size: Maximum number of messages to retain in the window.
 
         Returns:
-            A tuple of the most recent AgentMessage instances trimmed to max_size.
+            A ConversationPayload (data plus a ConversationFrame; ADR agents-speaks-core
+            WS6b; PIR-874) whose data is the tuple of the most recent AgentMessage
+            instances trimmed to max_size.
 
         Raises:
             ValueError: If session_id is not a non-empty string or max_size is not a positive int.
-            RuntimeError: If the inner window writer does not return a tuple.
+            RuntimeError: If the inner window writer does not return a ConversationPayload.
         """
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(

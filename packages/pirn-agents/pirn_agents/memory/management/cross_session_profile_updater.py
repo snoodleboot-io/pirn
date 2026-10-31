@@ -114,7 +114,7 @@ class CrossSessionProfileUpdater(Knot):
         if existing is None:
             return {}, ()
         profile = EntityProfile.from_payload(existing)
-        return profile.fields, profile.session_ids
+        return profile.data, profile.metadata.session_ids
 
     @staticmethod
     def _extend_sessions(prior: tuple[str, ...], session_id: str | None) -> tuple[str, ...]:

@@ -39,12 +39,19 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.nodes.aggregator import Aggregator
+from pirn.nodes.nested_run_knot import NestedRunKnot
+from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.specializations.document_processing.stored_chunk_embedding import (
+    StoredChunkEmbedding,
+)
 
 
-class EmbeddingIndexer(Knot):
+class EmbeddingIndexer(NestedRunKnot):
     """Embed text chunks and persist them in a MemoryStore."""
 
     def __init__(
@@ -106,14 +113,34 @@ class EmbeddingIndexer(Knot):
             return 0
         chunk_list = list(chunks)
         vectors = await embedding_provider.embed(chunk_list)
-        for index, (chunk, vector) in enumerate(zip(chunk_list, vectors, strict=True)):
-            await store.store(
-                f"{document_id}:{index}",
-                {
-                    "doc_id": document_id,
-                    "chunk_index": index,
-                    "text": chunk,
-                    "embedding": list(vector),
-                },
+        # One knot per chunk, run together: each write gets its own Result, retry,
+        # timeout and lineage row, and the engine schedules them rather than a
+        # Python loop awaiting the store N times (Rule 11; PIR-874). The embedding
+        # call above is already one batched request, so it stays as it is.
+        with Tapestry() as inner:
+            store_node = Parameter(
+                "store", MemoryStore, default=store, _config=KnotConfig(id="store")
             )
-        return len(chunk_list)
+            per_chunk: dict[str, Knot] = {
+                f"chunk_{index}": StoredChunkEmbedding(
+                    document_id=document_id,
+                    chunk_index=index,
+                    text=chunk,
+                    embedding=list(vector),
+                    store=store_node,
+                    _config=KnotConfig(id=f"chunk_{index}"),
+                )
+                for index, (chunk, vector) in enumerate(zip(chunk_list, vectors, strict=True))
+            }
+            Aggregator(
+                combine=EmbeddingIndexer._count_keys,
+                _config=KnotConfig(id="indexed"),
+                **per_chunk,
+            )
+        run = await self._run_inner(inner)
+        return run.outputs["indexed"]
+
+    @staticmethod
+    def _count_keys(**keys: str) -> int:
+        """Count the keys the per-chunk writes reported."""
+        return len(keys)

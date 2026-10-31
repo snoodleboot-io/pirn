@@ -7,58 +7,69 @@ in every AGENTIC_USE.md under the repo root and exits 1 if any file changed
 so pre-commit blocks the commit and prompts the author to re-stage.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import sys
 from pathlib import Path
-
-_FOOTER_RE = re.compile(
-    r"(\*Generated for agent use\. Covers pirn )\d+(\.x\*)",
-)
-_PYPROJECT_RE = re.compile(r'^version\s*=\s*"(\d+)\.')
+from typing import ClassVar
 
 
-def _major_from_env() -> int | None:
-    raw = os.environ.get("MAJOR_VERSION", "").strip()
-    if raw.isdigit():
-        return int(raw)
-    return None
+class StampAgenticUseVersion:
+    """Rewrite the ``Covers pirn <major>.x`` footer of every ``AGENTIC_USE.md``."""
 
+    _footer_re: ClassVar[re.Pattern[str]] = re.compile(
+        r"(\*Generated for agent use\. Covers pirn )\d+(\.x\*)",
+    )
+    _pyproject_re: ClassVar[re.Pattern[str]] = re.compile(r'^version\s*=\s*"(\d+)\.')
 
-def _major_from_pyproject(root: Path) -> int:
-    pyproject = root / "pyproject.toml"
-    if not pyproject.exists():
+    @staticmethod
+    def _major_from_env() -> int | None:
+        raw = os.environ.get("MAJOR_VERSION", "").strip()
+        if raw.isdigit():
+            return int(raw)
+        return None
+
+    @staticmethod
+    def _major_from_pyproject(root: Path) -> int:
+        pyproject = root / "pyproject.toml"
+        if not pyproject.exists():
+            return 0
+        for line in pyproject.read_text().splitlines():
+            match = StampAgenticUseVersion._pyproject_re.match(line)
+            if match:
+                return int(match.group(1))
         return 0
-    for line in pyproject.read_text().splitlines():
-        m = _PYPROJECT_RE.match(line)
-        if m:
-            return int(m.group(1))
-    return 0
 
-
-def main() -> int:
-    root = Path(__file__).resolve().parents[1]
-    major = _major_from_env() if _major_from_env() is not None else _major_from_pyproject(root)
-
-    changed: list[Path] = []
-    for path in sorted(root.rglob("AGENTIC_USE.md")):
-        text = path.read_text()
-        new_text = _FOOTER_RE.sub(rf"\g<1>{major}\g<2>", text)
-        if new_text != text:
-            path.write_text(new_text)
-            changed.append(path)
-
-    if changed:
-        for p in changed:
-            print(f"stamped: {p.relative_to(root)}", file=sys.stderr)
-        print(
-            "AGENTIC_USE.md version stamp updated — re-stage the files above and retry.",
-            file=sys.stderr,
+    @staticmethod
+    def main() -> int:
+        """Stamp every ``AGENTIC_USE.md``; return 1 if any file was rewritten."""
+        root = Path(__file__).resolve().parents[1]
+        from_env = StampAgenticUseVersion._major_from_env()
+        major = (
+            from_env if from_env is not None else StampAgenticUseVersion._major_from_pyproject(root)
         )
-        return 1
 
-    return 0
+        changed: list[Path] = []
+        for path in sorted(root.rglob("AGENTIC_USE.md")):
+            text = path.read_text()
+            new_text = StampAgenticUseVersion._footer_re.sub(rf"\g<1>{major}\g<2>", text)
+            if new_text != text:
+                path.write_text(new_text)
+                changed.append(path)
+
+        if changed:
+            for path in changed:
+                print(f"stamped: {path.relative_to(root)}", file=sys.stderr)
+            print(
+                "AGENTIC_USE.md version stamp updated — re-stage the files above and retry.",
+                file=sys.stderr,
+            )
+            return 1
+
+        return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(StampAgenticUseVersion.main())

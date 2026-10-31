@@ -35,7 +35,6 @@ Algorithm:
 
 from __future__ import annotations
 
-import inspect
 import time
 from collections.abc import Mapping
 from typing import Any
@@ -224,7 +223,4 @@ class AgentToolCall(NestedRunKnot):
     @staticmethod
     def _accepts(agent_class: type[Knot], name: str) -> bool:
         """Whether the agent's ``process`` declares a parameter ``name``."""
-        try:
-            return name in inspect.signature(agent_class.process).parameters
-        except (TypeError, ValueError):
-            return False
+        return agent_class.declares_input(name)

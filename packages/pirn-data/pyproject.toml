@@ -49,13 +49,20 @@ duckdb     = ["duckdb>=0.10"]
 modin = ["modin>=0.30; python_version<'3.14'"]
 
 # Tier 3 — push-down / lazy / distributed.
-# sqlglot!=30.18.0 (PIR-844): ibis builds its SQL with sqlglot, and 30.18.0
-# renders ibis's cleanup statement as a bare `DROP VIEW IF EXISTS` with no
-# identifier, so duckdb rejects it with "syntax error at end of input" and
-# every in-memory `create_table` fails. ibis itself declares
-# `sqlglot!=26.32.0,>=23.4` — same idiom, same reason. Bisected: 30.17.0 OK,
-# 30.18.0 broken. Widen this if a later release regresses the same way.
-ibis     = ["ibis-framework>=9.0", "pyarrow-hotfix>=0.7", "sqlglot!=30.18.0"]
+# sqlglot<30.18 (PIR-844): ibis builds its SQL with sqlglot, and from 30.18.0
+# onward sqlglot renders ibis's cleanup statement as a bare `DROP VIEW IF EXISTS`
+# with no identifier, so duckdb rejects it with "syntax error at end of input"
+# and every in-memory `create_table` fails. ibis itself declares
+# `sqlglot!=26.32.0,>=23.4` — same idiom, same reason.
+#
+# This was `!=30.18.0` until 2026-10-02, written when 30.18.0 was the newest
+# release. It is now a cap, because the defect did not stop: rendering
+# `exp.Drop(this=exp.to_table("a.b.v"), kind="VIEW", exists=True)` under the
+# duckdb dialect gives "DROP VIEW IF EXISTS a.b.v" on 30.17.0 and
+# "DROP VIEW IF EXISTS" on 30.18.0, 30.19.0 and 30.21.0. Excluding one version
+# at a time is whack-a-mole when every later release carries the same bug.
+# Lift the cap only once a release renders the identifier again.
+ibis     = ["ibis-framework>=9.0", "pyarrow-hotfix>=0.7", "sqlglot<30.18"]
 spark    = ["pyspark>=4.0"]
 ray-data = ["ray[data]>=2.10"]
 # dask ships as a pirn-core dispatcher dependency (pirn-core[dask]) as well;
@@ -95,7 +102,7 @@ all-frames = [
 # Convenience aggregate — the lazy/push-down tier.
 all-lazy = [
     "ibis-framework>=9.0",
-    "sqlglot!=30.18.0",   # PIR-844 — see the [ibis] extra above
+    "sqlglot<30.18",      # PIR-844 — see the [ibis] extra above
 
     "pyspark>=4.0",
     "ray[data]>=2.10",

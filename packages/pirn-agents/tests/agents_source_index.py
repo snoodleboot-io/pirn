@@ -21,7 +21,10 @@ import importlib
 import pkgutil
 from pathlib import Path
 
+from pirn.core.knot import Knot
+
 import pirn_agents
+from tests.source_shapes import SourceShapes
 
 
 class AgentsSourceIndex:
@@ -73,6 +76,19 @@ class AgentsSourceIndex:
         return dict(sorted(found.items()))
 
     @staticmethod
+    def knots() -> dict[str, tuple[type, ast.ClassDef]]:
+        """Return the subset of :meth:`classes` that are ``Knot`` subclasses.
+
+        Membership is runtime ``issubclass``, so a renamed or re-parented base
+        cannot drop a knot out of a scan.
+        """
+        return {
+            label: entry
+            for label, entry in AgentsSourceIndex.classes().items()
+            if issubclass(entry[0], Knot)
+        }
+
+    @staticmethod
     def classes_by_type() -> dict[type, tuple[str, ast.ClassDef]]:
         """Return ``{cls: (label, class_ast)}`` — the inverse of :meth:`classes`."""
         return {cls: (label, node) for label, (cls, node) in AgentsSourceIndex.classes().items()}
@@ -92,22 +108,29 @@ class AgentsSourceIndex:
     @staticmethod
     def own_methods(node: ast.ClassDef) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
         """Return the methods defined directly in ``node``'s body, by name."""
-        return {
-            child.name: child
-            for child in node.body
-            if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef)
-        }
+        return SourceShapes.methods_of(node)
 
     @staticmethod
-    def agents_mro_nodes(cls: type) -> list[tuple[str, type, ast.ClassDef]]:
-        """Return ``(label, cls, class_ast)`` for ``cls`` and every ``pirn_agents`` base.
+    def inherited_method_names(subject: type, node: ast.ClassDef) -> frozenset[str]:
+        """Return the names in ``node``'s body that override an inherited method.
 
-        Ordered as the MRO, so a method defined on a mixin that ``cls`` does
-        not override is still attributed to (and scanned with) ``cls``.
+        A method a base already defines is an *override* of that base's seam;
+        a method no base defines is a surface this class adds of its own.
+        """
+        own = frozenset(SourceShapes.methods_of(node))
+        inherited = {name for base in subject.__mro__[1:] for name in vars(base)}
+        return own & frozenset(inherited)
+
+    @staticmethod
+    def agents_mro_nodes(subject: type) -> list[tuple[str, type, ast.ClassDef]]:
+        """Return ``(label, cls, class_ast)`` for ``subject`` and every ``pirn_agents`` base.
+
+        Ordered as the MRO, so a method defined on a mixin that ``subject``
+        does not override is still attributed to (and scanned with) it.
         """
         by_type = AgentsSourceIndex.classes_by_type()
         found: list[tuple[str, type, ast.ClassDef]] = []
-        for base in cls.__mro__:
+        for base in subject.__mro__:
             entry = by_type.get(base)
             if entry is not None:
                 label, node = entry

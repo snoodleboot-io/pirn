@@ -35,9 +35,7 @@ class MarkdownCodeBlocks:
                 end += 1
             body = textwrap.dedent("\n".join(lines[body_start:end]))
             tag = match.group(2).lower()
-            found.append(
-                FencedCodeBlock(tag=tag, first_line=body_start + 1, source=body)
-            )
+            found.append(FencedCodeBlock(tag=tag, first_line=body_start + 1, source=body))
             index = end + 1
         return found
 

@@ -39,10 +39,19 @@ class FoldCandidateResult(Knot):
         attempted = (*prior.attempted, candidate.name)
         if tool_result.succeeded:
             return FallbackChainState(
+                ordered=prior.ordered,
+                arguments=prior.arguments,
+                confidences=prior.confidences,
                 attempted=attempted,
                 skipped=prior.skipped,
                 succeeded_result=tool_result,
                 chosen=candidate.name,
                 locked=True,
             )
-        return FallbackChainState(attempted=attempted, skipped=prior.skipped)
+        return FallbackChainState(
+            ordered=prior.ordered,
+            arguments=prior.arguments,
+            confidences=prior.confidences,
+            attempted=attempted,
+            skipped=prior.skipped,
+        )

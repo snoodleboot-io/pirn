@@ -23,13 +23,13 @@ from __future__ import annotations
 import importlib.util
 import logging
 from pathlib import Path
-from typing import IO
-
-_log = logging.getLogger(__name__)
+from typing import IO, ClassVar
 
 
 class AdvisoryFileLock:
     """Take, release, and probe an exclusive advisory lock on a file."""
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     #: Bytes locked on Windows. ``msvcrt.locking`` needs a non-zero length and
     #: locks a byte range rather than the whole file; one byte at offset 0 is
@@ -49,7 +49,7 @@ class AdvisoryFileLock:
             interpreter has no advisory-lock primitive).
         """
         if not self.platform_supported():
-            _log.warning(
+            AdvisoryFileLock._log.warning(
                 "AdvisoryFileLock: no advisory-lock primitive on this interpreter "
                 "(neither fcntl nor msvcrt); %s is a marker only, and abandoned-run "
                 "sweeping will leave directories alone rather than risk deleting a live one",
@@ -59,13 +59,15 @@ class AdvisoryFileLock:
         try:
             handle = path.open("w")
         except OSError as exc:
-            _log.warning("AdvisoryFileLock: could not open lock file %s: %s", path, exc)
+            AdvisoryFileLock._log.warning(
+                "AdvisoryFileLock: could not open lock file %s: %s", path, exc
+            )
             return None
         try:
             if self._try_lock(handle):
                 return handle
         except OSError as exc:
-            _log.warning("AdvisoryFileLock: could not lock %s: %s", path, exc)
+            AdvisoryFileLock._log.warning("AdvisoryFileLock: could not lock %s: %s", path, exc)
         handle.close()
         return None
 
@@ -76,11 +78,15 @@ class AdvisoryFileLock:
         try:
             self._unlock(handle)
         except OSError as exc:
-            _log.warning("AdvisoryFileLock: could not unlock %s: %s", handle.name, exc)
+            AdvisoryFileLock._log.warning(
+                "AdvisoryFileLock: could not unlock %s: %s", handle.name, exc
+            )
         try:
             handle.close()
         except OSError as exc:
-            _log.warning("AdvisoryFileLock: could not close %s: %s", handle.name, exc)
+            AdvisoryFileLock._log.warning(
+                "AdvisoryFileLock: could not close %s: %s", handle.name, exc
+            )
 
     def is_held(self, path: Path) -> bool:
         """Whether some process holds the lock on *path* — ``True`` when unknown.
@@ -109,7 +115,7 @@ class AdvisoryFileLock:
                 self._unlock(handle)
                 return False
         except OSError as exc:
-            _log.warning(
+            AdvisoryFileLock._log.warning(
                 "AdvisoryFileLock: could not probe lock %s (%s); assuming it is held, "
                 "because reporting it free would invite deleting a live run directory",
                 path,

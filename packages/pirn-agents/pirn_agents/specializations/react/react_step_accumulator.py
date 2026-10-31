@@ -30,7 +30,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class ReActStepAccumulator(Knot):
@@ -55,22 +55,24 @@ class ReActStepAccumulator(Knot):
 
     async def process(
         self,
-        prior: tuple[AgentMessage, ...] | list[AgentMessage],
-        step_output: tuple[AgentMessage, ...] | list[AgentMessage],
+        prior: ConversationPayload,
+        step_output: ConversationPayload,
         already_terminated: bool,
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
-        """Append step_output to prior messages, or return prior unchanged if already terminated.
+    ) -> ConversationPayload:
+        """Append the step's messages to the transcript, or pass it through once terminated.
 
         Args:
-            prior: The accumulated messages from all previous steps.
-            step_output: The new messages produced by the current step.
+            prior: The transcript accumulated over every previous step.
+            step_output: The messages the current step produced.
             already_terminated: Whether a prior step has already signalled termination.
 
         Returns:
-            The prior messages extended with step_output, or just prior if already terminated.
+            ``prior`` derived with ``step_output``'s messages appended — the same
+            ``ConversationFrame`` (session, turn, token count) carried forward —
+            or ``prior`` itself when the loop has already terminated (ADR
+            agents-speaks-core WS6b; PIR-874).
         """
-        prior_tuple = tuple(prior)
         if already_terminated:
-            return prior_tuple
-        return prior_tuple + tuple(step_output)
+            return prior
+        return prior.derive((*prior.data, *step_output.data))

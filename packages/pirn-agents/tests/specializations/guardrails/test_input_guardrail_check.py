@@ -12,6 +12,7 @@ from pirn_agents.specializations.guardrails.input_guardrail_check import (
     InputGuardrailCheck,
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 def _make_knot() -> InputGuardrailCheck:
@@ -39,9 +40,9 @@ class TestInputGuardrailCheckProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         cleaned = result.outputs["gate"]
-        assert isinstance(cleaned, tuple)
-        assert cleaned[0].content == "email me at <redacted>"
-        assert cleaned[1].content == "hello world"
+        assert isinstance(cleaned, ConversationPayload)
+        assert cleaned.data[0].content == "email me at <redacted>"
+        assert cleaned.data[1].content == "hello world"
 
     async def test_deny_pattern_match_fails_run(self) -> None:
         messages = (AgentMessage(role="user", content="please DROP TABLE users"),)

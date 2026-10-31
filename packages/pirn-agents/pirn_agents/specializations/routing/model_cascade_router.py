@@ -135,14 +135,15 @@ class ModelCascadeRouter(AgentPipeline, Router):
         initial = Parameter(
             "initial",
             CascadeChainState,
-            default=CascadeChainState(),
+            default=CascadeChainState(
+                request=request,
+                tiers=tier_tuple,
+                confidence=confidence,
+                meter=meter,
+                spend_cap_policy=spend_cap_policy,
+            ),
         )
         loop = CascadeLoop(
-            request=request,
-            tiers=tier_tuple,
-            confidence=confidence,
-            meter=meter,
-            spend_cap_policy=spend_cap_policy,
             state=initial,
             _config=KnotConfig(id="cascade_loop"),
         )

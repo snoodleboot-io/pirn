@@ -12,6 +12,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.routing.candidate_router import CandidateRouter
+from pirn_agents.specializations.routing.candidate_routing import CandidateRouting
 from pirn_agents.specializations.routing.fallback_chain import FallbackChain
 from pirn_agents.specializations.routing.fallback_result import FallbackResult
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
@@ -42,7 +43,9 @@ class TestCandidateRouter(unittest.IsolatedAsyncioTestCase):
         ordered = await router.process(
             candidates=_cands(), confidences={"a": 0.1, "b": 0.5, "c": 0.9}
         )
-        assert [c.name for c in ordered] == ["c", "b", "a"]
+        assert isinstance(ordered, CandidateRouting)
+        assert [c.name for c in ordered.data] == ["c", "b", "a"]
+        assert ordered.metadata.order == ("c", "b", "a")
 
     async def test_rejects_non_mapping_confidences(self) -> None:
         # Not converted to the await-knot(...)/ValidationError shape: this
@@ -67,7 +70,7 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         )
         with Tapestry() as t:
             FallbackChain(
-                ordered=ordered,
+                ordered=CandidateRouting(ordered),
                 arguments={"input": "x"},
                 confidences={"c": 0.9, "b": 0.5},
                 _config=KnotConfig(id="fc", validate_io=False),
@@ -87,7 +90,7 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         )
         with Tapestry() as t:
             FallbackChain(
-                ordered=ordered,
+                ordered=CandidateRouting(ordered),
                 arguments={},
                 confidences={"a": 0.9, "c": 0.9},
                 _config=KnotConfig(id="fc", validate_io=False),
@@ -106,7 +109,7 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         )
         with Tapestry() as t:
             FallbackChain(
-                ordered=ordered,
+                ordered=CandidateRouting(ordered),
                 arguments={},
                 confidences={"a": 0.1, "c": 0.5},
                 _config=KnotConfig(id="fc", validate_io=False),
@@ -122,7 +125,7 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         ordered = (RouteCandidate(name="a", tool=StubTool(name="a", handler=_raise)),)
         with Tapestry() as t:
             FallbackChain(
-                ordered=ordered,
+                ordered=CandidateRouting(ordered),
                 arguments={},
                 confidences={"a": 0.9},
                 _config=KnotConfig(id="fc", validate_io=False),

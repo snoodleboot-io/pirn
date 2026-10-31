@@ -106,14 +106,17 @@ class YamlExtractorPipeline(AgentPipeline):
             "yaml_extractor_state",
             YamlExtractorState,
             default=YamlExtractorState(
-                prior_error="", result=None, last_error="no attempts were made", attempts=0
+                prior_error="",
+                result=None,
+                last_error="no attempts were made",
+                attempts=0,
+                prompt=prompt,
+                llm=llm,
+                schema=resolved_schema,
+                max_retries=max_retries,
             ),
         )
         loop = YamlExtractorLoop(
-            prompt=prompt,
-            llm=llm,
-            schema=resolved_schema,
-            max_retries=max_retries,
             state=initial,
             _config=KnotConfig(id="yaml_extractor_loop"),
         )

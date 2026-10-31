@@ -68,7 +68,7 @@ between them.
 | `routing/` | Intent, confidence, and capability-based routing | — (see source map below) |
 | `conversation/` | Multi-turn context assembly and memory pruning | — (see source map below) |
 | `tool_use/` | Tool selection, parallel calling, chain, validation, result formatting | — (see source map below) |
-| `human_in_the_loop/` | ApprovalCheck, ClarificationRequester, EscalationRouter | — (covered in agents AGENTIC_USE.md) |
+| `human_in_the_loop/` | ClarificationRequester, EscalationRouter | — (covered in agents AGENTIC_USE.md) |
 | `plan_and_execute/` | TaskPlanner, PlanExecutor, PlanRevisor | — (covered in agents AGENTIC_USE.md) |
 
 ---

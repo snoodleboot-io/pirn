@@ -14,13 +14,11 @@ from __future__ import annotations
 
 import logging
 import pickle
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_handle import TransportHandle
-
-_log = logging.getLogger(__name__)
 
 
 class SmartTransport(DataTransport):
@@ -46,6 +44,8 @@ class SmartTransport(DataTransport):
         this is only used for routing; the transports do their own
         serialisation.
     """
+
+    _log: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -102,7 +102,7 @@ class SmartTransport(DataTransport):
             return self._bulk
         size = self._probe_size(value)
         if size >= self._threshold:
-            _log.debug("SmartTransport: routing %d bytes to bulk transport", size)
+            SmartTransport._log.debug("SmartTransport: routing %d bytes to bulk transport", size)
             return self._bulk
         return self._fast
 
@@ -112,7 +112,7 @@ class SmartTransport(DataTransport):
                 serialiser = self._registry.get(value)
                 return len(serialiser.serialise(value))
             except Exception:
-                _log.warning(
+                SmartTransport._log.warning(
                     "SmartTransport: registry serialiser for %s raised while probing "
                     "size; falling back to pickle",
                     type(value).__name__,
@@ -121,7 +121,7 @@ class SmartTransport(DataTransport):
         try:
             return len(pickle.dumps(value, protocol=5))
         except Exception:
-            _log.warning(
+            SmartTransport._log.warning(
                 "SmartTransport: pickling %s to probe size raised; treating size as 0 "
                 "(routes to the fast transport)",
                 type(value).__name__,

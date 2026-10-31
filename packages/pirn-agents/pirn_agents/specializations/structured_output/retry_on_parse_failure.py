@@ -121,13 +121,13 @@ class RetryOnParseFailure(AgentPipeline):
                 succeeded=False,
                 last_error="no attempts were made",
                 attempts=0,
+                original_prompt=prompt,
+                llm=llm,
+                parser=parser,
+                max_retries=max_retries,
             ),
         )
         loop = RetryOnParseFailureLoop(
-            original_prompt=prompt,
-            llm=llm,
-            parser=parser,
-            max_retries=max_retries,
             state=initial,
             _config=KnotConfig(id="retry_loop"),
         )

@@ -46,22 +46,19 @@ References:
 
 from __future__ import annotations
 
-import heapq
-import itertools
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.lats.lats_action_proposer import LatsActionProposer
 from pirn_agents.specializations.lats.lats_node import LatsNode
 from pirn_agents.specializations.lats.lats_result_extractor import LatsResultExtractor
+from pirn_agents.specializations.lats.lats_search_state import LatsSearchState
+from pirn_agents.specializations.lats.lats_step_loop import LatsStepLoop
 from pirn_agents.specializations.lats.trajectory_value_model import TrajectoryValueModel
 
 
@@ -121,53 +118,23 @@ class LatsSearch(AgentPipeline):
                 "(deadline_seconds); an unbounded search is not allowed"
             )
 
-        meter = RunBudgetMeter(budget)
-        counter = itertools.count()
         root_value = await value_model.score(task, ())
         root = LatsNode(trajectory=(), value=root_value, depth=0)
-        frontier: list[tuple[float, int, LatsNode]] = [(-root_value, next(counter), root)]
-        best = root
-        nodes_expanded = 0
-        budget_exhausted = False
-
-        while frontier:
-            try:
-                meter.spend_iteration()
-            except BudgetBreachError:
-                budget_exhausted = True
-                break
-            _neg_value, _seq, node = heapq.heappop(frontier)
-            nodes_expanded += 1
-            if node.depth >= max_depth:
-                continue
-            # Each expansion is its own inner run (ADR agents-speaks-core WS5b):
-            # LatsActionProposer's LLM call gets a real Result, history record,
-            # and lineage, instead of its process() being awaited by hand
-            # against a Tapestry that was opened and never run.
-            with Tapestry() as propose_inner:
-                LatsActionProposer(
-                    task=task,
-                    llm=llm,
-                    trajectory=node.trajectory,
-                    _config=KnotConfig(id="propose"),
-                )
-            propose_result = await self._run_inner(propose_inner)
-            actions = propose_result.outputs["propose"]
-            for action in actions:
-                child_trajectory = (*node.trajectory, action)
-                child_value = await value_model.score(task, child_trajectory)
-                child = LatsNode(
-                    trajectory=child_trajectory,
-                    value=child_value,
-                    depth=node.depth + 1,
-                )
-                if child.value > best.value:
-                    best = child
-                heapq.heappush(frontier, (-child_value, next(counter), child))
-
-        return LatsResultExtractor(
-            best=best,
-            nodes_expanded=nodes_expanded,
-            budget_exhausted=budget_exhausted,
-            _config=KnotConfig(id="lats_result"),
+        seeded = LatsSearchState(
+            task=task,
+            llm=llm,
+            value_model=value_model,
+            meter=RunBudgetMeter(budget),
+            max_depth=max_depth,
+            frontier=((-root_value, 0, root),),
+            best=root,
         )
+        # Core owns the iteration: one run with one traceable expansion per round,
+        # rather than a round trip and an unrelated run for each (Rule 11;
+        # PIR-874). ``advance`` seeds the first selection so every change to the
+        # search's bookkeeping happens in one place.
+        loop = LatsStepLoop(
+            state=LatsStepLoop.advance(seeded),
+            _config=KnotConfig(id="lats_search"),
+        )
+        return LatsResultExtractor(state=loop, _config=KnotConfig(id="lats_result"))

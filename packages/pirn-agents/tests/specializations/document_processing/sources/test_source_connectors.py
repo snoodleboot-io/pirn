@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from pirn.connectors.http_connector import HttpConnector
 from pirn.connectors.object_store import ObjectStore
+from pirn.core.content_hasher import ContentHasher
 from pirn.security.vetted_endpoint import VettedEndpoint
 
 from pirn_agents.specializations.document_processing.sources.content_hash_deduplicator import (
@@ -121,9 +122,10 @@ class TestContentHashDeduplicator(unittest.TestCase):
         assert dedup.is_new(b"world") is True
         assert dedup.seen_count == 2
 
-    def test_unknown_algorithm_rejected(self) -> None:
-        with self.assertRaisesRegex(ValueError, "unknown hash algorithm"):
-            ContentHashDeduplicator(algorithm="not-a-hash")
+    def test_digest_is_cores_content_hash(self) -> None:
+        """The dedup key is core's hash, so it agrees with every other identity key."""
+        assert ContentHashDeduplicator.digest(b"abc") == ContentHasher.hash(b"abc")
+        assert ContentHashDeduplicator.digest(b"abc") != ContentHashDeduplicator.digest(b"abd")
 
 
 class TestObjectStoreSourceConnector(unittest.IsolatedAsyncioTestCase):

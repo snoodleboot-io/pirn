@@ -39,4 +39,4 @@ class EvaluationFeedback(Knot):
         Returns:
             ``evaluation.feedback``.
         """
-        return evaluation.feedback
+        return evaluation.data

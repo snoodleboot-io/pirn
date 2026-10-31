@@ -18,11 +18,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.run_context_vars import RunContextVars
-
-_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pirn.backends.base.data_store import DataStore
@@ -103,6 +101,8 @@ class Tapestry:
         inner tapestry that takes the default inherits the enclosing run's
         resolver (WS0b).
     """
+
+    _logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -888,13 +888,13 @@ class Tapestry:
             try:
                 await emitter.close()
             except Exception:
-                _logger.warning(
+                Tapestry._logger.warning(
                     "Tapestry.close: emitter %r raised while closing", emitter.name, exc_info=True
                 )
         try:
             await self._data_store.close()
         except Exception:
-            _logger.warning(
+            Tapestry._logger.warning(
                 "Tapestry.close: data store %r raised while closing",
                 type(self._data_store).__name__,
                 exc_info=True,

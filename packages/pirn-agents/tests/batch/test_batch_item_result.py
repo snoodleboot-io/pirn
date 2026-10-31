@@ -5,9 +5,11 @@ from __future__ import annotations
 import pytest
 from pirn.core.err import Err
 from pirn.core.ok import Ok
+from pirn.core.payload import Payload
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
+from pirn_agents.batch.batch_item_frame import BatchItemFrame
 from pirn_agents.batch.batch_item_result import BatchItemResult
 
 
@@ -67,7 +69,7 @@ class TestBatchItemResultOutcome:
 
     def test_timeout_is_an_err_whose_error_type_is_a_timeout(self) -> None:
         result = _timeout()
-        assert isinstance(result.outcome, Err)
+        assert isinstance(result.data, Err)
         assert result.timed_out
         assert result.error == "deadline exceeded"
 
@@ -78,7 +80,7 @@ class TestBatchItemResultOutcome:
 
     def test_skipped_outcome_is_neither_success_nor_failure(self) -> None:
         result = _skipped()
-        assert isinstance(result.outcome, Skipped)
+        assert isinstance(result.data, Skipped)
         assert not result.succeeded
         assert result.exception is None
         assert result.output is None
@@ -145,3 +147,44 @@ class TestBatchItemResultValidation:
     def test_rejects_an_outcome_that_is_not_a_result(self) -> None:
         with pytest.raises(TypeError):
             BatchItemResult(index=0, key="k", outcome="ok")  # type: ignore[arg-type]
+
+
+class TestBatchItemResultPayloadShape:
+    def test_is_a_payload_of_frame_and_result(self) -> None:
+        result = _ok()
+        assert isinstance(result, Payload)
+        assert isinstance(result.metadata, BatchItemFrame)
+        assert isinstance(result.data, Ok)
+
+    def test_frame_carries_the_bookkeeping_fields(self) -> None:
+        frame = _failed().metadata
+        assert (frame.index, frame.key, frame.attempts, frame.latency) == (9, "k9", 3, 1.25)
+
+    def test_data_is_the_core_result(self) -> None:
+        record = _record()
+        assert _failed(record).data == Err(record=record)
+        assert _skipped().data == Skipped(reason="resumed")
+
+    def test_audit_dict_has_frame_and_outcome_halves(self) -> None:
+        audit = _ok()._pirn_audit_dict()
+        assert (audit["index"], audit["key"], audit["attempts"], audit["latency"]) == (
+            2,
+            "k2",
+            1,
+            0.5,
+        )
+        assert audit["outcome"] == "ok"
+        assert audit["output"] == {"n": 1}
+
+    def test_equal_by_frame_and_outcome(self) -> None:
+        assert _ok() == _ok()
+        assert _ok() != _skipped()
+        other = BatchItemResult(index=2, key="k2", outcome=Ok(value={"n": 1}), latency=0.6)
+        assert _ok() != other
+
+    def test_equal_results_hash_equal(self) -> None:
+        assert hash(_ok()) == hash(_ok())
+
+    def test_frame_validates_its_fields(self) -> None:
+        with pytest.raises(ValueError):
+            BatchItemFrame(index=-1, key="k")

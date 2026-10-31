@@ -12,21 +12,29 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
 from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_result_batch import ToolResultBatch
 from tests.specializations.conftest import StubLLMProvider
 
 
-def _plan() -> tuple[ToolCall, ...]:
-    return (
-        ToolCall(tool_name="search", arguments={"input": "q"}, call_id="c0"),
-        ToolCall(tool_name="calc", arguments={"input": "2+2"}, call_id="c1"),
+def _plan() -> ToolCallBatch:
+    return ToolCallBatch(
+        (
+            ToolCall(tool_name="search", arguments={"input": "q"}, call_id="c0"),
+            ToolCall(tool_name="calc", arguments={"input": "2+2"}, call_id="c1"),
+        )
     )
 
 
-def _results() -> tuple[ToolResult, ...]:
-    return (
-        ToolResult(call_id="c0", outcome=Ok(value="hit")),
-        ToolResult(call_id="c1", outcome=Ok(value=4)),
+def _results() -> ToolResultBatch:
+    return ToolResultBatch(
+        (
+            ToolResult(call_id="c0", outcome=Ok(value="hit")),
+            ToolResult(call_id="c1", outcome=Ok(value=4)),
+        ),
+        max_concurrency=8,
+        timeout=None,
     )
 
 
@@ -82,5 +90,23 @@ class TestReWooSynthesizerProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             knot = ReWooSynthesizer.__new__(ReWooSynthesizer)
             object.__setattr__(knot, "_config", KnotConfig(id="synth"))
+        bad_plan = ToolCallBatch(())
+        bad_plan._data = ("bad",)  # type: ignore[assignment]
         with self.assertRaises(TypeError):
-            await knot.process(goal="g", plan=("bad",), results=(), llm=llm)  # type: ignore[arg-type]
+            await knot.process(goal="g", plan=bad_plan, results=_results(), llm=llm)
+
+    async def test_rejects_bare_tuple_plan(self) -> None:
+        llm = StubLLMProvider(["x"])
+        with Tapestry():
+            knot = ReWooSynthesizer.__new__(ReWooSynthesizer)
+            object.__setattr__(knot, "_config", KnotConfig(id="synth"))
+        with self.assertRaises(TypeError):
+            await knot.process(goal="g", plan=tuple(_plan().data), results=_results(), llm=llm)  # type: ignore[arg-type]
+
+    async def test_rejects_bare_tuple_results(self) -> None:
+        llm = StubLLMProvider(["x"])
+        with Tapestry():
+            knot = ReWooSynthesizer.__new__(ReWooSynthesizer)
+            object.__setattr__(knot, "_config", KnotConfig(id="synth"))
+        with self.assertRaises(TypeError):
+            await knot.process(goal="g", plan=_plan(), results=_results().data, llm=llm)  # type: ignore[arg-type]

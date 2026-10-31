@@ -16,6 +16,7 @@ from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_toolset import McpToolset
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_batch import ToolCallBatch
 from pirn_agents.tools.toolset import Toolset
 from tests.mcp.stub_mcp import StubMcpTransport
 
@@ -54,11 +55,14 @@ async def test_schema_is_provider_neutral_round_trip() -> None:
 async def _execute(calls: list[ToolCall], toolset: Toolset, **ctor: object) -> tuple:
     with Tapestry() as t:
         ParallelToolExecutor(
-            tool_calls=calls, toolset=toolset, _config=KnotConfig(id="pte"), **ctor
+            tool_calls=ToolCallBatch(calls),
+            toolset=toolset,
+            _config=KnotConfig(id="pte"),
+            **ctor,
         )
     run = await t.run(RunRequest())
     assert run.succeeded, run.exceptions
-    return run.outputs["pte"]
+    return run.outputs["pte"].data
 
 
 async def test_result_round_trips_through_parallel_executor() -> None:

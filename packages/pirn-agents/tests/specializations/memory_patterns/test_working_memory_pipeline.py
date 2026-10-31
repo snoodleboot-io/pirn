@@ -15,6 +15,7 @@ from pirn_agents.memory.patterns.working_memory_pipeline import (
 )
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class WindowMemoryStore(MemoryStore):
@@ -67,10 +68,11 @@ class TestWorkingMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         window = result.outputs["win"]
-        assert isinstance(window, tuple)
-        assert len(window) == 3
-        assert window[0].content == "msg-1"
-        assert window[2].content == "msg-3"
+        assert isinstance(window, ConversationPayload)
+        assert isinstance(window.data, tuple)
+        assert len(window.data) == 3
+        assert window.data[0].content == "msg-1"
+        assert window.data[2].content == "msg-3"
         stored = store.entries["working:s1"]
         assert len(stored["messages"]) == 3
 

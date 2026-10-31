@@ -20,6 +20,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.check import Check
 
 from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
@@ -28,7 +29,7 @@ from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class ReflectionCheck(Knot):
+class ReflectionCheck(Check):
     """Asks an :class:`LLMProvider` whether the agent should iterate again.
 
     The LLM is prompted to answer ``yes`` (iterate) or ``no``

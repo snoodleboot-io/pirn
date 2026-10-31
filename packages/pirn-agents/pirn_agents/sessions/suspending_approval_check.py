@@ -6,10 +6,10 @@ from `process()` through bare — no sentinel-exception/`__call__`-interception
 dance needed; a "denied approval" is explicitly named in `Knot.__call__`'s own
 docstring as the motivating case).
 
-Where
-:class:`~pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
-gates *within* a single run (returning a bool), this knot lets the run pause
-*as a run*: on a non-auto-approved response it produces
+An approval gate that returned a bare ``bool`` would only gate *within* a
+single run, and would carry core's ``Check`` role without a ``Gate(check=)``
+wiring; the placeholder that did so was deleted (PIR-874). This knot instead
+lets the run pause *as a run*: on a non-auto-approved response it produces
 ``Skipped(reason="awaiting_human")`` — the engine's own "this knot did not
 run" outcome, propagating to every downstream knot the normal way, with no
 separate checkpoint write. The turn's ``RunResult`` (already durably recorded

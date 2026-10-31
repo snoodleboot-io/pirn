@@ -45,7 +45,7 @@ class TestPlanRevisorProcess(unittest.IsolatedAsyncioTestCase):
             llm=llm,
         )
         assert isinstance(result, Plan)
-        assert result.steps == ("revised-step-one", "revised-step-two")
+        assert result.data == ("revised-step-one", "revised-step-two")
 
     async def test_context_includes_original_steps_and_failure(self) -> None:
         llm = StubLLMProvider(["1. fallback step"])
@@ -107,4 +107,4 @@ class TestPlanRevisorProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         plan = result.outputs["revisor"]
         assert isinstance(plan, Plan)
-        assert plan.steps == ("revised-step-one", "revised-step-two")
+        assert plan.data == ("revised-step-one", "revised-step-two")

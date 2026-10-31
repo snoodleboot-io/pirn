@@ -105,7 +105,6 @@ _RESULT_CLASSES: list[tuple[str, str, tuple[str, ...]]] = [
 # must NOT be re-parented onto AgentResult (they are not top-level *Result
 # pattern outcomes).
 _NON_RESULT_VALUE_OBJECTS: list[tuple[str, str]] = [
-    ("pirn_agents.specializations.evaluator_optimizer.judge_verdict", "JudgeVerdict"),
     ("pirn_agents.specializations.routing.route_candidate", "RouteCandidate"),
     ("pirn_agents.specializations.reflexion.reflexion_attempt", "ReflexionAttempt"),
 ]

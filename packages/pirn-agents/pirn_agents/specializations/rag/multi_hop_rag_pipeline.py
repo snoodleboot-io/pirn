@@ -31,11 +31,13 @@ References:
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.aggregator import Aggregator
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
@@ -121,19 +123,27 @@ class MultiHopRAGPipeline(AgentPipeline):
         if not sub_questions:
             sub_questions = [query]
 
-        all_hits: list[Any] = []
-        for sub_q in sub_questions:
-            with Tapestry() as inner_retrieve:
-                MemorySearchRetriever(
+        # One run, not one per hop: the sub-questions are independent retrievals,
+        # so they are siblings of an Aggregator and the engine runs them
+        # concurrently (knot-design-rules Rule 11; PIR-874). A run per hop made
+        # each hop's lineage an unrelated run and paid a round trip for each.
+        with Tapestry() as inner_retrieve:
+            per_hop: dict[str, Knot] = {
+                f"hop_{index}": MemorySearchRetriever(
                     store=memory,
                     query=sub_q,
                     top_k=top_k,
-                    _config=KnotConfig(id="sub_retrieve"),
+                    _config=KnotConfig(id=f"hop_{index}"),
                 )
-            sub_result = await self._run_inner(inner_retrieve)
-            hits: list[Mapping[str, Any]] = sub_result.outputs.get("sub_retrieve", [])
-            if isinstance(hits, list):
-                all_hits.extend(hits)
+                for index, sub_q in enumerate(sub_questions)
+            }
+            Aggregator(
+                combine=functools.partial(MultiHopRAGPipeline._merge_hits, tuple(per_hop)),
+                _config=KnotConfig(id="sub_retrieve"),
+                **per_hop,
+            )
+        sub_result = await self._run_inner(inner_retrieve)
+        all_hits: list[Any] = list(sub_result.outputs.get("sub_retrieve", []))
 
         with Tapestry() as inner_synth:
             prompt_knot = RAGPromptBuilder(
@@ -153,3 +163,26 @@ class MultiHopRAGPipeline(AgentPipeline):
         synth_result = await self._run_inner(inner_synth)
         raw = synth_result.outputs.get("response")
         return MultiHopResultExtractor(raw=raw, _config=KnotConfig(id="result"))
+
+    @staticmethod
+    def _merge_hits(
+        order: tuple[str, ...], **hops: list[Mapping[str, Any]]
+    ) -> list[Mapping[str, Any]]:
+        """Concatenate every hop's hits in sub-question order.
+
+        The hops finish in any order once the engine runs them concurrently, so
+        ``order`` fixes the sequence rather than arrival deciding it.
+
+        Args:
+            order: The hop keys, in sub-question order.
+            hops: Each hop's hits, keyed by its knot id.
+
+        Returns:
+            Every hop's hits, concatenated.
+        """
+        merged: list[Mapping[str, Any]] = []
+        for key in order:
+            hits = hops.get(key)
+            if isinstance(hits, list):
+                merged.extend(hits)
+        return merged
