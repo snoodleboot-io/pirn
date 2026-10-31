@@ -161,6 +161,8 @@ class FakeShopifyConnectionWithHeaders:
     def close(self) -> None:
         self.closed = True
 
+
+class ShopifyTableSourceTests(unittest.TestCase):
     def test_implements_table_source(self) -> None:
         client = ShopifyClient(client=FakeShopifyConnection())
         assert isinstance(client, TableSource)
