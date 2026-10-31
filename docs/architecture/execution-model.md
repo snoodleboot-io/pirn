@@ -182,6 +182,10 @@ Both fields are excluded from `model_dump`, like `concurrency_group`: they descr
 
 **Cancellation.** `Knot.__call__` turns every exception `process()` raises into `Err`, with one exception: a cancellation of the *task* running the knot propagates (PIR-849). `Knot._is_task_cancellation` tells the two apart with `Task.cancelling()` — positive only while a cancel request is pending on the task. So a run that is cancelled raises `CancelledError` out of `tapestry.run()` (the engine cancels and awaits its in-flight tasks first, and every admission slot comes back), a `KnotConfig.timeout` can expire as `TimeoutError` inside `asyncio.wait_for`, and a knot that raises `CancelledError` *itself*, with no cancellation pending, is still recorded as an ordinary `Err`. `SubTapestry.__call__` and the `Map`/`ZipMap`/`DictMap` fan-out path apply the same rule.
 
+A cancellation also *winds down* what the knot started. A fan-out cancels its elements and awaits them before the cancellation leaves `Knot.__call__`, so nothing it started is still running when the caller sees the error — `asyncio.wait` does not do this for you, and the elements were otherwise orphaned on the loop. An element that raises `CancelledError` itself is the fan-out's failure as soon as it happens, recorded as `Err(CancelledError)` once its siblings have been cancelled too.
+
+A cancelled run records **nothing**: history is written when the run finalizes, and a cancelled run never gets there, so there is no `RunResult`, no lineage row for the cancelled knot and none for the knots that had already succeeded. That is deliberate — a knot that never completed has no outcome to record, and a partial run is not a run — and it is why cancellation is observed by catching `CancelledError`/`TimeoutError` from `tapestry.run()`, not by reading a `RunResult`.
+
 ### Step 9: Lineage capture per knot
 
 `LineageRecorder.record_lineage` (`pirn/engine/lineage_recorder.py`) builds a `KnotLineage`:

@@ -112,6 +112,36 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### A cancelled fan-out, and a cancelled listener, wind down instead of running on (PIR-849)
+
+A cancellation of the task running a knot already propagates out of
+`Knot.__call__`, the `Map`/`ZipMap`/`DictMap` fan-out and
+`SubTapestry.__call__` rather than being recorded as an `Err` (PIR-849). Two
+places still swallowed or outran it:
+
+- **The fan-out's join.** `asyncio.wait` does not cancel what it was waiting
+  on when the waiter is cancelled, so a cancelled fan-out re-raised at once
+  and left every element it had started orphaned on the loop, running
+  `process()` to completion after the run had already raised. `Knot` now
+  cancels the elements and awaits them before the cancellation leaves the
+  knot, the same contract the engine's abort path keeps for the knots it has
+  in flight. The join itself is now one done-callback per element
+  (`Knot._join_fan_out`) rather than `asyncio.wait(…, FIRST_EXCEPTION)`, which
+  counts a failure only for a future that is *not* cancelled and so ignored an
+  element whose own `process()` raised `CancelledError` until every sibling had
+  run to the end. Such an element is now the fan-out's failure immediately,
+  recorded as `Err(CancelledError)` exactly as a lone knot's self-raise is, and
+  its siblings are cancelled. A callback per element also keeps the join a
+  single pass: re-entering `asyncio.wait` per completion re-registers a callback
+  on everything still pending, O(n²) churn on the event-loop thread (0.37 s of
+  CPU for 2000 elements finishing one per tick, against 0.07 s).
+- **The pub/sub listeners.** `PostgresStore._listen` and
+  `ValKeyStore._listen_loop` caught their own `CancelledError` and returned
+  normally, so a cancelled listener task completed as if it had finished its
+  work. The cleanup still runs in `finally`; the cancellation now reaches the
+  task. `ValKeyStore.close`, which cancels the task itself, is the one place
+  that still absorbs it.
+
 #### No production code falls back to a test stub (PIR-873)
 
 Four modules caught the `ImportError` from their optional backend and carried on

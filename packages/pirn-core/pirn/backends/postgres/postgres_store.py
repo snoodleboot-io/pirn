@@ -297,9 +297,12 @@ class PostgresStore(TapestryStore, SubscribableStore):
             try:
                 while self._subscribers:
                     await asyncio.sleep(0.05)
-            except asyncio.CancelledError:
-                pass
             finally:
+                # The listener's cancellation is not absorbed here: the
+                # connection is handed back and the ``CancelledError`` reaches
+                # the task, so ``task.cancel()`` followed by an await of it
+                # sees a cancelled task rather than one that returned
+                # normally (PIR-849).
                 await conn.remove_listener("pirn_knots", self._on_notify)
 
     async def close(self) -> None:
