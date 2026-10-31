@@ -114,4 +114,13 @@ class DuckdbDeduplicate(Knot):
         # SQL can reference it. ``DuckDBPyRelation.query(alias, sql)``
         # scopes the alias to the call without leaking a global table.
         deduped = batch.relation.query("upstream", sql)
+        if deduped is None:
+            # duckdb 2.0 types ``query`` as optional, because the same call runs
+            # a statement that produces no result set as readily as a SELECT.
+            # The SQL above is a SELECT, so ``None`` means duckdb answered a
+            # query with no relation at all — and the batch would otherwise be
+            # silently replaced by nothing. Refuse instead (PIR-846).
+            raise RuntimeError(
+                "DuckdbDeduplicate: duckdb returned no relation for the dedup SELECT"
+            )
         return batch.with_relation(deduped)
