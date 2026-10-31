@@ -121,3 +121,38 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = await self._make_knot()
         with self.assertRaisesRegex(ValueError, "plain identifier"):
             await k.process(batch=_make_batch(), keys=("id; DROP TABLE",))
+
+
+class TestDuckdbReturnsNoRelation(unittest.IsolatedAsyncioTestCase):
+    """duckdb 2.0 types ``query`` as optional; ``None`` must be refused, not applied.
+
+    The dedup SQL is a SELECT, so a ``None`` relation means duckdb answered the
+    query with nothing at all. Replacing the batch with that would silently
+    drop every row, so the knot raises instead (PIR-846).
+    """
+
+    async def test_refuses_a_none_relation_instead_of_emptying_the_batch(self) -> None:
+        batch = _make_batch()
+
+        class _NoRelation:
+            """Stands in for a relation whose ``query`` yields no result set."""
+
+            columns = batch.relation.columns
+
+            def query(self, _alias: str, _sql: str) -> duckdb.DuckDBPyRelation | None:
+                return None
+
+        empty = DuckdbDataBatch(
+            relation=_NoRelation(),  # type: ignore[arg-type]
+            connection=batch.connection,
+        )
+
+        @KnotFactory.knot
+        async def upstream() -> DuckdbDataBatch:
+            return batch
+
+        with Tapestry():
+            parent = upstream(_config=KnotConfig(id="up"))
+            knot = DuckdbDeduplicate(batch=parent, keys=("id",), _config=KnotConfig(id="d"))
+        with self.assertRaisesRegex(RuntimeError, "no relation for the dedup SELECT"):
+            await knot.process(batch=empty, keys=("id",))
