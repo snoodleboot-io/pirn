@@ -43,7 +43,7 @@ awkward = ["awkward>=2.5"]
 # Tier 2 — single-machine native frames (CPU).
 polars     = ["polars>=0.20"]
 datafusion = ["datafusion>=40.0"]
-duckdb     = ["duckdb>=0.10"]
+duckdb     = ["duckdb>=2.0"]
 
 # Tier 2.5 — out-of-core / drop-in distributed (pinned <3.14 until wheels land).
 modin = ["modin>=0.30; python_version<'3.14'"]
@@ -95,7 +95,14 @@ all-frames = [
     "polars>=0.20",
     "pandas>=2.0",
     "pyarrow>=14.0",
-    "duckdb>=0.10",
+    # 2.0 typed ``DuckDBPyRelation.query`` as optional (the same call runs a
+    # statement with no result set as readily as a SELECT), so callers must
+    # handle the ``None`` — and under pyright strict that handling is an
+    # *error* against 1.x, where the return is non-optional. The floor and the
+    # code have to agree. CI installs the latest and caught this when 2.0.0
+    # landed: main's own push run went red on a file the merge never touched
+    # (PIR-846).
+    "duckdb>=2.0",
     "datafusion>=40.0",
 ]
 
