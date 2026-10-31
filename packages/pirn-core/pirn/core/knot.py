@@ -1299,6 +1299,16 @@ class Knot:
     async def _run_fan_out_elements(self, calls: Sequence[Mapping[str, Any]]) -> list[Any]:
         """Run one ``process()`` per entry of *calls*, bounded, timed and retried.
 
+        Cancellation of the knot's own task is not a failure of any element:
+        it winds the whole fan-out down.  ``asyncio.wait`` does not cancel
+        what it was waiting on when the waiter is cancelled, so every element
+        still running would be left orphaned on the loop, running ``process()``
+        to completion long after the run that started it raised (PIR-849).
+        The elements are therefore cancelled and drained on the way out, which
+        is the same contract the engine's own abort path keeps for the knots it
+        has in flight: nothing is still running when the cancellation reaches
+        the caller.
+
         Args:
             calls: The ``process()`` kwargs for each element, in element order.
 
@@ -1308,25 +1318,114 @@ class Knot:
         Raises:
             BaseException: The first element failure, after cancelling the
                 elements still running -- the semantics the fan-out has always
-                documented.
+                documented.  Or the cancellation of this knot's own task,
+                re-raised once every element has wound down.
         """
         if not calls:
             return []
         limit = self._fan_out_limit()
         semaphore = asyncio.Semaphore(limit) if limit is not None else None
         tasks = [asyncio.ensure_future(self._fan_out_element(call, semaphore)) for call in calls]
-        _done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-        failure = next(
-            (task.exception() for task in tasks if task.done() and task.exception() is not None),
-            None,
-        )
+        try:
+            await self._join_fan_out(tasks)
+        except BaseException:
+            # The knot's task was cancelled while the elements ran.
+            await self._drain_fan_out_elements(tasks)
+            raise
+        failure = self._first_fan_out_failure(tasks)
         if failure is None:
             return [task.result() for task in tasks]
-        for task in pending:
-            task.cancel()
-        if pending:
-            await asyncio.wait(pending)
+        await self._drain_fan_out_elements(tasks)
         raise failure
+
+    @staticmethod
+    async def _join_fan_out(tasks: Sequence[asyncio.Future[Any]]) -> None:
+        """Wait until one element fails or is cancelled, or every element is done.
+
+        ``asyncio.wait(..., return_when=FIRST_EXCEPTION)`` cannot do this: it
+        counts a failure only for a future that is *not* cancelled, so it never
+        wakes for an element whose own ``process()`` raised ``CancelledError``
+        and waits for every sibling to run to completion instead (PIR-849).
+        Waking per completion through ``asyncio.wait`` can, but it registers a
+        fresh callback on every element still pending each time it is called:
+        O(n^2) callback churn on the event-loop thread, 0.37 s of CPU for a
+        2000-element fan-out finishing one element per tick against 0.06 s for
+        a single pass.  One done-callback per element costs one pass and wakes
+        on either condition.
+
+        Args:
+            tasks: One future per element.
+
+        Raises:
+            asyncio.CancelledError: If the knot's own task is cancelled while
+                the elements run; cancelling and draining them is the caller's
+                to do.
+        """
+        settled = asyncio.get_running_loop().create_future()
+        remaining = len(tasks)
+
+        # ``add_done_callback`` takes a one-argument callable, and the counter
+        # and the future to resolve can only reach it by closure; the same
+        # shape as ``MapAgent._signal_run_over``.
+        # design-decision-override
+        def _element_settled(task: asyncio.Future[Any]) -> None:
+            nonlocal remaining
+            remaining -= 1
+            if settled.done():
+                return
+            if remaining == 0 or task.cancelled() or task.exception() is not None:
+                settled.set_result(None)
+
+        for task in tasks:
+            task.add_done_callback(_element_settled)
+        try:
+            await settled
+        finally:
+            for task in tasks:
+                task.remove_done_callback(_element_settled)
+
+    @staticmethod
+    def _first_fan_out_failure(tasks: Sequence[asyncio.Future[Any]]) -> BaseException | None:
+        """The exception of the earliest element, in element order, that failed.
+
+        An element whose own ``process()`` raised ``asyncio.CancelledError``
+        ends as a *cancelled* task, and ``Future.exception()`` re-raises that
+        cancellation rather than returning it.  Reading it here would throw
+        mid-scan and leave the surviving elements running, so a cancelled
+        element is reported as a fresh ``CancelledError`` instead: an element
+        reporting its own cancellation is a failure like any other, and
+        ``Knot._is_task_cancellation`` still records it as ``Err`` because no
+        cancel is pending on the knot's task (PIR-849).
+
+        Args:
+            tasks: One future per element, in element order.
+
+        Returns:
+            The first failure found, or ``None`` when no element has failed.
+        """
+        for task in tasks:
+            if not task.done():
+                continue
+            if task.cancelled():
+                return asyncio.CancelledError()
+            exc = task.exception()
+            if exc is not None:
+                return exc
+        return None
+
+    @staticmethod
+    async def _drain_fan_out_elements(tasks: Sequence[asyncio.Future[Any]]) -> None:
+        """Cancel every element still running and wait for all of them to wind down.
+
+        Args:
+            tasks: One future per element; those already settled are left
+                alone.
+        """
+        outstanding = [task for task in tasks if not task.done()]
+        for task in outstanding:
+            task.cancel()
+        if outstanding:
+            await asyncio.wait(outstanding)
 
     def _fan_out_limit(self) -> int | None:
         """The most elements of this knot that may run at once, or ``None`` for no cap.

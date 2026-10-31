@@ -110,6 +110,56 @@ async def test_a_task_cancellation_propagates_out_of_a_sub_tapestry() -> None:
         await task
 
 
+async def test_a_cancelled_fan_out_winds_its_elements_down() -> None:
+    # Arrange: ``asyncio.wait`` leaves what it waited on running when the
+    # waiter is cancelled, so the elements have to be cancelled explicitly.
+    finished: list[int] = []
+
+    class _Element(Knot):
+        async def process(self, x: int, **_: Any) -> int:
+            await asyncio.sleep(0.2)
+            finished.append(x)
+            return x
+
+    knot = _Element(x=Map(_upstream()), _config=KnotConfig(id="k"))
+    task = asyncio.create_task(knot({"x": [1, 2, 3]}))
+    await asyncio.sleep(0.01)
+
+    # Act
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    # Assert
+    await asyncio.sleep(0.3)
+    assert finished == []
+
+
+async def test_an_element_that_cancels_itself_is_an_err_and_stops_its_siblings() -> None:
+    # Arrange: a cancelled element task makes ``Future.exception()`` re-raise,
+    # which would escape the scan and leave the siblings running.
+    finished: list[int] = []
+
+    class _FirstSelfCancels(Knot):
+        async def process(self, x: int, **_: Any) -> int:
+            if x == 1:
+                raise asyncio.CancelledError
+            await asyncio.sleep(0.2)
+            finished.append(x)
+            return x
+
+    knot = _FirstSelfCancels(x=Map(_upstream()), _config=KnotConfig(id="k"))
+
+    # Act
+    result = await knot({"x": [1, 2, 3]})
+
+    # Assert
+    assert isinstance(result, Err)
+    assert result.record.exc_type == "CancelledError"
+    await asyncio.sleep(0.3)
+    assert finished == []
+
+
 async def test_an_ordinary_exception_is_still_an_err() -> None:
     # Arrange
     class _Boom(Knot):

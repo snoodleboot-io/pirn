@@ -257,9 +257,12 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         try:
             while self._subscribers:
                 await asyncio.sleep(0.05)
-        except asyncio.CancelledError:
-            pass
         finally:
+            # The subscription client is closed either way, but the
+            # listener's cancellation propagates rather than being absorbed
+            # here, so the task completes as cancelled (PIR-849).  ``close``
+            # below is the one place that absorbs it: there the cancel is its
+            # own.
             await sub_client.close()
 
     async def close(self) -> None:
