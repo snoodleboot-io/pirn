@@ -112,6 +112,8 @@ class _BothHooks(PirnOpaqueValue):
     def __pirn_canonical__(self) -> dict[str, Any]:
         return {"canonical": self.label}
 
+
+class HybridCanonicalisationHookTests(unittest.TestCase):
     def test_canonical_hook_drives_hash(self):
         a = _CanonicalHookOnly(name="alice", weight=3)
         b = _CanonicalHookOnly(name="alice", weight=3)

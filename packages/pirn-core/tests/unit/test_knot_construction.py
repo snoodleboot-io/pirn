@@ -130,6 +130,8 @@ class _StandaloneTests(unittest.TestCase):
 async def double(x: int) -> int:
     return x * 2
 
+
+class DecoratorFactoryTests(unittest.TestCase):
     def test_decorator_factory_constructs_knot(self):
         p = Parameter("x", int, _config=KnotConfig(id="x"))
         d = double(x=p, _config=KnotConfig(id="d"))
@@ -141,11 +143,7 @@ async def double(x: int) -> int:
         assert callable(double.fn)
         assert isinstance(double.knot_class, type)
 
-    # ------------------------------------------------------- Optional wrapper
-
     def test_optional_decorator_is_optional(self):
-        from pirn.core.knot_factory import KnotFactory
-
         @KnotFactory.knot
         async def inner(x: int) -> int:
             return x
@@ -161,8 +159,8 @@ async def double(x: int) -> int:
         a = Add(a=p, b=q, _config=KnotConfig(id="a"))
         assert not isinstance(a, Optional)
 
-    # ------------------------------------------------------- immutability
 
+class KnotImmutabilityTests(unittest.TestCase):
     def test_immutability_after_construction(self):
         p = Parameter("x", int, _config=KnotConfig(id="x"))
         q = Parameter("y", int, _config=KnotConfig(id="y"))
@@ -170,8 +168,8 @@ async def double(x: int) -> int:
         with self.assertRaisesRegex(AttributeError, "immutable"):
             a.some_new_attr = 123  # type: ignore[attr-defined]
 
-    # ------------------------------------------------------- tapestry registration
 
+class TapestryRegistrationTests(unittest.TestCase):
     def test_with_block_registers_knots(self):
         with Tapestry() as t:
             p = Parameter("x", int, _config=KnotConfig(id="x"))
@@ -191,16 +189,14 @@ async def double(x: int) -> int:
         # We just check that it's a valid Knot.
         assert p.knot_id == "x"
 
-    # ------------------------------------------------------- duplicate id
-
     def test_duplicate_id_in_tapestry_raises(self):
         t = Tapestry()
         Parameter("x", int, _config=KnotConfig(id="dup"), tapestry=t)
         with self.assertRaisesRegex(ValueError, "already registered"):
             Parameter("y", int, _config=KnotConfig(id="dup"), tapestry=t)
 
-    # ------------------------------------------------------- error_policy
 
+class ErrorPolicyConstructionTests(unittest.TestCase):
     def test_default_error_policy(self):
         p = Parameter("x", int, _config=KnotConfig(id="x"))
         q = Parameter("y", int, _config=KnotConfig(id="y"))
