@@ -51,6 +51,7 @@ from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.generation.output_parser import OutputParser
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.planning.planner import Planner
 from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.planning.tool_router import ToolRouter
@@ -109,20 +110,25 @@ class StubLLMProvider(LLMProvider):
         text = self._POOL[idx % len(self._POOL)]
         return {"role": "assistant", "content": text}
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    ) -> AsyncIterator[StreamDelta]:
+        # Not ``async def``: the call itself returns the iterator, so a caller
+        # writes ``async for delta in provider.stream_chat(...)``. Awaiting it
+        # — which an ``async def`` invites — raises TypeError against every
+        # real provider. Fragments are the neutral ``StreamDelta``, not raw
+        # mappings (PIR-833). ``examples/agents_core_pipeline`` shows the same
+        # shape.
+        return self._one_chunk(messages)
+
+    async def _one_chunk(self, messages: Sequence[Mapping[str, Any]]) -> AsyncIterator[StreamDelta]:
         resp = await self.chat(messages)
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            yield {"content": resp["content"]}
-
-        return _aiter()
+        yield StreamDelta(content=str(resp["content"]))
 
     async def close(self) -> None:
         return None

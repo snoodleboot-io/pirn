@@ -88,9 +88,13 @@ async def analyse_sample(sample: RawSample) -> AnalysedSample:
     flags: list[str] = []
     critical = False
     for marker, value in sample.measurements.items():
-        lo, hi = REFERENCE_RANGES.get(marker, (None, None))
-        if lo is None:
+        bounds = REFERENCE_RANGES.get(marker)
+        if bounds is None:
+            # A marker with no reference range cannot be judged, so skip it
+            # rather than compare against a sentinel. Unpacking a (None, None)
+            # default left `hi` optional while only `lo` was guarded.
             continue
+        lo, hi = bounds
         if value < lo or value > hi:
             flags.append(marker)
             deviation = abs(value - (lo + hi) / 2) / ((hi - lo) / 2)

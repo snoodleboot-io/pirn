@@ -37,11 +37,12 @@ from pathlib import Path
 from typing import Any
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.core.run_result import RunResult
+from pirn.nodes.branch.branch import Branch
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -246,86 +247,71 @@ async def interpret_results(results: list[LabResult]) -> ClinicalEvent:
 # ----------------------------------------------------------------- SubTapestry nodes
 
 
+# ``process`` returns the terminal knot of the inner graph and the framework
+# runs it: the base ``__call__`` establishes the inner tapestry context, invokes
+# ``process``, runs the inner graph and surfaces the sink's output as this
+# knot's output. Building a ``Tapestry`` by hand and calling ``_run_inner``
+# would run the inner graph outside the engine, so the outer run would record
+# no lineage for any of these knots.
+
+
 class AdmissionProcessor(SubTapestry):
     """Inner pipeline: parse PV1 → enrich with acuity and bed data."""
 
-    async def process(self, message: Hl7Message, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("message", Hl7Message, default=message, _config=KnotConfig(id="msg"))
-            parsed = parse_admission(message=p, _config=KnotConfig(id="parsed"))
-            enrich_admission(admission=parsed, _config=KnotConfig(id="enriched"))
-        return await self._run_inner(inner)
+    async def process(self, message: Hl7Message, **_: Any) -> Knot:
+        p = Parameter("message", Hl7Message, default=message, _config=KnotConfig(id="msg"))
+        parsed = parse_admission(message=p, _config=KnotConfig(id="parsed"))
+        return enrich_admission(admission=parsed, _config=KnotConfig(id="enriched"))
 
 
 class OrderProcessor(SubTapestry):
     """Inner pipeline: parse OBR → validate order completeness."""
 
-    async def process(self, message: Hl7Message, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("message", Hl7Message, default=message, _config=KnotConfig(id="msg"))
-            parsed = parse_order(message=p, _config=KnotConfig(id="parsed"))
-            validate_order(order=parsed, _config=KnotConfig(id="validated"))
-        return await self._run_inner(inner)
+    async def process(self, message: Hl7Message, **_: Any) -> Knot:
+        p = Parameter("message", Hl7Message, default=message, _config=KnotConfig(id="msg"))
+        parsed = parse_order(message=p, _config=KnotConfig(id="parsed"))
+        return validate_order(order=parsed, _config=KnotConfig(id="validated"))
 
 
 class ResultProcessor(SubTapestry):
     """Inner pipeline: parse OBX segments → interpret critical values."""
 
-    async def process(self, message: Hl7Message, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("message", Hl7Message, default=message, _config=KnotConfig(id="msg"))
-            parsed = parse_results(message=p, _config=KnotConfig(id="parsed"))
-            interpret_results(results=parsed, _config=KnotConfig(id="interpreted"))
-        return await self._run_inner(inner)
+    async def process(self, message: Hl7Message, **_: Any) -> Knot:
+        p = Parameter("message", Hl7Message, default=message, _config=KnotConfig(id="msg"))
+        parsed = parse_results(message=p, _config=KnotConfig(id="parsed"))
+        return interpret_results(results=parsed, _config=KnotConfig(id="interpreted"))
 
 
 # ----------------------------------------------------------------- outer knots
 
 
-@KnotFactory.knot
-async def route_message(message: Hl7Message) -> RunResult:
-    """Dispatch to the correct SubTapestry processor by message type prefix."""
+# Dispatch is a ``Branch``: one selector reads the message-type prefix and the
+# non-selected branches come back ``Skipped`` with reason "branch_not_selected",
+# so the processors downstream of them never run. The previous shape built a
+# processor inside a plain knot and awaited ``processor.process(...)`` by hand,
+# which ran a whole inner pipeline outside the engine -- no scheduling, no
+# lineage, and a return type the base class does not declare.
+
+_PREFIX_PROCESSORS: dict[str, type[SubTapestry]] = {
+    "ADT": AdmissionProcessor,
+    "ORM": OrderProcessor,
+    "ORU": ResultProcessor,
+}
+
+
+def _message_prefix(message: Hl7Message) -> str:
+    """Select the branch for ``message``; raises on an unroutable type."""
     prefix = message.message_type[:3]
-    if prefix == "ADT":
-        processor: SubTapestry = AdmissionProcessor(
-            message=message,
-            _config=KnotConfig(id="admission_processor", validate_io=False),
-        )
-    elif prefix == "ORM":
-        processor = OrderProcessor(
-            message=message,
-            _config=KnotConfig(id="order_processor", validate_io=False),
-        )
-    elif prefix == "ORU":
-        processor = ResultProcessor(
-            message=message,
-            _config=KnotConfig(id="result_processor", validate_io=False),
-        )
-    else:
+    if prefix not in _PREFIX_PROCESSORS:
         raise ValueError(
             f"unknown message type prefix: {prefix!r} (full: {message.message_type!r})"
         )
-    return await processor.process(message=message)
+    return prefix
 
 
 @KnotFactory.knot
-async def log_clinical_event(message: Hl7Message, routed_result: RunResult) -> dict[str, Any]:
-    """Extract the ClinicalEvent from the routed result and create a log entry."""
-    output_key = {
-        "ADT": "enriched",
-        "ORM": "validated",
-        "ORU": "interpreted",
-    }.get(message.message_type[:3], "")
-
-    event: ClinicalEvent | None = routed_result.outputs.get(output_key)
-    if event is None:
-        return {
-            "encounter_id": message.encounter_id,
-            "message_type": message.message_type,
-            "status": "routing_error",
-            "requires_alert": False,
-        }
-
+async def log_clinical_event(message: Hl7Message, event: ClinicalEvent) -> dict[str, Any]:
+    """Create a log entry from the routed processor's clinical event."""
     return {
         "encounter_id": event.encounter_id,
         "message_type": message.message_type,
@@ -537,18 +523,34 @@ def _synthetic_messages() -> list[Hl7Message]:
 # ----------------------------------------------------------------- wiring
 
 
+#: One ``event_log`` knot per branch. Exactly one runs per message; the other
+#: two are skipped because their processor was skipped, so a run surfaces a
+#: single entry under the selected branch's key.
+EVENT_LOG_IDS: tuple[str, ...] = tuple(
+    f"event_log_{prefix.lower()}" for prefix in _PREFIX_PROCESSORS
+)
+
+
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
         message = Parameter("message", Hl7Message, _config=KnotConfig(id="message"))
-        routed = route_message(
-            message=message,
-            _config=KnotConfig(id="router", validate_io=False),
+        route = Branch(
+            input=message,
+            selector=_message_prefix,
+            branches=tuple(_PREFIX_PROCESSORS),
+            _config=KnotConfig(id="route", validate_io=False),
         )
-        log_clinical_event(
-            message=message,
-            routed_result=routed,
-            _config=KnotConfig(id="event_log", validate_io=False),
-        )
+        for prefix, processor_class in _PREFIX_PROCESSORS.items():
+            key = prefix.lower()
+            processed = processor_class(
+                message=route[prefix],
+                _config=KnotConfig(id=f"{key}_processor", validate_io=False),
+            )
+            log_clinical_event(
+                message=message,
+                event=processed,
+                _config=KnotConfig(id=f"event_log_{key}", validate_io=False),
+            )
     return t
 
 
@@ -575,7 +577,11 @@ async def main() -> None:
             print(err_line)
             continue
 
-        log_entry: dict[str, Any] = result.outputs.get("event_log", {})
+        # Exactly one branch ran, so exactly one of the three log knots
+        # produced an entry; the rest were skipped and are absent.
+        log_entry: dict[str, Any] = next(
+            (result.outputs[k] for k in EVENT_LOG_IDS if result.outputs.get(k)), {}
+        )
         enc = log_entry.get("encounter_id", msg.encounter_id)
         kind = log_entry.get("event_kind", "?")
         alert = "YES" if log_entry.get("requires_alert") else "no"
